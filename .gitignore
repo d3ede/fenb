@@ -1,8 +1,54 @@
+# Local agent instructions and assistant state (never publish)
+AGENTS.md
+AGENTS.override.md
+.agents/
+.codex/
+
+# Local toolchains, dependencies and build output
 .tools/
-build/
-dist/
-dist-diagnostics/
-*.zip
-*-release.json
+/build/
+/build-*/
+/dist/
+/dist-diagnostics/
+node_modules/
 vendor/**/examples/
+*.exe
+*.dll
+*.obj
+*.o
+*.pdb
+*.ilk
+*.lib
+*.a
+
+# Local captures, comparisons, audits and downloaded archives
+/artifacts/
+/*-audit.json
+/*-audit.txt
+/*-output.txt
+/*-release.json
+*.zip
+*.log
+
+# Environment variables and private credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+credentials.json
+secrets.json
+
+# Temporary files and editor/OS state
+*.tmp
+*.bak
+*.swp
+*.swo
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+Desktop.ini
 
