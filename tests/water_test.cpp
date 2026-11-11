@@ -81,10 +81,10 @@ int main() {
         float u, v;
     };
     static_assert(sizeof(V) == 36);
-    V vertices[] = {{-1, 0, -1, 0, 1, 0, 0xffffffff, 0, 0},
-                    {-1, 0, 1, 0, 1, 0, 0xffffffff, 0, 1},
-                    {1, 0, -1, 0, 1, 0, 0xffffffff, 1, 0},
-                    {1, 0, 1, 0, 1, 0, 0xffffffff, 1, 1}};
+    V vertices[] = {{-1, 0, -1, 0, 1, 0, 0x00ffffff, 0, 0},
+                    {-1, 0, 1, 0, 1, 0, 0x00ffffff, 0, 1},
+                    {1, 0, -1, 0, 1, 0, 0x00ffffff, 1, 0},
+                    {1, 0, 1, 0, 1, 0, 0x00ffffff, 1, 1}};
     Com<IDirect3DVertexBuffer9> vb;
     CHECK(SUCCEEDED(d->CreateVertexBuffer(sizeof(vertices), D3DUSAGE_WRITEONLY, 0x152, D3DPOOL_MANAGED,
                                           vb.out(), nullptr)));

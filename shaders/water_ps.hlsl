@@ -34,6 +34,7 @@ float4 WaterPS(float2 uv:TEXCOORD0,float3 world:TEXCOORD1,float3 normal:TEXCOORD
         else visibility=exp(-FogExtra.x*fogDepth);
     }
     base=lerp(FogColor.rgb,base,visibility);
-    // Keep animated texture cutouts and vertex alpha. Never use Neuz material alpha (zero).
-    return float4(base,saturate(tex.a*color.a*Surface.z+fresnel*Surface.w*.18));
+    // FENB owns water opacity. Legacy vertex/material alpha can be zero even on visible Neuz water.
+    // Preserve texture cutouts without multiplying opacity by that unused vertex channel.
+    return float4(base,tex.a*saturate(Surface.z+fresnel*Surface.w*.18));
 }
