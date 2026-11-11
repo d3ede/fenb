@@ -24,7 +24,13 @@ class Runtime {
     Settings settings;
     bool visible = false;
     bool compare = false;
+    bool centerPanel = true;
     unsigned waterDraws = 0, lastWaterDraws = 0;
+    int editorPage = 0;
+    char profileName[128]{};
+    std::string profileError;
+    std::string selectedProfile;
+    Settings selectedProfileSettings;
     std::string message;
     std::wstring configPath;
     double gpuBytes() const;

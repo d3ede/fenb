@@ -367,6 +367,8 @@ LRESULT CALLBACK Runtime::WindowProc(HWND hwnd, UINT msg, WPARAM w, LPARAM l, UI
         // the next ordinary Enter keydown, including when this closes the panel.
         self->suppressEnterChar_ = true;
         self->visible = !self->visible;
+        if (self->visible)
+            self->centerPanel = true;
         self->compare = false;
         if (self->visible && GetCapture() == hwnd)
             ReleaseCapture();

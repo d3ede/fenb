@@ -24,6 +24,7 @@ if($Diagnostics){$options+='-DFENB_DIAGNOSTICS';$sources+='src/pipeline_probe.cp
 & $cxx @options @sources 'src/d3d9.def' '-Wl,--gc-sections,--kill-at,--exclude-all-symbols' '-s' '-ld3d9' '-ldxguid' '-lcomctl32' '-ldwmapi' '-lgdi32' '-limm32' '-lbcrypt' '-o' "$outputDirectory/d3d9.dll"
 if ($LASTEXITCODE) { throw 'FENB build failed' }
 Copy-Item -LiteralPath 'config/FENB.ini' -Destination "$outputDirectory/FENB.ini" -Force
+Copy-Item -LiteralPath 'README.md' -Destination "$outputDirectory/README.md" -Force
 Copy-Item -LiteralPath "$imgui/LICENSE.txt" -Destination "$outputDirectory/Dear-ImGui-LICENSE.txt" -Force
 Copy-Item -LiteralPath 'assets/fonts/OFL.txt' -Destination "$outputDirectory/Inter-OFL.txt" -Force
 Get-Item -LiteralPath "$outputDirectory/d3d9.dll" | Select-Object FullName,Length
@@ -56,4 +57,10 @@ if ($Tests) {
     if ($LASTEXITCODE) { throw 'Runtime test build failed' }
     & '.\build\runtime-test.exe'
     if ($LASTEXITCODE) { throw 'Runtime tests failed' }
+    $uiSources=@($runtimeSources | Where-Object { $_ -ne 'tests/runtime_test.cpp' })
+    & $cxx @runtimeOptions 'tests/ui_test.cpp' @uiSources '-ld3d9' '-ldxguid' '-lcomctl32' '-ldwmapi' '-lgdi32' '-lgdiplus' '-limm32' '-lbcrypt' '-o' 'build/ui-test.exe'
+    if($LASTEXITCODE){throw 'UI test build failed'}
+    & '.\build\ui-test.exe'
+    if($LASTEXITCODE){throw 'UI interaction tests failed'}
+
 }
