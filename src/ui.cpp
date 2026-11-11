@@ -276,6 +276,9 @@ void ProfilePicker(Runtime &r, float width) {
                           !r.selectedProfile.empty() ? caption.c_str()
                                                      : (matching < 0 ? "Свой" : presets[matching]),
                           ImGuiComboFlags_HeightLarge)) {
+        ImGui::PushStyleVar(ImGuiStyleVar_SeparatorTextBorderSize, 1.f);
+        ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, ImVec2(0, .5f));
+        ImGui::PushStyleColor(ImGuiCol_Separator, ImVec4(.19f, .20f, .22f, 1));
         ImGui::SeparatorText("Готовые профили");
         for (int i = 0; i < 4; ++i)
             if (ImGui::Selectable(presets[i], matching == i && r.selectedProfile.empty(), 0, {0, 24})) {
@@ -317,8 +320,10 @@ void ProfilePicker(Runtime &r, float width) {
             ImGui::PopFont();
         }
         ImGui::Separator();
-        if (ImGui::Selectable("Создать профиль…", false, 0, {0, 26}))
+        if (ImGui::Selectable("Создать профиль…", false, 0, {0, 24}))
             createRequested = true;
+        ImGui::PopStyleColor();
+        ImGui::PopStyleVar(2);
         ImGui::EndCombo();
     }
     ImGui::PopStyleVar(2);
