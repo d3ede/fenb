@@ -1,0 +1,18 @@
+#pragma once
+#include "common.hpp"
+
+struct Settings {
+    bool enabled = true, bloom = true, color = true;
+    float bloomStrength = .22f, threshold = .72f, knee = .15f, radius = 1.6f;
+    int bloomScale = 4;
+    float exposure = 0.f, contrast = 1.f, saturation = 1.f;
+    float temperature = 0.f, tint = 0.f, gamma = 1.f;
+    float shadows = 0.f, highlights = 0.f;
+    bool openOnStart = false;
+    int panelPage = 0;
+    bool operator==(const Settings &) const = default;
+    void sanitize();
+    bool load(const std::wstring &path);
+    bool save(const std::wstring &path) const;
+    void preset(int index);
+};

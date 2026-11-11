@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="600" height="520" viewBox="0 0 600 520" fill="none"><title>FENB / aurora / balanced gloss / symbol</title><defs>
+<clipPath id="aurora-balanced-symbol-F-clip"><path d="M160 455V180C160 112 191 78 259 78H478L402 155H256C234 155 222 168 222 190V250C236 224 253 211 282 211H407L335 282H248C231 282 222 294 222 312V394Z"/></clipPath>
+<linearGradient id="aurora-balanced-symbol-metal" x1="340" y1="75" x2="153" y2="448" gradientUnits="userSpaceOnUse"><stop stop-color="#AADEE2"/><stop offset=".37" stop-color="#65B3C5"/><stop offset=".48" stop-color="#AADEE2"/><stop offset=".62" stop-color="#65B3C5"/><stop offset="1" stop-color="#4E84B9"/></linearGradient>
+<linearGradient id="aurora-balanced-symbol-orbit" x1="83" y1="398" x2="548" y2="155" gradientUnits="userSpaceOnUse"><stop stop-color="#4B9EB6"/><stop offset=".22" stop-color="#C8E9EA"/><stop offset=".49" stop-color="#4B9EB6"/><stop offset=".8" stop-color="#2B507D"/><stop offset="1" stop-color="#4B9EB6"/></linearGradient>
+<linearGradient id="aurora-balanced-symbol-star" x1="430" y1="230" x2="489" y2="312" gradientUnits="userSpaceOnUse"><stop stop-color="#C8E9EA"/><stop offset=".5" stop-color="#65B3C5"/><stop offset="1" stop-color="#4B9EB6"/></linearGradient>
+<linearGradient id="aurora-balanced-symbol-word" x1="310" y1="0" x2="330" y2="90" gradientUnits="userSpaceOnUse"><stop stop-color="#81B7C2"/><stop offset="1" stop-color="#4D8199"/></linearGradient>
+</defs><g transform="translate(-9 -8)"><g id="aurora-balanced-symbol-emblem">
+<path id="aurora-balanced-symbol-orbit-back" d="M398 152C503 121 571 134 561 173C555 196 527 224 484 252L477 244C515 216 540 190 535 173C529 151 470 145 398 152Z" fill="url(#aurora-balanced-symbol-orbit)"/>
+<path id="aurora-balanced-symbol-F" d="M160 455V180C160 112 191 78 259 78H478L402 155H256C234 155 222 168 222 190V250C236 224 253 211 282 211H407L335 282H248C231 282 222 294 222 312V394Z" fill="url(#aurora-balanced-symbol-metal)" stroke="#ACD9DE" stroke-opacity=".65" stroke-width="1.6" stroke-linejoin="round"/>
+<g id="aurora-balanced-symbol-facets" clip-path="url(#aurora-balanced-symbol-F-clip)">
+<path id="aurora-balanced-symbol-top-facet" d="M160 248L238 169C229 175 222 181 222 190V250C207 269 185 300 160 336Z" fill="#2B507D" opacity=".45"/>
+<path id="aurora-balanced-symbol-lower-facet" d="M160 455V387L335 211H407L335 282H248C231 282 222 294 222 312V394Z" fill="#AADEE2" opacity=".23"/>
+<path id="aurora-balanced-symbol-top-sheen" d="M259 78H398L322 155H256C234 155 222 168 222 190L160 252V180C160 112 191 78 259 78Z" fill="#C8E9EA" opacity=".13"/>
+</g>
+<path id="aurora-balanced-symbol-orbit-front" d="M160 265C107 302 57 343 58 369C59 413 235 383 429 289C279 371 104 419 64 394C24 369 85 309 160 265Z" fill="url(#aurora-balanced-symbol-orbit)"/>
+<path id="aurora-balanced-symbol-orbit-glint" d="M65 386C87 403 154 394 220 376C149 398 85 407 65 386Z" fill="#C8E9EA" opacity=".85"/>
+<path id="aurora-balanced-symbol-spark" d="M458 183C458 252 453 269 386 269C453 269 458 285 458 357C458 285 464 269 532 269C464 269 458 252 458 183Z" fill="url(#aurora-balanced-symbol-star)"/>
+<path id="aurora-balanced-symbol-spark-core" d="M458 230C458 261 453 269 421 269C453 269 458 277 458 307C458 277 464 269 496 269C464 269 458 261 458 230Z" fill="#C8E9EA" opacity=".65"/>
+</g></g></svg>

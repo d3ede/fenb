@@ -1,0 +1,8 @@
+.tools/
+build/
+dist/
+dist-diagnostics/
+*.zip
+*-release.json
+vendor/**/examples/
+
