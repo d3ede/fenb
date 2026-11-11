@@ -440,8 +440,7 @@ void DrawPanel(Runtime &r) {
     ImGui::SetCursorPos({16, 48});
     ProfilePicker(r, size.x);
     ImGui::SetCursorPos({16, 80});
-    ImGui::BeginChild("adjustments", {size.x - 32, size.y - 116 - (r.editorPage == 0 ? 34.f : 0.f)},
-                      ImGuiChildFlags_None);
+    ImGui::BeginChild("adjustments", {size.x - 32, size.y - 116}, ImGuiChildFlags_None);
     const Settings defaults;
     bool reset = false;
     if (r.editorPage == 0) {
@@ -494,6 +493,23 @@ void DrawPanel(Runtime &r) {
             ImGui::EndDisabled();
         }
         ImGui::Dummy({0, 6});
+        auto waterPos = ImGui::GetCursorScreenPos();
+        float waterWidth = ImGui::GetContentRegionAvail().x;
+        auto *navDraw = ImGui::GetWindowDrawList();
+        navDraw->AddLine(waterPos, {waterPos.x + waterWidth, waterPos.y}, Line);
+        if (ImGui::InvisibleButton("water-settings", {waterWidth - 30, 30}, ImGuiButtonFlags_EnableNav))
+            r.editorPage = 1;
+        ImU32 navColor = ImGui::IsItemHovered() ? Text : Muted;
+        TextAt(navDraw, {waterPos.x + 17, waterPos.y + 7}, "WaterFX", Text, 15);
+        for (int i = 0; i < 2; ++i) {
+            float x = waterPos.x + waterWidth - 64 + i * 7;
+            navDraw->AddLine({x, waterPos.y + 10}, {x + 5, waterPos.y + 15}, navColor, 1.5f);
+            navDraw->AddLine({x + 5, waterPos.y + 15}, {x, waterPos.y + 20}, navColor, 1.5f);
+        }
+        ImGui::SetCursorScreenPos({waterPos.x + waterWidth - 22, waterPos.y + 6});
+        SquareSwitch("waterMain", s.water);
+        ImGui::SetCursorScreenPos(waterPos);
+        ImGui::Dummy({waterWidth, 30});
     } else {
         auto back = ImGui::GetCursorScreenPos();
         auto *draw = ImGui::GetWindowDrawList();
@@ -536,19 +552,6 @@ void DrawPanel(Runtime &r) {
         }
     }
     ImGui::EndChild();
-    if (r.editorPage == 0) {
-        ImGui::SetCursorPos({16, size.y - 62});
-        auto p = ImGui::GetCursorScreenPos();
-        float width = size.x - 32;
-        d->AddLine(p, {p.x + width, p.y}, Line);
-        if (ImGui::InvisibleButton("water-settings", {width - 30, 30}, ImGuiButtonFlags_EnableNav))
-            r.editorPage = 1;
-        bool hover = ImGui::IsItemHovered();
-        TextAt(d, {p.x + 17, p.y + 8}, "WaterFX", Text, 15);
-        TextAt(d, {p.x + width - 129, p.y + 8}, "Настроить", hover ? Text : Muted, 14);
-        ImGui::SetCursorScreenPos({p.x + width - 22, p.y + 7});
-        SquareSwitch("waterMain", s.water);
-    }
     float footer = size.y - 28;
     d->AddLine({origin.x + 1, origin.y + footer}, {origin.x + size.x - 1, origin.y + footer}, Line, 1);
     const char *status = !r.message.empty() ? r.message.c_str()

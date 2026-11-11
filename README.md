@@ -9,7 +9,7 @@ FENB is a graphics mod for Flyff, inspired by ENBSeries. It uses a Windows x86 D
 - Drag a slider, double-click its track to reset it, or click the number to type. The small arrow buttons use a parameter-specific step. The reset icon is shown for changed values.
 - Edits save automatically to `FENB.ini`. **Ctrl + S** saves immediately.
 - **Create…** beside the profile selector, or **Create profile…** inside its dropdown, saves the current settings under a name. Type the name and press **Save**; the profile appears in the selector. For a loaded custom profile the toolbar offers **Save…**. Existing names require the explicit **Replace profile** button. Files live in `FENB-presets`; compatible `.ini` files can also be copied into that folder.
-- **WaterFX → Configure** below Bloom opens the water page. **Back** returns to the image controls.
+- **WaterFX »** immediately after Bloom opens the water page. **Back** returns to the image controls.
 - The reset icon in each section heading resets only that section's parameters. Effect enable switches, other sections, the global switch and the FPS option are preserved.
 
 Three visual presets are included: **Мягкая бирюза** (soft turquoise), **Прозрачная вода** (clear water), and **Насыщенная вода** (stronger color). They were tuned in the running Homesickness client; they do not add scene reflections or underwater caustics.

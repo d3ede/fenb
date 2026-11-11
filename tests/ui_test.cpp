@@ -155,7 +155,11 @@ int main() {
     r.settings.waterOpacity = .7f;
     click(610, 134);
     CHECK(r.settings.exposure == 0 && r.settings.saturation == 1 && r.settings.waterOpacity == .7f);
+    click(185, 134); // Collapse color: Bloom follows immediately.
+    click(185, 166); // Collapse Bloom: WaterFX must follow the heading, not the footer.
     click(195, 512);
+    CHECK(r.editorPage == 0); // The old pinned position is no longer navigation.
+    click(195, 201);
     CHECK(r.editorPage == 1);
     frame();
     click(610, 168);
