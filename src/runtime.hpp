@@ -2,6 +2,7 @@
 #include "settings.hpp"
 struct ImGuiContext;
 class Effects;
+class WaterFX;
 #ifdef FENB_DIAGNOSTICS
 class PipelineProbe;
 #endif
@@ -23,6 +24,7 @@ class Runtime {
     Settings settings;
     bool visible = false;
     bool compare = false;
+    unsigned waterDraws = 0, lastWaterDraws = 0;
     std::string message;
     std::wstring configPath;
     double gpuBytes() const;
@@ -30,13 +32,29 @@ class Runtime {
     void reload();
     void settingsChanged();
     void beforeDraw();
-    void drawFVF(DWORD value) { drawFVF_=value; fvfKnown_=true; }
-    void drawShader(bool active) { vertexShaderActive_=active; shaderKnown_=true; }
-    void drawTarget(DWORD index, IDirect3DSurface9* target) { if(index==0){drawTarget_=target;targetKnown_=true;} }
-    void invalidateDrawState() { fvfKnown_=shaderKnown_=targetKnown_=false; }
+    void beforeWaterDraw(UINT upStride = 0);
+    void afterWaterDraw(bool up = false, bool indexed = false);
+    void drawFVF(DWORD value) {
+        drawFVF_ = value;
+        fvfKnown_ = true;
+    }
+    void drawShader(bool active) {
+        vertexShaderActive_ = active;
+        shaderKnown_ = true;
+    }
+    void drawTarget(DWORD index, IDirect3DSurface9 *target) {
+        if (index == 0) {
+            drawTarget_ = target;
+            targetKnown_ = true;
+        }
+    }
+    void invalidateDrawState() {
+        fvfKnown_ = shaderKnown_ = targetKnown_ = false;
+    }
 #ifdef FENB_DIAGNOSTICS
     void requestCapture();
-    void captureDraw(const char* api, UINT type, UINT primitives, UINT vertices, UINT stride=0, const void* up=nullptr);
+    void captureDraw(const char *api, UINT type, UINT primitives, UINT vertices, UINT stride = 0,
+                     const void *up = nullptr);
 #endif
     bool pendingSave() const {
         return dirty_;
@@ -50,6 +68,7 @@ class Runtime {
     void resetFrame();
     IDirect3DDevice9 *device_; // borrowed: owner destroys Runtime before releasing the real device
     std::unique_ptr<Effects> effects_;
+    std::unique_ptr<WaterFX> water_;
 #ifdef FENB_DIAGNOSTICS
     std::unique_ptr<PipelineProbe> probe_;
 #endif
@@ -64,10 +83,10 @@ class Runtime {
     FILETIME configTime_{};
     bool dirty_ = false, saveFailed_ = false;
     DWORD lastEdit_ = 0, lastSaveAttempt_ = 0;
-    IDirect3DSurface9* sceneBackbuffer_ = nullptr;
-    IDirect3DSurface9* drawTarget_ = nullptr; // borrowed from current native binding
+    IDirect3DSurface9 *sceneBackbuffer_ = nullptr;
+    IDirect3DSurface9 *drawTarget_ = nullptr; // borrowed from current native binding
     DWORD drawFVF_ = 0;
-    bool fvfKnown_=false, shaderKnown_=false, targetKnown_=false, vertexShaderActive_=false;
-    bool sawWorld_=false, hudStarted_=false;
+    bool fvfKnown_ = false, shaderKnown_ = false, targetKnown_ = false, vertexShaderActive_ = false;
+    bool sawWorld_ = false, hudStarted_ = false;
 };
 void DrawPanel(Runtime &runtime);

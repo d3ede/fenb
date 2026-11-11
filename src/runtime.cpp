@@ -5,6 +5,7 @@
 #include "generated/ui_font.hpp"
 #include "imgui.h"
 #include "state_guard.hpp"
+#include "water.hpp"
 #include <commctrl.h>
 #ifdef FENB_DIAGNOSTICS
 #include "pipeline_probe.hpp"
@@ -27,13 +28,15 @@ FILETIME FileTime(const std::wstring &path) {
     return data.ftLastWriteTime;
 }
 } // namespace
-Runtime::Runtime(IDirect3DDevice9 *device) : device_(device), effects_(std::make_unique<Effects>(device)) {
+Runtime::Runtime(IDirect3DDevice9 *device)
+    : device_(device), effects_(std::make_unique<Effects>(device)),
+      water_(std::make_unique<WaterFX>(device)) {
     configPath = ModuleDirectory() + L"FENB.ini";
     settings.load(configPath);
     visible = settings.openOnStart;
     configTime_ = FileTime(configPath);
 #ifdef FENB_DIAGNOSTICS
-    probe_=std::make_unique<PipelineProbe>(device);
+    probe_ = std::make_unique<PipelineProbe>(device);
 #endif
 }
 Runtime::~Runtime() {
@@ -106,6 +109,7 @@ bool Runtime::initUI() {
 }
 void Runtime::invalidate() {
     effects_->invalidate();
+    water_->invalidate();
     if (context_) {
         ContextScope scope(context_);
         ImGui_ImplDX9_InvalidateDeviceObjects();
@@ -140,39 +144,77 @@ void Runtime::afterPresent(HRESULT result) {
     }
 }
 void Runtime::resetFrame() {
-    Drop(sceneBackbuffer_);drawTarget_=nullptr;
-    sawWorld_=hudStarted_=false;invalidateDrawState();
+    lastWaterDraws = waterDraws;
+    waterDraws = 0;
+    Drop(sceneBackbuffer_);
+    drawTarget_ = nullptr;
+    sawWorld_ = hudStarted_ = false;
+    invalidateDrawState();
+}
+void Runtime::beforeWaterDraw(UINT upStride) {
+    if (lost_ || hudStarted_ || !settings.enabled || !settings.water || compare || vertexShaderActive_ ||
+        !fvfKnown_ || drawFVF_ != 0x152 || !sceneBackbuffer_ || drawTarget_ != sceneBackbuffer_)
+        return;
+    if (water_->begin(settings, upStride))
+        ++waterDraws;
+}
+void Runtime::afterWaterDraw(bool up, bool indexed) {
+    water_->end(up, indexed);
 }
 void Runtime::beforeDraw() {
     // Cache setters: do not query every DX9 state on thousands of world draws.
-    if(hudStarted_ || lost_)return;
-    if(!sceneBackbuffer_ && FAILED(device_->GetBackBuffer(0,0,D3DBACKBUFFER_TYPE_MONO,&sceneBackbuffer_)))return;
-    if(!targetKnown_) {
+    if (hudStarted_ || lost_)
+        return;
+    if (!sceneBackbuffer_ && FAILED(device_->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &sceneBackbuffer_)))
+        return;
+    if (!targetKnown_) {
         Com<IDirect3DSurface9> target;
-        if(FAILED(device_->GetRenderTarget(0,target.out())))return;
-        drawTarget_=target.p;targetKnown_=true;
+        if (FAILED(device_->GetRenderTarget(0, target.out())))
+            return;
+        drawTarget_ = target.p;
+        targetKnown_ = true;
     }
-    if(drawTarget_!=sceneBackbuffer_)return; // shadow maps / off-screen previews are not the main scene
-    if(!fvfKnown_){if(FAILED(device_->GetFVF(&drawFVF_)))return;fvfKnown_=true;}
-    if(!shaderKnown_){Com<IDirect3DVertexShader9> vs;if(FAILED(device_->GetVertexShader(vs.out())))return;vertexShaderActive_=vs.p!=nullptr;shaderKnown_=true;}
-    const bool screenSpace=!vertexShaderActive_ && (drawFVF_&D3DFVF_POSITION_MASK)==D3DFVF_XYZRHW;
-    if(!screenSpace){
-        DWORD position=drawFVF_&D3DFVF_POSITION_MASK;
-        if(vertexShaderActive_ || position==D3DFVF_XYZ || (position>=D3DFVF_XYZB1 && position<=D3DFVF_XYZB5))sawWorld_=true;
+    if (drawTarget_ != sceneBackbuffer_)
+        return; // shadow maps / off-screen previews are not the main scene
+    if (!fvfKnown_) {
+        if (FAILED(device_->GetFVF(&drawFVF_)))
+            return;
+        fvfKnown_ = true;
+    }
+    if (!shaderKnown_) {
+        Com<IDirect3DVertexShader9> vs;
+        if (FAILED(device_->GetVertexShader(vs.out())))
+            return;
+        vertexShaderActive_ = vs.p != nullptr;
+        shaderKnown_ = true;
+    }
+    const bool screenSpace = !vertexShaderActive_ && (drawFVF_ & D3DFVF_POSITION_MASK) == D3DFVF_XYZRHW;
+    if (!screenSpace) {
+        DWORD position = drawFVF_ & D3DFVF_POSITION_MASK;
+        if (vertexShaderActive_ || position == D3DFVF_XYZ ||
+            (position >= D3DFVF_XYZB1 && position <= D3DFVF_XYZB5))
+            sawWorld_ = true;
         return;
     }
     // Neuz switches from world geometry to RHW HUD/nameplates. Process once BEFORE
     // the first HUD draw. Any later 3D UI previews must remain unprocessed as well.
-    hudStarted_=true;
-    if(!sawWorld_ || !settings.enabled || compare || (!settings.bloom&&!settings.color))return;
-    StateGuard state(device_);if(!state.valid())return;
+    hudStarted_ = true;
+    if (!sawWorld_ || !settings.enabled || compare || (!settings.bloom && !settings.color))
+        return;
+    StateGuard state(device_);
+    if (!state.valid())
+        return;
     // This is a COLOR resolve, permitted inside BeginScene. We never copy depth.
-    if(!effects_->prepare(sceneBackbuffer_,settings))return;
-    state.isolateTargets();device_->SetRenderTarget(0,sceneBackbuffer_);
-    const bool ownScene=!inScene_;
-    if(ownScene && FAILED(device_->BeginScene()))return;
-    effects_->draw(sceneBackbuffer_,settings);
-    if(ownScene)device_->EndScene();
+    if (!effects_->prepare(sceneBackbuffer_, settings))
+        return;
+    state.isolateTargets();
+    device_->SetRenderTarget(0, sceneBackbuffer_);
+    const bool ownScene = !inScene_;
+    if (ownScene && FAILED(device_->BeginScene()))
+        return;
+    effects_->draw(sceneBackbuffer_, settings);
+    if (ownScene)
+        device_->EndScene();
 }
 void Runtime::beforePresent(IDirect3DSwapChain9 *provided, DWORD flags, HWND windowOverride) {
     std::lock_guard lock(mutex_);
@@ -199,7 +241,8 @@ void Runtime::beforePresent(IDirect3DSwapChain9 *provided, DWORD flags, HWND win
     }
     bool main = attachWindow(window);
 #ifdef FENB_DIAGNOSTICS
-    if(main)probe_->boundary();
+    if (main)
+        probe_->boundary();
 #endif
     DWORD now = GetTickCount();
     bool activeEditor = false;
@@ -220,9 +263,11 @@ void Runtime::beforePresent(IDirect3DSwapChain9 *provided, DWORD flags, HWND win
     bool panel = visible && main && initUI();
     // Final-frame filtering would recolor HUD. Only use this fallback if the frame
     // contains confirmed world geometry and no screen-space UI was drawn at all.
-    bool process = sawWorld_ && !hudStarted_ && settings.enabled && !compare && (settings.bloom || settings.color);
+    bool process =
+        sawWorld_ && !hudStarted_ && settings.enabled && !compare && (settings.bloom || settings.color);
     if (!panel && !process) {
-        if(!settings.enabled || (!settings.bloom&&!settings.color))effects_->invalidate();
+        if (!settings.enabled || (!settings.bloom && !settings.color))
+            effects_->invalidate();
         return;
     }
     Com<IDirect3DSurface9> backbuffer;
@@ -261,8 +306,14 @@ double Runtime::gpuBytes() const {
     return double(effects_->bytes());
 }
 #ifdef FENB_DIAGNOSTICS
-void Runtime::requestCapture(){probe_->request();message="Запрошен захват 3 кадров DX9";}
-void Runtime::captureDraw(const char* api,UINT type,UINT primitives,UINT vertices,UINT stride,const void* up){probe_->draw(api,type,primitives,vertices,stride,up);}
+void Runtime::requestCapture() {
+    probe_->request();
+    message = "Запрошен захват 3 кадров DX9";
+}
+void Runtime::captureDraw(const char *api, UINT type, UINT primitives, UINT vertices, UINT stride,
+                          const void *up) {
+    probe_->draw(api, type, primitives, vertices, stride, up);
+}
 #endif
 void Runtime::save() {
     settings.sanitize();
@@ -297,8 +348,8 @@ LRESULT CALLBACK Runtime::WindowProc(HWND hwnd, UINT msg, WPARAM w, LPARAM l, UI
     }
     const bool keyDown = msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN;
     const bool keyUp = msg == WM_KEYUP || msg == WM_SYSKEYUP;
-    if ((msg == WM_CHAR || msg == WM_SYSCHAR || msg == WM_UNICHAR) &&
-        (w == '\r' || w == '\n') && self->suppressEnterChar_)
+    if ((msg == WM_CHAR || msg == WM_SYSCHAR || msg == WM_UNICHAR) && (w == '\r' || w == '\n') &&
+        self->suppressEnterChar_)
         return 0;
     if (keyUp && w == VK_RETURN && self->hotkeyHeld_) {
         self->hotkeyHeld_ = false;
@@ -309,8 +360,8 @@ LRESULT CALLBACK Runtime::WindowProc(HWND hwnd, UINT msg, WPARAM w, LPARAM l, UI
     if (keyDown && w == VK_RETURN && !(l & (1LL << 30)))
         self->suppressEnterChar_ = false;
     const bool shift = (GetKeyState(VK_SHIFT) | GetKeyState(VK_LSHIFT) | GetKeyState(VK_RSHIFT)) & 0x8000;
-    if (msg == WM_KEYDOWN && w == VK_RETURN && shift &&
-        !(GetKeyState(VK_CONTROL) & 0x8000) && !(GetKeyState(VK_MENU) & 0x8000) && !(l & (1LL << 30))) {
+    if (msg == WM_KEYDOWN && w == VK_RETURN && shift && !(GetKeyState(VK_CONTROL) & 0x8000) &&
+        !(GetKeyState(VK_MENU) & 0x8000) && !(l & (1LL << 30))) {
         self->hotkeyHeld_ = true;
         // TranslateMessage may queue CR after KEYUP. Keep it suppressed until
         // the next ordinary Enter keydown, including when this closes the panel.

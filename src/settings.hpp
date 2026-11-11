@@ -8,6 +8,11 @@ struct Settings {
     float exposure = 0.f, contrast = 1.f, saturation = 1.f;
     float temperature = 0.f, tint = 0.f, gamma = 1.f;
     float shadows = 0.f, highlights = 0.f;
+    bool water = true;
+    float waterWaves = .035f, waterLength = 5.f, waterSpeed = .7f;
+    float waterRipples = .35f, waterRippleScale = 2.f;
+    float waterOpacity = .55f, waterSky = .25f, waterGlints = .65f, waterGloss = .65f;
+    float waterTint = .25f;
     bool openOnStart = false;
     int panelPage = 0;
     bool operator==(const Settings &) const = default;
