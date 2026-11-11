@@ -33,6 +33,7 @@ Runtime::Runtime(IDirect3DDevice9 *device)
       water_(std::make_unique<WaterFX>(device)) {
     configPath = ModuleDirectory() + L"FENB.ini";
     settings.load(configPath);
+    fpsLimiter_.update(settings.unlockFps);
     visible = settings.openOnStart;
     configTime_ = FileTime(configPath);
 #ifdef FENB_DIAGNOSTICS
@@ -260,6 +261,7 @@ void Runtime::beforePresent(IDirect3DSwapChain9 *provided, DWORD flags, HWND win
             configTime_ = modified;
         }
     }
+    fpsLimiter_.update(settings.unlockFps);
     bool panel = visible && main && initUI();
     // Final-frame filtering would recolor HUD. Only use this fallback if the frame
     // contains confirmed world geometry and no screen-space UI was drawn at all.
@@ -327,12 +329,14 @@ void Runtime::save() {
 }
 void Runtime::reload() {
     bool loaded = settings.load(configPath);
+    fpsLimiter_.update(settings.unlockFps);
     if (loaded)
         dirty_ = false;
     message = loaded ? "Настройки загружены" : "Файл настроек не найден";
     configTime_ = FileTime(configPath);
 }
 void Runtime::settingsChanged() {
+    fpsLimiter_.update(settings.unlockFps);
     dirty_ = true;
     lastEdit_ = GetTickCount();
     message.clear();

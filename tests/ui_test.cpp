@@ -109,6 +109,18 @@ int main() {
     frame();
     auto *panel = ImGui::FindWindowByName("FENB");
     CHECK(panel && panel->Pos.x == 130 && panel->Pos.y == 40);
+    // Inspect the new action before opening profile popups.
+    mouse(625, 60, false);
+    click(625, 60);
+    frame();
+    CHECK(Screenshot(d, L"build/FENB-fps-menu.png"));
+    CHECK(ImGui::IsPopupOpen("actions", ImGuiPopupFlags_AnyPopupId));
+    CHECK(!r.fpsUnlockSupported() && !r.settings.unlockFps);
+    auto fpsPopup = ImGui::GetCurrentContext()->OpenPopupStack.back().Window->Pos;
+    click(fpsPopup.x + 70, fpsPopup.y + 17);
+    CHECK(!r.settings.unlockFps); // Unknown executables cannot enable the menu item.
+    click(150, 60); // Close the action menu before the existing interaction checks.
+    frame();
     // Main: WaterFX navigation is visible before color controls. First slider starts at y=181.
     r.settings.exposure = .8f;
     frame();

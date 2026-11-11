@@ -11,6 +11,14 @@ FENB is a graphics mod for Flyff, inspired by ENBSeries. It uses a Windows x86 D
 - **Save…** beside the profile selector saves a named profile in `FENB-presets`. Existing names require the explicit **Replace profile** button. Copy compatible `.ini` files into this folder to add profiles.
 - **WaterFX** opens its own compact page. **Back** returns to the image controls.
 
+## Optional client FPS unlock
+
+Open the panel's actions menu (three dots) and enable **Снять лимит FPS**, or set `unlock_fps=1` under `[General]` in `FENB.ini`. The setting is off by default, applies independently of the effects switch and survives visual preset changes. INI edits apply while the panel is closed, like the existing image settings.
+
+The unlock supports only the inspected Homesickness `Neuz.exe` revision with SHA-256 `ce32e350c6002496acf9e8774275784971186e6144901f7c2c7d9b37a4aa41a1`. FENB verifies the executable file, PE identity, relocated frame-gate instructions and writable limiter data before changing the client's existing in-memory limiter flag. Unknown revisions and modified code are left unchanged; the menu entry is unavailable. No executable file or machine code is patched, and VSync and driver limits remain in force.
+
+The original client waits for a 16 ms frame budget (about 62.5 FPS). FENB clears that flag while enabled and restores its original value with a fresh wait budget when disabled or when the last FENB device is released. Multiple devices share ownership, and scene changes that reset the flag are handled on the next presentation. This removes that particular cap; it does not guarantee 500 FPS or establish game-logic compatibility at high frame rates. A DLL update requires restarting the client. Native tests use disposable mapped images and do not modify a running game.
+
 ## WaterFX implementation and limits
 
 WaterFX replaces the material only for the two water texture families identified in the Homesickness Neuz render capture. Identification uses exact first-mip SHA-256 fingerprints, cached as texture-private metadata. The draw must also match the observed fixed-function layout and transparency state, belong to the main backbuffer and occur before the HUD. Unknown textures and unsupported states retain the original renderer. No game memory or vertex-buffer readback is used.

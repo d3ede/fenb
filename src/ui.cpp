@@ -56,8 +56,8 @@ void Theme() {
     s.Colors[ImGuiCol_TextSelectedBg] = {.40f, .37f, .49f, .65f};
     s.Colors[ImGuiCol_NavCursor] = ImGui::ColorConvertU32ToFloat4(Accent);
 }
-void Tip(const char *text) {
-    if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+void Tip(const char *text, ImGuiHoveredFlags flags = ImGuiHoveredFlags_None) {
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal | flags)) {
         ImGui::BeginTooltip();
         ImGui::PushTextWrapPos(300);
         ImGui::TextUnformatted(text);
@@ -204,6 +204,7 @@ int MatchingPreset(const Settings &s) {
         candidate.enabled = s.enabled;
         candidate.openOnStart = s.openOnStart;
         candidate.panelPage = s.panelPage;
+        candidate.unlockFps = s.unlockFps;
         if (candidate == s)
             return i;
     }
@@ -254,6 +255,7 @@ void ProfilePicker(Runtime &r, float width) {
     saved.enabled = s.enabled;
     saved.openOnStart = s.openOnStart;
     saved.panelPage = s.panelPage;
+    saved.unlockFps = s.unlockFps;
     std::string caption = r.selectedProfile + (saved == s ? "" : " *");
     ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(.16f, .17f, .19f, 1));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10, 9));
@@ -287,6 +289,7 @@ void ProfilePicker(Runtime &r, float width) {
                         next.openOnStart = s.openOnStart;
                         next.panelPage = s.panelPage;
                         next.enabled = s.enabled;
+                        next.unlockFps = s.unlockFps;
                         s = next;
                         r.selectedProfile = label;
                         r.selectedProfileSettings = s;
@@ -382,6 +385,12 @@ void DrawPanel(Runtime &r) {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10, 8));
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(10, 7));
     if (ImGui::BeginPopup("actions")) {
+        bool fpsSupported = r.fpsUnlockSupported();
+        ImGui::MenuItem("Снять лимит FPS", nullptr, &s.unlockFps, fpsSupported || s.unlockFps);
+        Tip(fpsSupported ? "Убирает встроенный лимит около 60 FPS. Ограничения драйвера и VSync сохраняются."
+                         : "Эта версия клиента не поддерживается. Игра остаётся без изменений.",
+            ImGuiHoveredFlags_AllowWhenDisabled);
+        ImGui::Separator();
 #ifdef FENB_DIAGNOSTICS
         if (ImGui::MenuItem("Записать 3 кадра DX9"))
             r.requestCapture();

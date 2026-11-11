@@ -21,14 +21,14 @@ foreach(stage IN ITEMS vs ps)
     DEPENDS shaderc "shaders/water_${stage}.hlsl")
 endforeach()
 add_library(d3d9 SHARED src/exports.cpp src/generated/exports.cpp src/proxy.cpp src/generated/proxies.cpp
-  src/settings.cpp src/runtime.cpp src/effects.cpp src/water.cpp src/ui.cpp
+  src/settings.cpp src/runtime.cpp src/effects.cpp src/water.cpp src/fps_limiter.cpp src/ui.cpp
   "${CMAKE_CURRENT_BINARY_DIR}/generated/shaders.hpp"
   "${CMAKE_CURRENT_BINARY_DIR}/generated/water_vs.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/water_ps.hpp"
   "${IMGUI}/imgui.cpp" "${IMGUI}/imgui_draw.cpp" "${IMGUI}/imgui_tables.cpp" "${IMGUI}/imgui_widgets.cpp"
   "${IMGUI}/backends/imgui_impl_dx9.cpp" "${IMGUI}/backends/imgui_impl_win32.cpp")
 target_include_directories(d3d9 PRIVATE "${CMAKE_CURRENT_BINARY_DIR}" src "${IMGUI}")
 target_compile_definitions(d3d9 PRIVATE IMGUI_DISABLE_DEMO_WINDOWS IMGUI_DISABLE_DEBUG_TOOLS IMGUI_IMPL_WIN32_DISABLE_GAMEPAD IMGUI_USE_BGRA_PACKED_COLOR)
-target_link_libraries(d3d9 PRIVATE dxguid comctl32 dwmapi gdi32 imm32 bcrypt)
+target_link_libraries(d3d9 PRIVATE dxguid comctl32 dwmapi gdi32 imm32 bcrypt winmm)
 set_target_properties(d3d9 PROPERTIES PREFIX "")
 if(FENB_DIAGNOSTICS)
   target_sources(d3d9 PRIVATE src/pipeline_probe.cpp)
@@ -46,6 +46,10 @@ else()
 endif()
 include(CTest)
 if(BUILD_TESTING)
+  add_executable(fps-limiter-test tests/fps_limiter_test.cpp src/fps_limiter.cpp)
+  target_include_directories(fps-limiter-test PRIVATE src)
+  target_link_libraries(fps-limiter-test PRIVATE bcrypt winmm)
+  add_test(NAME fps-limiter COMMAND fps-limiter-test WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
   add_executable(settings-test tests/settings_test.cpp src/settings.cpp)
   target_include_directories(settings-test PRIVATE src)
   add_test(NAME settings COMMAND settings-test)
@@ -56,7 +60,7 @@ if(BUILD_TESTING)
   target_include_directories(hud-test PRIVATE src)
   target_link_libraries(hud-test PRIVATE d3d9 dxguid)
   add_test(NAME hud-preservation COMMAND hud-test)
-  add_executable(runtime-test tests/runtime_test.cpp src/runtime.cpp src/settings.cpp src/effects.cpp src/water.cpp src/ui.cpp
+  add_executable(runtime-test tests/runtime_test.cpp src/runtime.cpp src/settings.cpp src/effects.cpp src/water.cpp src/fps_limiter.cpp src/ui.cpp
     "${CMAKE_CURRENT_BINARY_DIR}/generated/shaders.hpp"
     "${IMGUI}/imgui.cpp" "${IMGUI}/imgui_draw.cpp" "${IMGUI}/imgui_tables.cpp" "${IMGUI}/imgui_widgets.cpp"
     "${IMGUI}/backends/imgui_impl_dx9.cpp" "${IMGUI}/backends/imgui_impl_win32.cpp")
@@ -64,7 +68,7 @@ if(BUILD_TESTING)
   target_include_directories(runtime-test PRIVATE "${CMAKE_CURRENT_BINARY_DIR}" src "${IMGUI}")
   target_compile_definitions(runtime-test PRIVATE IMGUI_DISABLE_DEMO_WINDOWS IMGUI_DISABLE_DEBUG_TOOLS IMGUI_IMPL_WIN32_DISABLE_GAMEPAD IMGUI_USE_BGRA_PACKED_COLOR)
   # Use the system import library, not the d3d9 proxy target (this test instantiates Runtime directly).
-  target_link_libraries(runtime-test PRIVATE dxguid comctl32 dwmapi gdi32 imm32 bcrypt)
+  target_link_libraries(runtime-test PRIVATE dxguid comctl32 dwmapi gdi32 imm32 bcrypt winmm)
   if(MSVC)
     target_link_libraries(runtime-test PRIVATE "d3d9.lib")
     target_compile_options(runtime-test PRIVATE /utf-8)

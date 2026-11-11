@@ -54,6 +54,7 @@ bool Settings::load(const std::wstring &path) {
     if (strcmp(key, k) == 0)                                                                                 \
         next.m = number;
         READ_BOOL("enabled", enabled)
+        READ_BOOL("unlock_fps", unlockFps)
         READ_BOOL("bloom", bloom) READ_BOOL("color", color) READ_BOOL("open_on_start", openOnStart)
             READ_FLOAT("bloom_strength", bloomStrength) READ_FLOAT("threshold", threshold)
                 READ_FLOAT("knee", knee) READ_FLOAT("radius", radius) if (strcmp(key, "bloom_scale") == 0)
@@ -90,14 +91,14 @@ bool Settings::save(const std::wstring &path) const {
         return false;
     int written = fprintf(
         file,
-        "; FENB / Shift + Enter opens the panel\n[General]\nenabled=%d\nopen_on_start=%d\npanel_page=%d\n"
+        "; FENB / Shift + Enter opens the panel\n[General]\nenabled=%d\nopen_on_start=%d\npanel_page=%d\nunlock_fps=%d\n"
         "\n[Bloom]\nbloom=%d\nbloom_strength=%.6f\nthreshold=%.6f\nknee=%.6f\nradius=%.6f\nbloom_scale=%d\n"
         "\n[Color]\ncolor=%d\nexposure=%.6f\ncontrast=%.6f\nsaturation=%.6f\ntemperature=%.6f\ntint=%."
         "6f\ngamma=%.6f\nshadows=%.6f\nhighlights=%.6f\n"
         "\n[WaterFX]\nwater=%d\nwater_waves=%.6f\nwater_length=%.6f\nwater_speed=%.6f\nwater_ripples=%."
         "6f\nwater_ripple_scale=%.6f\nwater_opacity=%.6f\nwater_sky=%.6f\nwater_glints=%.6f\nwater_gloss=%."
         "6f\nwater_tint=%.6f\n",
-        enabled, openOnStart, panelPage, bloom, bloomStrength, threshold, knee, radius, bloomScale, color,
+        enabled, openOnStart, panelPage, unlockFps, bloom, bloomStrength, threshold, knee, radius, bloomScale, color,
         exposure, contrast, saturation, temperature, tint, gamma, shadows, highlights, water, waterWaves,
         waterLength, waterSpeed, waterRipples, waterRippleScale, waterOpacity, waterSky, waterGlints,
         waterGloss, waterTint);
@@ -117,9 +118,11 @@ bool Settings::save(const std::wstring &path) const {
 
 void Settings::preset(int index) {
     bool open = openOnStart;
+    bool unlock = unlockFps;
     int page = panelPage;
     *this = Settings{};
     openOnStart = open;
+    unlockFps = unlock;
     panelPage = page;
     if (index == 1) {
         bloomStrength = .32f;

@@ -14,6 +14,7 @@ struct Settings {
     float waterOpacity = .55f, waterSky = .25f, waterGlints = .65f, waterGloss = .65f;
     float waterTint = .25f;
     bool openOnStart = false;
+    bool unlockFps = false;
     int panelPage = 0;
     bool operator==(const Settings &) const = default;
     void sanitize();

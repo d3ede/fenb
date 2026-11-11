@@ -1,5 +1,6 @@
 #pragma once
 #include "settings.hpp"
+#include "fps_limiter.hpp"
 struct ImGuiContext;
 class Effects;
 class WaterFX;
@@ -37,6 +38,7 @@ class Runtime {
     void save();
     void reload();
     void settingsChanged();
+    bool fpsUnlockSupported() { return fpsLimiter_.supported(); }
     void beforeDraw();
     void beforeWaterDraw(UINT upStride = 0);
     void afterWaterDraw(bool up = false, bool indexed = false);
@@ -75,6 +77,7 @@ class Runtime {
     IDirect3DDevice9 *device_; // borrowed: owner destroys Runtime before releasing the real device
     std::unique_ptr<Effects> effects_;
     std::unique_ptr<WaterFX> water_;
+    FpsLimiter fpsLimiter_;
 #ifdef FENB_DIAGNOSTICS
     std::unique_ptr<PipelineProbe> probe_;
 #endif
