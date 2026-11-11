@@ -3,6 +3,39 @@
 #include <cstdlib>
 #include <cstring>
 
+void Settings::resetColor() {
+    const Settings d;
+    exposure = d.exposure;
+    contrast = d.contrast;
+    saturation = d.saturation;
+    temperature = d.temperature;
+    tint = d.tint;
+    gamma = d.gamma;
+    shadows = d.shadows;
+    highlights = d.highlights;
+}
+void Settings::resetBloom() {
+    const Settings d;
+    bloomStrength = d.bloomStrength;
+    threshold = d.threshold;
+    knee = d.knee;
+    radius = d.radius;
+    bloomScale = d.bloomScale;
+}
+void Settings::resetWater() {
+    const Settings d;
+    waterWaves = d.waterWaves;
+    waterLength = d.waterLength;
+    waterSpeed = d.waterSpeed;
+    waterRipples = d.waterRipples;
+    waterRippleScale = d.waterRippleScale;
+    waterOpacity = d.waterOpacity;
+    waterSky = d.waterSky;
+    waterGlints = d.waterGlints;
+    waterGloss = d.waterGloss;
+    waterTint = d.waterTint;
+}
+
 void Settings::sanitize() {
     auto range = [](float &v, float lo, float hi, float fallback) {
         v = std::isfinite(v) ? std::clamp(v, lo, hi) : fallback;
@@ -55,18 +88,20 @@ bool Settings::load(const std::wstring &path) {
         next.m = number;
         READ_BOOL("enabled", enabled)
         READ_BOOL("unlock_fps", unlockFps)
-        READ_BOOL("bloom", bloom) READ_BOOL("color", color) READ_BOOL("open_on_start", openOnStart)
+        READ_BOOL("bloom", bloom)
+        READ_BOOL("color", color) READ_BOOL("open_on_start", openOnStart)
             READ_FLOAT("bloom_strength", bloomStrength) READ_FLOAT("threshold", threshold)
                 READ_FLOAT("knee", knee) READ_FLOAT("radius", radius) if (strcmp(key, "bloom_scale") == 0)
                     next.bloomScale = number == 2 ? 2 : 4;
         if (strcmp(key, "panel_page") == 0)
             next.panelPage = int(std::clamp(number, 0.f, 3.f));
         READ_FLOAT("exposure", exposure)
-        READ_FLOAT("contrast", contrast) READ_FLOAT("saturation", saturation)
-            READ_FLOAT("temperature", temperature) READ_FLOAT("tint", tint) READ_FLOAT("gamma", gamma)
-                READ_FLOAT("shadows", shadows) READ_FLOAT("highlights", highlights) READ_BOOL("water", water)
-                    READ_FLOAT("water_waves", waterWaves) READ_FLOAT("water_length", waterLength)
-                        READ_FLOAT("water_speed", waterSpeed) READ_FLOAT("water_ripples", waterRipples)
+        READ_FLOAT("contrast", contrast)
+        READ_FLOAT("saturation", saturation) READ_FLOAT("temperature", temperature) READ_FLOAT("tint", tint)
+            READ_FLOAT("gamma", gamma) READ_FLOAT("shadows", shadows) READ_FLOAT("highlights", highlights)
+                READ_BOOL("water", water) READ_FLOAT("water_waves", waterWaves)
+                    READ_FLOAT("water_length", waterLength) READ_FLOAT("water_speed", waterSpeed)
+                        READ_FLOAT("water_ripples", waterRipples)
                             READ_FLOAT("water_ripple_scale", waterRippleScale)
                                 READ_FLOAT("water_opacity", waterOpacity) READ_FLOAT("water_sky", waterSky)
                                     READ_FLOAT("water_glints", waterGlints)
@@ -91,17 +126,18 @@ bool Settings::save(const std::wstring &path) const {
         return false;
     int written = fprintf(
         file,
-        "; FENB / Shift + Enter opens the panel\n[General]\nenabled=%d\nopen_on_start=%d\npanel_page=%d\nunlock_fps=%d\n"
+        "; FENB / Shift + Enter opens the "
+        "panel\n[General]\nenabled=%d\nopen_on_start=%d\npanel_page=%d\nunlock_fps=%d\n"
         "\n[Bloom]\nbloom=%d\nbloom_strength=%.6f\nthreshold=%.6f\nknee=%.6f\nradius=%.6f\nbloom_scale=%d\n"
         "\n[Color]\ncolor=%d\nexposure=%.6f\ncontrast=%.6f\nsaturation=%.6f\ntemperature=%.6f\ntint=%."
         "6f\ngamma=%.6f\nshadows=%.6f\nhighlights=%.6f\n"
         "\n[WaterFX]\nwater=%d\nwater_waves=%.6f\nwater_length=%.6f\nwater_speed=%.6f\nwater_ripples=%."
         "6f\nwater_ripple_scale=%.6f\nwater_opacity=%.6f\nwater_sky=%.6f\nwater_glints=%.6f\nwater_gloss=%."
         "6f\nwater_tint=%.6f\n",
-        enabled, openOnStart, panelPage, unlockFps, bloom, bloomStrength, threshold, knee, radius, bloomScale, color,
-        exposure, contrast, saturation, temperature, tint, gamma, shadows, highlights, water, waterWaves,
-        waterLength, waterSpeed, waterRipples, waterRippleScale, waterOpacity, waterSky, waterGlints,
-        waterGloss, waterTint);
+        enabled, openOnStart, panelPage, unlockFps, bloom, bloomStrength, threshold, knee, radius, bloomScale,
+        color, exposure, contrast, saturation, temperature, tint, gamma, shadows, highlights, water,
+        waterWaves, waterLength, waterSpeed, waterRipples, waterRippleScale, waterOpacity, waterSky,
+        waterGlints, waterGloss, waterTint);
     bool ok = written > 0 && !ferror(file);
     if (fclose(file) != 0)
         ok = false;

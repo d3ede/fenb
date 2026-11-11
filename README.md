@@ -8,8 +8,11 @@ FENB is a graphics mod for Flyff, inspired by ENBSeries. It uses a Windows x86 D
 - **Effects** enables or disables all FENB rendering. Color correction, Bloom and WaterFX also have individual switches.
 - Drag a slider, double-click its track to reset it, or click the number to type. The small arrow buttons use a parameter-specific step. The reset icon is shown for changed values.
 - Edits save automatically to `FENB.ini`. **Ctrl + S** saves immediately.
-- **Save…** beside the profile selector saves a named profile in `FENB-presets`. Existing names require the explicit **Replace profile** button. Copy compatible `.ini` files into this folder to add profiles.
-- **WaterFX** opens its own compact page. **Back** returns to the image controls.
+- **Create…** beside the profile selector, or **Create profile…** inside its dropdown, saves the current settings under a name. Type the name and press **Save**; the profile appears in the selector. For a loaded custom profile the toolbar offers **Save…**. Existing names require the explicit **Replace profile** button. Files live in `FENB-presets`; compatible `.ini` files can also be copied into that folder.
+- **WaterFX → Configure** below Bloom opens the water page. **Back** returns to the image controls.
+- The reset icon in each section heading resets only that section's parameters. Effect enable switches, other sections, the global switch and the FPS option are preserved.
+
+Three visual presets are included: **Мягкая бирюза** (soft turquoise), **Прозрачная вода** (clear water), and **Насыщенная вода** (stronger color). They were tuned in the running Homesickness client; they do not add scene reflections or underwater caustics.
 
 ## Optional client FPS unlock
 
@@ -24,6 +27,8 @@ The original client waits for a 16 ms frame budget (about 62.5 FPS). FENB clears
 WaterFX replaces the material only for the two water texture families identified in the Homesickness Neuz render capture. Identification uses exact first-mip SHA-256 fingerprints, cached as texture-private metadata. The draw must also match the observed fixed-function layout and transparency state, belong to the main backbuffer and occur before the HUD. Unknown textures and unsupported states retain the original renderer. No game memory or vertex-buffer readback is used.
 
 The material supplies small vertex waves, animated normal ripples, adjustable opacity, a turquoise tint, directional-light specular glints and approximate sky-colored Fresnel reflection. Wave height, wavelength, speed, ripple strength and frequency, opacity, tint, sky contribution, glint intensity and smoothness have separate controls. Zero wave height, ripple strength or glint intensity disables that component.
+
+Opacity is controlled by FENB and texture cutout coverage. Legacy vertex and material alpha are not multiplied into it: a zero vertex alpha channel previously made the material almost invisible and defeated the opacity control. The native water regression fixture now uses zero vertex alpha and verifies that both opacity settings still produce distinct visible results.
 
 The sky contribution is an analytic environment approximation. There are **no scene-object reflections, screen-space refraction, depth-based shore fading or underwater reconstruction**. Transparency reveals only geometry the original game has already drawn. Coarse water meshes limit vertex-wave detail. Sun glints use the game's enabled directional light; they do not imply that a visible sun billboard is at the same position. SunFX, SkyFX, new shadowing and depth-based atmosphere are not implemented by this change.
 

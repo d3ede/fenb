@@ -84,9 +84,15 @@ bool SquareSwitch(const char *id, bool &value, ImVec2 size = {18, 18}) {
 }
 void ResetGlyph(ImDrawList *d, ImVec2 p, ImU32 color) {
     ImVec2 c{p.x + 10, p.y + 9};
-    d->PathArcTo(c, 5, -.6f, 4.35f, 20);
+    d->PathArcTo(c, 5, -2.35f, 2.65f, 24);
     d->PathStroke(color, 1.35f);
-    d->AddTriangleFilled({c.x - 5.6f, c.y - 5.5f}, {c.x - .4f, c.y - 5.5f}, {c.x - 3.2f, c.y - 1.f}, color);
+    // Counter-clockwise arrow; the tip meets the arc at the upper left.
+    const float a = -2.35f;
+    ImVec2 start{c.x + 5 * std::cos(a), c.y + 5 * std::sin(a)};
+    ImVec2 t{std::sin(a), -std::cos(a)};
+    d->AddTriangleFilled({start.x + t.x * 2, start.y + t.y * 2},
+                         {start.x - t.x * 2 - t.y * 2, start.y - t.y * 2 + t.x * 2},
+                         {start.x - t.x * 2 + t.y * 2, start.y - t.y * 2 - t.x * 2}, color);
 }
 float Snap(float value, float low, float high, float neutral, float step) {
     value = std::clamp(std::round(value / step) * step, low, high);
@@ -170,7 +176,8 @@ void Row(const char *label, const char *help, float &value, float low, float hig
     ImGui::Dummy({width, RowHeight});
     ImGui::PopID();
 }
-bool Section(const char *id, const char *title, bool &enabled) {
+bool Section(const char *id, const char *title, bool &enabled, bool &reset) {
+    reset = false;
     ImGui::PushID(id);
     auto p = ImGui::GetCursorScreenPos();
     float width = ImGui::GetContentRegionAvail().x;
@@ -179,7 +186,7 @@ bool Section(const char *id, const char *title, bool &enabled) {
     auto *state = ImGui::GetStateStorage();
     bool expanded = state->GetBool(key, true);
     d->AddLine(p, {p.x + width, p.y}, Line, 1);
-    if (ImGui::InvisibleButton("heading", {width - 30, 28}, ImGuiButtonFlags_EnableNav)) {
+    if (ImGui::InvisibleButton("heading", {width - 60, 28}, ImGuiButtonFlags_EnableNav)) {
         expanded = !expanded;
         state->SetBool(key, expanded);
     }
@@ -189,6 +196,10 @@ bool Section(const char *id, const char *title, bool &enabled) {
     else
         d->AddTriangleFilled({p.x + 2, p.y + 10}, {p.x + 2, p.y + 17}, {p.x + 6, p.y + 13.5f}, c);
     TextAt(d, {p.x + 17, p.y + 6}, title);
+    ImGui::SetCursorScreenPos({p.x + width - 50, p.y + 5});
+    reset = ImGui::InvisibleButton("reset-section", {22, 18}, ImGuiButtonFlags_EnableNav);
+    ResetGlyph(d, ImGui::GetItemRectMin(), ImGui::IsItemHovered() ? Text : Muted);
+    Tip("Сбросить параметры этой секции");
     ImGui::SetCursorScreenPos({p.x + width - 22, p.y + 5});
     SquareSwitch("enabled", enabled);
     Tip(enabled ? "Выключить эффект" : "Включить эффект");
@@ -250,6 +261,7 @@ void ProfilePicker(Runtime &r, float width) {
     ImGui::SameLine(88);
     ImGui::SetNextItemWidth(width - 216);
     const char *presets[] = {"Нейтральный", "Тёплый", "Холодный", "Мягкий свет"};
+    bool createRequested = false;
     int matching = MatchingPreset(s);
     auto saved = r.selectedProfileSettings;
     saved.enabled = s.enabled;
@@ -264,14 +276,13 @@ void ProfilePicker(Runtime &r, float width) {
                           !r.selectedProfile.empty() ? caption.c_str()
                                                      : (matching < 0 ? "Свой" : presets[matching]),
                           ImGuiComboFlags_HeightLarge)) {
-        ImGui::TextDisabled("Встроенные");
+        ImGui::SeparatorText("Готовые профили");
         for (int i = 0; i < 4; ++i)
             if (ImGui::Selectable(presets[i], matching == i && r.selectedProfile.empty(), 0, {0, 24})) {
                 s.preset(i);
                 r.selectedProfile.clear();
             }
-        ImGui::Separator();
-        ImGui::TextDisabled("Мои профили");
+        ImGui::SeparatorText("Мои профили");
         WIN32_FIND_DATAW data{};
         auto dir = ProfileDirectory(r);
         HANDLE find = FindFirstFileW((dir + L"*.ini").c_str(), &data);
@@ -300,17 +311,25 @@ void ProfilePicker(Runtime &r, float width) {
             } while (FindNextFileW(find, &data));
             FindClose(find);
         }
-        if (!any)
-            ImGui::TextDisabled("Пока нет сохранённых профилей");
+        if (!any) {
+            ImGui::PushFont(nullptr, 13);
+            ImGui::TextDisabled("Сохрани текущие настройки под своим именем");
+            ImGui::PopFont();
+        }
+        ImGui::Separator();
+        if (ImGui::Selectable("Создать профиль…", false, 0, {0, 26}))
+            createRequested = true;
         ImGui::EndCombo();
     }
     ImGui::PopStyleVar(2);
     ImGui::PopStyleColor();
     Tip("Свои .ini можно положить в папку FENB-presets рядом с DLL.");
     ImGui::SameLine(width - 112);
-    if (ImGui::Button("Сохранить…", {96, 23})) {
+    if (ImGui::Button(r.selectedProfile.empty() ? "Создать…" : "Сохранить…", {96, 23}) || createRequested) {
         r.profileError.clear();
-        if (!r.selectedProfile.empty())
+        if (createRequested)
+            r.profileName[0] = 0;
+        else if (!r.selectedProfile.empty())
             std::snprintf(r.profileName, sizeof(r.profileName), "%s", r.selectedProfile.c_str());
         ImGui::OpenPopup("saveProfile");
     }
@@ -322,8 +341,8 @@ void ProfilePicker(Runtime &r, float width) {
         ImGui::SetNextItemWidth(298);
         if (ImGui::IsWindowAppearing())
             ImGui::SetKeyboardFocusHere();
-        bool enter = ImGui::InputTextWithHint("##name", "Название", r.profileName, sizeof(r.profileName),
-                                              ImGuiInputTextFlags_EnterReturnsTrue);
+        bool enter = ImGui::InputTextWithHint("##name", "Например: Моя вода", r.profileName,
+                                              sizeof(r.profileName), ImGuiInputTextFlags_EnterReturnsTrue);
         auto name = ProfileName(r.profileName), path = ProfileDirectory(r) + name + L".ini";
         bool exists = !name.empty() && GetFileAttributesW(path.c_str()) != INVALID_FILE_ATTRIBUTES;
         ImGui::BeginDisabled(name.empty());
@@ -345,7 +364,7 @@ void ProfilePicker(Runtime &r, float width) {
         if (!r.profileError.empty())
             ImGui::TextWrapped("%s", r.profileError.c_str());
         ImGui::PushFont(nullptr, 12);
-        ImGui::TextDisabled("Файлы: FENB-presets/*.ini");
+        ImGui::TextDisabled("Профиль появится в списке после сохранения.");
         ImGui::PopFont();
         ImGui::EndPopup();
     }
@@ -421,21 +440,15 @@ void DrawPanel(Runtime &r) {
     ImGui::SetCursorPos({16, 48});
     ProfilePicker(r, size.x);
     ImGui::SetCursorPos({16, 80});
-    ImGui::BeginChild("adjustments", {size.x - 32, size.y - 116}, ImGuiChildFlags_None);
+    ImGui::BeginChild("adjustments", {size.x - 32, size.y - 116 - (r.editorPage == 0 ? 34.f : 0.f)},
+                      ImGuiChildFlags_None);
     const Settings defaults;
+    bool reset = false;
     if (r.editorPage == 0) {
-        auto waterPos = ImGui::GetCursorScreenPos();
-        float waterWidth = ImGui::GetContentRegionAvail().x;
-        auto *wd = ImGui::GetWindowDrawList();
-        wd->AddLine(waterPos, {waterPos.x + waterWidth, waterPos.y}, Line);
-        if (ImGui::Selectable("WaterFX   >", false, 0, {waterWidth - 32, 30}))
-            r.editorPage = 1;
-        ImGui::SetCursorScreenPos({waterPos.x + waterWidth - 22, waterPos.y + 6});
-        SquareSwitch("waterMain", s.water);
-        ImGui::SetCursorScreenPos({waterPos.x, waterPos.y + 32});
-        ImGui::Dummy({waterWidth, 1});
-
-        if (Section("grade", "Цветокоррекция", s.color)) {
+        bool expanded = Section("grade", "Цветокоррекция", s.color, reset);
+        if (reset)
+            s.resetColor();
+        if (expanded) {
             ImGui::BeginDisabled(!s.color || !s.enabled);
             Row("Экспозиция", "Изменение яркости в ступенях экспозиции (EV).", s.exposure, -2, 2,
                 defaults.exposure, "%+.2f");
@@ -452,7 +465,10 @@ void DrawPanel(Runtime &r) {
             ImGui::EndDisabled();
         }
         ImGui::Dummy({0, 4});
-        if (Section("bloom", "Bloom", s.bloom)) {
+        expanded = Section("bloom", "Bloom", s.bloom, reset);
+        if (reset)
+            s.resetBloom();
+        if (expanded) {
             ImGui::BeginDisabled(!s.bloom || !s.enabled);
             Row("Интенсивность", "Сила свечения ярких деталей.", s.bloomStrength, 0, 2,
                 defaults.bloomStrength);
@@ -479,12 +495,20 @@ void DrawPanel(Runtime &r) {
         }
         ImGui::Dummy({0, 6});
     } else {
-        if (ImGui::Button("<  Назад", {86, 26}))
+        auto back = ImGui::GetCursorScreenPos();
+        auto *draw = ImGui::GetWindowDrawList();
+        if (ImGui::InvisibleButton("back", {86, 26}, ImGuiButtonFlags_EnableNav))
             r.editorPage = 0;
-        ImGui::SameLine();
-        ImGui::TextDisabled("Волны и освещение");
-        ImGui::Dummy({0, 8});
-        if (Section("waterMotion", "Поверхность", s.water)) {
+        TextAt(draw, {back.x + 20, back.y + 6}, "Назад", ImGui::IsItemHovered() ? Text : Muted, 14);
+        draw->AddLine({back.x + 10, back.y + 9}, {back.x + 6, back.y + 13}, Muted);
+        draw->AddLine({back.x + 6, back.y + 13}, {back.x + 10, back.y + 17}, Muted);
+        TextAt(draw, {back.x + 98, back.y + 6}, "Волны и освещение", Muted, 14);
+        ImGui::SetCursorScreenPos(back);
+        ImGui::Dummy({280, 34});
+        bool expanded = Section("waterMotion", "Поверхность", s.water, reset);
+        if (reset)
+            s.resetWater();
+        if (expanded) {
             ImGui::BeginDisabled(!s.water || !s.enabled);
             Row("Высота волн", "Небольшое смещение вершин воды. Крупная сетка ограничивает детализацию.",
                 s.waterWaves, 0, .15f, defaults.waterWaves, "%.3f", .005f);
@@ -510,15 +534,21 @@ void DrawPanel(Runtime &r) {
                 "%.2f", .02f);
             ImGui::EndDisabled();
         }
-        ImGui::Dummy({0, 10});
-        ImGui::PushFont(nullptr, 12);
-        ImGui::TextDisabled(!s.water || !s.enabled ? "WaterFX выключен"
-                            : r.lastWaterDraws     ? "WaterFX активен"
-                                                   : "В кадре нет распознанной воды");
-        ImGui::TextDisabled("Отражение неба приблизительное. Без отражений объектов.");
-        ImGui::PopFont();
     }
     ImGui::EndChild();
+    if (r.editorPage == 0) {
+        ImGui::SetCursorPos({16, size.y - 62});
+        auto p = ImGui::GetCursorScreenPos();
+        float width = size.x - 32;
+        d->AddLine(p, {p.x + width, p.y}, Line);
+        if (ImGui::InvisibleButton("water-settings", {width - 30, 30}, ImGuiButtonFlags_EnableNav))
+            r.editorPage = 1;
+        bool hover = ImGui::IsItemHovered();
+        TextAt(d, {p.x + 17, p.y + 8}, "WaterFX", Text, 15);
+        TextAt(d, {p.x + width - 129, p.y + 8}, "Настроить", hover ? Text : Muted, 14);
+        ImGui::SetCursorScreenPos({p.x + width - 22, p.y + 7});
+        SquareSwitch("waterMain", s.water);
+    }
     float footer = size.y - 28;
     d->AddLine({origin.x + 1, origin.y + footer}, {origin.x + size.x - 1, origin.y + footer}, Line, 1);
     const char *status = !r.message.empty() ? r.message.c_str()

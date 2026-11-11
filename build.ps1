@@ -25,6 +25,8 @@ if($Diagnostics){$options+='-DFENB_DIAGNOSTICS';$sources+='src/pipeline_probe.cp
 if ($LASTEXITCODE) { throw 'FENB build failed' }
 Copy-Item -LiteralPath 'config/FENB.ini' -Destination "$outputDirectory/FENB.ini" -Force
 Copy-Item -LiteralPath 'README.md' -Destination "$outputDirectory/README.md" -Force
+New-Item -ItemType Directory -Force -Path "$outputDirectory/FENB-presets" | Out-Null
+Get-ChildItem -LiteralPath 'config/presets' -Filter '*.ini' -File | Copy-Item -Destination "$outputDirectory/FENB-presets" -Force
 Copy-Item -LiteralPath "$imgui/LICENSE.txt" -Destination "$outputDirectory/Dear-ImGui-LICENSE.txt" -Force
 Copy-Item -LiteralPath 'assets/fonts/OFL.txt' -Destination "$outputDirectory/Inter-OFL.txt" -Force
 Get-Item -LiteralPath "$outputDirectory/d3d9.dll" | Select-Object FullName,Length

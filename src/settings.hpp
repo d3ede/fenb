@@ -21,4 +21,7 @@ struct Settings {
     bool load(const std::wstring &path);
     bool save(const std::wstring &path) const;
     void preset(int index);
+    void resetColor();
+    void resetBloom();
+    void resetWater();
 };

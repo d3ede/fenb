@@ -119,22 +119,22 @@ int main() {
     auto fpsPopup = ImGui::GetCurrentContext()->OpenPopupStack.back().Window->Pos;
     click(fpsPopup.x + 70, fpsPopup.y + 17);
     CHECK(!r.settings.unlockFps); // Unknown executables cannot enable the menu item.
-    click(150, 60); // Close the action menu before the existing interaction checks.
+    click(150, 60);               // Close the action menu before the existing interaction checks.
     frame();
     // Main: WaterFX navigation is visible before color controls. First slider starts at y=181.
     r.settings.exposure = .8f;
     frame();
-    click(440, 194); // ordinary drag changes exposure
-    mouse(440, 194, true);
+    click(440, 161); // ordinary drag changes exposure
+    mouse(440, 161, true);
     CHECK(r.settings.exposure == 0); // second click resets
     frame();
     CHECK(r.settings.exposure == 0);
-    mouse(440, 194, false); // held second click must not drag away from default
-    click(618, 194);
+    mouse(440, 161, false); // held second click must not drag away from default
+    click(618, 161);
     CHECK(std::abs(r.settings.exposure - .01f) < .00001f); // explicit right step
-    click(538, 194);
+    click(538, 161);
     CHECK(r.settings.exposure == 0); // matching left step
-    click(590, 194);
+    click(590, 161);
     io.AddKeyEvent(ImGuiMod_Ctrl, true);
     io.AddKeyEvent(ImGuiKey_A, true);
     frame();
@@ -148,11 +148,18 @@ int main() {
     frame();
     CHECK(std::abs(r.settings.exposure - .75f) < .0001f);
     CHECK(panel->Pos.x == 130);
-    click(640, 194);
+    click(640, 161);
     CHECK(r.settings.exposure == 0); // full reset hit box
-    click(195, 134);
+    r.settings.exposure = .8f;
+    r.settings.saturation = .3f;
+    r.settings.waterOpacity = .7f;
+    click(610, 134);
+    CHECK(r.settings.exposure == 0 && r.settings.saturation == 1 && r.settings.waterOpacity == .7f);
+    click(195, 512);
     CHECK(r.editorPage == 1);
     frame();
+    click(610, 168);
+    CHECK(r.settings.waterOpacity == Settings{}.waterOpacity);
     CHECK(Screenshot(d, L"build/FENB-water-panel.png"));
     click(185, 132);
     CHECK(r.editorPage == 0);

@@ -3,6 +3,13 @@
 #include <limits>
 #define CHECK(x) do { if (!(x)) { printf("FAIL %d: %s\n",__LINE__,#x); return 1; } } while(0)
 int main() {
+    {
+        Settings section;section.enabled=false;section.unlockFps=true;section.color=false;section.bloom=false;
+        section.waterOpacity=.9f;section.exposure=1;section.bloomScale=2;
+        section.resetBloom();CHECK(section.bloomScale==4&&section.exposure==1&&section.waterOpacity==.9f&&!section.bloom);
+        section.resetWater();CHECK(section.waterOpacity==Settings{}.waterOpacity&&section.exposure==1);
+        section.resetColor();CHECK(section.exposure==0&&!section.color&&!section.enabled&&section.unlockFps);
+    }
     Settings s;
     CHECK(!s.unlockFps);
     s.unlockFps=true;
