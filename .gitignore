@@ -43,6 +43,7 @@ secrets.json
 
 # Temporary files and editor/OS state
 *.tmp
+*.tmp.*
 *.bak
 *.swp
 *.swo
