@@ -145,8 +145,11 @@ float Snap(float value, float low, float high, float neutral, float step) {
     return std::abs(value - neutral) < step * .01f ? neutral : value;
 }
 void Row(UiText label, const char *help, float &value, float low, float high, float neutral,
-         const char *format = "%.2f", float step = .01f) {
-    ImGui::PushID(&value);
+         const char *format = "%.2f", float step = .01f, bool clock = false, const char *stableId = nullptr) {
+    if (stableId)
+        ImGui::PushID(stableId);
+    else
+        ImGui::PushID(&value);
     auto p = ImGui::GetCursorScreenPos();
     float width = ImGui::GetContentRegionAvail().x;
     auto *d = ImGui::GetWindowDrawList();
@@ -191,6 +194,10 @@ void Row(UiText label, const char *help, float &value, float low, float high, fl
     ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ColorConvertU32ToFloat4(Muted));
     char displayed[48];
     std::snprintf(displayed, sizeof(displayed), format, value);
+    if (clock) {
+        int minutes = std::clamp(int(value), 0, 1439);
+        std::snprintf(displayed, sizeof(displayed), "%02d:%02d", minutes / 60, minutes % 60);
+    }
     float numberPadding = std::max(2.f, (40 - ImGui::CalcTextSize(displayed).x) * .5f);
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(numberPadding, 3));
     auto stepArrow = [&](const char *id, float x, bool rightward) {
@@ -212,12 +219,20 @@ void Row(UiText label, const char *help, float &value, float low, float high, fl
         value = Snap(value - step, low, high, neutral, step);
     ImGui::SetCursorScreenPos({p.x + inputX + 29, p.y + 2});
     ImGui::SetNextItemWidth(40);
-    if (ImGui::InputFloat("##value", &value, 0, 0, format, ImGuiInputTextFlags_AutoSelectAll)) {
+    if (clock) {
+        if (ImGui::InputText("##clock", displayed, sizeof(displayed), ImGuiInputTextFlags_AutoSelectAll)) {
+            int hours, minutes;
+            char tail;
+            if (std::sscanf(displayed, "%d:%d%c", &hours, &minutes, &tail) == 2 &&
+                hours >= 0 && hours < 24 && minutes >= 0 && minutes < 60)
+                value = float(hours * 60 + minutes);
+        }
+    } else if (ImGui::InputFloat("##value", &value, 0, 0, format, ImGuiInputTextFlags_AutoSelectAll)) {
         value = std::isfinite(value) ? std::clamp(value, low, high) : neutral;
         if (std::abs(value - neutral) < step * .01f)
             value = neutral;
     }
-    Tip(Tr(UiText::NumberInputHelp));
+    Tip(Tr(clock ? UiText::TimeInputHelp : UiText::NumberInputHelp));
     if (stepArrow("more", inputX + 69, true))
         value = Snap(value + step, low, high, neutral, step);
     ImGui::PopStyleVar();
@@ -655,6 +670,57 @@ void AntialiasControls(Runtime &r) {
     } else if (reset)
         s.msaaSamples = 0;
 }
+void EnvironmentControls(Runtime &r) {
+    auto &s = r.settings;
+    ImGui::PushTextWrapPos(0);
+    ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(Muted), "%s", Tr(UiText::WorldHelp));
+    ImGui::PopTextWrapPos();
+    ImGui::Dummy({0, 12});
+    bool reset = false;
+    bool open = Section("world-time", Tr(UiText::TimeOverride), s.timeOverride, reset);
+    if (reset) { s.timeMinutes = 720; s.freezeTime = true; }
+    if (open) {
+        ImGui::BeginDisabled(!s.timeOverride || !s.enabled);
+        float minutes = r.environmentMinutes(), previous = minutes;
+        Row(UiText::TimeOfDay, Tr(UiText::TimeOfDayHelp), minutes, 0, 1439, 720, "%.0f", 1, true, "time-of-day");
+        if (minutes != previous)
+            s.timeMinutes = minutes;
+        auto p = ImGui::GetCursorScreenPos();
+        SquareSwitch("freeze-time", s.freezeTime, {18, RowHeight});
+        Tip(Tr(UiText::FreezeTimeHelp));
+        TextAt(ImGui::GetWindowDrawList(), {p.x + 25, p.y + 5}, Tr(UiText::FreezeTime));
+        ImGui::EndDisabled();
+        if (!s.timeOverride)
+            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(Muted), "%s", Tr(UiText::GameTime));
+    }
+    ImGui::Dummy({0, 14});
+    open = Section("world-weather", Tr(UiText::WeatherOverride), s.weatherOverride, reset);
+    if (reset) { s.weatherType = 0; s.weatherIntensity = 100; }
+    if (open) {
+        ImGui::BeginDisabled(!s.weatherOverride || !s.enabled);
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(12, 6));
+        const UiText types[] = {UiText::WeatherClear, UiText::WeatherRain, UiText::WeatherSnow};
+        for (int i = 0; i < 3; ++i) {
+            if (i) ImGui::SameLine();
+            ImGui::RadioButton(Label(types[i]).c_str(), &s.weatherType, i);
+        }
+        ImGui::PopStyleVar();
+        ImGui::Dummy({0, 6});
+        ImGui::BeginDisabled(s.weatherType == 0);
+        Row(UiText::WeatherIntensity, Tr(UiText::WeatherIntensityHelp), s.weatherIntensity, 0, 100,
+            100, "%.0f%%", 1);
+        ImGui::EndDisabled();
+        ImGui::EndDisabled();
+        if (!s.weatherOverride)
+            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(Muted), "%s", Tr(UiText::GameWeather));
+    }
+    if (!r.environmentSupported()) {
+        ImGui::Dummy({0, 14});
+        ImGui::PushTextWrapPos(0);
+        ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(Muted), "%s", Tr(UiText::EnvironmentUnavailable));
+        ImGui::PopTextWrapPos();
+    }
+}
 } // namespace
 void DrawPanel(Runtime &r, const PanelBranding &branding) {
     Theme();
@@ -683,9 +749,23 @@ void DrawPanel(Runtime &r, const PanelBranding &branding) {
     bool showEffectsLabel = size.x >= 480;
     float masterX = size.x - (showEffectsLabel ? 151 : 88);
     ImGui::PushFont(nullptr, 14);
-    float languageWidth = ImGui::CalcTextSize(Tr(UiText::LanguageTab)).x + 16;
-    float languageX = std::min(titleX + ImGui::CalcTextSize(pageTitle).x + 16, masterX - languageWidth - 12);
+    const char *languageTitle = Tr(size.x < 380 ? UiText::LanguageShort : UiText::LanguageTab);
+    float languageWidth = ImGui::CalcTextSize(languageTitle).x + 16;
+    float worldWidth = ImGui::CalcTextSize(Tr(UiText::WorldTab)).x + 16;
+    float titleWidth = ImGui::CalcTextSize(pageTitle).x + 8;
+    float languageX = std::min(titleX + titleWidth + worldWidth + 24, masterX - languageWidth - 8);
+    float worldX = languageX - worldWidth - 12;
     ImGui::PopFont();
+    ImGui::SetCursorPos({titleX - 4, 8});
+    if (ImGui::InvisibleButton("image-tab", {std::max(1.f, worldX - titleX - 8), 24}, ImGuiButtonFlags_EnableNav))
+        r.editorPage = 0;
+    ImGui::SetCursorPos({worldX, 8});
+    if (ImGui::InvisibleButton("world-tab", {worldWidth, 24}, ImGuiButtonFlags_EnableNav))
+        r.editorPage = 4;
+    bool worldHovered = ImGui::IsItemHovered();
+    d->AddLine({origin.x + worldX - 6, origin.y + 12}, {origin.x + worldX - 6, origin.y + 27}, Line);
+    TextAt(d, {origin.x + worldX + 8, origin.y + 12}, Tr(UiText::WorldTab),
+           r.editorPage == 4 ? IM_COL32(217, 199, 245, 255) : worldHovered ? Text : Muted, 14);
     d->AddLine({origin.x + languageX - 6, origin.y + 12}, {origin.x + languageX - 6, origin.y + 27}, Line);
     ImGui::SetCursorPos({languageX, 8});
     if (ImGui::InvisibleButton("language", {languageWidth, 24}, ImGuiButtonFlags_EnableNav))
@@ -695,14 +775,16 @@ void DrawPanel(Runtime &r, const PanelBranding &branding) {
     const ImU32 selectedText = IM_COL32(217, 199, 245, 255);
     if (languageSelected)
         HeaderTabHighlight(d, origin, languageX, languageX + languageWidth);
+    else if (r.editorPage == 4)
+        HeaderTabHighlight(d, origin, worldX, worldX + worldWidth);
     else
-        HeaderTabHighlight(d, origin, titleX - 6, languageX - 10);
-    ImVec4 titleClip{origin.x + titleX, origin.y + 8, origin.x + languageX - 10, origin.y + 31};
+        HeaderTabHighlight(d, origin, titleX - 6, worldX - 10);
+    ImVec4 titleClip{origin.x + titleX, origin.y + 8, origin.x + worldX - 10, origin.y + 31};
     d->AddText(ImGui::GetFont(), 14, {origin.x + titleX, origin.y + 12},
-               Opacity(languageSelected ? Muted : selectedText), pageTitle, nullptr, 0, &titleClip);
+               Opacity(languageSelected || r.editorPage == 4 ? Muted : selectedText), pageTitle, nullptr, 0, &titleClip);
     if (languageHovered && !languageSelected)
         d->AddRectFilled(ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), Raised, 2);
-    TextAt(d, {origin.x + languageX + 8, origin.y + 12}, Tr(UiText::LanguageTab),
+    TextAt(d, {origin.x + languageX + 8, origin.y + 12}, languageTitle,
            languageSelected ? selectedText : languageHovered ? Text : Muted, 14);
     ImGui::SetNextWindowPos({origin.x + languageX, origin.y + 36}, ImGuiCond_Appearing);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10, 8));
@@ -950,6 +1032,8 @@ void DrawPanel(Runtime &r, const PanelBranding &branding) {
         ImGui::Dummy({0, 8});
         AntialiasControls(r);
     }
+    if (r.editorPage == 4)
+        EnvironmentControls(r);
     ImGui::EndChild();
     float footer = size.y - 28;
     d->AddLine({origin.x + 1, origin.y + footer}, {origin.x + size.x - 1, origin.y + footer}, Line, 1);

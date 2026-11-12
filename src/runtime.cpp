@@ -40,6 +40,7 @@ Runtime::Runtime(IDirect3DDevice9 *device)
         SUCCEEDED(chain->GetPresentParameters(&presentation)))
         presentation_.initialize(presentation, settings.msaaSamples);
     fpsLimiter_.update(settings.unlockFps);
+    environment_.update(settings, compare);
     visible = settings.openOnStart;
     configTime_ = FileTime(configPath);
 #ifdef FENB_DIAGNOSTICS
@@ -164,6 +165,7 @@ void Runtime::invalidate() {
 }
 void Runtime::beforeReset() {
     std::lock_guard lock(mutex_);
+    environment_.reset();
     resetFrame();
 #ifdef FENB_DIAGNOSTICS
     probe_->abort();
@@ -186,6 +188,7 @@ void Runtime::afterReset(HRESULT result) {
 }
 void Runtime::afterPresent(HRESULT result) {
     std::lock_guard lock(mutex_);
+    environment_.update(settings, compare);
     resetFrame();
     if (result == D3DERR_DEVICELOST || result == D3DERR_DEVICEHUNG || result == D3DERR_DEVICEREMOVED) {
         if (!lost_) {
@@ -476,6 +479,7 @@ void Runtime::reload() {
     if (loaded)
         recognizeProfile();
     fpsLimiter_.update(settings.unlockFps);
+    environment_.update(settings, compare);
     if (loaded)
         dirty_ = false;
     message = loaded ? UiText::SettingsLoaded : UiText::ConfigNotFound;
@@ -483,6 +487,7 @@ void Runtime::reload() {
 }
 void Runtime::settingsChanged() {
     fpsLimiter_.update(settings.unlockFps);
+    environment_.update(settings, compare);
     dirty_ = true;
     lastEdit_ = GetTickCount();
     message = UiText::None;

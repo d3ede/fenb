@@ -1,6 +1,7 @@
 #pragma once
 #include "settings.hpp"
 #include "fps_limiter.hpp"
+#include "environment.hpp"
 #include "draw_call.hpp"
 #include "depth_policy.hpp"
 #include "presentation_reload.hpp"
@@ -69,6 +70,8 @@ class Runtime {
     bool fpsUnlockSupported() {
         return fpsLimiter_.supported();
     }
+    bool environmentSupported() { return environment_.supported(); }
+    float environmentMinutes() const { return environment_.minutes(settings); }
     void beforeDraw();
     void environmentDraw(D3DPRIMITIVETYPE type, UINT start, UINT count);
     void beforeWaterDraw(UINT upStride = 0);
@@ -111,6 +114,7 @@ class Runtime {
     std::unique_ptr<Effects> effects_;
     std::unique_ptr<WaterFX> water_;
     FpsLimiter fpsLimiter_;
+    Environment environment_;
     PresentationReload presentation_;
 #ifdef FENB_DIAGNOSTICS
     std::unique_ptr<PipelineProbe> probe_;

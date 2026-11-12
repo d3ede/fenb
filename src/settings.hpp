@@ -33,6 +33,9 @@ struct Settings {
     bool preciseWaterDepth = true;
     int msaaSamples = 0;    // 0 retains the native choice, -1 disables, otherwise 2/4/8.
     bool unlockFps = false; // Opt-in rendering unlock with a fixed 16 ms simulation step.
+    bool timeOverride = false, freezeTime = true, weatherOverride = false;
+    float timeMinutes = 720, weatherIntensity = 100;
+    int weatherType = 0; // 0 clear, 1 rain, 2 snow; independent of server weather.
     int panelPage = 0;
     Language language = Language::English;
     bool operator==(const Settings &) const = default;

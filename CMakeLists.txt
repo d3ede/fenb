@@ -30,7 +30,7 @@ add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/generated/scene_shaders.h
   COMMAND shaderc "${CMAKE_CURRENT_SOURCE_DIR}/shaders/smaa.hlsl" "${CMAKE_CURRENT_BINARY_DIR}/generated/smaa_shaders.hpp" smaa
   DEPENDS shaderc shaders/scene.hlsl shaders/smaa.hlsl vendor/smaa/SMAA.hlsl)
 add_library(d3d9 SHARED src/exports.cpp src/generated/exports.cpp src/proxy.cpp src/generated/proxies.cpp
-  src/settings.cpp src/runtime.cpp src/effects.cpp src/water.cpp src/scene_fx.cpp src/fps_limiter.cpp src/ui.cpp
+  src/settings.cpp src/runtime.cpp src/effects.cpp src/water.cpp src/scene_fx.cpp src/fps_limiter.cpp src/environment.cpp src/ui.cpp
   "${CMAKE_CURRENT_BINARY_DIR}/generated/shaders.hpp"
   "${CMAKE_CURRENT_BINARY_DIR}/generated/water_vs.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/water_ps.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/caustics.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/scene_shaders.hpp"
   "${IMGUI}/imgui.cpp" "${IMGUI}/imgui_draw.cpp" "${IMGUI}/imgui_tables.cpp" "${IMGUI}/imgui_widgets.cpp"
@@ -81,6 +81,13 @@ if(BUILD_TESTING)
   add_test(NAME water-scene-msaa COMMAND water-scene-test --msaa WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
   add_test(NAME water-scene-d24 COMMAND water-scene-test --depth24 WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
   add_test(NAME water-scene-d24-msaa COMMAND water-scene-test --depth24 --msaa WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+  add_executable(environment-test tests/environment_test.cpp src/environment.cpp src/fps_limiter.cpp)
+  target_include_directories(environment-test PRIVATE src)
+  target_link_libraries(environment-test PRIVATE d3d9 bcrypt winmm)
+  if(NOT MSVC)
+    target_link_options(environment-test PRIVATE -static)
+  endif()
+  add_test(NAME environment COMMAND environment-test WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
   add_executable(fps-limiter-test tests/fps_limiter_test.cpp src/fps_limiter.cpp)
   target_include_directories(fps-limiter-test PRIVATE src)
   target_link_libraries(fps-limiter-test PRIVATE bcrypt winmm)
@@ -119,7 +126,7 @@ if(BUILD_TESTING)
   target_include_directories(hud-test PRIVATE src)
   target_link_libraries(hud-test PRIVATE d3d9 dxguid)
   add_test(NAME hud-preservation COMMAND hud-test)
-  add_executable(runtime-test tests/runtime_test.cpp src/runtime.cpp src/settings.cpp src/effects.cpp src/water.cpp src/scene_fx.cpp src/fps_limiter.cpp src/ui.cpp
+  add_executable(runtime-test tests/runtime_test.cpp src/runtime.cpp src/settings.cpp src/effects.cpp src/water.cpp src/scene_fx.cpp src/fps_limiter.cpp src/environment.cpp src/ui.cpp
     "${CMAKE_CURRENT_BINARY_DIR}/generated/shaders.hpp"
     "${IMGUI}/imgui.cpp" "${IMGUI}/imgui_draw.cpp" "${IMGUI}/imgui_tables.cpp" "${IMGUI}/imgui_widgets.cpp"
     "${IMGUI}/backends/imgui_impl_dx9.cpp" "${IMGUI}/backends/imgui_impl_win32.cpp")

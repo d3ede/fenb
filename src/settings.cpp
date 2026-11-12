@@ -57,6 +57,10 @@ void Settings::sanitize() {
         v = std::isfinite(v) ? std::clamp(v, lo, hi) : fallback;
     };
     range(bloomStrength, 0, 2, .22f);
+    range(timeMinutes, 0, 1439, 720);
+    timeMinutes = std::round(timeMinutes);
+    range(weatherIntensity, 0, 100, 100);
+    weatherType = std::clamp(weatherType, 0, 2);
     range(threshold, 0, 1, .72f);
     range(knee, .001f, .5f, .15f);
     range(radius, .5f, 4, 1.6f);
@@ -136,6 +140,13 @@ bool Settings::load(const std::wstring &path) {
         READ_BOOL("enabled", enabled)
         READ_BOOL("unlock_fps", unlockFps)
         READ_BOOL("precise_water_depth", preciseWaterDepth)
+        READ_BOOL("time_override", timeOverride)
+        READ_BOOL("freeze_time", freezeTime)
+        READ_BOOL("weather_override", weatherOverride)
+        READ_FLOAT("time_minutes", timeMinutes)
+        READ_FLOAT("weather_intensity", weatherIntensity)
+        if (!strcmp(key, "weather_type"))
+            next.weatherType = int(std::clamp(number, 0.f, 2.f));
         if (!strcmp(key, "msaa_samples"))
             next.msaaSamples = (number == -1 || number == 2 || number == 4 || number == 8) ? int(number) : 0;
         READ_BOOL("bloom", bloom)
@@ -212,6 +223,10 @@ bool Settings::save(const std::wstring &path) const {
         waterTint, waterRefraction, waterTexture, waterDepth, waterShore, waterSSR, waterSSRQuality,
         waterCaustics, waterDispersion, waterCausticScale);
     bool ok = written > 0 && !ferror(file);
+    if (fprintf(file, "\n[Environment]\ntime_override=%d\ntime_minutes=%.0f\nfreeze_time=%d\n"
+                      "weather_override=%d\nweather_type=%d\nweather_intensity=%.6f\n",
+                timeOverride, timeMinutes, freezeTime, weatherOverride, weatherType, weatherIntensity) < 0)
+        ok = false;
     if (fprintf(file, "\n[SceneFX]\nmsaa_samples=%d\n", msaaSamples) < 0)
         ok = false;
 #define SCENE_BOOL(g, m, k, d)                                                                               \

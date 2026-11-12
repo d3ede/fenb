@@ -190,7 +190,7 @@ int main() {
                 CHECK(Screenshot(d, path.c_str()));
                 CHECK(r.settings.language == (language ? Language::Russian : Language::English));
                 if (variant == 2 && !narrow) {
-                    click(language ? 310 : 270, 60);
+                    click(language ? 365 : 343, 60);
                     frame();
                     CHECK(ImGui::IsPopupOpen("languages", ImGuiPopupFlags_AnyPopupId));
                     auto languagePath = std::wstring(L"artifacts/header-logo-options/") + names[variant] +
@@ -210,9 +210,78 @@ int main() {
     r.centerPanel = true;
     frame();
     frame();
+    click(270, 60);
+    CHECK(r.editorPage == 4);
+    r.settings.timeOverride = r.settings.weatherOverride = true;
+    r.settings.timeMinutes = 1110;
+    r.settings.weatherType = 1;
+    r.settings.weatherIntensity = 65;
+    CreateDirectoryW(L"artifacts/environment", nullptr);
+    for (int language = 0; language < 2; ++language) {
+        r.settings.language = language ? Language::Russian : Language::English;
+        for (bool narrow : {false, true}) {
+            io.DisplaySize = {narrow ? 334.f : 800.f, 600};
+            r.centerPanel = true;
+            frame(); frame();
+            auto path = std::wstring(L"artifacts/environment/world-") + (language ? L"ru" : L"en") +
+                        (narrow ? L"-narrow.png" : L".png");
+            CHECK(Screenshot(d, path.c_str()));
+        }
+    }
+    io.DisplaySize = {800, 600};
+    r.settings.language = Language::English;
+    r.centerPanel = true;
+    frame(); frame();
+    // Holding the track applies every movement before mouse release.
+    mouse(360, 188, true);
+    auto firstTime = r.settings.timeMinutes;
+    mouse(480, 188, true);
+    CHECK(r.settings.timeMinutes != firstTime && r.settings.timeMinutes != 1110);
+    mouse(480, 188, false);
+    click(582, 188);
+    io.AddKeyEvent(ImGuiMod_Ctrl, true);
+    io.AddKeyEvent(ImGuiKey_A, true);
+    frame();
+    io.AddKeyEvent(ImGuiKey_A, false);
+    io.AddKeyEvent(ImGuiMod_Ctrl, false);
+    io.AddInputCharactersUTF8("07:45");
+    frame();
+    CHECK(Screenshot(d, L"artifacts/environment/world-time-input.png"));
+    CHECK(r.settings.timeMinutes == 465); // HH:MM input applies before Enter, too.
+    io.AddKeyEvent(ImGuiKey_Enter, true);
+    frame();
+    io.AddKeyEvent(ImGuiKey_Enter, false);
+    frame();
+    click(155, 214);
+    CHECK(!r.settings.freezeTime);
+    click(155, 214);
+    CHECK(r.settings.freezeTime);
+    click(330, 280);
+    CHECK(r.settings.weatherType == 2);
+    mouse(430, 316, true);
+    auto firstIntensity = r.settings.weatherIntensity;
+    mouse(475, 316, true);
+    CHECK(r.settings.weatherIntensity != firstIntensity);
+    mouse(475, 316, false);
+    float retainedIntensity = r.settings.weatherIntensity;
+    click(641, 255);
+    CHECK(!r.settings.weatherOverride && r.settings.timeOverride &&
+          r.settings.weatherIntensity == retainedIntensity);
+    auto retainedTime = r.settings.timeMinutes;
+    click(641, 161);
+    CHECK(!r.settings.timeOverride && !r.settings.weatherOverride && r.settings.timeMinutes == retainedTime);
+    frame();
+    CHECK(Screenshot(d, L"artifacts/environment/world-game-en.png"));
+    click(205, 60);
+    CHECK(r.editorPage == 0);
+    r.settings.timeOverride = r.settings.weatherOverride = false;
+    r.settings.timeMinutes = 720;
+    r.settings.weatherType = 0;
+    r.settings.weatherIntensity = 100;
+    frame();
     CHECK(r.settings.language == Language::English);
     CHECK(Screenshot(d, L"build/FENB-main-english.png"));
-    click(290, 60); // Language tab immediately to the right of Image.
+    click(343, 60); // Language follows the World tab.
     frame();
     CHECK(ImGui::IsPopupOpen("languages", ImGuiPopupFlags_AnyPopupId));
     CHECK(Screenshot(d, L"build/FENB-language-menu.png"));
@@ -363,7 +432,7 @@ int main() {
     ImGui::ActivateItemByID(actionsWindow->GetID(resetID.c_str()));
     frame();
     CHECK(r.settings.language == Language::Russian && r.settings.exposure == 0);
-    click(310, 60);
+    click(365, 60);
     frame();
     CHECK(ImGui::IsPopupOpen("languages", ImGuiPopupFlags_AnyPopupId));
     languagePopup = ImGui::GetCurrentContext()->OpenPopupStack.back().Window->Pos;

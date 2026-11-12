@@ -32,6 +32,33 @@ int main() {
         CHECK(section.exposure == 0 && !section.color && !section.enabled && section.unlockFps);
     }
     Settings s;
+    {
+        Settings environment;
+        CHECK(!environment.timeOverride && !environment.weatherOverride && environment.freezeTime);
+        environment.timeOverride = true;
+        environment.weatherOverride = true;
+        environment.freezeTime = false;
+        environment.timeMinutes = 1110;
+        environment.weatherType = 2;
+        environment.weatherIntensity = 37;
+        environment.language = Language::Russian;
+        CHECK(environment.save(L"build/environment-settings.ini"));
+        Settings restored;
+        CHECK(restored.load(L"build/environment-settings.ini") && restored == environment);
+        restored.timeMinutes = 9999;
+        restored.weatherType = -10;
+        restored.weatherIntensity = std::numeric_limits<float>::quiet_NaN();
+        restored.sanitize();
+        CHECK(restored.timeMinutes == 1439 && restored.weatherType == 0 && restored.weatherIntensity == 100);
+        CHECK(restored.language == Language::Russian);
+        FILE *legacy = _wfopen(L"build/environment-legacy.ini", L"wb");
+        CHECK(legacy);
+        fputs("language=ru\n[Color]\nexposure=0.5\n", legacy);
+        fclose(legacy);
+        CHECK(restored.load(L"build/environment-legacy.ini"));
+        CHECK(!restored.timeOverride && !restored.weatherOverride && restored.exposure == .5f &&
+              restored.language == Language::Russian);
+    }
     CHECK(s.language == Language::English);
     for (int i = 1; i < static_cast<int>(UiText::Count); ++i) {
         auto text = static_cast<UiText>(i);
