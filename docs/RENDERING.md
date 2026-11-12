@@ -1,4 +1,4 @@
-# FENB 0.1h
+# FENB 0.1i
 
 FENB is a graphics mod for Flyff, inspired by ENBSeries. It uses a Windows x86 Direct3D 9 proxy, C++20, precompiled shaders and a native Dear ImGui settings panel.
 
@@ -22,7 +22,7 @@ The built-in list contains exactly five looks: **Default / Основной**, *
 
 All five are compiled into the DLL; the default image settings come from `config/FENB.ini`, with named variations in `config/builtins.json`. `node tools/embed-presets.mjs` regenerates `src/generated/presets.hpp`, and both build paths keep it in sync. No shipped `.ini` is added under **My profiles**. The old saved copy of Основной can be archived when migrating to the identical built-in, without discarding user edits. Custom files remain independently supported. Image-profile changes preserve the master switch, language, hardware/FPS choices and local time/weather controls. Modified built-ins retain their translated name with an asterisk, and can be saved as a custom profile.
 
-The lower-left corner shows the public version, **0.1h**, followed by save status. Public versions use the form `digit.digitletter`.
+The lower-left corner shows the public version, **0.1i**, followed by save status. Public versions use the form `digit.digitletter`.
 
 ## When an effect is visible
 

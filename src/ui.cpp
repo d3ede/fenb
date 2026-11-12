@@ -671,15 +671,17 @@ void EnvironmentControls(Runtime &r) {
     if (reset) { s.weatherType = 0; s.weatherIntensity = 100; }
     if (open) {
         ImGui::BeginDisabled(!s.weatherOverride || !s.enabled);
-        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(12, 6));
-        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1);
-        ImGui::PushStyleColor(ImGuiCol_FrameBg, ImGui::ColorConvertU32ToFloat4(Raised));
         const UiText types[] = {UiText::WeatherClear, UiText::WeatherRain, UiText::WeatherSnow};
-        for (int i = 0; i < 3; ++i) {
-            if (i) ImGui::SameLine();
-            bool selected = s.weatherType == i;
-            if (ImGui::Checkbox(Label(types[i]).c_str(), &selected) && selected)
-                s.weatherType = i;
+        ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(.16f, .17f, .19f, 1));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10, 8));
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8, 5));
+        ImGui::SetNextItemWidth(std::min(240.f, ImGui::GetContentRegionAvail().x));
+        if (ImGui::BeginCombo("##weather-type", Tr(types[s.weatherType]))) {
+            for (int i = 0; i < 3; ++i) {
+                if (ImGui::Selectable(Label(types[i]).c_str(), s.weatherType == i))
+                    s.weatherType = i;
+            }
+            ImGui::EndCombo();
         }
         ImGui::PopStyleColor();
         ImGui::PopStyleVar(2);

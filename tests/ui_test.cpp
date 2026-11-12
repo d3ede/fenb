@@ -226,6 +226,16 @@ int main() {
             auto path = std::wstring(L"artifacts/environment/world-") + (language ? L"ru" : L"en") +
                         (narrow ? L"-narrow.png" : L".png");
             CHECK(Screenshot(d, path.c_str()));
+            auto worldPanel = ImGui::FindWindowByName("FENB")->Pos;
+            click(worldPanel.x + 100, worldPanel.y + 213);
+            frame();
+            CHECK(!ImGui::GetCurrentContext()->OpenPopupStack.empty());
+            auto menuPath = std::wstring(L"artifacts/environment/weather-menu-") + (language ? L"ru" : L"en") +
+                            (narrow ? L"-narrow.png" : L".png");
+            CHECK(Screenshot(d, menuPath.c_str()));
+            click(worldPanel.x + 12, worldPanel.y + 20);
+            frame();
+            CHECK(ImGui::GetCurrentContext()->OpenPopupStack.empty());
         }
     }
     io.DisplaySize = {800, 600};
@@ -256,14 +266,20 @@ int main() {
     CHECK(!r.settings.freezeTime);
     click(155, 187);
     CHECK(r.settings.freezeTime);
-    click(330, 253);
-    CHECK(r.settings.weatherType == 2);
-    click(330, 253); // The selected checkbox stays selected; the section switch restores game weather.
-    CHECK(r.settings.weatherType == 2 && r.settings.weatherOverride);
-    click(180, 253);
-    CHECK(r.settings.weatherType == 0);
-    click(250, 253);
-    CHECK(r.settings.weatherType == 1);
+    auto chooseWeather = [&](int index) {
+        click(230, 253);
+        frame();
+        if (ImGui::GetCurrentContext()->OpenPopupStack.empty())
+            return false;
+        auto popup = ImGui::GetCurrentContext()->OpenPopupStack.back().Window->Pos;
+        float row = ImGui::GetTextLineHeight() + 5;
+        click(popup.x + 40, popup.y + 8 + index * row + ImGui::GetTextLineHeight() * .5f);
+        frame();
+        return r.settings.weatherType == index && r.settings.weatherOverride;
+    };
+    CHECK(chooseWeather(2));
+    CHECK(chooseWeather(0));
+    CHECK(chooseWeather(1));
     mouse(430, 289, true);
     auto firstIntensity = r.settings.weatherIntensity;
     mouse(475, 289, true);
