@@ -465,7 +465,8 @@ bool WaterFX::begin(const Settings &s, UINT upStride) {
     bool normalMap = normalTexture();
     if (!normalMap)
         return false;
-    float trace[] = {s.waterSSRQuality ? 24.f : 12.f, 80.f, normalMap ? 1.f : 0.f,
+    // Cover the visible world, rather than silently truncating river-bank hits at 80 units.
+    float trace[] = {s.waterSSRQuality ? 48.f : 24.f, 512.f, normalMap ? 1.f : 0.f,
                      2 * depth_.quantum() / std::max(.01f, std::abs(projection._43))};
     D3DLIGHT9 light{};
     BOOL on = FALSE;

@@ -188,6 +188,7 @@ int main(int argc, char **argv) {
     bool steppedMesh = false;
     bool foregroundBank = false;
     bool translatedScene = false;
+    bool bakedScene = false, distantWall = false;
     auto render = [&](float floorY, bool wall, bool replace) {
         water.beginFrame(true, true, true, settings.waterCaustics > 0);
         d->SetRenderState(D3DRS_ZENABLE, TRUE);
@@ -199,14 +200,21 @@ int main(int argc, char **argv) {
         d->SetVertexShader(nullptr);
         d->SetPixelShader(nullptr);
         D3DMATRIX sceneWorld = id, sceneView = view;
-        if (translatedScene) {
-            sceneWorld._41 = 7000;
-            sceneWorld._42 = 100;
-            sceneWorld._43 = 3300;
+        if (translatedScene || bakedScene) {
+            if (!bakedScene) {
+                sceneWorld._41 = 7000;
+                sceneWorld._42 = 100;
+                sceneWorld._43 = 3300;
+            }
             for (int axis = 0; axis < 3; ++axis)
                 sceneView.m[3][axis] -=
                     7000 * view.m[0][axis] + 100 * view.m[1][axis] + 3300 * view.m[2][axis];
         }
+        auto bake = [&](auto &list) {
+            if (bakedScene) for (auto &vertex : list) {
+                vertex.x += 7000; vertex.y += 100; vertex.z += 3300;
+            }
+        };
         d->SetTransform(D3DTS_WORLD, &sceneWorld);
         d->SetTransform(D3DTS_VIEW, &sceneView);
         d->SetTransform(D3DTS_PROJECTION, &projection);
@@ -223,16 +231,20 @@ int main(int argc, char **argv) {
                          {-12, floorY, 60, 0xff827050},
                          {12, floorY, -5, 0xff827050},
                          {12, floorY, 60, 0xff827050}};
+        bake(floor);
         d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, floor, sizeof(Floor));
         Floor object[] = {{-2, 0, 18, 0xffd05028}, {2, 0, 18, 0xffd05028}, {-2, 8, 18+8*wallSlope, 0xffd05028},
                           {-2, 8, 18+8*wallSlope, 0xffd05028}, {2, 0, 18, 0xffd05028}, {2, 8, 18+8*wallSlope, 0xffd05028}};
         if(wideWall)for(auto &vertex:object){vertex.x*=5;vertex.z+=vertex.x*.75f;}
         if(rampWall)for(auto &vertex:object)vertex.color=0xff000020|
             (DWORD(64+160*(vertex.x+2)/4)<<16)|(DWORD(64+160*vertex.y/8)<<8);
+        if(distantWall)for(auto &vertex:object){vertex.x*=8;vertex.y*=4;vertex.z+=142;}
+        bake(object);
         if (wall && foldedWall) {
             const float crease=.013f;
             Floor fold[]={{-2,0,26,0xffd05028},{crease,0,18,0xffd05028},{-2,8,26,0xffd05028},{crease,8,18,0xffd05028},
                           {crease,0,18,0xffd05028},{2,0,26,0xffd05028},{crease,8,18,0xffd05028},{2,8,26,0xffd05028}};
+            bake(fold);
             d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP,2,fold,sizeof(Floor));
             d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP,2,fold+4,sizeof(Floor));
         } else if (wall)
@@ -240,6 +252,7 @@ int main(int argc, char **argv) {
         if (foregroundBank) {
             Floor bank[] = {
                   {1, 0, 5, 0xff20d020}, {5, 0, 8, 0xff20d020}, {1, 9, 5, 0xff20d020}, {5, 9, 8, 0xff20d020}};
+            bake(bank);
             d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, bank, sizeof(Floor));
         }
         bool ok = true;
@@ -272,9 +285,10 @@ int main(int argc, char **argv) {
                      ((settings.waterDepth > 0 || settings.waterSSR > 0 || settings.waterCaustics > 0) ? 1.f
                                                                                                        : 0.f);
             if (ok && !steppedMesh) {
+                Vertex localVertices[4];memcpy(localVertices,vertices,sizeof(vertices));bake(localVertices);
                 water.reflect(
-                    [&]() { return d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, vertices, sizeof(Vertex)); });
-                ok = SUCCEEDED(d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, vertices, sizeof(Vertex)));
+                    [&]() { return d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, localVertices, sizeof(Vertex)); });
+                ok = SUCCEEDED(d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, localVertices, sizeof(Vertex)));
             } else if (ok) {
                 Vertex left[4], right[4];
                 memcpy(left, vertices, sizeof(vertices));
@@ -485,6 +499,19 @@ int main(int argc, char **argv) {
             printf("Analytic reflected color: pixels=%u wrong=%u mean error=%.3f\n",checked,bad,error/std::max(1u,checked));
             CHECK(checked>3000 && bad<5 && error/std::max(1u,checked)<.7f);
             rampWall=false;
+            // A bank more than 80 world units away must still reflect. Native Neuz
+            // stores large coordinates in vertices as well as in world transforms.
+            distantWall=true;projection._33=512.f/511.9f;projection._43=-.1f*projection._33;
+            for(int quality:{0,1})for(bool baked:{false,true}){
+                bakedScene=baked;settings.waterSSRQuality=quality;
+                CHECK(render(-2,true,true));
+                unsigned hits=0;
+                for(auto pixel:WaterFXFixture::reflection(water,d))
+                    hits+=(pixel>>24)>30 && ((pixel>>16)&255)>150 && ((pixel>>8)&255)<120;
+                printf("Distant bank quality=%d baked=%d reflection hits=%u\n",quality,baked,hits);
+                CHECK(hits>80);
+            }
+            bakedScene=false;distantWall=false;projection=fullProjection;
         }
         settings.waterSSR = 0;
         CHECK(render(-.02f, false, false));
