@@ -88,6 +88,11 @@ int main() {
     for (int i = 1; i < static_cast<int>(UiText::Count); ++i) {
         auto text = static_cast<UiText>(i);
         auto en = Translate(Language::English, text), ru = Translate(Language::Russian, text);
+#ifndef FENB_DIAGNOSTICS
+        if(text==UiText::CaptureFrames || text==UiText::CapturePending){
+            CHECK(!*en && !*ru);continue;
+        }
+#endif
         CHECK(*en && *ru);
         CHECK(MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, en, -1, nullptr, 0) > 0);
         CHECK(MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, ru, -1, nullptr, 0) > 0);
