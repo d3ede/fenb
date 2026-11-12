@@ -1,4 +1,5 @@
 #include "water.hpp"
+#include "scene_fx.hpp"
 #include "generated/water_catalog.hpp"
 #include <generated/water_vs.hpp>
 #include <generated/water_ps.hpp>
@@ -191,7 +192,8 @@ DWORD WaterFX::classify(IDirect3DTexture9 *texture) {
     texture->SetPrivateData(WaterTag, &tag, sizeof(tag), 0);
     return tag;
 }
-void WaterFX::captureEnvironment(D3DPRIMITIVETYPE type, UINT start, UINT count) {
+void WaterFX::captureEnvironment(D3DPRIMITIVETYPE type, UINT start, UINT count, SceneFX *sky,
+                                 const Settings *settings) {
     if (state_ || environmentFailed_)
         return;
     Com<IDirect3DPixelShader9> ps;
@@ -259,8 +261,16 @@ void WaterFX::captureEnvironment(D3DPRIMITIVETYPE type, UINT start, UINT count) 
         if (FAILED(environment_->GetCubeMapSurface(D3DCUBEMAP_FACES(face), 0, target.out())) ||
             FAILED(device_->SetRenderTarget(0, target)) || FAILED(device_->SetViewport(&vp)) ||
             FAILED(device_->SetTransform(D3DTS_VIEW, &m)) ||
-            (tag == 3 && FAILED(device_->Clear(0, nullptr, D3DCLEAR_TARGET, fog | 0xff000000, 1, 0))) ||
-            FAILED(device_->DrawPrimitive(type, start, count))) {
+            (tag == 3 && FAILED(device_->Clear(0, nullptr, D3DCLEAR_TARGET, fog | 0xff000000, 1, 0)))) {
+            ok = false;
+            break;
+        }
+        if (sky && settings)
+            sky->beginSky(*settings, tag);
+        const HRESULT draw = device_->DrawPrimitive(type, start, count);
+        if (sky)
+            sky->endSky();
+        if (FAILED(draw)) {
             ok = false;
             break;
         }
@@ -416,7 +426,8 @@ bool WaterFX::begin(const Settings &s, UINT upStride) {
     bool normalMap = normalTexture();
     if (!normalMap)
         return false;
-    float trace[] = {s.waterSSRQuality ? 24.f : 12.f, 80.f, normalMap ? 1.f : 0.f, depth_.quantum()};
+    float trace[] = {s.waterSSRQuality ? 24.f : 12.f, 80.f, normalMap ? 1.f : 0.f,
+                     2 * depth_.quantum() / std::max(.01f, std::abs(projection._43))};
     D3DLIGHT9 light{};
     BOOL on = FALSE;
     bool lit = SUCCEEDED(device_->GetLight(0, &light)) && SUCCEEDED(device_->GetLightEnable(0, &on)) && on &&

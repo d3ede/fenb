@@ -1,10 +1,12 @@
 sampler2D Scene : register(s0);
 sampler2D Glow : register(s1);
+sampler2D Exposure : register(s2);
 float4 Bloom : register(c0); // strength, threshold (linear), knee, radius
 float4 Grade : register(c1); // exposure, contrast, saturation, gamma
 float4 Balance : register(c2); // temperature, tint, shadows, highlights
 float4 Options : register(c3); // bloom enabled, color enabled
 float4 Step : register(c4);
+float4 Automatic : register(c5);
 
 float4 Bright(float2 uv : TEXCOORD0) : COLOR0 {
     float3 a = tex2D(Scene, uv + Step.xy * float2(-.5,-.5)).rgb;
@@ -31,6 +33,7 @@ float4 Composite(float2 uv : TEXCOORD0) : COLOR0 {
     float4 source = tex2D(Scene, uv);
     float3 rgb = pow(max(source.rgb, 0), 2.2);
     if (Options.x > .5) rgb += tex2D(Glow, uv).rgb * Bloom.x;
+    if (Automatic.x > .5) rgb *= exp2(tex2D(Exposure,float2(.5,.5)).r);
     if (Options.y > .5) {
         rgb *= exp2(Grade.x);
         rgb *= float3(1 + Balance.x*.18, 1 + Balance.y*.12, 1 - Balance.x*.18);

@@ -3,12 +3,16 @@
 #include "state_guard.hpp"
 #include "depth_copy.hpp"
 #include <bcrypt.h>
+#include "scene_tags.hpp"
+class SceneFX;
 // Texture-private metadata dies with the resource; no dangling pointer cache or retained game textures.
 inline constexpr GUID WaterTag = {
     0x1a491582, 0x408f, 0x49bd, {0xa5, 0x63, 0x33, 0x6a, 0x9e, 0x51, 0x76, 0xe2}};
 inline void InvalidateWaterTag(IDirect3DResource9 *resource) {
-    if (resource)
+    if (resource) {
         resource->FreePrivateData(WaterTag);
+        resource->FreePrivateData(EmitterTag);
+    }
 }
 inline void InvalidateWaterSurface(IDirect3DSurface9 *surface) {
     Com<IDirect3DTexture9> texture;
@@ -51,7 +55,11 @@ class WaterFX {
     explicit WaterFX(IDirect3DDevice9 *device) : device_(device), depth_(device) {}
     ~WaterFX();
     bool begin(const Settings &settings, UINT upStride = 0);
-    void captureEnvironment(D3DPRIMITIVETYPE type, UINT start, UINT count);
+    DWORD materialTag(IDirect3DTexture9 *texture) {
+        return classify(texture);
+    }
+    void captureEnvironment(D3DPRIMITIVETYPE type, UINT start, UINT count, SceneFX *sky = nullptr,
+                            const Settings *settings = nullptr);
     void beginFrame(bool refraction = true, bool sky = true, bool depth = true, bool caustics = true) {
         sceneAttempted_ = sceneReady_ = false;
         causticAttempted_ = causticReady_ = false;

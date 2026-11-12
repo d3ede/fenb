@@ -146,12 +146,15 @@ void Runtime::afterPresent(HRESULT result) {
     }
 }
 void Runtime::resetFrame() {
+    effects_->sceneFX().beginFrame();
     lastWaterDraws = waterDraws;
     waterDraws = 0;
     bool waterEnabled = settings.enabled && settings.water && !compare;
-    water_->beginFrame(waterEnabled && (settings.waterRefraction > 0 || settings.waterDepth > 0 || settings.waterSSR > 0 || settings.waterCaustics > 0),
+    water_->beginFrame(waterEnabled && (settings.waterRefraction > 0 || settings.waterDepth > 0 ||
+                                        settings.waterSSR > 0 || settings.waterCaustics > 0),
                        waterEnabled && settings.waterSky > 0,
-                       waterEnabled && (settings.waterDepth > 0 || settings.waterSSR > 0 || settings.waterCaustics > 0),
+                       waterEnabled &&
+                           (settings.waterDepth > 0 || settings.waterSSR > 0 || settings.waterCaustics > 0),
                        waterEnabled && settings.waterCaustics > 0);
     Drop(sceneBackbuffer_);
     drawTarget_ = nullptr;
@@ -159,6 +162,9 @@ void Runtime::resetFrame() {
     invalidateDrawState();
 }
 void Runtime::beforeWaterDraw(UINT upStride) {
+    if (!lost_ && !hudStarted_ && settings.enabled && !compare && !vertexShaderActive_ && fvfKnown_ &&
+        drawFVF_ == 0x112 && settings.nightFoliage > 0 && sceneBackbuffer_ && drawTarget_ == sceneBackbuffer_)
+        effects_->sceneFX().beginFoliage(settings);
     if (lost_ || hudStarted_ || !settings.enabled || !settings.water || compare || vertexShaderActive_ ||
         !fvfKnown_ || drawFVF_ != 0x152 || !sceneBackbuffer_ || drawTarget_ != sceneBackbuffer_)
         return;
@@ -166,13 +172,28 @@ void Runtime::beforeWaterDraw(UINT upStride) {
         ++waterDraws;
 }
 void Runtime::environmentDraw(D3DPRIMITIVETYPE type, UINT start, UINT count) {
-    if (lost_ || hudStarted_ || !settings.enabled || !settings.water || settings.waterSky <= 0 || compare ||
-        vertexShaderActive_ || !fvfKnown_ || drawFVF_ != 0x142 || !sceneBackbuffer_ || drawTarget_ != sceneBackbuffer_)
+    if (lost_ || hudStarted_ || !settings.enabled ||
+        (!(settings.water && settings.waterSky > 0) && !settings.sky) || compare || vertexShaderActive_ ||
+        !fvfKnown_ || drawFVF_ != 0x142 || !sceneBackbuffer_ || drawTarget_ != sceneBackbuffer_)
         return;
-    water_->captureEnvironment(type, start, count);
+    if (settings.water && settings.waterSky > 0)
+        water_->captureEnvironment(type, start, count, &effects_->sceneFX(), &settings);
+    Com<IDirect3DBaseTexture9> texture;
+    if (SUCCEEDED(device_->GetTexture(0, texture.out())) && texture.p &&
+        texture->GetType() == D3DRTYPE_TEXTURE)
+        effects_->sceneFX().beginSky(settings,
+                                     water_->materialTag(static_cast<IDirect3DTexture9 *>(texture.p)));
 }
 void Runtime::afterWaterDraw(bool up, bool indexed) {
+    effects_->sceneFX().endSky();
+    effects_->sceneFX().endFoliage();
     water_->end(up, indexed);
+}
+void Runtime::emitterDraw(DrawCall draw) {
+    if (lost_ || hudStarted_ || !settings.enabled || compare || vertexShaderActive_ ||
+        !settings.localLighting || !sceneBackbuffer_ || drawTarget_ != sceneBackbuffer_)
+        return;
+    effects_->sceneFX().captureEmitter(settings, draw);
 }
 void Runtime::beforeDraw() {
     // Cache setters: do not query every DX9 state on thousands of world draws.
@@ -203,6 +224,8 @@ void Runtime::beforeDraw() {
     }
     const bool screenSpace = !vertexShaderActive_ && (drawFVF_ & D3DFVF_POSITION_MASK) == D3DFVF_XYZRHW;
     if (!screenSpace) {
+        if (settings.enabled && !compare && !vertexShaderActive_)
+            effects_->sceneFX().observe(settings);
         DWORD position = drawFVF_ & D3DFVF_POSITION_MASK;
         if (vertexShaderActive_ || position == D3DFVF_XYZ ||
             (position >= D3DFVF_XYZB1 && position <= D3DFVF_XYZB5))
@@ -212,7 +235,7 @@ void Runtime::beforeDraw() {
     // Neuz switches from world geometry to RHW HUD/nameplates. Process once BEFORE
     // the first HUD draw. Any later 3D UI previews must remain unprocessed as well.
     hudStarted_ = true;
-    if (!sawWorld_ || !settings.enabled || compare || (!settings.bloom && !settings.color))
+    if (!sawWorld_ || !settings.enabled || compare || !settings.postEnabled())
         return;
     StateGuard state(device_);
     if (!state.valid())
@@ -280,13 +303,12 @@ void Runtime::beforePresent(IDirect3DSwapChain9 *provided, DWORD flags, HWND win
     }
     fpsLimiter_.update(settings.unlockFps);
     bool panel = visible && main && initUI();
+    if (!settings.enabled || !settings.postEnabled())
+        effects_->idle(settings);
     // Final-frame filtering would recolor HUD. Only use this fallback if the frame
     // contains confirmed world geometry and no screen-space UI was drawn at all.
-    bool process =
-        sawWorld_ && !hudStarted_ && settings.enabled && !compare && (settings.bloom || settings.color);
+    bool process = sawWorld_ && !hudStarted_ && settings.enabled && !compare && settings.postEnabled();
     if (!panel && !process) {
-        if (!settings.enabled || (!settings.bloom && !settings.color))
-            effects_->invalidate();
         return;
     }
     Com<IDirect3DSurface9> backbuffer;
@@ -323,6 +345,13 @@ void Runtime::beforePresent(IDirect3DSwapChain9 *provided, DWORD flags, HWND win
 }
 double Runtime::gpuBytes() const {
     return double(effects_->bytes() + water_->bytes());
+}
+unsigned Runtime::activeMSAA() const {
+    Com<IDirect3DSwapChain9> chain;
+    D3DPRESENT_PARAMETERS p{};
+    if (FAILED(device_->GetSwapChain(0, chain.out())) || FAILED(chain->GetPresentParameters(&p)))
+        return 0;
+    return unsigned(p.MultiSampleType);
 }
 #ifdef FENB_DIAGNOSTICS
 void Runtime::requestCapture() {

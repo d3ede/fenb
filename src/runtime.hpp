@@ -1,6 +1,7 @@
 #pragma once
 #include "settings.hpp"
 #include "fps_limiter.hpp"
+#include "draw_call.hpp"
 struct ImGuiContext;
 class Effects;
 class WaterFX;
@@ -35,14 +36,18 @@ class Runtime {
     std::string message;
     std::wstring configPath;
     double gpuBytes() const;
+    unsigned activeMSAA() const;
     void save();
     void reload();
     void settingsChanged();
-    bool fpsUnlockSupported() { return fpsLimiter_.supported(); }
+    bool fpsUnlockSupported() {
+        return fpsLimiter_.supported();
+    }
     void beforeDraw();
     void environmentDraw(D3DPRIMITIVETYPE type, UINT start, UINT count);
     void beforeWaterDraw(UINT upStride = 0);
     void afterWaterDraw(bool up = false, bool indexed = false);
+    void emitterDraw(DrawCall);
     void drawFVF(DWORD value) {
         drawFVF_ = value;
         fvfKnown_ = true;

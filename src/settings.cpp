@@ -89,6 +89,22 @@ void Settings::sanitize() {
     range(waterCaustics, 0, 2, 0);
     range(waterDispersion, 0, 1, .15f);
     waterCausticScale = waterCausticScale == 2 ? 2 : 4;
+    if (msaaSamples != -1 && msaaSamples != 2 && msaaSamples != 4 && msaaSamples != 8)
+        msaaSamples = 0;
+#define SCENE_BOOL(g, m, k, d)
+#define SCENE_FLOAT(g, m, k, d, lo, hi) range(m, lo, hi, d);
+#include "scene_settings.inc"
+#undef SCENE_BOOL
+#undef SCENE_FLOAT
+}
+void Settings::resetSceneSection(int group) {
+#define SCENE_BOOL(g, m, k, d)
+#define SCENE_FLOAT(g, m, k, d, lo, hi)                                                                      \
+    if (group == g)                                                                                          \
+        m = d;
+#include "scene_settings.inc"
+#undef SCENE_BOOL
+#undef SCENE_FLOAT
 }
 
 bool Settings::load(const std::wstring &path) {
@@ -114,34 +130,46 @@ bool Settings::load(const std::wstring &path) {
         READ_BOOL("enabled", enabled)
         READ_BOOL("unlock_fps", unlockFps)
         READ_BOOL("precise_water_depth", preciseWaterDepth)
+        if (!strcmp(key, "msaa_samples"))
+            next.msaaSamples = (number == -1 || number == 2 || number == 4 || number == 8) ? int(number) : 0;
         READ_BOOL("bloom", bloom)
         READ_BOOL("color", color)
-        READ_BOOL("open_on_start", openOnStart) READ_FLOAT("bloom_strength", bloomStrength)
-            READ_FLOAT("threshold", threshold) READ_FLOAT("knee", knee)
-                READ_FLOAT("radius", radius) if (strcmp(key, "bloom_scale") == 0)
-                    next.bloomScale = number == 2 ? 2 : 4;
+        READ_BOOL("open_on_start", openOnStart)
+        READ_FLOAT("bloom_strength", bloomStrength) READ_FLOAT("threshold", threshold)
+            READ_FLOAT("knee", knee) READ_FLOAT("radius", radius) if (strcmp(key, "bloom_scale") == 0)
+                next.bloomScale = number == 2 ? 2 : 4;
         if (strcmp(key, "panel_page") == 0)
             next.panelPage = int(std::clamp(number, 0.f, 3.f));
         READ_FLOAT("exposure", exposure)
         READ_FLOAT("contrast", contrast)
         READ_FLOAT("saturation", saturation)
-        READ_FLOAT("temperature", temperature) READ_FLOAT("tint", tint) READ_FLOAT("gamma", gamma) READ_FLOAT(
-            "shadows", shadows) READ_FLOAT("highlights", highlights) READ_BOOL("water", water)
-            READ_FLOAT("water_waves", waterWaves) READ_FLOAT("water_length", waterLength)
-                READ_FLOAT("water_speed", waterSpeed) READ_FLOAT("water_ripples", waterRipples) READ_FLOAT(
-                    "water_ripple_scale", waterRippleScale) READ_FLOAT("water_opacity", waterOpacity)
-                    READ_FLOAT("water_sky", waterSky) READ_FLOAT("water_glints", waterGlints)
-                        READ_FLOAT("water_gloss", waterGloss) READ_FLOAT("water_tint", waterTint) READ_FLOAT(
-                            "water_refraction", waterRefraction) READ_FLOAT("water_texture", waterTexture)
-                            READ_FLOAT("water_depth", waterDepth) READ_FLOAT("water_shore", waterShore)
-                                READ_FLOAT("water_ssr", waterSSR) READ_FLOAT("water_caustics", waterCaustics)
-                                    READ_FLOAT("water_dispersion",
-                                               waterDispersion) if (strcmp(key, "water_caustic_scale") == 0)
+        READ_FLOAT("temperature", temperature)
+        READ_FLOAT("tint", tint) READ_FLOAT("gamma", gamma) READ_FLOAT("shadows", shadows) READ_FLOAT(
+            "highlights", highlights) READ_BOOL("water", water) READ_FLOAT("water_waves", waterWaves)
+            READ_FLOAT("water_length", waterLength) READ_FLOAT("water_speed", waterSpeed)
+                READ_FLOAT("water_ripples", waterRipples) READ_FLOAT("water_ripple_scale", waterRippleScale)
+                    READ_FLOAT("water_opacity", waterOpacity) READ_FLOAT("water_sky", waterSky) READ_FLOAT(
+                        "water_glints", waterGlints) READ_FLOAT("water_gloss", waterGloss)
+                        READ_FLOAT("water_tint", waterTint) READ_FLOAT("water_refraction", waterRefraction)
+                            READ_FLOAT("water_texture", waterTexture) READ_FLOAT("water_depth", waterDepth)
+                                READ_FLOAT("water_shore", waterShore) READ_FLOAT("water_ssr", waterSSR)
+                                    READ_FLOAT("water_caustics", waterCaustics) READ_FLOAT(
+                                        "water_dispersion",
+                                        waterDispersion) if (strcmp(key, "water_caustic_scale") == 0)
                                         next.waterCausticScale = number == 2 ? 2 : 4;
         if (strcmp(key, "water_ssr_quality") == 0)
             next.waterSSRQuality = number == 1 ? 1 : 0;
 #undef READ_BOOL
 #undef READ_FLOAT
+#define SCENE_BOOL(g, m, k, d)                                                                               \
+    if (!strcmp(key, k))                                                                                     \
+        next.m = number != 0;
+#define SCENE_FLOAT(g, m, k, d, lo, hi)                                                                      \
+    if (!strcmp(key, k))                                                                                     \
+        next.m = number;
+#include "scene_settings.inc"
+#undef SCENE_BOOL
+#undef SCENE_FLOAT
     }
     bool ok = !ferror(file);
     fclose(file);
@@ -176,6 +204,17 @@ bool Settings::save(const std::wstring &path) const {
         waterSky, waterGlints, waterGloss, waterTint, waterRefraction, waterTexture, waterDepth, waterShore,
         waterSSR, waterSSRQuality, waterCaustics, waterDispersion, waterCausticScale);
     bool ok = written > 0 && !ferror(file);
+    if (fprintf(file, "\n[SceneFX]\nmsaa_samples=%d\n", msaaSamples) < 0)
+        ok = false;
+#define SCENE_BOOL(g, m, k, d)                                                                               \
+    if (fprintf(file, k "=%d\n", int(m)) < 0)                                                                \
+        ok = false;
+#define SCENE_FLOAT(g, m, k, d, lo, hi)                                                                      \
+    if (fprintf(file, k "=%.6f\n", m) < 0)                                                                   \
+        ok = false;
+#include "scene_settings.inc"
+#undef SCENE_BOOL
+#undef SCENE_FLOAT
     if (fclose(file) != 0)
         ok = false;
     if (!ok) {
@@ -193,11 +232,13 @@ void Settings::preset(int index) {
     bool open = openOnStart;
     bool unlock = unlockFps;
     bool precise = preciseWaterDepth;
+    int msaa = msaaSamples;
     int page = panelPage;
     *this = Settings{};
     openOnStart = open;
     unlockFps = unlock;
     preciseWaterDepth = precise;
+    msaaSamples = msaa;
     panelPage = page;
     if (index == 1) {
         bloomStrength = .32f;

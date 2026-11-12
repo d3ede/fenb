@@ -45,22 +45,67 @@ HRESULT WithDepthFormat(IDirect3D9 *root, UINT adapter, D3DDEVTYPE type, D3DPRES
     Log("Water depth: 24-bit allocation failed; retrying original D16 parameters.");
     return call(p);
 }
-inline bool ConfiguredPreciseDepth() {
+inline bool SupportedPresentationHost() {
     static const bool known = [] {
         wchar_t path[32768]{};
         GetModuleFileNameW(nullptr, path, 32768);
         return fps_detail::KnownClientFile(path);
     }();
-    if (!known)
+    return known;
+}
+inline bool ConfiguredPreciseDepth() {
+    if (!SupportedPresentationHost())
         return false;
     Settings settings;
     settings.load(ModuleDirectory() + L"FENB.ini");
     return settings.preciseWaterDepth;
 }
 template <class Call>
+HRESULT WithMultisample(IDirect3D9 *root, UINT adapter, D3DDEVTYPE type, D3DPRESENT_PARAMETERS *p,
+                        int samples, Call &&call) {
+    if (!p || samples == 0 || (samples != -1 && samples != 2 && samples != 4 && samples != 8))
+        return call(p);
+    auto adjusted = *p;
+    adjusted.MultiSampleType = samples < 0 ? D3DMULTISAMPLE_NONE : D3DMULTISAMPLE_TYPE(samples);
+    adjusted.MultiSampleQuality = 0;
+    if (adjusted.MultiSampleType == p->MultiSampleType && p->MultiSampleQuality == 0)
+        return call(p);
+    if (adjusted.MultiSampleType != D3DMULTISAMPLE_NONE) {
+        if (p->SwapEffect != D3DSWAPEFFECT_DISCARD)
+            return call(p);
+        D3DDISPLAYMODE display{};
+        if (FAILED(root->GetAdapterDisplayMode(adapter, &display)))
+            return call(p);
+        const D3DFORMAT color = p->BackBufferFormat == D3DFMT_UNKNOWN ? display.Format : p->BackBufferFormat;
+        for (auto format : {color, p->EnableAutoDepthStencil ? p->AutoDepthStencilFormat : color}) {
+            DWORD quality = 0;
+            if (FAILED(root->CheckDeviceMultiSampleType(adapter, type, format, p->Windowed,
+                                                        adjusted.MultiSampleType, &quality)) ||
+                !quality)
+                return call(p);
+        }
+    }
+    HRESULT result = call(&adjusted);
+    if (SUCCEEDED(result)) {
+        *p = adjusted;
+        Log("Presentation: requested MSAA mode applied.");
+        return result;
+    }
+    if (result == D3DERR_DEVICELOST || result == D3DERR_DEVICEHUNG || result == D3DERR_DEVICEREMOVED)
+        return result;
+    Log("Presentation: MSAA override failed; retrying original game parameters.");
+    return call(p);
+}
+template <class Call>
 HRESULT WithConfiguredDepth(IDirect3D9 *root, UINT adapter, D3DDEVTYPE type, D3DPRESENT_PARAMETERS *p,
                             Call &&call) {
-    return WithDepthFormat(root, adapter, type, p, ConfiguredPreciseDepth(), std::forward<Call>(call));
+    if (!SupportedPresentationHost())
+        return call(p);
+    Settings settings;
+    settings.load(ModuleDirectory() + L"FENB.ini");
+    return WithMultisample(root, adapter, type, p, settings.msaaSamples, [&](auto *parameters) {
+        return WithDepthFormat(root, adapter, type, parameters, settings.preciseWaterDepth, call);
+    });
 }
 template <class Call>
 HRESULT WithConfiguredDepth(IDirect3DDevice9 *device, D3DPRESENT_PARAMETERS *p, Call &&call) {

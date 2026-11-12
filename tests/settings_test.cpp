@@ -57,6 +57,7 @@ int main() {
     s.waterSSR = .9f;
     s.waterSSRQuality = 1;
     s.preciseWaterDepth = false;
+    s.msaaSamples = 4;
     s.waterDepth = .8f;
     s.waterShore = 1.1f;
     s.waterSSR = .9f;
@@ -64,11 +65,33 @@ int main() {
     s.waterCaustics = .65f;
     s.waterDispersion = .3f;
     s.waterCausticScale = 2;
+    s.ssao = true;
+    s.sunRays = true;
+    s.sky = true;
+    s.fog = true;
+    s.dof = true;
+    s.adaptation = true;
+    s.localLighting = true;
+    s.aoStrength = .8f;
+    s.fogDensity = .008f;
+    s.focusDistance = 48;
+    s.maxEV = .7f;
+    s.fxaa = true;
+    s.fxaaStrength = .8f;
+    s.nightFoliage = .55f;
     CHECK(s.save(path));
     Settings loaded;
     CHECK(loaded.load(path));
     CHECK(loaded.unlockFps);
     CHECK(!loaded.preciseWaterDepth);
+    CHECK(loaded.msaaSamples == 4 && loaded.fxaa && loaded.fxaaStrength == .8f &&
+          loaded.nightFoliage == .55f);
+    CHECK(loaded.ssao && loaded.sunRays && loaded.sky && loaded.fog && loaded.dof && loaded.adaptation &&
+          loaded.localLighting);
+    CHECK(loaded.aoStrength == .8f && loaded.fogDensity == .008f && loaded.focusDistance == 48 &&
+          loaded.maxEV == .7f);
+    loaded.resetSceneSection(0);
+    CHECK(loaded.ssao && loaded.aoStrength == Settings{}.aoStrength && loaded.fog);
     CHECK(loaded.waterCaustics == .65f && loaded.waterDispersion == .3f && loaded.waterCausticScale == 2);
     CHECK(!loaded.enabled && loaded.temperature == s.temperature && loaded.shadows == s.shadows);
     CHECK(!loaded.water && loaded.waterWaves == s.waterWaves && loaded.waterGlints == s.waterGlints &&
@@ -114,6 +137,7 @@ int main() {
     s.preset(1);
     CHECK(s.unlockFps);
     CHECK(!s.preciseWaterDepth);
+    CHECK(s.msaaSamples == 4);
     DeleteFileW(path.c_str());
     puts("PASS: config round-trip, sanitization, corrupt values, failed IO.");
 }

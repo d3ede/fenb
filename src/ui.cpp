@@ -191,7 +191,8 @@ void Row(const char *label, const char *help, float &value, float low, float hig
     ImGui::Dummy({width, RowHeight});
     ImGui::PopID();
 }
-bool Section(const char *id, const char *title, bool &enabled, bool &reset, bool showEnable = true) {
+bool Section(const char *id, const char *title, bool &enabled, bool &reset, bool showEnable = true,
+             bool initiallyOpen = true) {
     reset = false;
     ImGui::PushID(id);
     auto p = ImGui::GetCursorScreenPos();
@@ -199,7 +200,7 @@ bool Section(const char *id, const char *title, bool &enabled, bool &reset, bool
     auto *d = ImGui::GetWindowDrawList();
     auto key = ImGui::GetID("expanded");
     auto *state = ImGui::GetStateStorage();
-    bool expanded = state->GetBool(key, true);
+    bool expanded = state->GetBool(key, initiallyOpen);
     d->AddLine(p, {p.x + width, p.y}, Line, 1);
     if (ImGui::InvisibleButton("heading", {width - 60, 28}, ImGuiButtonFlags_EnableNav)) {
         expanded = !expanded;
@@ -234,6 +235,7 @@ int MatchingPreset(const Settings &s) {
         candidate.panelPage = s.panelPage;
         candidate.unlockFps = s.unlockFps;
         candidate.preciseWaterDepth = s.preciseWaterDepth;
+        candidate.msaaSamples = s.msaaSamples;
         if (candidate == s)
             return i;
     }
@@ -287,6 +289,7 @@ void ProfilePicker(Runtime &r, float width) {
     saved.panelPage = s.panelPage;
     saved.unlockFps = s.unlockFps;
     saved.preciseWaterDepth = s.preciseWaterDepth;
+    saved.msaaSamples = s.msaaSamples;
     std::string caption = r.selectedProfile + (saved == s ? "" : " *");
     ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(.16f, .17f, .19f, 1));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10, 9));
@@ -324,6 +327,7 @@ void ProfilePicker(Runtime &r, float width) {
                         next.enabled = s.enabled;
                         next.unlockFps = s.unlockFps;
                         next.preciseWaterDepth = s.preciseWaterDepth;
+                        next.msaaSamples = s.msaaSamples;
                         s = next;
                         r.selectedProfile = label;
                         r.selectedProfileSettings = s;
@@ -395,6 +399,163 @@ void ProfilePicker(Runtime &r, float width) {
     }
     ImGui::PopStyleVar(2);
 }
+void SceneControls(Settings &s) {
+    const Settings defaults;
+    bool reset = false;
+    auto section = [&](const char *id, const char *title, bool &value, int group) {
+        bool open = Section(id, title, value, reset, true, false);
+        if (reset)
+            s.resetSceneSection(group);
+        return open;
+    };
+    if (section("ssao", "SSAO", s.ssao, 0)) {
+        ImGui::BeginDisabled(!s.ssao || !s.enabled);
+        Row("Интенсивность", "Контактное затенение по глубине. Не заменяет динамические тени.", s.aoStrength,
+            0, 2, defaults.aoStrength, "%.2f", .05f);
+        Row("Радиус", "Размер области затенения в единицах мира.", s.aoRadius, .1f, 5, defaults.aoRadius,
+            "%.2f", .1f);
+        Row("Смещение", "Убирает самозатенение плоских поверхностей.", s.aoBias, .005f, .3f, defaults.aoBias,
+            "%.3f", .005f);
+        Row("Дальность", "Расстояние плавного отключения SSAO.", s.aoDistance, 10, 500, defaults.aoDistance,
+            "%.0f", 10);
+        ImGui::EndDisabled();
+    }
+    if (section("rays", "Sun Rays", s.sunRays, 1)) {
+        ImGui::BeginDisabled(!s.sunRays || !s.enabled);
+        Row("Интенсивность", "Лучи от направления солнца, с перекрытием геометрией видимого кадра.",
+            s.rayStrength, 0, 2, defaults.rayStrength, "%.2f", .05f);
+        Row("Длина", "Протяжённость лучей от солнца.", s.rayLength, .1f, 1.5f, defaults.rayLength, "%.2f",
+            .05f);
+        Row("Затухание", "Выше — лучи длиннее и заметнее.", s.rayDecay, .8f, .99f, defaults.rayDecay, "%.2f",
+            .01f);
+        ImGui::EndDisabled();
+    }
+    if (section("sky", "SkyFX", s.sky, 2)) {
+        ImGui::BeginDisabled(!s.sky || !s.enabled);
+        Row("Атмосфера", "Плавный цветовой переход неба. Ночная яркость зависит от света игры.",
+            s.skyStrength, 0, 1, defaults.skyStrength, "%.2f", .05f);
+        Row("Горизонт", "Ширина светлой полосы у горизонта.", s.skyHorizon, .1f, 1, defaults.skyHorizon,
+            "%.2f", .05f);
+        Row("Облака", "Контраст исходных облаков, с сохранением их прозрачности.", s.cloudContrast, .5f, 2,
+            defaults.cloudContrast, "%.2f", .05f);
+        Row("Ореол солнца", "Мягкое свечение в направлении солнца.", s.sunHalo, 0, 2, defaults.sunHalo,
+            "%.2f", .05f);
+        ImGui::EndDisabled();
+    }
+    if (section("fog", "Туман", s.fog, 3)) {
+        ImGui::BeginDisabled(!s.fog || !s.enabled);
+        Row("Плотность", "Дополнительная воздушная перспектива по расстоянию и высоте.", s.fogDensity, 0,
+            .03f, defaults.fogDensity, "%.4f", .0005f);
+        Row("Начало", "Ближняя дистанция без дополнительного тумана.", s.fogStart, 0, 250, defaults.fogStart,
+            "%.0f", 5);
+        Row("Высота", "Высота плотного слоя в координатах мира.", s.fogHeight, -500, 500, defaults.fogHeight,
+            "%.0f", 5);
+        Row("Спад по высоте", "Выше — быстрее разрежается над заданной высотой.", s.fogFalloff, 0, .2f,
+            defaults.fogFalloff, "%.3f", .005f);
+        float tint[] = {s.fogR, s.fogG, s.fogB};
+        ImGui::SetNextItemWidth(230);
+        if (ImGui::ColorEdit3("Цвет тумана", tint, ImGuiColorEditFlags_NoInputs)) {
+            s.fogR = tint[0];
+            s.fogG = tint[1];
+            s.fogB = tint[2];
+        }
+        ImGui::EndDisabled();
+    }
+    if (section("dof", "Depth of Field", s.dof, 4)) {
+        ImGui::BeginDisabled(!s.dof || !s.enabled);
+        Row("Фокус", "Расстояние до резкого плана в единицах мира.", s.focusDistance, 1, 500,
+            defaults.focusDistance, "%.0f", 1);
+        Row("Резкая область", "Ширина области резкости вокруг фокуса.", s.focusRange, 1, 200,
+            defaults.focusRange, "%.0f", 1);
+        Row("Размытие", "Максимальный радиус в пикселях.", s.dofRadius, 0, 12, defaults.dofRadius, "%.1f",
+            .5f);
+        Row("Ближний план", "Сила размытия перед фокусом. Ноль сохраняет передний план резким.", s.dofNear, 0,
+            1, defaults.dofNear, "%.2f", .05f);
+        ImGui::EndDisabled();
+    }
+    if (section("adaptation", "Адаптация яркости", s.adaptation, 5)) {
+        ImGui::BeginDisabled(!s.adaptation || !s.enabled);
+        Row("Средняя яркость", "Целевая средняя яркость сцены, без учёта интерфейса.", s.adaptationKey, .04f,
+            .5f, defaults.adaptationKey, "%.2f", .01f);
+        Row("Минимум EV", "Предел автоматического затемнения.", s.minEV, -4, 0, defaults.minEV, "%+.2f", .1f);
+        Row("Максимум EV", "Предел автоматического осветления.", s.maxEV, 0, 4, defaults.maxEV, "%+.2f", .1f);
+        Row("К яркому свету", "Скорость привыкания к яркой сцене.", s.adaptBright, .1f, 5,
+            defaults.adaptBright, "%.1f", .1f);
+        Row("К темноте", "Скорость привыкания к тёмной сцене.", s.adaptDark, .1f, 5, defaults.adaptDark,
+            "%.1f", .1f);
+        ImGui::EndDisabled();
+    }
+    bool vegetation = true;
+    if (Section("foliage", "Растительность", vegetation, reset, false, false)) {
+        if (reset)
+            s.resetSceneSection(9);
+        Row("Ночная яркость",
+            "Мягкий заполняющий свет только на распознанных материалах деревьев. Днём не действует.",
+            s.nightFoliage, 0, 1, defaults.nightFoliage, "%.2f", .05f);
+    } else if (reset)
+        s.resetSceneSection(9);
+    if (section("lighting", "Локальное освещение", s.localLighting, 6)) {
+        ImGui::BeginDisabled(!s.localLighting || !s.enabled);
+        Row("Интенсивность", "Свет от определённых источников на видимой геометрии. Без карт теней.",
+            s.localStrength, 0, 3, defaults.localStrength, "%.2f", .05f);
+        Row("Дальность", "Множитель радиуса источников.", s.localRange, .25f, 3, defaults.localRange, "%.2f",
+            .05f);
+        ImGui::EndDisabled();
+    }
+    ImGui::Spacing();
+    auto qualityPos = ImGui::GetCursorScreenPos();
+    float qualityWidth = ImGui::GetContentRegionAvail().x;
+    TextAt(ImGui::GetWindowDrawList(), {qualityPos.x, qualityPos.y + 5}, "Подробное качество эффектов");
+    ImGui::SetCursorScreenPos({qualityPos.x + qualityWidth - 22, qualityPos.y + 4});
+    SquareSwitch("sceneQuality", s.sceneQuality);
+    ImGui::SetCursorScreenPos(qualityPos);
+    ImGui::Dummy({qualityWidth, RowHeight});
+}
+void AntialiasControls(Runtime &r) {
+    auto &s = r.settings;
+    const Settings defaults;
+    bool reset = false;
+    if (Section("fxaa", "FXAA", s.fxaa, reset)) {
+        if (reset)
+            s.resetSceneSection(8);
+        ImGui::BeginDisabled(!s.fxaa || !s.enabled);
+        Row("Интенсивность",
+            "Сглаживает контрастные границы, включая листву. Интерфейс игры не затрагивается.",
+            s.fxaaStrength, 0, 1, defaults.fxaaStrength, "%.2f", .05f);
+        Row("Порог контраста", "Ниже — обрабатываются более мелкие детали, выше — меньше размытия.",
+            s.fxaaThreshold, .04f, .3f, defaults.fxaaThreshold, "%.3f", .005f);
+        ImGui::EndDisabled();
+    } else if (reset)
+        s.resetSceneSection(8);
+    ImGui::Dummy({0, 8});
+    bool hardware = true;
+    if (Section("msaa", "MSAA", hardware, reset, false)) {
+        if (reset)
+            s.msaaSamples = 0;
+        auto p = ImGui::GetCursorScreenPos();
+        float width = ImGui::GetContentRegionAvail().x;
+        TextAt(ImGui::GetWindowDrawList(), {p.x, p.y + 5}, "Число выборок");
+        ImGui::SetCursorScreenPos({p.x + 146, p.y + 2});
+        ImGui::SetNextItemWidth(width - 171);
+        int modes[] = {0, -1, 2, 4, 8}, choice = 0;
+        for (int i = 0; i < 5; ++i)
+            if (s.msaaSamples == modes[i])
+                choice = i;
+        const char *labels[] = {"Как в игре", "Выключено", "×2", "×4", "×8"};
+        if (ImGui::Combo("##msaa", &choice, labels, 5))
+            s.msaaSamples = modes[choice];
+        Tip("Применяется после перезапуска. Поддержка формата и видеокарты проверяется перед включением.");
+        ImGui::SetCursorScreenPos(p);
+        ImGui::Dummy({width, RowHeight});
+        ImGui::TextDisabled("После перезапуска клиента");
+        unsigned active = r.activeMSAA();
+        if (active > 1)
+            ImGui::TextDisabled("Сейчас: MSAA ×%u", active);
+        else
+            ImGui::TextDisabled(active == 1 ? "Сейчас: MSAA авто" : "Сейчас: MSAA выключено");
+    } else if (reset)
+        s.msaaSamples = 0;
+}
 } // namespace
 void DrawPanel(Runtime &r) {
     Theme();
@@ -414,7 +575,11 @@ void DrawPanel(Runtime &r) {
     auto *d = ImGui::GetWindowDrawList();
     TextAt(d, {origin.x + 16, origin.y + 12}, "FENB");
     d->AddLine({origin.x + 68, origin.y + 12}, {origin.x + 68, origin.y + 27}, Line, 1);
-    TextAt(d, {origin.x + 80, origin.y + 12}, r.editorPage == 1 ? "WaterFX" : "Изображение", Muted, 14);
+    const char *pageTitle = r.editorPage == 1   ? "WaterFX"
+                            : r.editorPage == 2 ? "Свет и атмосфера"
+                            : r.editorPage == 3 ? "Сглаживание"
+                                                : "Изображение";
+    TextAt(d, {origin.x + 80, origin.y + 12}, pageTitle, Muted, 14);
     ImGui::SetCursorPos({size.x - 151, 8});
     SquareSwitch("master", s.enabled, {20, 24});
     Tip("Включить или выключить все эффекты FENB");
@@ -440,8 +605,9 @@ void DrawPanel(Runtime &r) {
             r.requestCapture();
         ImGui::Separator();
 #endif
-        ImGui::MenuItem("Глубина воды 24 бита",nullptr,&s.preciseWaterDepth);
-        Tip("После перезапуска клиента. Уменьшает полосы глубины. При 1920×1080 и 8× MSAA — около 32 МБ видеопамяти.");
+        ImGui::MenuItem("Глубина воды 24 бита", nullptr, &s.preciseWaterDepth);
+        Tip("После перезапуска клиента. Уменьшает полосы глубины. При 1920×1080 и 8× MSAA — около 32 МБ "
+            "видеопамяти.");
         ImGui::Separator();
         if (ImGui::MenuItem("Сохранить настройки", "Ctrl+S"))
             r.save();
@@ -450,8 +616,13 @@ void DrawPanel(Runtime &r) {
         ImGui::Separator();
         if (ImGui::MenuItem("Сбросить всё")) {
             bool open = s.openOnStart;
+            bool unlock = s.unlockFps, precise = s.preciseWaterDepth;
+            int msaa = s.msaaSamples;
             s = Settings{};
             s.openOnStart = open;
+            s.unlockFps = unlock;
+            s.preciseWaterDepth = precise;
+            s.msaaSamples = msaa;
         }
         ImGui::EndPopup();
     }
@@ -537,7 +708,19 @@ void DrawPanel(Runtime &r) {
         SquareSwitch("waterMain", s.water);
         ImGui::SetCursorScreenPos(waterPos);
         ImGui::Dummy({waterWidth, 30});
-    } else {
+        auto p = ImGui::GetCursorScreenPos();
+        navDraw->AddLine(p, {p.x + waterWidth, p.y}, Line);
+        if (ImGui::InvisibleButton("scene-settings", {waterWidth, 30}, ImGuiButtonFlags_EnableNav))
+            r.editorPage = 2;
+        TextAt(navDraw, {p.x + 17, p.y + 7}, "Свет и атмосфера", Text);
+        TextAt(navDraw, {p.x + waterWidth - 44, p.y + 7}, "→", Muted);
+        p = ImGui::GetCursorScreenPos();
+        navDraw->AddLine(p, {p.x + waterWidth, p.y}, Line);
+        if (ImGui::InvisibleButton("aa-settings", {waterWidth, 30}, ImGuiButtonFlags_EnableNav))
+            r.editorPage = 3;
+        TextAt(navDraw, {p.x + 17, p.y + 7}, "Сглаживание", Text);
+        TextAt(navDraw, {p.x + waterWidth - 44, p.y + 7}, "→", Muted);
+    } else if (r.editorPage == 1) {
         auto back = ImGui::GetCursorScreenPos();
         auto *draw = ImGui::GetWindowDrawList();
         if (ImGui::InvisibleButton("back", {86, 26}, ImGuiButtonFlags_EnableNav))
@@ -621,6 +804,18 @@ void DrawPanel(Runtime &r) {
             ImGui::EndDisabled();
         } else if (reset)
             s.resetWaterScene();
+    }
+    if (r.editorPage == 2) {
+        if (ImGui::Button("<  Назад"))
+            r.editorPage = 0;
+        ImGui::Dummy({0, 8});
+        SceneControls(s);
+    }
+    if (r.editorPage == 3) {
+        if (ImGui::Button("<  Назад"))
+            r.editorPage = 0;
+        ImGui::Dummy({0, 8});
+        AntialiasControls(r);
     }
     ImGui::EndChild();
     float footer = size.y - 28;

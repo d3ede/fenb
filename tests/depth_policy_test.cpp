@@ -86,6 +86,31 @@ int main() {
         })));
         CHECK(calls == 1);
     }
+    for (int samples : {-1, 2, 4, 8}) {
+        auto p = original;
+        Com<IDirect3DDevice9> device;
+        CHECK(SUCCEEDED(WithMultisample(root, 0, D3DDEVTYPE_HAL, &p, samples, [&](auto *parameters) {
+            return root->CreateDevice(0, D3DDEVTYPE_HAL, window, D3DCREATE_HARDWARE_VERTEXPROCESSING,
+                                      parameters, device.out());
+        })));
+        CHECK(p.MultiSampleType == (samples < 0 ? D3DMULTISAMPLE_NONE : D3DMULTISAMPLE_TYPE(samples)));
+        CHECK(p.BackBufferWidth == original.BackBufferWidth &&
+              p.BackBufferFormat == original.BackBufferFormat &&
+              p.AutoDepthStencilFormat == original.AutoDepthStencilFormat);
+    }
+    auto p = original;
+    unsigned calls = 0;
+    CHECK(SUCCEEDED(WithMultisample(root, 0, D3DDEVTYPE_HAL, &p, 4, [&](auto *parameters) -> HRESULT {
+        ++calls;
+        return parameters->MultiSampleType == D3DMULTISAMPLE_NONE ? D3D_OK : D3DERR_OUTOFVIDEOMEMORY;
+    })));
+    CHECK(calls == 2 && p.MultiSampleType == D3DMULTISAMPLE_NONE);
+    calls = 0;
+    CHECK(WithMultisample(root, 0, D3DDEVTYPE_HAL, &p, 4, [&](auto *) {
+              ++calls;
+              return D3DERR_DEVICELOST;
+          }) == D3DERR_DEVICELOST);
+    CHECK(calls == 1);
     CHECK(!ConfiguredPreciseDepth()); // This fixture executable is not the supported game host.
     DestroyWindow(window);
     puts("PASS: D24 allocation, unchanged color/MSAA, allocation fallback, Lost Device, opt-out and host "

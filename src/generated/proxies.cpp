@@ -394,22 +394,22 @@ public:
 #ifdef FENB_DIAGNOSTICS
         runtime_->captureDraw("DrawPrimitive",PrimitiveType,PrimitiveCount,0,0,nullptr);
 #endif
-        if (PrimitiveCount) runtime_->beforeWaterDraw(0); auto hr = real_->DrawPrimitive(PrimitiveType, StartVertex, PrimitiveCount); runtime_->afterWaterDraw(false,false); return hr; }
+        if (PrimitiveCount) runtime_->beforeWaterDraw(0); if (PrimitiveCount && runtime_->settings.localLighting) runtime_->emitterDraw([&](){return real_->DrawPrimitive(PrimitiveType, StartVertex, PrimitiveCount);}); auto hr = real_->DrawPrimitive(PrimitiveType, StartVertex, PrimitiveCount); runtime_->afterWaterDraw(false,false); return hr; }
     HRESULT STDMETHODCALLTYPE DrawIndexedPrimitive(D3DPRIMITIVETYPE arg0, INT BaseVertexIndex, UINT MinVertexIndex, UINT NumVertices, UINT startIndex, UINT primCount) noexcept override { if (primCount) runtime_->beforeDraw(); 
 #ifdef FENB_DIAGNOSTICS
         runtime_->captureDraw("DrawIndexedPrimitive",arg0,primCount,NumVertices,0,nullptr);
 #endif
-        if (primCount) runtime_->beforeWaterDraw(0); auto hr = real_->DrawIndexedPrimitive(arg0, BaseVertexIndex, MinVertexIndex, NumVertices, startIndex, primCount); runtime_->afterWaterDraw(false,false); return hr; }
+        if (primCount) runtime_->beforeWaterDraw(0); if (primCount && runtime_->settings.localLighting) runtime_->emitterDraw([&](){return real_->DrawIndexedPrimitive(arg0, BaseVertexIndex, MinVertexIndex, NumVertices, startIndex, primCount);}); auto hr = real_->DrawIndexedPrimitive(arg0, BaseVertexIndex, MinVertexIndex, NumVertices, startIndex, primCount); runtime_->afterWaterDraw(false,false); return hr; }
     HRESULT STDMETHODCALLTYPE DrawPrimitiveUP(D3DPRIMITIVETYPE primitive_type, UINT primitive_count, const void *data, UINT stride) noexcept override { if (primitive_count) runtime_->beforeDraw(); 
 #ifdef FENB_DIAGNOSTICS
         runtime_->captureDraw("DrawPrimitiveUP",primitive_type,primitive_count,0,stride,data);
 #endif
-        if (primitive_count) runtime_->beforeWaterDraw(stride); auto hr = real_->DrawPrimitiveUP(primitive_type, primitive_count, data, stride); runtime_->afterWaterDraw(true,false); return hr; }
+        if (primitive_count) runtime_->beforeWaterDraw(stride); if (primitive_count && runtime_->settings.localLighting) runtime_->emitterDraw([&](){return real_->DrawPrimitiveUP(primitive_type, primitive_count, data, stride);}); auto hr = real_->DrawPrimitiveUP(primitive_type, primitive_count, data, stride); runtime_->afterWaterDraw(true,false); return hr; }
     HRESULT STDMETHODCALLTYPE DrawIndexedPrimitiveUP(D3DPRIMITIVETYPE primitive_type, UINT min_vertex_idx, UINT vertex_count, UINT primitive_count, const void *index_data, D3DFORMAT index_format, const void *data, UINT stride) noexcept override { if (primitive_count) runtime_->beforeDraw(); 
 #ifdef FENB_DIAGNOSTICS
         runtime_->captureDraw("DrawIndexedPrimitiveUP",primitive_type,primitive_count,vertex_count,stride,data);
 #endif
-        if (primitive_count) runtime_->beforeWaterDraw(stride); auto hr = real_->DrawIndexedPrimitiveUP(primitive_type, min_vertex_idx, vertex_count, primitive_count, index_data, index_format, data, stride); runtime_->afterWaterDraw(true,true); return hr; }
+        if (primitive_count) runtime_->beforeWaterDraw(stride); if (primitive_count && runtime_->settings.localLighting) runtime_->emitterDraw([&](){return real_->DrawIndexedPrimitiveUP(primitive_type, min_vertex_idx, vertex_count, primitive_count, index_data, index_format, data, stride);}); auto hr = real_->DrawIndexedPrimitiveUP(primitive_type, min_vertex_idx, vertex_count, primitive_count, index_data, index_format, data, stride); runtime_->afterWaterDraw(true,true); return hr; }
     HRESULT STDMETHODCALLTYPE ProcessVertices(UINT SrcStartIndex, UINT DestIndex, UINT VertexCount, IDirect3DVertexBuffer9* pDestBuffer, IDirect3DVertexDeclaration9* pVertexDecl, DWORD Flags) noexcept override { auto hr = real_->ProcessVertices(SrcStartIndex, DestIndex, VertexCount, Unwrap(pDestBuffer), Unwrap(pVertexDecl), Flags); return hr; }
     HRESULT STDMETHODCALLTYPE CreateVertexDeclaration(const D3DVERTEXELEMENT9 *elements, IDirect3DVertexDeclaration9 **declaration) noexcept override { auto hr = real_->CreateVertexDeclaration(elements, declaration); if (SUCCEEDED(hr)) Adopt(declaration, self_); return hr; }
     HRESULT STDMETHODCALLTYPE SetVertexDeclaration(IDirect3DVertexDeclaration9* pDecl) noexcept override { auto hr = real_->SetVertexDeclaration(Unwrap(pDecl)); if(SUCCEEDED(hr)) runtime_->invalidateDrawState(); return hr; }
@@ -582,22 +582,22 @@ public:
 #ifdef FENB_DIAGNOSTICS
         runtime_->captureDraw("DrawPrimitive",primitive_type,primitive_count,0,0,nullptr);
 #endif
-        if (primitive_count) runtime_->beforeWaterDraw(0); auto hr = real_->DrawPrimitive(primitive_type, start_vertex, primitive_count); runtime_->afterWaterDraw(false,false); return hr; }
+        if (primitive_count) runtime_->beforeWaterDraw(0); if (primitive_count && runtime_->settings.localLighting) runtime_->emitterDraw([&](){return real_->DrawPrimitive(primitive_type, start_vertex, primitive_count);}); auto hr = real_->DrawPrimitive(primitive_type, start_vertex, primitive_count); runtime_->afterWaterDraw(false,false); return hr; }
     HRESULT STDMETHODCALLTYPE DrawIndexedPrimitive(D3DPRIMITIVETYPE primitive_type, INT base_vertex_idx, UINT min_vertex_idx, UINT vertex_count, UINT start_idx, UINT primitive_count) noexcept override { if (primitive_count) runtime_->beforeDraw(); 
 #ifdef FENB_DIAGNOSTICS
         runtime_->captureDraw("DrawIndexedPrimitive",primitive_type,primitive_count,vertex_count,0,nullptr);
 #endif
-        if (primitive_count) runtime_->beforeWaterDraw(0); auto hr = real_->DrawIndexedPrimitive(primitive_type, base_vertex_idx, min_vertex_idx, vertex_count, start_idx, primitive_count); runtime_->afterWaterDraw(false,false); return hr; }
+        if (primitive_count) runtime_->beforeWaterDraw(0); if (primitive_count && runtime_->settings.localLighting) runtime_->emitterDraw([&](){return real_->DrawIndexedPrimitive(primitive_type, base_vertex_idx, min_vertex_idx, vertex_count, start_idx, primitive_count);}); auto hr = real_->DrawIndexedPrimitive(primitive_type, base_vertex_idx, min_vertex_idx, vertex_count, start_idx, primitive_count); runtime_->afterWaterDraw(false,false); return hr; }
     HRESULT STDMETHODCALLTYPE DrawPrimitiveUP(D3DPRIMITIVETYPE primitive_type, UINT primitive_count, const void *data, UINT stride) noexcept override { if (primitive_count) runtime_->beforeDraw(); 
 #ifdef FENB_DIAGNOSTICS
         runtime_->captureDraw("DrawPrimitiveUP",primitive_type,primitive_count,0,stride,data);
 #endif
-        if (primitive_count) runtime_->beforeWaterDraw(stride); auto hr = real_->DrawPrimitiveUP(primitive_type, primitive_count, data, stride); runtime_->afterWaterDraw(true,false); return hr; }
+        if (primitive_count) runtime_->beforeWaterDraw(stride); if (primitive_count && runtime_->settings.localLighting) runtime_->emitterDraw([&](){return real_->DrawPrimitiveUP(primitive_type, primitive_count, data, stride);}); auto hr = real_->DrawPrimitiveUP(primitive_type, primitive_count, data, stride); runtime_->afterWaterDraw(true,false); return hr; }
     HRESULT STDMETHODCALLTYPE DrawIndexedPrimitiveUP(D3DPRIMITIVETYPE primitive_type, UINT min_vertex_idx, UINT vertex_count, UINT primitive_count, const void *index_data, D3DFORMAT index_format, const void *data, UINT stride) noexcept override { if (primitive_count) runtime_->beforeDraw(); 
 #ifdef FENB_DIAGNOSTICS
         runtime_->captureDraw("DrawIndexedPrimitiveUP",primitive_type,primitive_count,vertex_count,stride,data);
 #endif
-        if (primitive_count) runtime_->beforeWaterDraw(stride); auto hr = real_->DrawIndexedPrimitiveUP(primitive_type, min_vertex_idx, vertex_count, primitive_count, index_data, index_format, data, stride); runtime_->afterWaterDraw(true,true); return hr; }
+        if (primitive_count) runtime_->beforeWaterDraw(stride); if (primitive_count && runtime_->settings.localLighting) runtime_->emitterDraw([&](){return real_->DrawIndexedPrimitiveUP(primitive_type, min_vertex_idx, vertex_count, primitive_count, index_data, index_format, data, stride);}); auto hr = real_->DrawIndexedPrimitiveUP(primitive_type, min_vertex_idx, vertex_count, primitive_count, index_data, index_format, data, stride); runtime_->afterWaterDraw(true,true); return hr; }
     HRESULT STDMETHODCALLTYPE ProcessVertices(UINT src_start_idx, UINT dst_idx, UINT vertex_count, IDirect3DVertexBuffer9 *dst_buffer, IDirect3DVertexDeclaration9 *declaration, DWORD flags) noexcept override { auto hr = real_->ProcessVertices(src_start_idx, dst_idx, vertex_count, Unwrap(dst_buffer), Unwrap(declaration), flags); return hr; }
     HRESULT STDMETHODCALLTYPE CreateVertexDeclaration(const D3DVERTEXELEMENT9 *elements, IDirect3DVertexDeclaration9 **declaration) noexcept override { auto hr = real_->CreateVertexDeclaration(elements, declaration); if (SUCCEEDED(hr)) Adopt(declaration, self_); return hr; }
     HRESULT STDMETHODCALLTYPE SetVertexDeclaration(IDirect3DVertexDeclaration9 *declaration) noexcept override { auto hr = real_->SetVertexDeclaration(Unwrap(declaration)); if(SUCCEEDED(hr)) runtime_->invalidateDrawState(); return hr; }

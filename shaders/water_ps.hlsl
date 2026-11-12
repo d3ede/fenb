@@ -18,7 +18,7 @@ row_major float4x4 View : register(c10);
 float4 Optics : register(c14); // valid depth, absorption, shore width, SSR
 float4 Camera : register(c15); // projection _11, _22, _33, _43
 float4 Viewport : register(c16); // origin UV, extent UV
-float4 Trace : register(c17); // steps, world-distance budget, normal map, source depth quantum
+float4 Trace : register(c17); // steps, world-distance budget, normal map, scaled depth quantum
 float4 BodyAmbient : register(c18);
 float4 BodyDiffuse : register(c19);
 float4 Subsurface : register(c20);
@@ -62,7 +62,7 @@ float4 TraceReflection(float3 start,float3 direction,float3 planeNormal) {
             float hitZ=DepthZ(hitUV);
             float3 hit=ViewPoint(hitUV,hitZ);
             // Reject silhouette jumps and loose depth matches instead of stretching a bank into water.
-            float tolerance=clamp(2*hitZ*hitZ*Trace.w/max(.01,abs(Camera.w)),.03,.35);
+            float tolerance=clamp(hitZ*hitZ*Trace.w,.03,.35);
             float edgeZ=max(abs(DepthZ(hitUV+float2(Screen.x,0))-hitZ),abs(DepthZ(hitUV+float2(0,Screen.y))-hitZ));
             float2 edge=min((hitUV-Viewport.xy)/Viewport.zw,1-(hitUV-Viewport.xy)/Viewport.zw);
             float confidence=saturate(min(edge.x,edge.y)*14)*saturate(1-hi/Trace.y);

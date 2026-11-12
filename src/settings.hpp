@@ -18,8 +18,18 @@ struct Settings {
     int waterSSRQuality = 0;
     float waterCaustics = 0.f, waterDispersion = .15f;
     int waterCausticScale = 4;
+#define SCENE_BOOL(g, m, k, d) bool m = d;
+#define SCENE_FLOAT(g, m, k, d, lo, hi) float m = d;
+#include "scene_settings.inc"
+#undef SCENE_BOOL
+#undef SCENE_FLOAT
+    bool postEnabled() const {
+        return bloom || color || ssao || sunRays || fog || dof || adaptation || localLighting || fxaa;
+    }
+    void resetSceneSection(int group);
     bool openOnStart = false;
     bool preciseWaterDepth = true;
+    int msaaSamples = 0;    // 0 retains the native choice, -1 disables, otherwise 2/4/8. Restart required.
     bool unlockFps = false; // Opt-in rendering unlock with a fixed 16 ms simulation step.
     int panelPage = 0;
     bool operator==(const Settings &) const = default;

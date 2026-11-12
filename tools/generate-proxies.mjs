@@ -47,6 +47,7 @@ for (const [,type,parent,body] of definitions) {
         if(name==='DrawPrimitive') before+=`if (${count}) runtime_->environmentDraw(${names[0]},${names[1]},${count});`;
         before+=`\n#ifdef FENB_DIAGNOSTICS\n        runtime_->captureDraw("${name}",${names[0]},${count},${vertices},${stride},${data});\n#endif\n        `;
         before+=`if (${count}) runtime_->beforeWaterDraw(${stride}); `;
+        before+=`if (${count} && runtime_->settings.localLighting) runtime_->emitterDraw([&](){return ${call};}); `;
         after+=`runtime_->afterWaterDraw(${up},${up&&indexed}); `;
       }
       if(type==='IDirect3DTexture9'&&name==='UnlockRect')after+='if(SUCCEEDED(hr)) InvalidateWaterTag(real_); ';
