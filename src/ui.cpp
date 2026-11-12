@@ -48,7 +48,7 @@ float HeaderBrand(ImDrawList *d, ImVec2 origin, float panelWidth, const PanelBra
         TextAt(d, {origin.x + 49, origin.y + 12}, "FENB");
         return 98;
     }
-    return layout == PanelBranding::Layout::Horizontal ? 126.f : 56.f;
+    return layout == PanelBranding::Layout::Horizontal ? 126.f : 46.f;
 }
 void Theme() {
     auto &s = ImGui::GetStyle();
