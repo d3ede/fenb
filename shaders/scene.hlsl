@@ -292,21 +292,24 @@ float4 SkyPS(float2 uv:TEXCOORD0,float3 direction:TEXCOORD1,float4 color:COLOR0)
     float footprint=max(length(uvDx/SkyTexture.xy),length(uvDy/SkyTexture.xy));
     [branch]if(SkyTexture.z>0){
         [branch]if(footprint<1.2)texel=lerp(texel,ReconstructSky(uv),SkyTexture.z);
-        [branch]if(Viewport.x<.5 && Viewport.y>.01){
-            float2 span=SkyTexture.xy*2.5;
+        [branch]if((Viewport.x<.5 || Viewport.x>1.5) && Viewport.y>.01){
+            float2 span=SkyTexture.xy*(Viewport.x>1.5?8:2.5);
             float3 base=min(texel.rgb,tex2Dgrad(Image,uv+span,uvDx,uvDy).rgb);
             base=min(base,tex2Dgrad(Image,uv-span,uvDx,uvDy).rgb);
             base=min(base,tex2Dgrad(Image,uv+span*float2(1,-1),uvDx,uvDy).rgb);
             base=min(base,tex2Dgrad(Image,uv+span*float2(-1,1),uvDx,uvDy).rgb);
             texel.rgb=lerp(texel.rgb,base,Viewport.y*SkyTexture.z*.9);
-            texel.rgb+=FineSkyStars(starCoordinates,starDx,starDy,d.y)*(SkyTexture.z*SkyTexture.w*Viewport.y);
+            // Gray cloud silhouettes baked into the panorama must occlude the new points.
+            float clearSky=1-smoothstep(.08,.2,min(base.r,min(base.g,base.b)));
+            if(Viewport.x<.5)
+                texel.rgb+=FineSkyStars(starCoordinates,starDx,starDy,d.y)*(SkyTexture.z*SkyTexture.w*Viewport.y*clearSky);
         }
     }
     float3 nativeRGB=SkyOperation(SkyColorStage.x,SkyArgument(SkyColorStage.y,texel,color),SkyArgument(SkyColorStage.z,texel,color)).rgb;
     float nativeAlpha=SkyColorStage.w<1.5?color.a:SkyOperation(SkyColorStage.w,SkyArgument(SkyAlphaStage.x,texel,color),SkyArgument(SkyAlphaStage.y,texel,color)).a;
     float4 source=float4(nativeRGB,nativeAlpha);
     if(Viewport.x>.5){
-        source.rgb=saturate((source.rgb-.5)*Camera.z+.5);
+        if(Viewport.x<1.5)source.rgb=saturate((source.rgb-.5)*Camera.z+.5);
         return source;
     }
     float height=pow(saturate(d.y),Camera.y);

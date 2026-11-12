@@ -677,7 +677,8 @@ int main(int argc, char **) {
                 ((x / 8 + y / 8) % 3) ? 0xff3098db : 0xffe0e8eb;
     skyArt->UnlockRect(0);
     auto materialFrame = [&](bool sky, bool improve, bool day, bool blueNight = false,
-                             bool universalFill = false, bool scroll = false, bool neutralSky = false) {
+                             bool universalFill = false, bool scroll = false, bool neutralSky = false,
+                             DWORD skyTag = 3) {
         fx.sceneFX().beginFrame();
         d->SetVertexShader(nullptr);
         d->SetPixelShader(nullptr);
@@ -751,7 +752,7 @@ int main(int argc, char **) {
                      {2, 1, 1, 0xff000000, 1, 0}};
             d->SetFVF(0x142);
             if (improve)
-                ok = fx.sceneFX().beginSky(s, 3);
+                ok = fx.sceneFX().beginSky(s, skyTag);
             d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, q, sizeof(V));
             fx.sceneFX().endSky();
         } else {
@@ -791,6 +792,14 @@ int main(int argc, char **) {
         wrongUV += std::abs(Luma(nativeScrolledSky[i]) - Luma(replacedScrolledSky[i])) > 6;
     printf("Sky neutral native-stage/scroll mismatch pixels: %u\n", wrongUV);
     CHECK(wrongUV < 100);
+    CHECK(materialFrame(true, true, false, false, false, false, false, 5));
+    auto fixedNightStars = Read(d);
+    CHECK(materialFrame(true, true, false, false, false, true, false, 5));
+    CHECK(Difference(fixedNightStars, Read(d)) == 0); // Star artwork must not drift with cloud UVs.
+    CHECK(materialFrame(true, false, false, false, false, true, true, 5));
+    auto nativeNightStars = Read(d);
+    CHECK(materialFrame(true, true, false, false, false, true, true, 5));
+    CHECK(Difference(nativeNightStars, Read(d)) == 0); // Detail zero retains native animation.
     auto skyProgram = SceneFXFixture::skyProgram(fx.sceneFX());
     Settings skyOnly;
     skyOnly.sky = true;

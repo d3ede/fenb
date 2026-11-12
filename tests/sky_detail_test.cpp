@@ -233,6 +233,20 @@ int main(int argc, char **) {
     CHECK(Difference(fine, Read(d)) == 0);
     Save(original, L"build/sky-detail-native.bmp");
     Save(fine, L"build/sky-detail-improved.bmp");
+    // The night panorama also contains gray clouds. Fine stars belong behind that artwork.
+    width = 64; height = 32;
+    CHECK(SUCCEEDED(d->CreateTexture(width, height, 1, 0, D3DFMT_A8R8G8B8,
+                                    D3DPOOL_MANAGED, art.out(), nullptr)));
+    D3DLOCKED_RECT cloudLock{};
+    CHECK(SUCCEEDED(art->LockRect(0, &cloudLock, nullptr, 0)));
+    for (UINT y = 0; y < height; ++y)
+        for (UINT x = 0; x < width; ++x)
+            ((DWORD *)((BYTE *)cloudLock.pBits + y * cloudLock.Pitch))[x] = 0xff606060;
+    art->UnlockRect(0);
+    CHECK(render(1, 0, true));
+    auto opaqueClouds = Read(d);
+    CHECK(render(1, 1, true));
+    CHECK(Difference(opaqueClouds, Read(d)) == 0);
     puts("PASS: neutral sky parity, daylight/cloud isolation, fine stars and camera round trip");
     return 0;
 }

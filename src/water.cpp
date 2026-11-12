@@ -189,6 +189,9 @@ DWORD WaterFX::classify(IDirect3DTexture9 *texture) {
                     for (auto &known : CloudHashes)
                         if (!memcmp(digest, known, 32))
                             tag = 4;
+                    for (auto &known : NightCloudHashes)
+                        if (!memcmp(digest, known, 32))
+                            tag = 5; // Native scrolling star/nebula layer, not a daytime cloud.
                 }
                 BCryptDestroyHash(hash);
             }
@@ -212,7 +215,7 @@ void WaterFX::captureEnvironment(D3DPRIMITIVETYPE type, UINT start, UINT count, 
         FAILED(device_->GetTexture(0, texture.out())) || !texture.p || texture->GetType() != D3DRTYPE_TEXTURE)
         return;
     DWORD tag = classify(static_cast<IDirect3DTexture9 *>(texture.p));
-    if (tag != 3 && tag != 4)
+    if (tag != 3 && tag != 4 && tag != 5)
         return;
     D3DMATRIX view{}, projection{};
     if (FAILED(device_->GetTransform(D3DTS_VIEW, &view)) ||

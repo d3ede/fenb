@@ -904,7 +904,7 @@ IDirect3DTexture9 *SceneFX::exposure(IDirect3DTexture9 *input, const Settings &s
                         : nullptr;
 }
 bool SceneFX::beginSky(const Settings &s, DWORD tag) {
-    if (!s.sky || (tag != 3 && tag != 4) || skyState_ || !programs())
+    if (!s.sky || (tag != 3 && tag != 4 && tag != 5) || skyState_ || !programs())
         return false;
     D3DMATRIX m[3]{};
     if (FAILED(device_->GetTransform(D3DTS_WORLD, m)) || FAILED(device_->GetTransform(D3DTS_VIEW, m + 1)) ||
@@ -924,6 +924,10 @@ bool SceneFX::beginSky(const Settings &s, DWORD tag) {
     D3DMATRIX uv{};
     if (FAILED(device_->GetTransform(D3DTS_TEXTURE0, &uv)))
         return false;
+    // cloud03 is a star field scrolled by the native cloud animation. Its UVs already
+    // belong to world-space geometry; retain scale/rotation but remove cloud drift.
+    if (tag == 5 && s.skyDetail > 0)
+        uv._31 = uv._32 = uv._41 = uv._42 = 0;
     DWORD operations[6]{};
     D3DTEXTURESTAGESTATETYPE keys[] = {D3DTSS_COLOROP, D3DTSS_COLORARG1, D3DTSS_COLORARG2,
                                        D3DTSS_ALPHAOP, D3DTSS_ALPHAARG1, D3DTSS_ALPHAARG2};
@@ -958,7 +962,8 @@ bool SceneFX::beginSky(const Settings &s, DWORD tag) {
     DWORD fog = 0;
     device_->GetRenderState(D3DRS_FOGCOLOR, &fog);
     float options[] = {s.skyStrength, s.skyHorizon, s.cloudContrast, s.sunHalo},
-          kind[] = {tag == 4 ? 1.f : 0.f, lit ? 1.f-Daylight(light.Diffuse) : 0.f, 0, 0};
+          kind[] = {tag == 5 ? 2.f : tag == 4 ? 1.f : 0.f,
+                    lit ? 1.f-Daylight(light.Diffuse) : 0.f, 0, 0};
     Com<IDirect3DBaseTexture9> skyTexture;
     D3DSURFACE_DESC textureDescription{};
     if (FAILED(device_->GetTexture(0, skyTexture.out())) || !skyTexture.p ||

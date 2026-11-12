@@ -134,7 +134,7 @@ int main(int argc, char **) {
                 for (UINT y = 0; y < (height + 3) / 4; ++y)
                     memcpy((BYTE *)lock.pBits + y * lock.Pitch, data.data() + y * rowBytes, rowBytes);
                 t->UnlockRect(0);
-                CHECK(catalog.materialTag(t) == (i < 6 ? 3u : 4u));
+                CHECK(catalog.materialTag(t) == (i < 6 ? 3u : i == 8 ? 5u : 4u));
             }
         }
     }
