@@ -154,6 +154,7 @@ bool Runtime::initUI() {
     return ok;
 }
 void Runtime::invalidate() {
+    Drop(panelLogo_.p);
     effects_->invalidate();
     water_->invalidate();
     if (context_) {

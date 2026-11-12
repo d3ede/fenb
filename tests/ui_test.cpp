@@ -149,6 +149,17 @@ int main() {
     frame();
     auto *panel = ImGui::FindWindowByName("FENB");
     CHECK(panel && panel->Pos.x == 130 && panel->Pos.y == 40);
+    auto logoDrawn = [&]() {
+        auto logo = r.panelBranding();
+        if (logo.layout != PanelBranding::Layout::SymbolOnly || !logo.symbol)
+            return false;
+        const auto id = static_cast<ImTextureID>(reinterpret_cast<uintptr_t>(logo.symbol));
+        for (const auto &command : panel->DrawList->CmdBuffer)
+            if (command.ElemCount && command.GetTexID() == id)
+                return true;
+        return false;
+    };
+    CHECK(logoDrawn()); // The production DrawPanel overload draws the embedded symbol.
     // Real native frames for three header proposals, in both supported languages.
     Com<IDirect3DTexture9> symbolTexture, horizontalTexture;
     PanelBranding branding;
@@ -352,7 +363,7 @@ int main() {
     ImGui::ActivateItemByID(actionsWindow->GetID(resetID.c_str()));
     frame();
     CHECK(r.settings.language == Language::Russian && r.settings.exposure == 0);
-    click(345, 60);
+    click(310, 60);
     frame();
     CHECK(ImGui::IsPopupOpen("languages", ImGuiPopupFlags_AnyPopupId));
     languagePopup = ImGui::GetCurrentContext()->OpenPopupStack.back().Window->Pos;
@@ -389,6 +400,7 @@ int main() {
         r.settings.language = Language::English;
         frame();
         frame();
+        CHECK(logoDrawn()); // The default-pool symbol is recreated after the real MSAA Reset.
         CHECK(r.settings.msaaSamples == 0);
         CHECK(Screenshot(d, L"build/FENB-antialias-native8-english.png"));
         click(400, 245);

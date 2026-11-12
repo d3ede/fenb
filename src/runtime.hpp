@@ -5,6 +5,7 @@
 #include "depth_policy.hpp"
 #include "presentation_reload.hpp"
 struct ImGuiContext;
+struct PanelBranding;
 class Effects;
 class WaterFX;
 #ifdef FENB_DIAGNOSTICS
@@ -42,6 +43,7 @@ class Runtime {
     UiText message = UiText::None;
     std::wstring configPath;
     double gpuBytes() const;
+    PanelBranding panelBranding();
     unsigned activeMSAA() const;
     bool msaaAvailable(int samples) const;
     void nativePresentation(const D3DPRESENT_PARAMETERS &p) {
@@ -115,6 +117,7 @@ class Runtime {
     ULONGLONG captureDeadline_ = 0;
 #endif
     ImGuiContext *context_ = nullptr;
+    Com<IDirect3DTexture9> panelLogo_;
     HWND window_ = nullptr;
     bool lost_ = false, inScene_ = false, subclassed_ = false;
     std::recursive_mutex mutex_;

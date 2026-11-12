@@ -3,7 +3,7 @@
 struct IDirect3DTexture9;
 class Runtime;
 
-// Caller-owned preview textures; the normal panel keeps its existing text header.
+// Borrowed textures: Runtime owns the normal symbol; preview callers own alternatives.
 struct PanelBranding {
     enum class Layout { TextOnly, SymbolText, Horizontal, SymbolOnly };
     Layout layout = Layout::TextOnly;

@@ -8,6 +8,8 @@ $outputDirectory=if($Diagnostics){'dist-diagnostics'}else{'dist'}
 New-Item -ItemType Directory -Force -Path 'build',$outputDirectory,'src/generated' | Out-Null
 node tools/embed-font.mjs
 if ($LASTEXITCODE) { throw 'Font embedding failed' }
+node tools/embed-logo.mjs
+if ($LASTEXITCODE) { throw 'Logo embedding failed' }
 & $cxx '-std=c++20' '-O2' '-static' 'tools/shaderc.cpp' '-ld3dcompiler' '-o' 'build/shaderc.exe'
 if ($LASTEXITCODE) { throw 'Shader compiler build failed' }
 & '.\build\shaderc.exe' 'shaders/post.hlsl' 'src/generated/shaders.hpp'

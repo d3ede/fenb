@@ -2,6 +2,7 @@
 #include "runtime.hpp"
 #include "version.hpp"
 #include "ui_branding.hpp"
+#include "generated/ui_logo.hpp"
 #include <cstdio>
 
 namespace {
@@ -966,6 +967,30 @@ void DrawPanel(Runtime &r, const PanelBranding &branding) {
     ImGui::End();
 }
 
+PanelBranding Runtime::panelBranding() {
+    if (!panelLogo_.p) {
+        // Default-pool dynamic textures work on both D3D9 and D3D9Ex. Runtime
+        // releases this resource before Reset and recreates it only when needed.
+        Com<IDirect3DTexture9> texture;
+        D3DLOCKED_RECT lock{};
+        if (SUCCEEDED(device_->CreateTexture(UI_LOGO_WIDTH, UI_LOGO_HEIGHT, 1, D3DUSAGE_DYNAMIC,
+                                               D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, texture.out(), nullptr)) &&
+            SUCCEEDED(texture->LockRect(0, &lock, nullptr, D3DLOCK_DISCARD))) {
+            for (unsigned y = 0; y < UI_LOGO_HEIGHT; ++y)
+                memcpy(static_cast<unsigned char *>(lock.pBits) + size_t(y) * lock.Pitch,
+                       UI_LOGO_BGRA + size_t(y) * UI_LOGO_WIDTH, UI_LOGO_WIDTH * sizeof(std::uint32_t));
+            texture->UnlockRect(0);
+            panelLogo_.p = texture.p;
+            texture.p = nullptr;
+        }
+    }
+    PanelBranding branding;
+    branding.layout = PanelBranding::Layout::SymbolOnly;
+    branding.symbol = panelLogo_;
+    branding.symbolAspect = float(UI_LOGO_WIDTH) / UI_LOGO_HEIGHT;
+    return branding;
+}
+
 void DrawPanel(Runtime &runtime) {
-    DrawPanel(runtime, PanelBranding{});
+    DrawPanel(runtime, runtime.panelBranding());
 }
