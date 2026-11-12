@@ -140,7 +140,6 @@ void Row(const char *label, const char *help, float &value, float low, float hig
     d->AddLine({zero, y}, {knob, y}, Opacity(IM_COL32(145, 148, 157, 255)), 2);
     d->AddRectFilled({knob - 2, y - 5}, {knob + 3, y + 5},
                      Opacity(active ? Accent : IM_COL32(191, 194, 201, 255)), 1);
-    Tip("Перетащи для настройки. Двойной щелчок — исходное значение.");
     // All three fields keep their positions during text editing. Arrow buttons reserve their space.
     ImGui::PushFont(nullptr, 14);
     ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ColorConvertU32ToFloat4(Muted));
