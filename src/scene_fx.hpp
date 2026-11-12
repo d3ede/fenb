@@ -37,6 +37,7 @@ class SceneFX {
     float nativeFogColor_[4]{};
     Target emitterColor_[4], emitterPosition_[4], localField_;
     Com<IDirect3DPixelShader9> aoPS_, rayPS_, raySourcePS_, compositePS_, lumaPS_, reducePS_, adaptPS_, skyPS_;
+    Com<IDirect3DPixelShader9> dofPS_;
     Com<IDirect3DVertexShader9> skyVS_;
     Com<IDirect3DPixelShader9> flarePS_;
     Com<IDirect3DVertexShader9> emitterVS_;

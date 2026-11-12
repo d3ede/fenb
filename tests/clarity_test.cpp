@@ -96,10 +96,14 @@ int main(int argc, char **) {
             p[3] = 1;
         }
     light->UnlockRect(0);
-    Com<IDirect3DPixelShader9> scenePS, postPS, raySourcePS;
+    Com<IDirect3DPixelShader9> scenePS, postPS, raySourcePS, dofPS;
+    Com<IDirect3DTexture9> sky, meanSky;
+    CHECK(SUCCEEDED(d->CreateTexture(W, H, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, sky.out(), nullptr)));
+    CHECK(SUCCEEDED(d->CreateTexture(1, 1, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, meanSky.out(), nullptr)));
     CHECK(SUCCEEDED(d->CreatePixelShader(ShaderSceneComposite, scenePS.out())));
     CHECK(SUCCEEDED(d->CreatePixelShader(ShaderComposite, postPS.out())));
     CHECK(SUCCEEDED(d->CreatePixelShader(ShaderSceneRaySource, raySourcePS.out())));
+    CHECK(SUCCEEDED(d->CreatePixelShader(ShaderSceneDoF, dofPS.out())));
     float constants[56][4]{};
     auto sceneConstants = [&] {
         memset(constants, 0, sizeof(constants));
@@ -134,8 +138,14 @@ int main(int argc, char **) {
             d->SetSamplerState(i, D3DSAMP_SRGBTEXTURE, FALSE);
         }
         d->SetTexture(0, image);
-        d->SetTexture(1, ps == scenePS.p || ps == raySourcePS.p ? depth.p : light.p);
+        d->SetTexture(1, ps == postPS.p ? light.p : depth.p);
         d->SetTexture(4, light);
+        d->SetTexture(5, sky);
+        d->SetTexture(6, meanSky);
+        if (ps == dofPS.p) {
+            d->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
+            d->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
+        }
         d->SetPixelShaderConstantF(0, constants[0], 56);
         struct V {
             float x, y, z, w, u, v;
@@ -171,9 +181,85 @@ int main(int argc, char **) {
     constants[6][0] = 5;
     constants[6][1] = 1;
     constants[6][2] = 12;
-    CHECK(draw(scenePS));
+    CHECK(draw(dofPS));
     auto focused = Read(d);
     CHECK(focused[Y * W + X] == sharp[Y * W + X]);
+    auto mix = [](DWORD foreground, DWORD background, float coverage) {
+        DWORD result = 0xff000000;
+        for (int shift : {0, 8, 16})
+            result |= DWORD(std::lround(((foreground >> shift) & 255) * coverage +
+                                       ((background >> shift) & 255) * (1 - coverage))) << shift;
+        return result;
+    };
+    const DWORD skyColor = 0xff667799, foregroundColor = 0xff334455;
+    auto silhouette = [&](float coverage) {
+        D3DLOCKED_RECT data{};
+        image->LockRect(0, &data, nullptr, 0);
+        for (UINT y = 0; y < H; ++y)
+            for (UINT x = 0; x < W; ++x)
+                ((DWORD *)((BYTE *)data.pBits + y * data.Pitch))[x] =
+                    mix(foregroundColor, skyColor, x < X ? 1.f : x == X ? coverage : 0.f);
+        image->UnlockRect(0);
+        depth->LockRect(0, &data, nullptr, 0);
+        for (UINT y = 0; y < H; ++y)
+            for (UINT x = 0; x < W; ++x)
+                ((float *)((BYTE *)data.pBits + y * data.Pitch))[x] = x <= X ? a + b / 40.f : 1.f;
+        depth->UnlockRect(0);
+    };
+    // Model resolved 8x-MSAA color with one resolved foreground depth sample.
+    sky->LockRect(0, &lock, nullptr, 0);
+    for (UINT y = 0; y < H; ++y)
+        for (UINT x = 0; x < W; ++x)
+            ((DWORD *)((BYTE *)lock.pBits + y * lock.Pitch))[x] = skyColor;
+    sky->UnlockRect(0);
+    meanSky->LockRect(0, &lock, nullptr, 0);
+    *(DWORD *)lock.pBits = 0xff8099bb;
+    meanSky->UnlockRect(0);
+    for (float coverage : {.125f, .25f, .5f, .75f}) {
+        silhouette(coverage);
+        sceneConstants();
+        constants[7][1] = constants[53][0] = constants[54][0] = 1;
+        constants[4][0] = .003f;
+        constants[5][0] = .56f; constants[5][1] = .66f; constants[5][2] = .76f;
+        constants[54][2] = 80;
+        constants[55][0] = 80.f / 255; constants[55][1] = 96.f / 255; constants[55][2] = 128.f / 255;
+        CHECK(draw(scenePS));
+        auto edge = Read(d);
+        DWORD expected = mix(edge[Y * W + X - 2], skyColor, coverage);
+        for (int shift : {0, 8, 16})
+            CHECK(abs(int((edge[Y * W + X] >> shift) & 255) - int((expected >> shift) & 255)) <= 2);
+    }
+    // Colors matching native fog are not evidence of geometry: moving sky glows and
+    // cloud strips with clear depth must never be recolored as distant opaque objects.
+    image->LockRect(0, &lock, nullptr, 0);
+    for (UINT y = 0; y < H; ++y)
+        for (UINT x = 0; x < W; ++x)
+            ((DWORD *)((BYTE *)lock.pBits + y * lock.Pitch))[x] =
+                mix(0xff506080, skyColor, (x % 8) / 7.f);
+    image->UnlockRect(0);
+    depth->LockRect(0, &lock, nullptr, 0);
+    for (UINT y = 0; y < H; ++y)
+        for (UINT x = 0; x < W; ++x)
+            ((float *)((BYTE *)lock.pBits + y * lock.Pitch))[x] = 1;
+    depth->UnlockRect(0);
+    constants[7][1] = 0;
+    CHECK(draw(scenePS)); auto skyGlows = Read(d);
+    constants[7][1] = 1;
+    CHECK(draw(scenePS)); auto fogSkyGlows = Read(d);
+    CHECK(skyGlows == fogSkyGlows);
+    silhouette(.5f);
+    sceneConstants();
+    constants[6][0] = 5; constants[6][1] = 1; constants[6][2] = 6;
+    CHECK(draw(dofPS));
+    auto blurredSilhouette = Read(d);
+    const int spread = int(skyColor & 255) - int(blurredSilhouette[Y * W + X + 1] & 255);
+    CHECK(spread > 5); // Defocused leaves spread into the sky, rather than retaining a cut-out edge.
+    constants[6][0] = 40;
+    CHECK(draw(dofPS));
+    auto focusedSilhouette = Read(d);
+    const int focusedSpread = int(skyColor & 255) - int(focusedSilhouette[Y * W + X + 1] & 255);
+    CHECK(focusedSpread <= 3);
+    printf("Skyline coverage preserved; DoF spread=%d focused spread=%d\n", spread, focusedSpread);
     // Bloom can add an outer halo without bleaching an already bright colored core.
     fillImage(0xfff08020);
     memset(constants, 0, sizeof(constants));

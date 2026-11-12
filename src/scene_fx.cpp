@@ -50,6 +50,7 @@ bool SceneFX::programs() {
     PROGRAM(rayPS_, SceneRays)
     PROGRAM(raySourcePS_, SceneRaySource)
     PROGRAM(compositePS_, SceneComposite)
+    PROGRAM(dofPS_, SceneDoF)
     PROGRAM(lumaPS_, Luminance)
     PROGRAM(reducePS_, Reduce)
     PROGRAM(adaptPS_, Adapt)
@@ -106,6 +107,7 @@ void SceneFX::invalidate() {
     rayPS_.out();
     raySourcePS_.out();
     compositePS_.out();
+    dofPS_.out();
     lumaPS_.out();
     reducePS_.out();
     adaptPS_.out();
@@ -342,6 +344,7 @@ bool SceneFX::antialias(IDirect3DTexture9 *input, IDirect3DSurface9 *target, con
 IDirect3DTexture9 *SceneFX::process(IDirect3DTexture9 *input, const Settings &s) {
     PointSampler localSampler(device_, 4);
     PointSampler aoSampler(device_, 2);
+    PointSampler skySampler(device_, 5);
     if (!depthReady_ || !output_.texture.p)
         return input;
     if(s.fog && skyBackdropReady_) {
@@ -492,8 +495,18 @@ IDirect3DTexture9 *SceneFX::process(IDirect3DTexture9 *input, const Settings &s)
                       {w - .5f, -.5f, 0, 1, 1, 0},
                       {-.5f, h - .5f, 0, 1, 0, 1},
                       {w - .5f, h - .5f, 0, 1, 1, 1}};
-    return SUCCEEDED(device_->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, quad, sizeof(V))) ? output_.texture.p
-                                                                                        : input;
+    if (FAILED(device_->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, quad, sizeof(V))))
+        return input;
+    if (s.dof && s.dofRadius > 0) {
+        // Reuse the consumed world snapshot as the DoF output. No additional full-size target.
+        Target borrowed;
+        borrowed.width = output_.width;
+        borrowed.height = output_.height;
+        if (SUCCEEDED(input->GetSurfaceLevel(0, borrowed.surface.out())) &&
+            pass(borrowed, dofPS_, output_.texture, depth_.texture()))
+            return input;
+    }
+    return output_.texture;
 }
 bool SceneFX::emissive(IDirect3DTexture9 *texture) {
     DWORD tag = 0, size = 4;

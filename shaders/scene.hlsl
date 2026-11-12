@@ -126,6 +126,47 @@ float3 BilateralLight(float2 uv,float z){
     // A barely matching background texel must not become a full-strength foreground light.
     return sum/(weights+.03);
 }
+float CircleOfConfusion(float z) {
+ return saturate((abs(z-Lens.x)-Lens.y)/max(1,Lens.y))*(z<Lens.x?Lens.w:1);
+}
+float4 SceneDoF(float2 uv:TEXCOORD0):COLOR0 {
+ float4 source=tex2D(Image,uv);float raw=RawDepth(uv),z=Z(uv);
+ float radius=Lens.z*CircleOfConfusion(z);
+ if(radius<.25 || any(uv<Viewport.xy) || any(uv>Viewport.xy+Viewport.zw))return source;
+ // Sky participates in out-of-focus silhouette coverage; brightness alone must not freeze it.
+ float core=raw<.999999?smoothstep(.85,.99,max(source.r,max(source.g,source.b))):0;
+ if(core>.999)return source;
+ float samples=max(16,Quality.x*2),weights=1;
+ float3 rgb=pow(max(0,source.rgb),2.2),sum=rgb;
+ [loop]for(int i=0;i<32;++i){
+  if(i>=samples)break;
+  float r=sqrt((i+.5)/samples),distance=r*radius;
+  float2 q=clamp(uv+Kernel(i)*distance*Texel.xy,Viewport.xy+Texel.xy*.5,Viewport.xy+Viewport.zw-Texel.xy*.5);
+  float sampleZ=Z(q),sampleRadius=Lens.z*CircleOfConfusion(sampleZ);
+  // Out-of-focus foreground leaves must spread into sky pixels as well as receive sky.
+  // Focused foreground remains sharp; a soft support test avoids binary depth-tap popping.
+  float nearer=saturate((z-sampleZ)/max(1,z*.02));
+  float support=saturate(sampleRadius-distance+.5);
+  float weight=lerp(1,support,nearer)*(1-.5*r*r);
+  sum+=pow(max(0,tex2Dlod(Image,float4(q,0,0)).rgb),2.2)*weight;weights+=weight;
+ }
+ return float4(pow(max(0,lerp(sum/weights,rgb,core)),1/2.2),source.a);
+}
+// Estimate only silhouette coverage, keeping full pixels and all opaque interiors untouched.
+float SkylineCoverage(float2 uv,float3 source,float3 sky) {
+ float2 c=DepthUV(uv),dx=float2(Texel.x,0),dy=float2(0,Texel.y);
+ float4 raw=float4(tex2Dlod(Depth,float4(c-dx,0,0)).r,tex2Dlod(Depth,float4(c+dx,0,0)).r,
+                   tex2Dlod(Depth,float4(c-dy,0,0)).r,tex2Dlod(Depth,float4(c+dy,0,0)).r);
+ if(all(raw<.999999))return 1;
+ float3 unit=float3(1,1,1);
+ float contrast=dot(abs(source-sky),unit);
+ float4 neighbors=float4(dot(abs(tex2Dlod(Image,float4(c-dx,0,0)).rgb-sky),unit),
+                         dot(abs(tex2Dlod(Image,float4(c+dx,0,0)).rgb-sky),unit),
+                         dot(abs(tex2Dlod(Image,float4(c-dy,0,0)).rgb-sky),unit),
+                         dot(abs(tex2Dlod(Image,float4(c+dy,0,0)).rgb-sky),unit));
+ neighbors*=raw<.999999;
+ return saturate(contrast/max(.00001,max(contrast,max(max(neighbors.x,neighbors.y),max(neighbors.z,neighbors.w)))));
+}
 float4 SceneComposite(float2 uv:TEXCOORD0):COLOR0 {
     float4 source=tex2D(Image,uv);
     float raw=RawDepth(uv),z=Z(uv);
@@ -137,18 +178,6 @@ float4 SceneComposite(float2 uv:TEXCOORD0):COLOR0 {
     // additional lamp illuminate a dark receiver without adding an unmasked screen-space glow.
     float ambientLevel=max(.12,dot(Illumination.rgb,float3(.2126,.7152,.0722)));
     float3 reflectance=min(.8,rgb/ambientLevel);
-    [branch]if(Enabled.z>.5 && emissiveCore<.999){
-        float coc=saturate((abs(z-Lens.x)-Lens.y)/max(1,Lens.y))*(z<Lens.x?Lens.w:1);
-        float3 sum=rgb;float weights=1;
-        [loop]for(int i=0;i<12;++i){
-            float2 q=uv+Kernel(i)*sqrt((i+.5)/12)*Texel.xy*(Lens.z*coc);
-            float sampleZ=Z(q);
-            // Prevent a blurred background from smearing sharp foreground silhouettes.
-            float w=sampleZ>=z-max(1,z*.03);
-            sum+=pow(max(0,tex2Dlod(Image,float4(q,0,0)).rgb),2.2)*w;weights+=w;
-        }
-        rgb=lerp(sum/weights,rgb,emissiveCore);
-    }
     if(Enabled.x>.5 && raw<.999999)rgb*=BilateralAO(uv,z);
     if(Local.w>.5 && raw<.999999){
         float3 extra=reflectance*BilateralLight(uv,z)*(1-emissiveCore);
@@ -169,23 +198,13 @@ float4 SceneComposite(float2 uv:TEXCOORD0):COLOR0 {
             // Retint the native fog already in the image instead of fogging its attenuated
             // detail a second time. Additional extinction only fills the difference in opacity.
             float native=NativeFog.x*saturate(((NativeFog.w>.5?length(p):p.z)-NativeFog.y)/max(.001,NativeFog.z-NativeFog.y));
-            rgb=max(0,rgb+(air-NativeFogColor.rgb)*native*saturate(FogParameters.x*500));
+            float3 backdrop=tex2Dlod(SkyBackdrop,float4(DepthUV(uv),0,0)).rgb;
+            float coverage=SkylineCoverage(uv,source.rgb,backdrop);
+            rgb=max(0,rgb+(air-NativeFogColor.rgb)*native*saturate(FogParameters.x*500)*coverage);
             fog=saturate((fog-native)/max(.001,1-native));
-            inscatter*=lerp(FogTint.rgb/float3(.56,.66,.76),1,fog);
+            inscatter=lerp(backdrop,inscatter*lerp(FogTint.rgb/float3(.56,.66,.76),1,fog),coverage);
         }
         rgb=lerp(rgb,inscatter,fog);
-    }
-    if(Enabled.y>.5 && FogParameters.x>0 && FogBackdrop.x>.5 && NativeFog.x>.5 &&
-       (raw>=1 || (NativeFog.w>.5?length(p):p.z)>=NativeFog.z*.995)) {
-        // At the far clip, one MSAA depth sample can be sky even though color contains fogged terrain.
-        // Recover only coverage consistent with the known native fog/sky mixture, preserving the sky.
-        float3 sky=tex2D(SkyBackdrop,uv).rgb;
-        float3 difference=NativeFogColor.rgb-sky;
-        float denominator=dot(difference,difference);
-        float coverage=saturate(dot(source.rgb-sky,difference)/max(.00001,denominator));
-        float error=length(source.rgb-lerp(sky,NativeFogColor.rgb,coverage));
-        if(denominator>.0001 && error<.025)
-            rgb=lerp(sky,air,coverage);
     }
     return float4(saturate(rgb),source.a);
 }
