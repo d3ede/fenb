@@ -1,6 +1,31 @@
 #include "water_ps.hlsl"
 // A fixed cap keeps this nested search within the DX9 32-temporary-register limit.
 static const float ReflectionRange=512.0;
+// MSAA color coverage can include a foreground leaf while the copied depth
+// sample belongs to the bank behind it. Reconstruct edge radiance from nearby
+// samples whose depth and four-neighbor footprint support the same source face.
+float4 SurfaceRadiance(float2 uv,float2 center,float raw,float2 gradient,float tolerance){
+    float2 base=(floor(uv/Screen.xy)+.5)*Screen.xy;
+    float4 sum=0;float intact=1;
+    [loop]for(int i=0;i<9;++i){
+        float2 offset=float2(i%3-1,i/3-1);
+        float2 tap=base+offset*Screen.xy;
+        float expected=raw+dot(gradient,(tap-center)/Screen.xy);
+        float observed=tex2Dlod(SceneDepth,float4(tap,0,0)).r;
+        float4 sides=float4(tex2Dlod(SceneDepth,float4(tap-float2(Screen.x,0),0,0)).r,
+                            tex2Dlod(SceneDepth,float4(tap+float2(Screen.x,0),0,0)).r,
+                            tex2Dlod(SceneDepth,float4(tap-float2(0,Screen.y),0,0)).r,
+                            tex2Dlod(SceneDepth,float4(tap+float2(0,Screen.y),0,0)).r);
+        float4 predicted=expected+float4(-gradient.x,gradient.x,-gradient.y,gradient.y);
+        float4 residual=abs(sides-predicted);
+        float error=max(abs(observed-expected),max(max(residual.x,residual.y),max(residual.z,residual.w)));
+        float support=1-smoothstep(tolerance,tolerance*2,error);intact=min(intact,support);
+        float weight=support/(1+dot(offset,offset));
+        if(weight>.001)sum+=float4(tex2Dlod(SceneColor,float4(tap,0,0)).rgb,1)*weight;
+    }
+    if(intact>.999)return float4(tex2Dlod(SceneColor,float4(uv,0,0)).rgb,1);
+    return float4(sum.rgb/max(sum.a,.0001),saturate(sum.a*4));
+}
 float4 ResolveReflection(float2 hitUV,float3 start,float3 direction,float3 planeNormal) {
     float hitRaw=tex2Dlod(SceneDepth,float4(hitUV,0,0)).r;
     if(hitRaw>=.999999)return 0; // Clear depth is sky, not an opaque plane at the far clip.
@@ -31,44 +56,32 @@ float4 ResolveReflection(float2 hitUV,float3 start,float3 direction,float3 plane
     float2 scaled=gradient/Screen.xy*Viewport.zw*.5;
     float3 plane=float3(scaled*Camera.xy*float2(1,-1),hitRaw-Camera.z-dot(scaled,ndc));
     float denominator=dot(plane,direction);
-    float hitT=(Camera.w-dot(plane,start))/(abs(denominator)>.0000001?denominator:.0000001);
+    if(abs(denominator)<=.0000001)return 0;
+    float hitT=(Camera.w-dot(plane,start))/denominator;
+    if(hitT<=0 || hitT>=ReflectionRange)return 0;
     float3 hit=start+direction*hitT;
+    if(hit.z<=.1 || dot(hit-start,planeNormal)<=.01)return 0;
     float2 refinedUV=ProjectUV(hit);
     float2 refinedCenter=(floor(refinedUV/Screen.xy)+.5)*Screen.xy;
     float expectedRaw=hitRaw+dot(gradient,(refinedCenter-hitUV)/Screen.xy);
     float confirmedRaw=tex2Dlod(SceneDepth,float4(refinedCenter,0,0)).r;
     float matchTolerance=quantum*3+dot(abs(gradient),float2(.15,.15));
     float valid=1-smoothstep(matchTolerance,matchTolerance*2,abs(confirmedRaw-expectedRaw));
-    valid*=hitT>0 && hitT<ReflectionRange && dot(hit-start,planeNormal)>.01 &&
-           all(abs(refinedUV-hitUV)<Screen.xy*1.5) && confirmedRaw<.999999;
+    valid*=all(abs(refinedUV-hitUV)<Screen.xy*1.5) && confirmedRaw<.999999;
     float3 hitNormal=normalize(plane);
     if(dot(hitNormal,-hit)<0)hitNormal=-hitNormal;
     float2 edge=min((refinedUV-Viewport.xy)/Viewport.zw,1-(refinedUV-Viewport.xy)/Viewport.zw);
     float confidence=saturate(min(edge.x,edge.y)*14)*saturate(1-hitT/ReflectionRange);
     confidence*=valid*smoothstep(.005,.05,-dot(hitNormal,direction));
+    // A foreground/background depth jump can fit a fictitious face almost
+    // edge-on to the source camera. Its projected footprint has no reliable
+    // surface samples and stretches leaf colors into long reflection streaks.
+    // Fade that ill-conditioned source projection, not the water's wave normal.
+    confidence*=smoothstep(.02,.05,-dot(hitNormal,normalize(hit)));
     confidence*=min(max(continuity.x,continuity.y),max(continuity.z,continuity.w));
-    float3 radiance=tex2Dlod(SceneColor,float4(refinedUV,0,0)).rgb;
-    [branch] if(max(max(errors.x,errors.y),max(errors.z,errors.w))>quantum*3){
-        // A bilinear color fetch must not borrow a foreground character from
-        // the neighboring depth surface at a bank/object silhouette.
-        float2 grid=refinedUV/Screen.xy-.5;
-        float2 baseUV=(floor(grid)+.5)*Screen.xy,f=frac(grid);
-        float4 weights=float4((1-f.x)*(1-f.y),f.x*(1-f.y),(1-f.x)*f.y,f.x*f.y);
-        float4 raw=float4(tex2Dlod(SceneDepth,float4(baseUV,0,0)).r,
-                          tex2Dlod(SceneDepth,float4(baseUV+dx,0,0)).r,
-                          tex2Dlod(SceneDepth,float4(baseUV+dy,0,0)).r,
-                          tex2Dlod(SceneDepth,float4(baseUV+dx+dy,0,0)).r);
-        float expected=hitRaw+dot(gradient,(baseUV-hitUV)/Screen.xy);
-        float4 predicted=expected+float4(0,gradient.x,gradient.y,gradient.x+gradient.y);
-        weights*=1-smoothstep(matchTolerance,matchTolerance*2,abs(raw-predicted));
-        float sum=dot(weights,1);
-        radiance=(tex2Dlod(SceneColor,float4(baseUV,0,0)).rgb*weights.x+
-                  tex2Dlod(SceneColor,float4(baseUV+dx,0,0)).rgb*weights.y+
-                  tex2Dlod(SceneColor,float4(baseUV+dy,0,0)).rgb*weights.z+
-                  tex2Dlod(SceneColor,float4(baseUV+dx+dy,0,0)).rgb*weights.w)/max(.0001,sum);
-        confidence*=saturate(sum*2);
-    }
-    return float4(radiance,confidence);
+    if(confidence<=.001)return 0;
+    float4 sampled=SurfaceRadiance(refinedUV,hitUV,hitRaw,gradient,quantum*.5+dot(abs(gradient),float2(.05,.05)));
+    return float4(sampled.rgb,confidence*sampled.a);
 }
 
 float4 TraceReflection(float3 start,float3 direction,float3 planeNormal) {

@@ -189,6 +189,7 @@ int main(int argc, char **argv) {
     bool foregroundBank = false;
     bool translatedScene = false;
     bool bakedScene = false, distantWall = false;
+    bool cutoutFoliage = false;
     auto render = [&](float floorY, bool wall, bool replace) {
         water.beginFrame(true, true, true, settings.waterCaustics > 0);
         d->SetRenderState(D3DRS_ZENABLE, TRUE);
@@ -249,6 +250,17 @@ int main(int argc, char **argv) {
             d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP,2,fold+4,sizeof(Floor));
         } else if (wall)
             d->DrawPrimitiveUP(D3DPT_TRIANGLELIST, 2, object, sizeof(Floor));
+        if (cutoutFoliage) {
+            // Disconnected leaf quads expose depth jumps and MSAA color coverage
+            // without relying on game assets or on the SSR implementation.
+            for (int row=0;row<19;++row)for(int column=0;column<24;++column) {
+                float x=-5+column*.43f,y=.2f+row*.43f;
+                Floor leaf[]={{x,y,12,0xff20d020},{x+.19f,y,12,0xff20d020},
+                              {x,y+.19f,12,0xff20d020},{x+.19f,y+.19f,12,0xff20d020}};
+                bake(leaf);
+                d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP,2,leaf,sizeof(Floor));
+            }
+        }
         if (foregroundBank) {
             Floor bank[] = {
                   {1, 0, 5, 0xff20d020}, {5, 0, 8, 0xff20d020}, {1, 9, 5, 0xff20d020}, {5, 9, 8, 0xff20d020}};
@@ -512,6 +524,45 @@ int main(int argc, char **argv) {
                 CHECK(hits>80);
             }
             bakedScene=false;distantWall=false;projection=fullProjection;
+            cutoutFoliage=true;
+            for(int quality:{0,1})for(bool baked:{false,true})for(float yaw:{-.2f,0.f,.2f})
+              for(float shift:{0.f,.007f,.019f}) {
+                settings.waterSSRQuality=quality;bakedScene=baked;view=savedView;
+                float c=std::cos(yaw),sn=std::sin(yaw);
+                view._11=c;view._12=sn*savedView._32;view._13=sn*savedView._33;
+                view._31=-sn;view._32=c*savedView._32;view._33=c*savedView._33;
+                view._41=-8*sn+shift*view._11;
+                view._42=-4*view._22+8*view._32+shift*view._12;
+                view._43=-4*view._23+8*view._33+shift*view._13;
+                CHECK(render(-2,true,true));
+                auto leaves=WaterFXFixture::reflection(water,d);
+                unsigned accepted=0;float maximumError=0;
+                for(UINT y=0;y<Height;++y)for(UINT x=0;x<Width;++x) {
+                    auto pixel=leaves[y*Width+x];
+                    if((pixel>>24)<20 || int((pixel>>8)&255)<int((pixel>>16)&255)+25)continue;
+                    ++accepted;
+                    // Intersect the exact mirrored ray with the known leaf plane.
+                    float vx=(float(x)/Width*2-1)/projection._11,vy=(1-float(y)/Height*2)/projection._22;
+                    float rx=vx*view._11+vy*view._12+view._13;
+                    float ry=vx*view._21+vy*view._22+view._23;
+                    float rz=vx*view._31+vy*view._32+view._33;
+                    float waterT=-4/ry,wx=-shift+rx*waterT,wz=-8+rz*waterT;
+                    float reflectionT=(12-wz)/rz,hx=wx+rx*reflectionT,hy=-ry*reflectionT;
+                    float column=std::clamp(std::round((hx+5-.095f)/.43f),0.f,23.f);
+                    float row=std::clamp(std::round((hy-.2f-.095f)/.43f),0.f,18.f);
+                    float left=-5+column*.43f,top=.2f+row*.43f;
+                    float dx=std::max({left-hx,hx-left-.19f,0.f});
+                    float dy=std::max({top-hy,hy-top-.19f,0.f});
+                    float sourcePixel=(hx*view._13+12*view._33+hy*view._23+view._43)/(projection._11*Width*.5f);
+                    CHECK(waterT>0 && reflectionT>0 && sourcePixel>0);
+                    maximumError=std::max(maximumError,std::hypot(dx,dy)/sourcePixel);
+                }
+                printf("Leaf reflection quality=%d baked=%d yaw=%.2f shift=%.3f: accepted=%u max source-pixel error=%.2f\n",
+                       quality,baked,yaw,shift,accepted,maximumError);
+                CHECK(accepted>100 && maximumError<2.5f);
+                CHECK(Save(leaves,L"build/water-leaf-reflection.bmp"));
+            }
+            cutoutFoliage=false;bakedScene=false;view=savedView;
         }
         settings.waterSSR = 0;
         CHECK(render(-.02f, false, false));
