@@ -257,6 +257,9 @@ void Runtime::beforeWaterDraw(UINT upStride, DrawCall draw) {
     if (water_->begin(settings, upStride)) {
         ++waterDraws;
         water_->reflect(draw);
+#ifdef FENB_DIAGNOSTICS
+        probe_->water(*water_);
+#endif
     }
 }
 void Runtime::environmentDraw(D3DPRIMITIVETYPE type, UINT start, UINT count) {
@@ -354,6 +357,9 @@ void Runtime::beforeDraw(UINT primitives, UINT vertices) {
 }
 void Runtime::finishWorld() {
     hudStarted_ = true;
+#ifdef FENB_DIAGNOSTICS
+    probe_->waterEnd(*water_);
+#endif
     if (!sawWorld_ || !settings.enabled || compare)
         return;
     if (!settings.postEnabled()) {
@@ -551,8 +557,8 @@ void Runtime::requestCapture() {
     message = UiText::CapturePending;
 }
 void Runtime::captureDraw(const char *api, UINT type, UINT primitives, UINT vertices, UINT stride,
-                          const void *up) {
-    probe_->draw(api, type, primitives, vertices, stride, up);
+                          const void *up, UINT first) {
+    probe_->draw(api, type, primitives, vertices, stride, up, first);
 }
 #endif
 void Runtime::save() {

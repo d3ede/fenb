@@ -16,6 +16,14 @@ node tools/embed-presets.mjs
 if ($LASTEXITCODE) { throw 'Profile embedding failed' }
 & $cxx '-std=c++20' '-O2' '-static' 'tools/shaderc.cpp' '-ld3dcompiler' '-o' 'build/shaderc.exe'
 if ($LASTEXITCODE) { throw 'Shader compiler build failed' }
+if($Diagnostics){
+    & '.\build\shaderc.exe' 'shaders/probe_depth.hlsl' 'src/generated/probe_depth.hpp' 'ProbeDepth' 'ps_3_0'
+    if($LASTEXITCODE){throw 'Diagnostic depth shader compilation failed'}
+    & '.\build\shaderc.exe' 'shaders/probe_depth.hlsl' 'src/generated/probe_vertices_vs.hpp' 'ProbeVerticesVS' 'vs_3_0'
+    if($LASTEXITCODE){throw 'Diagnostic vertex shader compilation failed'}
+    & '.\build\shaderc.exe' 'shaders/probe_depth.hlsl' 'src/generated/probe_vertices_ps.hpp' 'ProbeVerticesPS' 'ps_3_0'
+    if($LASTEXITCODE){throw 'Diagnostic vertex readback compilation failed'}
+}
 & '.\build\shaderc.exe' 'shaders/post.hlsl' 'src/generated/shaders.hpp'
 if ($LASTEXITCODE) { throw 'HLSL compilation failed' }
 & '.\build\shaderc.exe' 'shaders/water_vs.hlsl' 'src/generated/water_vs.hpp' 'WaterVS' 'vs_3_0'
@@ -120,6 +128,10 @@ if ($Tests) {
     & ".\$outputDirectory\hud-test.exe"
     if($LASTEXITCODE){throw 'HUD preservation test failed'}
     if($Diagnostics){
+        & $cxx '-std=c++20' '-O2' '-static' '-Isrc' '-DFENB_DIAGNOSTICS' 'tests/water_capture_test.cpp' 'src/pipeline_probe.cpp' 'src/water.cpp' 'src/scene_fx.cpp' '-ld3d9' '-ldxguid' '-lbcrypt' '-o' 'build/water-capture-test.exe'
+        if($LASTEXITCODE){throw 'Water replay capture test build failed'}
+        & '.\build\water-capture-test.exe'
+        if($LASTEXITCODE){throw 'Water replay capture test failed'}
         & $cxx '-std=c++20' '-O2' '-static' '-Isrc' 'tests/probe_test.cpp' '-ld3d9' '-ldxguid' '-o' "$outputDirectory/probe-test.exe"
         if($LASTEXITCODE){throw 'Probe test build failed'}
         & ".\$outputDirectory\probe-test.exe"

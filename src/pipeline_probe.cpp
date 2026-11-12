@@ -1,5 +1,9 @@
 #ifdef FENB_DIAGNOSTICS
 #include "pipeline_probe.hpp"
+#include "water.hpp"
+#include <generated/probe_depth.hpp>
+#include <generated/probe_vertices_vs.hpp>
+#include <generated/probe_vertices_ps.hpp>
 #include <cstdio>
 #include <iomanip>
 
@@ -25,18 +29,19 @@ std::string PipelineProbe::digest(const void* data,size_t rowBytes,UINT rows,UIN
 void PipelineProbe::begin(){
     active_=true;requested_=false;frame_=draws_=totalDraws_=0;truncated_=false;started_=GetTickCount();
     lines_.clear();lines_.reserve(1024*1024);textures_.clear();shaders_.clear();blobs_.clear();
+    replayBytes_=0;waterDraws_=0;waterSource_=waterFinished_=false;lastUP_=nullptr;lastApi_.clear();
     BCryptOpenAlgorithmProvider(&hashAlgorithm_,BCRYPT_SHA256_ALGORITHM,nullptr,0);
     D3DCAPS9 caps{};device_->GetDeviceCaps(&caps);
     D3DDEVICE_CREATION_PARAMETERS creation{};device_->GetCreationParameters(&creation);
     Com<IDirect3D9> root;device_->GetDirect3D(root.out());D3DDISPLAYMODE mode{};
     if(root.p)root->GetAdapterDisplayMode(creation.AdapterOrdinal,&mode);
     std::ostringstream out;
-    out<<"{\"kind\":\"header\",\"schema\":1,\"pid\":"<<GetCurrentProcessId()<<",\"vertexShaderVersion\":"<<caps.VertexShaderVersion
+    out<<"{\"kind\":\"header\",\"schema\":2,\"pid\":"<<GetCurrentProcessId()<<",\"vertexShaderVersion\":"<<caps.VertexShaderVersion
        <<",\"pixelShaderVersion\":"<<caps.PixelShaderVersion<<",\"maxVSConstants\":"<<caps.MaxVertexShaderConst
        <<",\"maxRTs\":"<<caps.NumSimultaneousRTs<<",\"creationFlags\":"<<creation.BehaviorFlags<<",\"depthTextureFormats\":[";
     DWORD formats[]={MAKEFOURCC('I','N','T','Z'),MAKEFOURCC('D','F','2','4'),MAKEFOURCC('R','A','W','Z')};
     for(int i=0;i<3;++i){if(i)out<<',';HRESULT hr=root.p?root->CheckDeviceFormat(creation.AdapterOrdinal,creation.DeviceType,mode.Format,D3DUSAGE_DEPTHSTENCIL,D3DRTYPE_TEXTURE,D3DFORMAT(formats[i])):E_FAIL;out<<"{\"format\":"<<formats[i]<<",\"hr\":"<<hr<<'}';}
-    out<<"],\"note\":\"Driver support is not evidence that the game depth buffer is sampleable. No GPU readback or state mutation.\"}\n";
+    out<<"],\"note\":\"Driver support alone does not establish readable depth. Opt-in water replay records one GPU frame, at most 32 nonindexed water draws and 64 MiB of replay payload. No process memory or packets.\"}\n";
     lines_=out.str();Log("Pipeline probe: capture started (3 frames, bounded). ");
 }
 void PipelineProbe::finish(bool aborted){
@@ -53,6 +58,7 @@ void PipelineProbe::finish(bool aborted){
     for(auto* resource:retained_)resource->Release();retained_.clear();
     if(hashAlgorithm_){BCryptCloseAlgorithmProvider(hashAlgorithm_,0);hashAlgorithm_=nullptr;}
     active_=false;std::string().swap(lines_);blobs_.clear();textures_.clear();shaders_.clear();
+    lastUP_=nullptr;lastApi_.clear();replayBytes_=0;
     Log("Pipeline probe: capture complete. See FENB-captures/frame.jsonl in the timestamped folder.");
 }
 void PipelineProbe::abort(){if(active_)finish(true);}
@@ -97,17 +103,130 @@ int PipelineProbe::texture(IDirect3DBaseTexture9* object){
         <<",\"format\":"<<DWORD(d.Format)<<",\"pool\":"<<d.Pool<<",\"usage\":"<<d.Usage<<",\"hr\":"<<hr<<",\"firstMipSHA256\":\""<<hash<<"\"}\n";
     lines_+=out.str();return id;
 }
-void PipelineProbe::draw(const char* api,UINT type,UINT primitives,UINT vertices,UINT stride,const void* up){
+bool PipelineProbe::addBlob(const std::string& name,const void* data,size_t bytes){
+    constexpr size_t budget=64*1024*1024;
+    if(bytes>budget-replayBytes_){truncated_=true;return false;}
+    Blob blob;blob.name=name;blob.bytes.resize(bytes);memcpy(blob.bytes.data(),data,bytes);
+    replayBytes_+=bytes;blobs_.push_back(std::move(blob));return true;
+}
+bool PipelineProbe::readSurface(IDirect3DSurface9* source,const std::string& name){
+    D3DSURFACE_DESC d{};
+    if(!source||FAILED(source->GetDesc(&d)))return false;
+    UINT pixelBytes=d.Format==D3DFMT_A32B32G32R32F?16:4;
+    if(d.Format!=D3DFMT_R32F&&d.Format!=D3DFMT_A32B32G32R32F&&d.Format!=D3DFMT_A8R8G8B8&&d.Format!=D3DFMT_X8R8G8B8)return false;
+    size_t bytes=size_t(d.Width)*d.Height*pixelBytes;
+    if(bytes>64*1024*1024-replayBytes_){truncated_=true;return false;}
+    Com<IDirect3DSurface9> resolve,read;
+    if(d.MultiSampleType!=D3DMULTISAMPLE_NONE){
+        if(FAILED(device_->CreateRenderTarget(d.Width,d.Height,d.Format,D3DMULTISAMPLE_NONE,0,FALSE,resolve.out(),nullptr))||
+           FAILED(device_->StretchRect(source,nullptr,resolve,nullptr,D3DTEXF_NONE)))return false;
+        source=resolve;
+    }
+    if(FAILED(device_->CreateOffscreenPlainSurface(d.Width,d.Height,d.Format,D3DPOOL_SYSTEMMEM,read.out(),nullptr))||
+       FAILED(device_->GetRenderTargetData(source,read)))return false;
+    D3DLOCKED_RECT lock{};if(FAILED(read->LockRect(&lock,nullptr,D3DLOCK_READONLY)))return false;
+    std::vector<unsigned char> pixels(bytes);bool ok=lock.Pitch>=int(d.Width*pixelBytes);
+    if(ok)for(UINT y=0;y<d.Height;++y)memcpy(pixels.data()+size_t(y)*d.Width*pixelBytes,(BYTE*)lock.pBits+size_t(y)*lock.Pitch,d.Width*pixelBytes);
+    read->UnlockRect();if(!ok||!addBlob(name,pixels.data(),pixels.size()))return false;
+    std::ostringstream out;out<<"{\"kind\":\"water-image\",\"file\":\""<<name<<"\",\"width\":"<<d.Width<<",\"height\":"<<d.Height<<",\"format\":"<<DWORD(d.Format)<<",\"pixelBytes\":"<<pixelBytes<<"}\n";lines_+=out.str();return true;
+}
+namespace {
+void ProbeTarget(IDirect3DDevice9* d,IDirect3DSurface9* target,UINT w,UINT h){
+    d->SetRenderTarget(0,target);D3DVIEWPORT9 viewport{0,0,w,h,0,1};d->SetViewport(&viewport);
+    for(auto key:{D3DRS_ZENABLE,D3DRS_ZWRITEENABLE,D3DRS_ALPHABLENDENABLE,D3DRS_ALPHATESTENABLE,
+                  D3DRS_FOGENABLE,D3DRS_STENCILENABLE,D3DRS_SCISSORTESTENABLE,D3DRS_SRGBWRITEENABLE,
+                  D3DRS_CLIPPLANEENABLE,D3DRS_WRAP0,D3DRS_LIGHTING,D3DRS_POINTSPRITEENABLE,D3DRS_POINTSCALEENABLE})d->SetRenderState(key,0);
+    d->SetRenderState(D3DRS_COLORWRITEENABLE,15);d->SetRenderState(D3DRS_CULLMODE,D3DCULL_NONE);
+    d->SetRenderState(D3DRS_FILLMODE,D3DFILL_SOLID);d->SetRenderState(D3DRS_MULTISAMPLEMASK,0xffffffff);
+    float point=1;DWORD pointBits=0;memcpy(&pointBits,&point,4);d->SetRenderState(D3DRS_POINTSIZE,pointBits);
+    d->SetTexture(0,nullptr);
+}
+}
+void PipelineProbe::readDepth(IDirect3DTexture9* source){
+    D3DSURFACE_DESC desc{};if(!source||FAILED(source->GetLevelDesc(0,&desc)))return;
+    if(size_t(desc.Width)*desc.Height*4>64*1024*1024-replayBytes_){truncated_=true;return;}
+    StateGuard guard(device_);Com<IDirect3DTexture9> target;Com<IDirect3DSurface9> surface;Com<IDirect3DPixelShader9> ps;
+    if(!guard.valid()||FAILED(device_->CreateTexture(desc.Width,desc.Height,1,D3DUSAGE_RENDERTARGET,D3DFMT_R32F,D3DPOOL_DEFAULT,target.out(),nullptr))||
+       FAILED(target->GetSurfaceLevel(0,surface.out()))||FAILED(device_->CreatePixelShader(ShaderProbeDepth,ps.out())))return;
+    guard.isolateTargets();ProbeTarget(device_,surface,desc.Width,desc.Height);
+    device_->SetVertexShader(nullptr);device_->SetFVF(D3DFVF_XYZRHW|D3DFVF_TEX1);device_->SetPixelShader(ps);device_->SetTexture(0,source);
+    for(auto key:{D3DSAMP_MINFILTER,D3DSAMP_MAGFILTER})device_->SetSamplerState(0,key,D3DTEXF_POINT);
+    device_->SetSamplerState(0,D3DSAMP_MIPFILTER,D3DTEXF_NONE);device_->SetSamplerState(0,D3DSAMP_SRGBTEXTURE,FALSE);
+    device_->SetSamplerState(0,D3DSAMP_ADDRESSU,D3DTADDRESS_CLAMP);device_->SetSamplerState(0,D3DSAMP_ADDRESSV,D3DTADDRESS_CLAMP);
+    struct V{float x,y,z,w,u,v;};float w=float(desc.Width),h=float(desc.Height);
+    V quad[]={{-.5f,-.5f,0,1,0,0},{w-.5f,-.5f,0,1,1,0},{-.5f,h-.5f,0,1,0,1},{w-.5f,h-.5f,0,1,1,1}};
+    if(SUCCEEDED(device_->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP,2,quad,sizeof(V))))readSurface(surface,"water-depth.r32f");
+}
+bool PipelineProbe::readVertices(const std::string& name,UINT count){
+    if(lastUP_){
+        if(lastStride_<12)return false;
+        std::vector<float> positions(size_t(count)*4);
+        for(UINT i=0;i<count;++i){memcpy(&positions[i*4],(const BYTE*)lastUP_+size_t(i)*lastStride_,12);positions[i*4+3]=1;}
+        return addBlob(name,positions.data(),positions.size()*4);
+    }
+    Com<IDirect3DVertexBuffer9> native,indices;UINT offset=0,stride=0;D3DVERTEXBUFFER_DESC buffer{};
+    if(FAILED(device_->GetStreamSource(0,native.out(),&offset,&stride))||!native.p||stride!=36||FAILED(native->GetDesc(&buffer))||
+       uint64_t(offset)+uint64_t(lastFirst_+uint64_t(count))*stride>buffer.Size)return false;
+    // Capture write-only native buffers through the GPU, never through a READONLY lock.
+    UINT width=std::min(256u,count),height=(count+width-1)/width;
+    StateGuard guard(device_);Com<IDirect3DTexture9> target;Com<IDirect3DSurface9> surface;
+    Com<IDirect3DVertexShader9> vs;Com<IDirect3DPixelShader9> ps;Com<IDirect3DVertexDeclaration9> decl;
+    if(!guard.valid()||FAILED(device_->CreateTexture(width,height,1,D3DUSAGE_RENDERTARGET,D3DFMT_A32B32G32R32F,D3DPOOL_DEFAULT,target.out(),nullptr))||
+       FAILED(target->GetSurfaceLevel(0,surface.out()))||FAILED(device_->CreateVertexShader(ShaderProbeVerticesVS,vs.out()))||
+       FAILED(device_->CreatePixelShader(ShaderProbeVerticesPS,ps.out()))||
+       FAILED(device_->CreateVertexBuffer(count*8,0,0,D3DPOOL_MANAGED,indices.out(),nullptr)))return false;
+    D3DVERTEXELEMENT9 elements[]={{0,0,D3DDECLTYPE_FLOAT3,D3DDECLMETHOD_DEFAULT,D3DDECLUSAGE_POSITION,0},
+                               {1,0,D3DDECLTYPE_FLOAT2,D3DDECLMETHOD_DEFAULT,D3DDECLUSAGE_TEXCOORD,1},D3DDECL_END()};
+    if(FAILED(device_->CreateVertexDeclaration(elements,decl.out())))return false;
+    float* destinations=nullptr;if(FAILED(indices->Lock(0,0,(void**)&destinations,0)))return false;
+    for(UINT i=0;i<count;++i){destinations[i*2]=float(i%width)*2/width-1;destinations[i*2+1]=1-float(i/width)*2/height;}
+    indices->Unlock();guard.isolateTargets();ProbeTarget(device_,surface,width,height);
+    device_->Clear(0,nullptr,D3DCLEAR_TARGET,0,1,0);device_->SetVertexDeclaration(decl);
+    device_->SetVertexShader(vs);device_->SetPixelShader(ps);
+    device_->SetStreamSource(0,native,offset+lastFirst_*stride,stride);device_->SetStreamSource(1,indices,0,8);
+    UINT freq[2]={1,1};device_->GetStreamSourceFreq(0,&freq[0]);device_->GetStreamSourceFreq(1,&freq[1]);
+    device_->SetStreamSourceFreq(0,1);device_->SetStreamSourceFreq(1,1);
+    bool ok=SUCCEEDED(device_->DrawPrimitive(D3DPT_POINTLIST,0,count))&&readSurface(surface,name);
+    device_->SetStreamSourceFreq(0,freq[0]);device_->SetStreamSourceFreq(1,freq[1]);return ok;
+}
+void PipelineProbe::water(WaterFX& water){
+    if(!active_||frame_!=0||!water.state_||lastApi_.empty())return;
+    if(waterDraws_>=32){truncated_=true;return;}
+    if(!waterSource_){
+        waterSource_=true;readSurface(water.sceneSurface_,"water-color.argb");readDepth(water.depth_.texture());
+    }
+    if(lastApi_!="DrawPrimitive"&&lastApi_!="DrawPrimitiveUP")return;
+    UINT count=0;
+    switch(lastType_){case D3DPT_TRIANGLELIST:if(lastPrimitives_>21845)return;count=lastPrimitives_*3;break;
+      case D3DPT_TRIANGLESTRIP:case D3DPT_TRIANGLEFAN:if(lastPrimitives_>65534)return;count=lastPrimitives_+2;break;default:return;}
+    if(!count)return;
+    auto prefix="water-"+std::to_string(waterDraws_++);
+    float vs[18*4]{},ps[21*4]{};D3DVIEWPORT9 viewport{};
+    if(FAILED(device_->GetVertexShaderConstantF(0,vs,18))||FAILED(device_->GetPixelShaderConstantF(0,ps,21))||FAILED(device_->GetViewport(&viewport)))return;
+    bool mesh=readVertices(prefix+"-positions.fp32",count);
+    bool constants=addBlob(prefix+"-vs.fp32",vs,sizeof(vs))&&addBlob(prefix+"-ps.fp32",ps,sizeof(ps));
+    std::ostringstream out;out<<"{\"kind\":\"water-replay\",\"prefix\":\""<<prefix<<"\",\"draw\":"<<draws_<<",\"type\":"<<lastType_<<",\"primitives\":"<<lastPrimitives_
+       <<",\"vertices\":"<<count<<",\"mesh\":"<<(mesh?"true":"false")<<",\"constants\":"<<(constants?"true":"false")<<",\"viewport\":["<<viewport.X<<','<<viewport.Y<<','<<viewport.Width<<','<<viewport.Height<<','<<viewport.MinZ<<','<<viewport.MaxZ<<"]}\n";
+    lines_+=out.str();lastUP_=nullptr;
+}
+void PipelineProbe::waterEnd(WaterFX& water){
+    if(!active_||frame_!=0||!waterSource_||waterFinished_)return;waterFinished_=true;
+    StateGuard guard(device_);if(!guard.valid())return;
+    readSurface(water.reflectionSurface_,"water-reflection.argb");
+    Com<IDirect3DSurface9> bb;if(SUCCEEDED(device_->GetRenderTarget(0,bb.out())))readSurface(bb,"water-final.argb");
+}
+void PipelineProbe::draw(const char* api,UINT type,UINT primitives,UINT vertices,UINT stride,const void* up,UINT first){
     if(!active_)return;++totalDraws_;
-    if(draws_>=MaxDraws||lines_.size()>MaxBytes){truncated_=true;return;}
+    if(draws_>=MaxDraws||lines_.size()>MaxBytes){lastApi_.clear();lastUP_=nullptr;truncated_=true;return;}
     if(up&&!vertices){switch(type){case D3DPT_POINTLIST:vertices=primitives;break;case D3DPT_LINELIST:vertices=primitives*2;break;case D3DPT_LINESTRIP:vertices=primitives+1;break;case D3DPT_TRIANGLELIST:vertices=primitives*3;break;case D3DPT_TRIANGLESTRIP:case D3DPT_TRIANGLEFAN:vertices=primitives+2;break;}}
+    lastApi_=api;lastType_=type;lastPrimitives_=primitives;lastVertices_=vertices;lastStride_=stride;lastFirst_=first;lastUP_=up;
     ++draws_;std::ostringstream s;s<<std::setprecision(7);
     DWORD fvf=0;HRESULT fvfHr=device_->GetFVF(&fvf);
     Com<IDirect3DVertexShader9> vs;Com<IDirect3DPixelShader9> ps;device_->GetVertexShader(vs.out());device_->GetPixelShader(ps.out());
     int vsId=shader(vs,false),psId=shader(ps,true);
     int texIds[4]{};for(UINT i=0;i<4;++i){Com<IDirect3DBaseTexture9> tex;if(SUCCEEDED(device_->GetTexture(i,tex.out())))texIds[i]=texture(tex);}
     s<<"{\"kind\":\"draw\",\"frame\":"<<frame_<<",\"index\":"<<draws_<<",\"api\":\""<<api<<"\",\"primitiveType\":"<<type<<",\"primitives\":"<<primitives
-     <<",\"vertices\":"<<vertices<<",\"upStride\":"<<stride<<",\"fvf\":"<<fvf<<",\"fvfHR\":"<<fvfHr<<",\"vs\":"<<vsId<<",\"ps\":"<<psId<<",\"textures\":[";
+     <<",\"vertices\":"<<vertices<<",\"firstVertex\":"<<first<<",\"upStride\":"<<stride<<",\"fvf\":"<<fvf<<",\"fvfHR\":"<<fvfHr<<",\"vs\":"<<vsId<<",\"ps\":"<<psId<<",\"textures\":[";
     for(int i=0;i<4;++i){if(i)s<<',';s<<texIds[i];}s<<"],\"transforms\":{";
     D3DTRANSFORMSTATETYPE transforms[]={D3DTS_WORLD,D3DTS_VIEW,D3DTS_PROJECTION,D3DTS_TEXTURE0};const char* labels[]={"world","view","projection","texture0"};
     for(int i=0;i<4;++i){D3DMATRIX m{};HRESULT hr=device_->GetTransform(transforms[i],&m);if(i)s<<',';s<<'"'<<labels[i]<<"\":{\"hr\":"<<hr<<",\"m\":";Matrix(s,m);s<<'}';}s<<"},\"states\":{";

@@ -58,6 +58,19 @@ target_compile_definitions(d3d9 PRIVATE IMGUI_DISABLE_DEMO_WINDOWS IMGUI_DISABLE
 target_link_libraries(d3d9 PRIVATE dxguid comctl32 dwmapi gdi32 imm32 bcrypt winmm)
 set_target_properties(d3d9 PROPERTIES PREFIX "")
 if(FENB_DIAGNOSTICS)
+  add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/generated/probe_depth.hpp"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/generated"
+    COMMAND shaderc "${CMAKE_CURRENT_SOURCE_DIR}/shaders/probe_depth.hlsl" "${CMAKE_CURRENT_BINARY_DIR}/generated/probe_depth.hpp" ProbeDepth ps_3_0
+    DEPENDS shaderc shaders/probe_depth.hlsl)
+  target_sources(d3d9 PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated/probe_depth.hpp")
+  foreach(stage IN ITEMS vs ps)
+    string(TOUPPER "${stage}" entry_suffix)
+    add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/generated/probe_vertices_${stage}.hpp"
+      COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/generated"
+      COMMAND shaderc "${CMAKE_CURRENT_SOURCE_DIR}/shaders/probe_depth.hlsl" "${CMAKE_CURRENT_BINARY_DIR}/generated/probe_vertices_${stage}.hpp" "ProbeVertices${entry_suffix}" "${stage}_3_0"
+      DEPENDS shaderc shaders/probe_depth.hlsl)
+    target_sources(d3d9 PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated/probe_vertices_${stage}.hpp")
+  endforeach()
   target_sources(d3d9 PRIVATE src/pipeline_probe.cpp)
   target_compile_definitions(d3d9 PRIVATE FENB_DIAGNOSTICS)
   target_link_libraries(d3d9 PRIVATE bcrypt)
@@ -73,6 +86,19 @@ else()
 endif()
 include(CTest)
 if(BUILD_TESTING)
+  if(FENB_DIAGNOSTICS)
+    add_executable(water-capture-test tests/water_capture_test.cpp src/pipeline_probe.cpp src/water.cpp src/scene_fx.cpp
+      "${CMAKE_CURRENT_BINARY_DIR}/generated/probe_depth.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/probe_vertices_vs.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/probe_vertices_ps.hpp"
+      "${CMAKE_CURRENT_BINARY_DIR}/generated/reflection_ps.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/water_vs.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/water_ps.hpp"
+      "${CMAKE_CURRENT_BINARY_DIR}/generated/scene_shaders.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/caustics.hpp")
+    target_include_directories(water-capture-test PRIVATE "${CMAKE_CURRENT_BINARY_DIR}" src)
+    target_compile_definitions(water-capture-test PRIVATE FENB_DIAGNOSTICS)
+    target_link_libraries(water-capture-test PRIVATE dxguid bcrypt "$<IF:$<CXX_COMPILER_ID:MSVC>,d3d9.lib,-ld3d9>")
+    if(NOT MSVC)
+      target_link_options(water-capture-test PRIVATE -static)
+    endif()
+    add_test(NAME water-capture COMMAND water-capture-test WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+  endif()
   add_executable(sky-detail-test tests/sky_detail_test.cpp "${CMAKE_CURRENT_BINARY_DIR}/generated/scene_shaders.hpp")
   target_include_directories(sky-detail-test PRIVATE "${CMAKE_CURRENT_BINARY_DIR}" src)
   if(MSVC)

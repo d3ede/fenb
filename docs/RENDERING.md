@@ -1,4 +1,4 @@
-# FENB 0.3d
+# FENB 0.3e
 
 FENB is a graphics mod for Flyff, inspired by ENBSeries. It uses a Windows x86 Direct3D 9 proxy, C++20, precompiled shaders and a native Dear ImGui settings panel.
 
@@ -22,7 +22,7 @@ The built-in list contains exactly five looks: **Default / Основной**, *
 
 All five are compiled into the DLL; the default image settings come from `config/FENB.ini`, with named variations in `config/builtins.json`. `node tools/embed-presets.mjs` regenerates `src/generated/presets.hpp`, and both build paths keep it in sync. No shipped `.ini` is added under **My profiles**. The old saved copy of Основной can be archived when migrating to the identical built-in, without discarding user edits. Custom files remain independently supported. Image-profile changes preserve the master switch, language, hardware/FPS choices and local time/weather controls. Modified built-ins retain their translated name with an asterisk, and can be saved as a custom profile.
 
-The lower-left corner shows the public version, **0.3d**, followed by save status. Public versions use the form `digit.digitletter`.
+The lower-left corner shows the public version, **0.3e**, followed by save status. Public versions use the form `digit.digitletter`.
 
 The optional panel cursor acquires a balanced negative Windows cursor-display count. Late native SetCursor calls cannot display a second cursor; closing the panel, losing focus and device recovery release that ownership.
 
@@ -125,6 +125,8 @@ Post-processing runs at the first accepted RHW UI draw or an exactly recognized 
 The local portable LLVM-MinGW toolchain lives under `.tools/llvm-mingw-*-ucrt-x86_64`. Run `./build.ps1 -Tests`, `./dist/FENB-preview.exe` and `node tools/verify-binary.mjs`. The test build checks settings, exact HUD colors, native water material selection and restoration, transparency, Reset, input handling and panel interactions. The water fixture test reads the locally installed DDS; it reports a skip when that optional game asset is absent. Test screenshots and configuration files stay in ignored build folders.
 
 Use `-Diagnostics` only for the opt-in bounded pipeline capture. The normal build has no capture code. The diagnostic menu delays a three-frame capture by three seconds so the panel can be closed and a wake or splash reproduced. Native rings and splash particles are still rendered by the game; their draw states must be captured before integration. A CMake x86 build is also described in `CMakeLists.txt`; the PowerShell/LLVM build is the verified local path.
+
+Diagnostic schema 2 also records a replay bundle from the first captured water frame when WaterFX is active. `water-color.argb` is the original pre-water scene; `water-depth.r32f` contains the copied depth values without an 8-bit conversion; `water-reflection.argb` is the computed reflection and confidence; `water-final.argb` is the world image at the pre-HUD boundary. `water-image` records give dimensions and DX9 formats. Up to 32 recognized nonindexed water draws include topology, viewport, VS/PS constant blobs and FP32 native positions. For GPU-backed draws, a diagnostic point pass extracts positions from the actual vertex stream, including its byte offset and first vertex, without reading or locking native write-only buffers on the CPU. Position grids have up to 256 columns; only the recorded vertex count is used. Native UP data is copied within the intercepted call. The water payload is limited to 64 MiB, separately from the existing draw-log budget; truncation is reported. Temporary GPU targets/readback surfaces are released immediately and CPU blobs are released when the three-frame capture finishes. Capture can briefly stall rendering. The bundle contains graphics data only and has no production-build overhead. Version 0.3e adds this evidence path; it does not claim that the live reflection defects reported after 0.3d are fixed.
 
 `node tools/water-catalog.mjs <World/Texture directory>` regenerates the checked-in exact water fingerprints. Proxy interfaces are generated with `node tools/generate-proxies.mjs <d3d9.h>`; do not hand-edit generated forwarding methods.
 

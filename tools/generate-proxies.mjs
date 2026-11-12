@@ -44,9 +44,10 @@ for (const [,type,parent,body] of definitions) {
         const vertices = indexed?names[name==='DrawIndexedPrimitive'?3:2]:'0';
         const stride = up?names.at(-1):'0';
         const data = up?names[name==='DrawPrimitiveUP'?2:6]:'nullptr';
+        const first = name==='DrawPrimitive'?names[1]:'0';
         before+=`if (${count}) runtime_->beforeDraw(${count},${vertices}); `;
         if(name==='DrawPrimitive') before+=`if (${count}) runtime_->environmentDraw(${names[0]},${names[1]},${count});`;
-        before=before.trimEnd()+`\n#ifdef FENB_DIAGNOSTICS\n        runtime_->captureDraw("${name}",${names[0]},${count},${vertices},${stride},${data});\n#endif\n        `;
+        before=before.trimEnd()+`\n#ifdef FENB_DIAGNOSTICS\n        runtime_->captureDraw("${name}",${names[0]},${count},${vertices},${stride},${data},${first});\n#endif\n        `;
         before+=`if (${count} && runtime_->settings.localLighting) runtime_->emitterDraw([&](){return ${call};}); `;
         before+=`if (${count}) runtime_->beforeWaterDraw(${stride},[&](){return ${call};}); `;
         after+=`runtime_->afterWaterDraw(${up},${up&&indexed}); `;

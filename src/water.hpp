@@ -23,6 +23,9 @@ inline void InvalidateWaterSurface(IDirect3DSurface9 *surface) {
         InvalidateWaterTag(texture);
 }
 class WaterFX {
+#ifdef FENB_DIAGNOSTICS
+    friend class PipelineProbe;
+#endif
     friend struct WaterFXFixture;
     IDirect3DDevice9 *device_;
     Com<IDirect3DVertexShader9> vs_;

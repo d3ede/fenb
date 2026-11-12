@@ -100,7 +100,7 @@ class Runtime {
 #ifdef FENB_DIAGNOSTICS
     void requestCapture();
     void captureDraw(const char *api, UINT type, UINT primitives, UINT vertices, UINT stride = 0,
-                     const void *up = nullptr);
+                     const void *up = nullptr, UINT first=0);
 #endif
     bool pendingSave() const {
         return dirty_;
