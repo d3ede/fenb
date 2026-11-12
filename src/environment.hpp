@@ -1,9 +1,10 @@
 #pragma once
 #include "settings.hpp"
+#include "client_layout.hpp"
 #include <array>
 
 namespace environment_detail {
-// Layout and RVAs are specific to the SHA-256-verified Homesickness x86 client.
+// Structure fields require the verified Homesickness x86 renderer ABI.
 struct Clock {
     double current, begin;
     int fixed, second, minute, hour, day;
@@ -31,7 +32,7 @@ struct Binding {
         return application && entry && render && clock && sky && weatherOption && player && initFall;
     }
 };
-Binding InspectImage(HMODULE image);
+Binding InspectImage(HMODULE image, const client_detail::Layout &layout = {});
 // Native fall geometry has a fixed 2000-particle capacity; the supported client uses at most 400.
 constexpr size_t ParticleBytes = 2000 * 3 * sizeof(float) * 2;
 struct FrameState {

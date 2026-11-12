@@ -52,7 +52,7 @@ inline bool SupportedPresentationHost() {
         const auto *name = wcsrchr(path, L'\\');
         if (!_wcsicmp(name ? name + 1 : path, L"FENB-preview.exe"))
             return true;
-        return fps_detail::KnownClientFile(path);
+        return client_detail::Current().frames();
     }();
     return known;
 }

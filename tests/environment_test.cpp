@@ -1,3 +1,4 @@
+#include "client_fixture.hpp"
 #include "environment.hpp"
 #include <bit>
 #include <cstdio>
@@ -88,23 +89,23 @@ int main() {
     CHECK(VirtualProtect(image + 0x386000, 4096, PAGE_EXECUTE_READ, &protection));
     CHECK(VirtualProtect(image + 0x3b7000, 4096, PAGE_EXECUTE_READ, &protection));
     CHECK(VirtualProtect(image + 0x794000, 4096, PAGE_READONLY, &protection));
-    CHECK(InspectImage(reinterpret_cast<HMODULE>(image)));
+    CHECK(InspectImage(reinterpret_cast<HMODULE>(image), client_detail::Reference));
     CHECK(VirtualProtect(image + 0xa40000, 4096, PAGE_READONLY, &protection));
-    CHECK(!InspectImage(reinterpret_cast<HMODULE>(image))); // A read-only hole inside the sky is unsafe.
+    CHECK(!InspectImage(reinterpret_cast<HMODULE>(image), client_detail::Reference)); // A read-only hole inside the sky is unsafe.
     CHECK(VirtualProtect(image + 0xa40000, 4096, PAGE_READWRITE | PAGE_GUARD, &protection));
-    CHECK(!InspectImage(reinterpret_cast<HMODULE>(image)));
+    CHECK(!InspectImage(reinterpret_cast<HMODULE>(image), client_detail::Reference));
     CHECK(VirtualProtect(image + 0xa40000, 4096, PAGE_WRITECOPY, &protection));
-    CHECK(InspectImage(reinterpret_cast<HMODULE>(image)));
+    CHECK(InspectImage(reinterpret_cast<HMODULE>(image), client_detail::Reference));
     nt->FileHeader.TimeDateStamp++;
-    CHECK(!InspectImage(reinterpret_cast<HMODULE>(image)));
+    CHECK(InspectImage(reinterpret_cast<HMODULE>(image), client_detail::Reference)); // Metadata is not an ABI change.
     nt->FileHeader.TimeDateStamp--;
     CHECK(VirtualProtect(image + 0x829000, 4096, PAGE_READONLY, &protection));
-    CHECK(!InspectImage(reinterpret_cast<HMODULE>(image)));
+    CHECK(!InspectImage(reinterpret_cast<HMODULE>(image), client_detail::Reference));
     CHECK(VirtualProtect(image + 0x829000, 4096, PAGE_READWRITE, &protection));
     CHECK(VirtualProtect(image + 0x386000, 4096, PAGE_READWRITE, &protection));
     image[0x3863d0] = 0xcc;
     CHECK(VirtualProtect(image + 0x386000, 4096, PAGE_EXECUTE_READ, &protection));
-    CHECK(!InspectImage(reinterpret_cast<HMODULE>(image)));
+    CHECK(!InspectImage(reinterpret_cast<HMODULE>(image), client_detail::Reference));
     UnmapViewOfFile(image);
     CloseHandle(mapping);
 

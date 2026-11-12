@@ -1,6 +1,7 @@
 #pragma once
 #include "common.hpp"
 #include "fixed_step.hpp"
+#include "client_layout.hpp"
 
 namespace fps_detail {
 using FrameMove = HRESULT(__thiscall *)(void *);
@@ -17,9 +18,8 @@ struct Binding {
         return enabled && lastTick && elapsed && application && frameMove && originalMove && frameElapsed;
     }
 };
-// The caller owns the mapped image. No scanning or writes on unrecognized images.
-Binding InspectImage(HMODULE image);
-bool KnownClientFile(const wchar_t *path);
+// Explicit layouts support disposable ABI fixtures. Production discovers and verifies the layout.
+Binding InspectImage(HMODULE image, const client_detail::Layout &layout = {});
 
 struct State {
     explicit State(Binding binding = {});

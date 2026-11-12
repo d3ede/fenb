@@ -6,8 +6,6 @@
 #include <optional>
 
 namespace {
-constexpr DWORD ClockRva = 0x829e00, SkyRva = 0xa2d310, PlayerRva = 0x83ec7c;
-constexpr DWORD RenderRva = 0xd9f20, RenderEntry = 0x794bec + 24;
 constexpr size_t Mode = 0x20, Texture = 0x40, Particles = 0xa4, Count = 0x2b024;
 template <class T> T &Field(unsigned char *p, size_t offset) {
     return *reinterpret_cast<T *>(p + offset);
@@ -40,12 +38,8 @@ template <size_t N> bool Bytes(HMODULE image, DWORD offset, const unsigned char 
            !memcmp(reinterpret_cast<unsigned char *>(image) + offset, expected, N);
 }
 environment_detail::Binding Discover() {
-    wchar_t path[32768]{};
     auto image = GetModuleHandleW(nullptr);
-    auto length = GetModuleFileNameW(image, path, DWORD(std::size(path)));
-    if (!length || length >= std::size(path) || !fps_detail::KnownClientFile(path))
-        return {};
-    return environment_detail::InspectImage(image);
+    return environment_detail::InspectImage(image, client_detail::Current());
 }
 struct Shared {
     std::recursive_mutex mutex;
@@ -122,7 +116,10 @@ void environment_detail::FrameState::reset() {
     weatherTick = 0;
 }
 
-environment_detail::Binding environment_detail::InspectImage(HMODULE image) {
+environment_detail::Binding environment_detail::InspectImage(HMODULE image, const client_detail::Layout &layout) {
+    const auto l = layout.environment() ? layout : client_detail::Discover(image);
+    if (!l.environment()) return {};
+    const DWORD ClockRva=l.clock, SkyRva=l.sky, PlayerRva=l.player, RenderRva=l.render, RenderEntry=l.vtable+24;
     if (!image)
         return {};
     auto *base = reinterpret_cast<unsigned char *>(image);
@@ -134,33 +131,33 @@ environment_detail::Binding environment_detail::InspectImage(HMODULE image) {
     IMAGE_NT_HEADERS32 nt{};
     if (!ReadProcessMemory(GetCurrentProcess(), base + dos.e_lfanew, &nt, sizeof(nt), &read) ||
         read != sizeof(nt) || nt.Signature != IMAGE_NT_SIGNATURE ||
-        nt.FileHeader.Machine != IMAGE_FILE_MACHINE_I386 || nt.FileHeader.TimeDateStamp != 1794424444 ||
-        nt.OptionalHeader.SizeOfImage != 11538432 || nt.OptionalHeader.AddressOfEntryPoint != 5918976 ||
+        nt.FileHeader.Machine != IMAGE_FILE_MACHINE_I386 ||
+        nt.OptionalHeader.SizeOfImage < 4096 || nt.OptionalHeader.SizeOfImage > 128*1024*1024 ||
         nt.OptionalHeader.Magic != IMAGE_NT_OPTIONAL_HDR32_MAGIC)
         return {};
     MEMORY_BASIC_INFORMATION entry{};
     if (!VirtualQuery(base + RenderEntry, &entry, sizeof(entry)) || entry.AllocationBase != image ||
         entry.State != MEM_COMMIT || entry.Protect != PAGE_READONLY ||
         !Region(image, ClockRva, sizeof(Clock)) || !Region(image, SkyRva, 0x2b03c) ||
-        !Region(image, PlayerRva, sizeof(void *)) || !Region(image, 0x92370c, sizeof(int)) ||
-        !Region(image, 0x866860, sizeof(void *)))
+        !Region(image, PlayerRva, sizeof(void *)) || !Region(image, l.weather, sizeof(int)) ||
+        !Region(image, l.application, sizeof(void *)))
         return {};
     const unsigned char render[] = {0x55, 0x8b, 0xec, 0x83, 0xe4, 0xf8, 0x83, 0xec, 0x20};
     const unsigned char init[] = {0x53, 0x8b, 0xdc, 0x83, 0xec, 0x08};
     const unsigned char compute[] = {0x53, 0x8b, 0xd9, 0x56, 0x57, 0x83, 0x7b, 0x10, 0x00};
-    if (!Bytes(image, RenderRva, render) || !Bytes(image, 0x3863d0, init) ||
-        !Bytes(image, 0x3b7200, compute) ||
+    if (!Bytes(image, RenderRva, render) || !Bytes(image, l.initFall, init) ||
+        !Bytes(image, l.compute, compute) ||
         *reinterpret_cast<Render *>(base + RenderEntry) != reinterpret_cast<Render>(base + RenderRva) ||
-        *reinterpret_cast<void **>(base + 0x866860) != base + 0x794bec)
+        *reinterpret_cast<void **>(base + l.application) != base + l.vtable)
         return {};
-    return {base + 0x866860,
+    return {base + l.application,
             reinterpret_cast<Render *>(base + RenderEntry),
             reinterpret_cast<Render>(base + RenderRva),
             reinterpret_cast<Clock *>(base + ClockRva),
             base + SkyRva,
-            reinterpret_cast<int *>(base + 0x92370c),
+            reinterpret_cast<int *>(base + l.weather),
             reinterpret_cast<void **>(base + PlayerRva),
-            reinterpret_cast<InitFall>(base + 0x3863d0)};
+            reinterpret_cast<InitFall>(base + l.initFall)};
 }
 
 environment_detail::FrameScope::FrameScope(const Binding &binding, FrameState &state, const Settings &s,

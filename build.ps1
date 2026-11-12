@@ -59,6 +59,10 @@ if ($Tests) {
     if ($LASTEXITCODE) { throw 'FPS limiter test build failed' }
     & '.\build\fps-limiter-test.exe'
     if ($LASTEXITCODE) { throw 'FPS limiter tests failed' }
+    & $cxx '-std=c++20' '-O2' '-static' '-Isrc' 'tests/client_layout_test.cpp' 'src/fps_limiter.cpp' 'src/environment.cpp' '-ld3d9' '-lwinmm' '-o' 'build/client-layout-test.exe'
+    if ($LASTEXITCODE) { throw 'Client layout test build failed' }
+    & '.\build\client-layout-test.exe'
+    if ($LASTEXITCODE) { throw 'Client layout tests failed' }
     & $cxx '-std=c++20' '-O2' '-static' '-Isrc' 'tests/depth_policy_test.cpp' 'src/settings.cpp' 'src/fps_limiter.cpp' '-ld3d9' '-lbcrypt' '-lwinmm' '-o' 'build/depth-policy-test.exe'
     if ($LASTEXITCODE) { throw 'Depth policy test build failed' }
     & '.\build\depth-policy-test.exe'

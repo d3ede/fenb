@@ -1,3 +1,4 @@
+#include "client_fixture.hpp"
 #include "fps_limiter.hpp"
 #include <cstdio>
 #include <cstring>
@@ -97,32 +98,32 @@ int main() {
     CHECK(VirtualProtect(image + 0xeb000, 0x1000, PAGE_EXECUTE_READ, &previous));
     CHECK(VirtualProtect(image + 0xda000, 0x1000, PAGE_EXECUTE_READ, &previous));
     CHECK(VirtualProtect(image + 0x794000, 0x1000, PAGE_READONLY, &previous));
-    auto binding = fps_detail::InspectImage(module);
+    auto binding = fps_detail::InspectImage(module, client_detail::Reference);
     CHECK(binding && binding.enabled == flag);
     CHECK(*flag == 1); // Detection is strictly read-only.
     ++nt->FileHeader.TimeDateStamp;
-    CHECK(!fps_detail::InspectImage(module));
+    CHECK(fps_detail::InspectImage(module, client_detail::Reference)); // Metadata is not an ABI change.
     --nt->FileHeader.TimeDateStamp;
     CHECK(VirtualProtect(image + 0xeb000, 0x1000, PAGE_READWRITE, &previous));
-    CHECK(!fps_detail::InspectImage(module)); // Code must belong to executable image memory.
+    CHECK(!fps_detail::InspectImage(module, client_detail::Reference)); // Code must belong to executable image memory.
     image[0xebe9b] = 0x11;
     CHECK(VirtualProtect(image + 0xeb000, 0x1000, PAGE_EXECUTE_READ, &previous));
-    CHECK(!fps_detail::InspectImage(module)); // Changed frame interval is unsupported.
+    CHECK(!fps_detail::InspectImage(module, client_detail::Reference)); // Changed frame interval is unsupported.
     CHECK(VirtualProtect(image + 0xeb000, 0x1000, PAGE_READWRITE, &previous));
     image[0xebe9b] = 0x10;
     pointer(0xebe59, 0x829c50);
     CHECK(VirtualProtect(image + 0xeb000, 0x1000, PAGE_EXECUTE_READ, &previous));
-    CHECK(!fps_detail::InspectImage(module)); // Both gates must reference the same verified flag.
+    CHECK(!fps_detail::InspectImage(module, client_detail::Reference)); // Both gates must reference the same verified flag.
     CHECK(VirtualProtect(image + 0xeb000, 0x1000, PAGE_READWRITE, &previous));
     pointer(0xebe59, 0x829c4c);
     CHECK(VirtualProtect(image + 0xeb000, 0x1000, PAGE_EXECUTE_READ, &previous));
     *flag = 2;
-    CHECK(!fps_detail::InspectImage(module));
+    CHECK(!fps_detail::InspectImage(module, client_detail::Reference));
     *flag = 1;
     CHECK(VirtualProtect(image + 0x829000, 0x1000, PAGE_READONLY, &previous));
-    CHECK(!fps_detail::InspectImage(module));
+    CHECK(!fps_detail::InspectImage(module, client_detail::Reference));
     CHECK(VirtualProtect(image + 0x829000, 0x1000, PAGE_READWRITE, &previous));
-    CHECK(fps_detail::InspectImage(module));
+    CHECK(fps_detail::InspectImage(module, client_detail::Reference));
 
     // Invoke the actual x86 hook through a read-only vtable, using a disposable simulation.
     binding.originalMove = std::bit_cast<fps_detail::FrameMove>(&Simulate);
@@ -218,15 +219,6 @@ int main() {
     CHECK(!production.supported() && !production.active());
     CHECK(!fps_detail::InspectImage(GetModuleHandleW(nullptr)));
     CHECK(!fps_detail::InspectImage(nullptr));
-    CHECK(!fps_detail::KnownClientFile(L"build/fps-missing.exe"));
-    wchar_t ownPath[32768]{};
-    GetModuleFileNameW(nullptr, ownPath, 32768);
-    CHECK(!fps_detail::KnownClientFile(ownPath));
-    // Optional read-only verification against the locally inspected revision.
-    if (GetFileAttributesW(L"X:/Games/Homesickness/Neuz.exe") != INVALID_FILE_ATTRIBUTES)
-        printf("INFO: installed client matches pinned SHA-256: %s\n",
-               fps_detail::KnownClientFile(L"X:/Games/Homesickness/Neuz.exe") ? "yes"
-                                                                              : "no (different revision)");
     CHECK(VirtualFree(image, 0, MEM_RELEASE));
     puts("PASS: simulation cadence independent of render FPS, x86 callback ABI, ASLR, bounded catch-up, "
          "native pacing restored, unknown clients untouched.");

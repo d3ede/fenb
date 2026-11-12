@@ -54,7 +54,7 @@ Keep the third-party license notices included with the build. If the game folder
 
 ## Compatibility
 
-FENB is in active development and currently targets the **Homesickness Flyff client**. Other Flyff clients are not yet verified.
+FENB is in active development and currently targets the **Homesickness Flyff client**. Other Flyff clients are not yet verified. Native FPS and environment controls use structural function checks rather than a whole-file hash, allowing compatible client updates; changed or ambiguous renderer layouts remain unsupported.
 
 Depth-based effects currently need a supported **NVIDIA driver depth-copy path**. Unsupported effects fall back or remain inactive; reflections also depend on what is visible on screen. See the [rendering notes](docs/RENDERING.md) for effect details, limitations and local build instructions.
 
