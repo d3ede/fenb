@@ -94,7 +94,7 @@ float BilateralAO(float2 uv,float z) {
         float w=bilinear.x*bilinear.y*exp(-abs(Z(q)-z)/max(.1,z*.01));
         sum+=tex2Dlod(AO,float4(q,0,0)).r*w;weights+=w;
     }
-    return weights>1e-8?sum/weights:1;
+    return (sum+.03)/(weights+.03);
 }
 float3 BilateralLight(float2 uv,float z){
     float3 sum=0;float weights=0;
@@ -106,7 +106,8 @@ float3 BilateralLight(float2 uv,float z){
         float w=bilinear.x*bilinear.y*exp(-abs(Z(q)-z)/max(.1,z*.01));
         sum+=tex2Dlod(LocalField,float4(q,0,0)).rgb*w;weights+=w;
     }
-    return weights>1e-8?sum/weights:0;
+    // A barely matching background texel must not become a full-strength foreground light.
+    return sum/(weights+.03);
 }
 float4 SceneComposite(float2 uv:TEXCOORD0):COLOR0 {
     float4 source=tex2D(Image,uv);
@@ -114,11 +115,12 @@ float4 SceneComposite(float2 uv:TEXCOORD0):COLOR0 {
     float3 p=Point(uv,z);
     if(any(uv<Viewport.xy)||any(uv>Viewport.xy+Viewport.zw))return source;
     float3 rgb=pow(max(0,source.rgb),2.2);
+    float emissiveCore=smoothstep(.6,.95,max(source.r,max(source.g,source.b)));
     // Input already includes the game's night lighting. Bounded reflectance recovery lets an
     // additional lamp illuminate a dark receiver without adding an unmasked screen-space glow.
     float ambientLevel=max(.12,dot(Illumination.rgb,float3(.2126,.7152,.0722)));
     float3 reflectance=min(.8,rgb/ambientLevel);
-    if(Enabled.z>.5){
+    [branch]if(Enabled.z>.5 && emissiveCore<.999){
         float coc=saturate((abs(z-Lens.x)-Lens.y)/max(1,Lens.y))*(z<Lens.x?Lens.w:1);
         float3 sum=rgb;float weights=1;
         [loop]for(int i=0;i<12;++i){
@@ -128,10 +130,14 @@ float4 SceneComposite(float2 uv:TEXCOORD0):COLOR0 {
             float w=sampleZ>=z-max(1,z*.03);
             sum+=pow(max(0,tex2Dlod(Image,float4(q,0,0)).rgb),2.2)*w;weights+=w;
         }
-        rgb=sum/weights;
+        rgb=lerp(sum/weights,rgb,emissiveCore);
     }
     if(Enabled.x>.5 && raw<.999999)rgb*=BilateralAO(uv,z);
-    if(Local.w>.5 && raw<.999999)rgb+=reflectance*BilateralLight(uv,z);
+    if(Local.w>.5 && raw<.999999){
+        float3 extra=reflectance*BilateralLight(uv,z)*(1-emissiveCore);
+        // Soft bounded response avoids hard clipping and harsh polygon-shaped light patches.
+        rgb+=saturate(1-rgb)*(1-exp(-extra));
+    }
     float3 air=FogBackdrop.x>.5?tex2Dlod(MeanSky,float4(.5,.5,0,0)).rgb:pow(max(0,FogTint.rgb),2.2)*Illumination.rgb;
     if(Enabled.y>.5 && raw<1){
         float3 worldDelta=mul((float3x3)View,p);
@@ -311,7 +317,7 @@ float4 EmitterLighting(float2 uv:TEXCOORD0):COLOR0 {
         float d=length(delta),r=LightPositions[j].w*Local.z;
         float falloff=pow(saturate(1-d/max(.01,r)),2);
         float attenuation=max(.1,dot(LightAttenuation[j].xyz,float3(1,d,d*d)));
-        light+=LightColors[j].rgb*(saturate(dot(n,delta/max(.001,d)))*falloff/attenuation);
+        light+=LightColors[j].rgb*(saturate((dot(n,delta)+.6)/(d+.6))*falloff/attenuation);
     }
     [loop]for(int i=0;i<32;++i){
         if(Quality.y<.5)break;
@@ -323,7 +329,7 @@ float4 EmitterLighting(float2 uv:TEXCOORD0):COLOR0 {
             if(distance<range){
                 float3 color=tex2Dlod(Rays,float4(q,0,0)).rgb/position.w;
                 float falloff=pow(saturate(1-distance/range),2);
-                light+=min(3,color)*falloff*saturate(dot(n,delta/max(.01,distance)))*SourceLife[i/4][i%4];
+                light+=min(3,color)*falloff*saturate((dot(n,delta)+.6)/(distance+.6))*SourceLife[i/4][i%4];
             }
         }
     }

@@ -93,6 +93,12 @@ if ($Tests) {
     if($LASTEXITCODE){throw 'SFX tests failed'}
     & '.\build\sfx-test.exe' '--msaa'
     if($LASTEXITCODE){throw 'MSAA SFX tests failed'}
+    & $cxx '-std=c++20' '-O2' '-static' '-Isrc' 'tests/clarity_test.cpp' '-ld3d9' '-o' 'build/clarity-test.exe'
+    if($LASTEXITCODE){throw 'VFX clarity test build failed'}
+    & '.\build\clarity-test.exe'
+    if($LASTEXITCODE){throw 'VFX clarity tests failed'}
+    & '.\build\clarity-test.exe' '--msaa'
+    if($LASTEXITCODE){throw 'MSAA VFX clarity tests failed'}
     & $cxx '-std=c++20' '-O2' '-static' '-Isrc' 'tests/dx9_test.cpp' 'src/settings.cpp' '-ld3d9' '-ldxguid' '-lgdi32' '-lgdiplus' '-lpsapi' '-o' "$outputDirectory/FENB-preview.exe"
     if ($LASTEXITCODE) { throw 'DX9 test build failed' }
     & ".\$outputDirectory\FENB-preview.exe" '--aa-test'

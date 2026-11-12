@@ -63,15 +63,17 @@ float4 SfxPS(float2 uv:TEXCOORD0,float fogDepth:TEXCOORD1,float4 color:COLOR0,fl
  }
  float safeUV=all(uv>=Bounds.xy)&&all(uv<=Bounds.zw);
  float smoke=Texel.z>1.5;
- float4 softened=lerp(original,average,Style.w*(smoke?.3:.10)*safeUV);
+ // Preserve rune lines and hot cores; soften only dim texture edges, never expand coverage.
+ float peak=max(original.r,max(original.g,original.b));
+ float soft=Style.w*(smoke?.18:.08)*(1-smoothstep(.08,.35,peak))*safeUV;
+ float4 softened=lerp(original,average,soft);
  float luminance=dot(softened.rgb,float3(.2126,.7152,.0722));
  float3 rgb=max(0,lerp(luminance.xxx,softened.rgb,Style.z))*Style.x;
- rgb+=average.rgb*(Style.y*(smoke?.08:.45))*safeUV;
+ rgb+=average.rgb*(Style.y*(smoke?.06:.22))*pow(saturate(1-peak),2)*safeUV;
  float compression=saturate(abs(Style.x-1)+Style.y+abs(Style.z-1)+Style.w)*.18;
  rgb/=1+max(0,max(rgb.r,max(rgb.g,rgb.b))-.85)*compression;
  result.rgb=lerp(original.rgb,rgb,Texel.w);
- result.a=lerp(original.a,softened.a,Texel.w);
- if(smoke<.5)result.a=max(result.a,average.a*Style.y*.25*Texel.w*safeUV);
+ result.a=original.a;
  float visibility=1;
  if(Fog.x>.5) {
   if(Fog.y>2.5)visibility=saturate((Fog.w-fogDepth)/max(.001,Fog.w-Fog.z));
@@ -79,5 +81,12 @@ float4 SfxPS(float2 uv:TEXCOORD0,float fogDepth:TEXCOORD1,float4 color:COLOR0,fl
   else visibility=exp(-FogExtra.x*fogDepth);
  }
  result.rgb=lerp(FogColor.rgb,result.rgb,visibility);
+ // Screen composition retains gradients when many additive rings overlap in an LDR backbuffer.
+ // Carry the original SRCALPHA contribution in RGB; native ONE contributions are already weighted.
+ if(AlphaStage.w>.5){
+  float energy=max(result.r,max(result.g,result.b));
+  result.rgb*= (1-exp(-max(0,energy)))/max(.00001,energy);
+  result.rgb*=lerp(1,original.a,AlphaStage.z);
+ }
  return result;
 }

@@ -141,6 +141,7 @@ int main(int argc, char **argv) {
     projection._34 = 1;
     projection._43 = -.1f * projection._33;
     bool water = false, occlude = false;
+    int layers = 1;
     DWORD fade = 0x80ff8040;
     auto setup = [&] {
         d->SetVertexShader(nullptr);
@@ -199,8 +200,10 @@ int main(int argc, char **argv) {
         bool applied = enhance && sfx.begin(settings, water, canSnapshot);
         for (auto &v : quad)
             v.color = fade;
-        HRESULT result = water ? d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, wake, sizeof(WakeV))
-                               : d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, quad, sizeof(V));
+        HRESULT result = S_OK;
+        for (int layer = 0; layer < layers; ++layer)
+            result = water ? d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, wake, sizeof(WakeV))
+                           : d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, quad, sizeof(V));
         sfx.end(true);
         d->EndScene();
         if (FAILED(result))
@@ -276,6 +279,26 @@ int main(int argc, char **argv) {
     d->GetVertexShader(vs.out());
     d->GetPixelShader(ps.out());
     CHECK(!vs.p && !ps.p);
+    layers = 8;
+    render(false);
+    auto stackedNative = Read(d);
+    CHECK(render(true));
+    auto stackedStyled = Read(d);
+    unsigned nativeWhite = 0, styledWhite = 0;
+    for (size_t i = 0; i < stackedNative.size(); ++i) {
+        auto white = [](DWORD p) {
+            return (p & 255) >= 250 && ((p >> 8) & 255) >= 250 && ((p >> 16) & 255) >= 250;
+        };
+        nativeWhite += white(stackedNative[i]);
+        styledWhite += white(stackedStyled[i]);
+    }
+    printf("Overlapping particle clipped pixels: native=%u styled=%u\n", nativeWhite, styledWhite);
+    CHECK(nativeWhite > 50 && styledWhite < nativeWhite / 4);
+    Save(stackedNative, L"build/sfx-overlap-native.bmp");
+    Save(stackedStyled, L"build/sfx-overlap-styled.bmp");
+    d->GetRenderState(D3DRS_SRCBLEND, &value);
+    CHECK(value == D3DBLEND_SRCALPHA);
+    layers = 1;
     fade = 0x00ff8040;
     render(false);
     auto faded = Read(d);

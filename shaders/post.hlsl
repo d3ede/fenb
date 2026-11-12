@@ -41,7 +41,9 @@ float4 Composite(float2 uv : TEXCOORD0) : COLOR0 {
         float mapped=pivot*pow(max(.000001,luma)/pivot,1-.55*Automatic.z);
         rgb*=clamp(mapped/max(.000001,luma),.45,3.5);
     }
-    if (Options.x > .5) rgb += tex2D(Glow, uv).rgb * Bloom.x;
+    // Keep the sharp core of emissive art; bloom belongs around it, not on top of it again.
+    float bloomRoom=1-smoothstep(.35,.95,max(source.r,max(source.g,source.b)));
+    if (Options.x > .5) rgb += tex2D(Glow, uv).rgb * (Bloom.x*bloomRoom);
     if (Automatic.x > .5) rgb *= exp2(tex2D(Exposure,float2(.5,.5)).r);
     if (Options.y > .5) {
         rgb *= exp2(Grade.x);

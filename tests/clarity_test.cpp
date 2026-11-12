@@ -1,0 +1,188 @@
+#include "common.hpp"
+#include <generated/scene_shaders.hpp>
+#include <generated/shaders.hpp>
+#include <cstdio>
+#include <cstring>
+#define CHECK(x)                                                                                             \
+    do {                                                                                                     \
+        if (!(x)) {                                                                                          \
+            printf("FAIL %d: %s\n", __LINE__, #x);                                                           \
+            return 1;                                                                                        \
+        }                                                                                                    \
+    } while (0)
+namespace {
+constexpr UINT W = 128, H = 96, X = 65, Y = 49;
+std::vector<DWORD> Read(IDirect3DDevice9 *d) {
+    Com<IDirect3DSurface9> target, resolved, read;
+    D3DSURFACE_DESC desc{};
+    d->GetRenderTarget(0, target.out());
+    target->GetDesc(&desc);
+    if (desc.MultiSampleType != D3DMULTISAMPLE_NONE) {
+        if (FAILED(d->CreateRenderTarget(W, H, desc.Format, D3DMULTISAMPLE_NONE, 0, FALSE, resolved.out(),
+                                         nullptr)) ||
+            FAILED(d->StretchRect(target, nullptr, resolved, nullptr, D3DTEXF_NONE)))
+            return {};
+    }
+    if (FAILED(d->CreateOffscreenPlainSurface(W, H, desc.Format, D3DPOOL_SYSTEMMEM, read.out(), nullptr)) ||
+        FAILED(d->GetRenderTargetData(resolved.p ? resolved.p : target.p, read)))
+        return {};
+    D3DLOCKED_RECT lock{};
+    if (FAILED(read->LockRect(&lock, nullptr, D3DLOCK_READONLY)))
+        return {};
+    std::vector<DWORD> pixels(W * H);
+    for (UINT y = 0; y < H; ++y)
+        memcpy(pixels.data() + y * W, (BYTE *)lock.pBits + y * lock.Pitch, W * 4);
+    read->UnlockRect();
+    return pixels;
+}
+} // namespace
+int main(int argc, char **) {
+    WNDCLASSW wc{};
+    wc.lpfnWndProc = DefWindowProcW;
+    wc.hInstance = GetModuleHandleW(nullptr);
+    wc.lpszClassName = L"FENBClarityTest";
+    RegisterClassW(&wc);
+    HWND window = CreateWindowW(wc.lpszClassName, L"VFX clarity fixture", WS_OVERLAPPEDWINDOW, 0, 0, W, H,
+                                nullptr, nullptr, wc.hInstance, nullptr);
+    Com<IDirect3D9> root;
+    root.p = Direct3DCreate9(D3D_SDK_VERSION);
+    CHECK(root.p);
+    D3DPRESENT_PARAMETERS pp{};
+    pp.Windowed = TRUE;
+    pp.hDeviceWindow = window;
+    pp.SwapEffect = D3DSWAPEFFECT_DISCARD;
+    pp.BackBufferFormat = D3DFMT_X8R8G8B8;
+    pp.BackBufferWidth = W;
+    pp.BackBufferHeight = H;
+    if (argc > 1) {
+        pp.MultiSampleType = D3DMULTISAMPLE_8_SAMPLES;
+        if (FAILED(root->CheckDeviceMultiSampleType(0, D3DDEVTYPE_HAL, pp.BackBufferFormat, TRUE,
+                                                    pp.MultiSampleType, nullptr))) {
+            puts("SKIP: 8x MSAA unsupported");
+            return 0;
+        }
+    }
+    Com<IDirect3DDevice9> d;
+    CHECK(SUCCEEDED(
+        root->CreateDevice(0, D3DDEVTYPE_HAL, window, D3DCREATE_HARDWARE_VERTEXPROCESSING, &pp, d.out())));
+    Com<IDirect3DTexture9> image, depth, light;
+    CHECK(SUCCEEDED(d->CreateTexture(W, H, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, image.out(), nullptr)));
+    CHECK(SUCCEEDED(d->CreateTexture(W, H, 1, 0, D3DFMT_R32F, D3DPOOL_MANAGED, depth.out(), nullptr)));
+    CHECK(SUCCEEDED(
+        d->CreateTexture(W / 4, H / 4, 1, 0, D3DFMT_A32B32G32R32F, D3DPOOL_MANAGED, light.out(), nullptr)));
+    auto fillImage = [&](DWORD marker) {
+        D3DLOCKED_RECT lock{};
+        image->LockRect(0, &lock, nullptr, 0);
+        for (UINT y = 0; y < H; ++y)
+            for (UINT x = 0; x < W; ++x)
+                ((DWORD *)((BYTE *)lock.pBits + y * lock.Pitch))[x] =
+                    (x == X && y == Y) ? marker : 0xff303030;
+        image->UnlockRect(0);
+    };
+    D3DLOCKED_RECT lock{};
+    CHECK(SUCCEEDED(depth->LockRect(0, &lock, nullptr, 0)));
+    const float a = 100.f / 99.9f, b = -.1f * a;
+    for (UINT y = 0; y < H; ++y)
+        for (UINT x = 0; x < W; ++x)
+            ((float *)((BYTE *)lock.pBits + y * lock.Pitch))[x] = a + b / ((x == X && y == Y) ? 17.f : 20.f);
+    depth->UnlockRect(0);
+    CHECK(SUCCEEDED(light->LockRect(0, &lock, nullptr, 0)));
+    for (UINT y = 0; y < H / 4; ++y)
+        for (UINT x = 0; x < W / 4; ++x) {
+            auto p = (float *)((BYTE *)lock.pBits + y * lock.Pitch) + x * 4;
+            p[0] = 2;
+            p[1] = 1;
+            p[2] = .3f;
+            p[3] = 1;
+        }
+    light->UnlockRect(0);
+    Com<IDirect3DPixelShader9> scenePS, postPS;
+    CHECK(SUCCEEDED(d->CreatePixelShader(ShaderSceneComposite, scenePS.out())));
+    CHECK(SUCCEEDED(d->CreatePixelShader(ShaderComposite, postPS.out())));
+    float constants[56][4]{};
+    auto sceneConstants = [&] {
+        memset(constants, 0, sizeof(constants));
+        constants[0][0] = 1.5f;
+        constants[0][1] = 2;
+        constants[0][2] = a;
+        constants[0][3] = b;
+        constants[1][2] = constants[1][3] = 1;
+        constants[2][0] = 1.f / W;
+        constants[2][1] = 1.f / H;
+        constants[16][0] = constants[16][1] = constants[16][2] = .12f;
+        constants[17][2] = 4.f / W;
+        constants[17][3] = 4.f / H;
+    };
+    auto draw = [&](IDirect3DPixelShader9 *ps) {
+        d->SetVertexShader(nullptr);
+        d->SetPixelShader(ps);
+        d->SetFVF(D3DFVF_XYZRHW | D3DFVF_TEX1);
+        d->SetRenderState(D3DRS_ZENABLE, FALSE);
+        d->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
+        d->SetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
+        d->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
+        d->SetRenderState(D3DRS_FOGENABLE, FALSE);
+        d->SetRenderState(D3DRS_SRGBWRITEENABLE, FALSE);
+        for (DWORD i = 0; i < 7; ++i) {
+            d->SetTexture(i, nullptr);
+            d->SetSamplerState(i, D3DSAMP_MINFILTER, D3DTEXF_POINT);
+            d->SetSamplerState(i, D3DSAMP_MAGFILTER, D3DTEXF_POINT);
+            d->SetSamplerState(i, D3DSAMP_MIPFILTER, D3DTEXF_NONE);
+            d->SetSamplerState(i, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
+            d->SetSamplerState(i, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
+            d->SetSamplerState(i, D3DSAMP_SRGBTEXTURE, FALSE);
+        }
+        d->SetTexture(0, image);
+        d->SetTexture(1, ps == scenePS.p ? depth.p : light.p);
+        d->SetTexture(4, light);
+        d->SetPixelShaderConstantF(0, constants[0], 56);
+        struct V {
+            float x, y, z, w, u, v;
+        };
+        V q[] = {{-.5f, -.5f, 0, 1, 0, 0},
+                 {W - .5f, -.5f, 0, 1, 1, 0},
+                 {-.5f, H - .5f, 0, 1, 0, 1},
+                 {W - .5f, H - .5f, 0, 1, 1, 1}};
+        d->BeginScene();
+        auto hr = d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, q, sizeof(V));
+        d->EndScene();
+        return SUCCEEDED(hr);
+    };
+    fillImage(0xff303030);
+    sceneConstants();
+    CHECK(draw(scenePS));
+    auto native = Read(d);
+    CHECK(native.size() == W * H);
+    constants[19][3] = 1;
+    CHECK(draw(scenePS));
+    auto lit = Read(d);
+    CHECK(lit.size() == W * H);
+    CHECK((lit[Y * W + X] & 255) <= (native[Y * W + X] & 255) + 2);
+    CHECK(((lit[(Y + 8) * W + X] >> 16) & 255) > ((native[(Y + 8) * W + X] >> 16) & 255) + 20);
+    // A one-pixel foreground feature must not inherit a bright background light sample.
+    printf("Unmatched foreground pixel: native=%06lx lit=%06lx\n", native[Y * W + X] & 0xffffff,
+           lit[Y * W + X] & 0xffffff);
+    fillImage(0xffffe040);
+    sceneConstants();
+    CHECK(draw(scenePS));
+    auto sharp = Read(d);
+    constants[7][2] = 1;
+    constants[6][0] = 5;
+    constants[6][1] = 1;
+    constants[6][2] = 12;
+    CHECK(draw(scenePS));
+    auto focused = Read(d);
+    CHECK(focused[Y * W + X] == sharp[Y * W + X]);
+    // Bloom can add an outer halo without bleaching an already bright colored core.
+    fillImage(0xfff08020);
+    memset(constants, 0, sizeof(constants));
+    constants[0][0] = 1;
+    constants[3][0] = 1;
+    CHECK(draw(postPS));
+    auto bloom = Read(d);
+    CHECK(bloom.size() == W * H);
+    CHECK((bloom[Y * W + X] & 255) < 0x20 + 12 && ((bloom[Y * W + X] >> 8) & 255) < 0x80 + 12);
+    CHECK((bloom[(Y + 8) * W + X] & 255) > 0x30 + 20);
+    puts("PASS: weak-depth light rejection, sharp emissive DoF cores and colored bloom headroom");
+    return 0;
+}
