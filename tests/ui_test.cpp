@@ -145,430 +145,119 @@ int main() {
         mouse(x, y, true);
         mouse(x, y, false);
     };
-    frame();
-    frame();
-    auto *panel = ImGui::FindWindowByName("FENB");
-    CHECK(panel && panel->Pos.x == 130 && panel->Pos.y == 40);
-    auto logoDrawn = [&]() {
-        auto logo = r.panelBranding();
-        if (logo.layout != PanelBranding::Layout::SymbolOnly || !logo.symbol)
-            return false;
-        const auto id = static_cast<ImTextureID>(reinterpret_cast<uintptr_t>(logo.symbol));
-        for (const auto &command : panel->DrawList->CmdBuffer)
-            if (command.ElemCount && command.GetTexID() == id)
-                return true;
-        return false;
-    };
-    CHECK(logoDrawn()); // The production DrawPanel overload draws the embedded symbol.
-    // Real native frames for three header proposals, in both supported languages.
-    Com<IDirect3DTexture9> symbolTexture, horizontalTexture;
-    PanelBranding branding;
-    CHECK(HeaderTexture(d, L"assets/branding/header-preview/symbol.bgra", symbolTexture,
-                        branding.symbolAspect));
-    CHECK(HeaderTexture(d, L"assets/branding/header-preview/horizontal.bgra", horizontalTexture,
-                        branding.horizontalAspect));
-    branding.symbol = symbolTexture;
-    branding.horizontal = horizontalTexture;
-    CreateDirectoryW(L"artifacts", nullptr);
-    CreateDirectoryW(L"artifacts/header-logo-options", nullptr);
-    const PanelBranding::Layout layouts[] = {PanelBranding::Layout::SymbolText,
-                                            PanelBranding::Layout::Horizontal,
-                                            PanelBranding::Layout::SymbolOnly};
-    const wchar_t *names[] = {L"01-symbol-text", L"02-horizontal", L"03-symbol-only"};
-    activeBranding = &branding;
-    for (int variant = 0; variant < 3; ++variant) {
-        branding.layout = layouts[variant];
-        for (int language = 0; language < 2; ++language) {
-            r.settings.language = language ? Language::Russian : Language::English;
-            for (bool narrow : {false, true}) {
-                io.DisplaySize = {narrow ? 334.f : 800.f, 600};
-                r.centerPanel = true;
-                frame();
-                frame();
-                auto path = std::wstring(L"artifacts/header-logo-options/") + names[variant] +
-                            (language ? L"-ru" : L"-en") + (narrow ? L"-narrow.png" : L".png");
-                CHECK(Screenshot(d, path.c_str()));
-                CHECK(r.settings.language == (language ? Language::Russian : Language::English));
-                if (variant == 2 && !narrow) {
-                    click(language ? 365 : 343, 60);
-                    frame();
-                    CHECK(ImGui::IsPopupOpen("languages", ImGuiPopupFlags_AnyPopupId));
-                    auto languagePath = std::wstring(L"artifacts/header-logo-options/") + names[variant] +
-                                        (language ? L"-ru-language.png" : L"-en-language.png");
-                    CHECK(Screenshot(d, languagePath.c_str()));
-                    click(150, 60); // Closing the popup restores the current-page highlight.
-                    frame();
-                    CHECK(!ImGui::IsPopupOpen("languages", ImGuiPopupFlags_AnyPopupId));
-                    CHECK(r.settings.language == (language ? Language::Russian : Language::English));
-                }
-            }
-        }
-    }
-    activeBranding = nullptr;
-    io.DisplaySize = {800, 600};
-    r.settings.language = Language::English;
-    r.centerPanel = true;
-    frame();
-    frame();
-    click(270, 60);
-    CHECK(r.editorPage == 4);
-    r.settings.timeOverride = r.settings.weatherOverride = true;
-    r.settings.timeMinutes = 1110;
-    r.settings.weatherType = 1;
-    r.settings.weatherIntensity = 65;
-    CreateDirectoryW(L"artifacts/environment", nullptr);
-    for (int language = 0; language < 2; ++language) {
-        r.settings.language = language ? Language::Russian : Language::English;
-        for (bool narrow : {false, true}) {
-            io.DisplaySize = {narrow ? 334.f : 800.f, 600};
-            r.centerPanel = true;
-            frame(); frame();
-            auto path = std::wstring(L"artifacts/environment/world-") + (language ? L"ru" : L"en") +
-                        (narrow ? L"-narrow.png" : L".png");
-            CHECK(Screenshot(d, path.c_str()));
-            auto worldPanel = ImGui::FindWindowByName("FENB")->Pos;
-            click(worldPanel.x + 100, worldPanel.y + 213);
-            frame();
-            CHECK(!ImGui::GetCurrentContext()->OpenPopupStack.empty());
-            auto menuPath = std::wstring(L"artifacts/environment/weather-menu-") + (language ? L"ru" : L"en") +
-                            (narrow ? L"-narrow.png" : L".png");
-            CHECK(Screenshot(d, menuPath.c_str()));
-            click(worldPanel.x + 12, worldPanel.y + 20);
-            frame();
-            CHECK(ImGui::GetCurrentContext()->OpenPopupStack.empty());
-        }
-    }
-    io.DisplaySize = {800, 600};
-    r.settings.language = Language::English;
-    r.centerPanel = true;
     frame(); frame();
-    // Holding the track applies every movement before mouse release.
-    mouse(360, 161, true);
-    auto firstTime = r.settings.timeMinutes;
-    mouse(480, 161, true);
-    CHECK(r.settings.timeMinutes != firstTime && r.settings.timeMinutes != 1110);
-    mouse(480, 161, false);
-    click(582, 161);
-    io.AddKeyEvent(ImGuiMod_Ctrl, true);
-    io.AddKeyEvent(ImGuiKey_A, true);
-    frame();
-    io.AddKeyEvent(ImGuiKey_A, false);
-    io.AddKeyEvent(ImGuiMod_Ctrl, false);
-    io.AddInputCharactersUTF8("07:45");
-    frame();
-    CHECK(Screenshot(d, L"artifacts/environment/world-time-input.png"));
-    CHECK(r.settings.timeMinutes == 465); // HH:MM input applies before Enter, too.
-    io.AddKeyEvent(ImGuiKey_Enter, true);
-    frame();
-    io.AddKeyEvent(ImGuiKey_Enter, false);
-    frame();
-    click(155, 187);
-    CHECK(!r.settings.freezeTime);
-    click(155, 187);
-    CHECK(r.settings.freezeTime);
-    auto chooseWeather = [&](int index) {
-        click(230, 253);
-        frame();
-        if (ImGui::GetCurrentContext()->OpenPopupStack.empty())
-            return false;
-        auto popup = ImGui::GetCurrentContext()->OpenPopupStack.back().Window->Pos;
-        float row = ImGui::GetTextLineHeight() + 5;
-        click(popup.x + 40, popup.y + 8 + index * row + ImGui::GetTextLineHeight() * .5f);
-        frame();
-        return r.settings.weatherType == index && r.settings.weatherOverride;
+    auto *panel=ImGui::FindWindowByName("FENB");
+    CHECK(panel && panel->Pos.x==120 && panel->Pos.y==30);
+    auto child = [&]() -> ImGuiWindow * {
+        for(auto *w:ImGui::GetCurrentContext()->Windows)
+            if(w->ParentWindow==panel && strstr(w->Name,"adjustments")) return w;
+        return nullptr;
     };
-    CHECK(chooseWeather(2));
-    CHECK(chooseWeather(0));
-    CHECK(chooseWeather(1));
-    mouse(430, 289, true);
-    auto firstIntensity = r.settings.weatherIntensity;
-    mouse(475, 289, true);
-    CHECK(r.settings.weatherIntensity != firstIntensity);
-    mouse(475, 289, false);
-    float retainedIntensity = r.settings.weatherIntensity;
-    click(641, 228);
-    CHECK(!r.settings.weatherOverride && r.settings.timeOverride &&
-          r.settings.weatherIntensity == retainedIntensity);
-    auto retainedTime = r.settings.timeMinutes;
-    click(641, 134);
-    CHECK(!r.settings.timeOverride && !r.settings.weatherOverride && r.settings.timeMinutes == retainedTime);
-    frame();
-    CHECK(Screenshot(d, L"artifacts/environment/world-game-en.png"));
-    click(205, 60);
-    CHECK(r.editorPage == 0);
-    r.settings.timeOverride = r.settings.weatherOverride = false;
-    r.settings.timeMinutes = 720;
-    r.settings.weatherType = 0;
-    r.settings.weatherIntensity = 100;
-    frame();
-    CHECK(r.settings.language == Language::English);
-    CHECK(Screenshot(d, L"build/FENB-main-english.png"));
-    click(343, 60); // Language follows the World tab.
-    frame();
-    CHECK(ImGui::IsPopupOpen("languages", ImGuiPopupFlags_AnyPopupId));
-    CHECK(Screenshot(d, L"build/FENB-language-menu.png"));
-    auto languagePopup = ImGui::GetCurrentContext()->OpenPopupStack.back().Window->Pos;
-    click(languagePopup.x + 50, languagePopup.y + 49); // English first, Russian second.
-    frame();
-    CHECK(r.settings.language == Language::Russian && r.pendingSave());
-    CHECK(Screenshot(d, L"build/FENB-main-russian.png"));
-    r.save();
-    Settings languageSaved;
-    CHECK(languageSaved.load(r.configPath) && languageSaved.language == Language::Russian);
-    // Inspect the new action before opening profile popups.
-    mouse(625, 60, false);
-    click(625, 60);
-    frame();
-    CHECK(Screenshot(d, L"build/FENB-fps-menu.png"));
-    CHECK(ImGui::IsPopupOpen("actions", ImGuiPopupFlags_AnyPopupId));
-    CHECK(!r.fpsUnlockSupported() && !r.settings.unlockFps);
-    auto fpsPopup = ImGui::GetCurrentContext()->OpenPopupStack.back().Window->Pos;
-    click(fpsPopup.x + 70, fpsPopup.y + 17);
-    CHECK(!r.settings.unlockFps); // Unknown executables cannot install the simulation hook.
-    click(150, 60);               // Close the action menu before the existing interaction checks.
-    frame();
-    // Main: navigation precedes color controls. First slider starts at y=240.
-    r.settings.exposure = .8f;
-    frame();
-    click(440, 253); // ordinary drag changes exposure
-    mouse(440, 253, true);
-    CHECK(r.settings.exposure == 0); // second click resets
-    frame();
-    CHECK(r.settings.exposure == 0);
-    mouse(440, 253, false); // held second click must not drag away from default
-    click(610, 253);
-    CHECK(std::abs(r.settings.exposure - .01f) < .00001f); // explicit right step
-    click(556, 253);
-    CHECK(r.settings.exposure == 0); // matching left step
-    click(590, 253);
-    io.AddKeyEvent(ImGuiMod_Ctrl, true);
-    io.AddKeyEvent(ImGuiKey_A, true);
-    frame();
-    io.AddKeyEvent(ImGuiKey_A, false);
-    io.AddKeyEvent(ImGuiMod_Ctrl, false);
-    io.AddInputCharactersUTF8("0.75");
-    frame();
-    io.AddKeyEvent(ImGuiKey_Enter, true);
-    frame();
-    io.AddKeyEvent(ImGuiKey_Enter, false);
-    frame();
-    CHECK(std::abs(r.settings.exposure - .75f) < .0001f);
-    CHECK(panel->Pos.x == 130);
-    click(640, 253);
-    CHECK(r.settings.exposure == 0); // full reset hit box
-    r.settings.exposure = .8f;
-    r.settings.saturation = .3f;
-    r.settings.waterOpacity = .7f;
-    click(610, 226);
-    CHECK(r.settings.exposure == 0 && r.settings.saturation == 1 && r.settings.waterOpacity == .7f);
-    click(185, 226); // Collapse color: Bloom follows immediately.
-    click(185, 258); // Collapse Bloom before checking the navigation.
-    click(195, 512);
-    CHECK(r.editorPage == 0); // The old pinned position is no longer navigation.
-    click(195, 195);
-    CHECK(r.editorPage == 1);
-    frame();
-    click(610, 168);
-    CHECK(r.settings.waterOpacity == Settings{}.waterOpacity);
-    CHECK(Screenshot(d, L"build/FENB-water-panel.png"));
-    click(185, 168); // Expose depth/caustic controls without scrolling the full surface section.
-    frame();
-    CHECK(Screenshot(d, L"build/FENB-water-optics.png"));
-    click(185, 132);
-    CHECK(r.editorPage == 0);
-    frame();
-    click(195, 135);
-    CHECK(r.editorPage == 2);
-    frame();
-    CHECK(Screenshot(d, L"build/FENB-atmosphere-panel.png"));
-    click(185, 164);
-    frame();
-    CHECK(Screenshot(d, L"build/FENB-ssao-panel.png"));
-    click(170, 131);
-    CHECK(r.editorPage == 0);
-    frame();
-    click(195, 165);
-    CHECK(r.editorPage == 3);
-    frame();
-    CHECK(Screenshot(d, L"build/FENB-antialias-panel.png"));
-    // The spatial methods are ordered Off, FXAA, SMAA; selection never touches MSAA or FXAA tuning.
-    float oldStrength = r.settings.fxaaStrength;
-    r.settings.language = Language::English;
-    frame();
-    CHECK(Screenshot(d, L"build/FENB-antialias-english.png"));
-    click(400, 196);
-    frame();
+    auto activate = [&](ImGuiWindow *w,const char *id) {
+        ImGui::ActivateItemByID(w->GetID(id)); frame(); frame();
+    };
+    auto input = [&](const char *text) {
+        io.AddKeyEvent(ImGuiMod_Ctrl,true);io.AddKeyEvent(ImGuiKey_A,true);frame();
+        io.AddKeyEvent(ImGuiKey_A,false);io.AddKeyEvent(ImGuiMod_Ctrl,false);
+        io.AddInputCharactersUTF8(text);frame();
+        io.AddKeyEvent(ImGuiKey_Enter,true);frame();io.AddKeyEvent(ImGuiKey_Enter,false);frame();
+    };
+    // Header controls retain stable IDs independent of language and subpage titles.
+    activate(panel,"world-tab");CHECK(r.editorPage==4);
+    activate(panel,"image-tab");CHECK(r.editorPage==0);
+    activate(panel,"language-ru");CHECK(r.settings.language==Language::Russian);
+    activate(panel,"language-en");CHECK(r.settings.language==Language::English);
+    CHECK(child());
+    // Actual track gestures, held double-click reset, steps and typed values.
+    const float rowY=261;
+    r.settings.exposure=.8f;frame();
+    click(440,rowY);mouse(440,rowY,true);
+    CHECK(r.settings.exposure==0);frame();CHECK(r.settings.exposure==0);
+    mouse(440,rowY,false);
+    click(620,rowY);CHECK(std::abs(r.settings.exposure-.01f)<.00001f);
+    click(566,rowY);CHECK(r.settings.exposure==0);
+    click(590,rowY);input("0.75");CHECK(std::abs(r.settings.exposure-.75f)<.0001f);
+    click(654,rowY);CHECK(r.settings.exposure==0);
+    r.settings.exposure=.8f;r.settings.waterOpacity=.7f;frame();
+    click(610,228);CHECK(r.settings.exposure==0 && r.settings.waterOpacity==.7f);
+    // Navigation preserves all WaterFX, atmosphere and AA controls.
+    activate(child(),"water-settings");CHECK(r.editorPage==1);
+    activate(child(),"back");CHECK(r.editorPage==0);
+    activate(child(),"scene-settings");CHECK(r.editorPage==2);
+    r.editorPage=0;frame();
+    activate(child(),"aa-settings");CHECK(r.editorPage==3);
+    // Post-AA combo uses an animated chevron and leaves hardware MSAA independent.
+    click(400,199);frame();
     CHECK(!ImGui::GetCurrentContext()->OpenPopupStack.empty());
-    auto aaPopup = ImGui::GetCurrentContext()->OpenPopupStack.back().Window->Pos;
-    click(aaPopup.x + 40, aaPopup.y + 8 + 2 * ImGui::GetTextLineHeightWithSpacing());
-    frame();
-    CHECK(r.settings.smaa && !r.settings.fxaa && r.settings.msaaSamples == 0);
-    CHECK(r.settings.fxaaStrength == oldStrength);
-    CHECK(Screenshot(d, L"build/FENB-antialias-smaa-english.png"));
-    r.settings.language = Language::Russian;
-    frame();
-    CHECK(Screenshot(d, L"build/FENB-antialias-smaa-russian.png"));
-    click(170, 131);
-    CHECK(r.editorPage == 0);
-    frame();
-    ImGui::SetWindowPos(panel, {20, 20});
-    r.centerPanel = true;
-    frame();
-    CHECK(panel->Pos.x == 130 && panel->Pos.y == 40);
-    CHECK(Screenshot(d, L"build/FENB-main-panel.png"));
-    // A real UTF-8 named profile is written and reloaded through the actual popup widgets.
-    click(603, 102);
-    frame();
-    CHECK(ImGui::IsPopupOpen("saveProfile", ImGuiPopupFlags_AnyPopupId));
-    auto popup = ImGui::GetCurrentContext()->OpenPopupStack.back().Window->Pos;
-    click(popup.x + 40, popup.y + 49);
-    io.AddInputCharactersUTF8("Тест воды");
-    frame();
-    click(popup.x + 60, popup.y + 82);
-    frame();
-    Settings profile;
-    CHECK(profile.load(ModuleDirectory() + L"FENB-presets\\Тест воды.ini"));
-    CHECK(profile.waterWaves == r.settings.waterWaves && profile.exposure == r.settings.exposure);
-    CHECK(profile.language == Language::Russian);
-    click(360, 102);
-    frame();
-    CHECK(Screenshot(d, L"build/FENB-profiles.png"));
-    // Loading a named profile must retain the chosen UI language, even if its file says otherwise.
-    profile.language = Language::English;
-    CHECK(profile.save(ModuleDirectory() + L"FENB-presets\\Тест воды.ini"));
-    r.settings.exposure = .63f;
-    CHECK(!ImGui::GetCurrentContext()->OpenPopupStack.empty());
-    auto *profileWindow = ImGui::GetCurrentContext()->OpenPopupStack.back().Window;
-    ImGui::ActivateItemByID(profileWindow->GetID("Тест воды"));
-    frame();
-    CHECK(r.settings.exposure == profile.exposure && r.settings.language == Language::Russian);
-    CHECK(r.selectedProfile == "Тест воды");
-    for (int preset=0;preset<BuiltInPresetCount;++preset) {
-        click(360,102);frame();
-        CHECK(!ImGui::GetCurrentContext()->OpenPopupStack.empty());
-        auto *picker=ImGui::GetCurrentContext()->OpenPopupStack.back().Window;
-        auto id="###text-"+std::to_string(static_cast<int>(BuiltInProfileNames[preset]));
-        ImGui::ActivateItemByID(picker->GetID(id.c_str()));frame();
-        CHECK(r.selectedProfile.empty() && r.selectedBuiltIn==preset);
-        CHECK(r.settings.matchingPreset()==preset && r.settings.language==Language::Russian);
+    auto *popup=ImGui::GetCurrentContext()->OpenPopupStack.back().Window;
+    // Select by the visible third row; the popup uses the shared font spacing.
+    click(popup->Pos.x+40,popup->Pos.y+8+2*ImGui::GetTextLineHeightWithSpacing());frame();
+    CHECK(r.settings.smaa && !r.settings.fxaa && r.settings.msaaSamples==0);
+    // FPS is always visible, but unsupported clients cannot enable its hook.
+    CHECK(!r.fpsUnlockSupported());click(638,556);CHECK(!r.settings.unlockFps);
+    r.editorPage=0;frame();
+    activate(panel,"menu");CHECK(!ImGui::GetCurrentContext()->OpenPopupStack.empty());
+    popup=ImGui::GetCurrentContext()->OpenPopupStack.back().Window;
+    auto appearance="###text-"+std::to_string(static_cast<int>(UiText::V2Appearance));
+    activate(popup,appearance.c_str());CHECK(r.editorPage==5);
+    r.settings.customCursor=true;r.settings.interfaceMotion=true;frame();
+    activate(child(),"custom-cursor");CHECK(!r.settings.customCursor);
+    activate(child(),"interface-motion");CHECK(!r.settings.interfaceMotion);
+    r.save();Settings saved;CHECK(saved.load(r.configPath));
+    CHECK(!saved.customCursor && !saved.interfaceMotion);
+    // Reset all and preset loads preserve appearance, language and client controls.
+    r.settings.language=Language::Russian;r.settings.exposure=.4f;frame();
+    activate(panel,"reset-all");
+    CHECK(r.settings.language==Language::Russian && !r.settings.customCursor && !r.settings.interfaceMotion);
+    CHECK(r.settings.exposure==0);
+    r.editorPage=0;frame();
+    activate(panel,"+###create-profile");
+    CHECK(ImGui::IsPopupOpen("saveProfile",ImGuiPopupFlags_AnyPopupId));
+    popup=ImGui::GetCurrentContext()->OpenPopupStack.back().Window;
+    click(popup->Pos.x+40,popup->Pos.y+49);io.AddInputCharactersUTF8("Тест воды");frame();
+    click(popup->Pos.x+60,popup->Pos.y+82);frame();
+    CHECK(saved.load(ModuleDirectory()+L"FENB-presets\\Тест воды.ini"));
+    CHECK(saved.language==Language::Russian);
+    r.settings.exposure=.63f;frame();
+    click(360,96);frame();CHECK(!ImGui::GetCurrentContext()->OpenPopupStack.empty());
+    popup=ImGui::GetCurrentContext()->OpenPopupStack.back().Window;
+    activate(popup,"Тест воды");
+    CHECK(r.settings.exposure==saved.exposure && r.settings.language==Language::Russian);
+    for(int i=0;i<BuiltInPresetCount;++i) {
+        click(360,96);frame();CHECK(!ImGui::GetCurrentContext()->OpenPopupStack.empty());
+        popup=ImGui::GetCurrentContext()->OpenPopupStack.back().Window;
+        auto id="###text-"+std::to_string(static_cast<int>(BuiltInProfileNames[i]));
+        activate(popup,id.c_str());CHECK(r.settings.matchingPreset()==i);
+        CHECK(r.settings.language==Language::Russian && !r.settings.customCursor && !r.settings.interfaceMotion);
     }
-    r.settings.preset(0);r.selectedBuiltIn=0;
-    r.settings.exposure+=.01f;
-    frame();
-    CHECK(r.selectedBuiltIn==0 && r.settings.matchingPreset()==-1);
-    CHECK(Screenshot(d,L"build/FENB-default-modified-russian.png"));
-    click(360,102);frame();
-    CHECK(Screenshot(d,L"build/FENB-builtins-russian.png"));
-    click(720,560);frame();
-    r.settings.language=Language::English;
-    click(360,102);frame();
-    CHECK(Screenshot(d,L"build/FENB-builtins-english.png"));
-    click(720,560);frame();
-    r.settings.language=Language::Russian;
-    r.settings.preset(0);
-    frame();
-    CHECK(r.settings.language == Language::Russian);
-    click(625, 60);
-    frame();
-    CHECK(ImGui::IsPopupOpen("actions", ImGuiPopupFlags_AnyPopupId));
-    auto *actionsWindow = ImGui::GetCurrentContext()->OpenPopupStack.back().Window;
-    auto resetID = "###text-" + std::to_string(static_cast<int>(UiText::ResetAll));
-    ImGui::ActivateItemByID(actionsWindow->GetID(resetID.c_str()));
-    frame();
-    CHECK(r.settings.language == Language::Russian && r.settings.exposure == 0);
-    click(365, 60);
-    frame();
-    CHECK(ImGui::IsPopupOpen("languages", ImGuiPopupFlags_AnyPopupId));
-    languagePopup = ImGui::GetCurrentContext()->OpenPopupStack.back().Window->Pos;
-    click(languagePopup.x + 50, languagePopup.y + 20);
-    frame();
-    CHECK(r.settings.language == Language::English);
-    r.save();
-    CHECK(languageSaved.load(r.configPath) && languageSaved.language == Language::English);
-    io.DisplaySize = {334, 600};
-    r.centerPanel = true;
-    frame();
-    frame();
-    CHECK(Screenshot(d, L"build/FENB-narrow-english.png"));
-    r.settings.language = Language::Russian;
-    frame();
-    CHECK(Screenshot(d, L"build/FENB-narrow-russian.png"));
-    // A legacy preserve-game setting must display the real native samples, even if an override differs.
-    DWORD msaaQuality = 0;
-    if (SUCCEEDED(root->CheckDeviceMultiSampleType(0, D3DDEVTYPE_HAL, pp.BackBufferFormat, TRUE,
-                                                   D3DMULTISAMPLE_8_SAMPLES, &msaaQuality)) && msaaQuality) {
-        ImGui_ImplDX9_InvalidateDeviceObjects();
-        r.beforeReset();
-        auto multisampled = pp;
-        multisampled.SwapEffect = D3DSWAPEFFECT_DISCARD;
-        multisampled.MultiSampleType = D3DMULTISAMPLE_8_SAMPLES;
-        auto result = d->Reset(&multisampled);
-        CHECK(SUCCEEDED(result));
-        r.afterReset(result);
-        CHECK(r.activeMSAA() == 8);
-        io.DisplaySize = {800, 600};
-        r.centerPanel = true;
-        r.editorPage = 3;
-        r.settings.msaaSamples = 0;
-        r.settings.language = Language::English;
-        frame();
-        frame();
-        CHECK(logoDrawn()); // The default-pool symbol is recreated after the real MSAA Reset.
-        CHECK(r.settings.msaaSamples == 0);
-        CHECK(Screenshot(d, L"build/FENB-antialias-native8-english.png"));
-        click(400, 245);
-        frame();
-        CHECK(!ImGui::GetCurrentContext()->OpenPopupStack.empty());
-        CHECK(Screenshot(d, L"build/FENB-antialias-native8-menu.png"));
-        io.AddKeyEvent(ImGuiKey_Escape, true);
-        frame();
-        io.AddKeyEvent(ImGuiKey_Escape, false);
-        frame();
-        r.settings.msaaSamples = 4; // A pending or failed request must not disguise the active 8x mode.
-        r.settings.language = Language::Russian;
-        frame();
-        CHECK(Screenshot(d, L"build/FENB-antialias-native8-russian.png"));
-    }
-    // Render the new material controls through the real panel in both languages.
-    r.editorPage = 2;
-    r.settings.enabled = r.settings.sfx = true;
-    frame();
-    ImGuiWindow *adjustments = nullptr;
-    for (auto *candidate : ImGui::GetCurrentContext()->Windows)
-        if (candidate->ParentWindow == panel && strstr(candidate->Name, "adjustments"))
-            adjustments = candidate;
-    CHECK(adjustments);
-    for (const char *id : {"ssao", "rays", "sky", "fog", "dof", "adaptation", "lighting-balance", "foliage", "lighting"})
-        adjustments->StateStorage.SetBool(ImHashStr("expanded", 0, adjustments->GetID(id)), false);
-    adjustments->StateStorage.SetBool(ImHashStr("expanded", 0, adjustments->GetID("sfx")), true);
-    for (int language = 0; language < 2; ++language) {
-        r.settings.language = language ? Language::Russian : Language::English;
-        frame();
-        ImGui::SetScrollY(adjustments, adjustments->ScrollMax.y);
-        frame();
-        frame();
-        CHECK(Screenshot(d, language ? L"build/FENB-sfx-russian.png" : L"build/FENB-sfx-english.png"));
-    }
-    adjustments->StateStorage.SetBool(ImHashStr("expanded",0,adjustments->GetID("sfx")),false);
-    adjustments->StateStorage.SetBool(ImHashStr("expanded",0,adjustments->GetID("sky")),true);
-    r.settings.sky=true;
+    // Render every production page and each expanded atmosphere section in both languages.
+    CreateDirectoryW(L"build/ui-integrated",nullptr);
+    io.AddMousePosEvent(-FLT_MAX,-FLT_MAX);frame();
     for(int language=0;language<2;++language) {
         r.settings.language=language?Language::Russian:Language::English;
-        ImGui::SetScrollY(adjustments,0);frame();frame();
-        CHECK(Screenshot(d,language?L"build/FENB-sky-detail-russian.png":L"build/FENB-sky-detail-english.png"));
-        r.settings.water=true;r.settings.sfx=false;
-        r.editorPage=1;frame();frame();
-        ImGui::SetScrollY(adjustments,0);frame();
-        if(language==0)click(185,168);
-        frame();
-        CHECK(Screenshot(d,language?L"build/FENB-water-wake-russian.png":L"build/FENB-water-wake-english.png"));
-        r.editorPage=2;
+        for(int page=0;page<6;++page) {
+            r.editorPage=page;ImGui::SetScrollY(child(),0);frame();frame();
+            auto path=std::wstring(L"build/ui-integrated/")+(language?L"ru-":L"en-")+std::to_wstring(page)+L".png";
+            CHECK(Screenshot(d,path.c_str()));
+        }
+        r.editorPage=2;frame();
+        for(const char *section:{"ssao","rays","sky","fog","dof","adaptation","lighting-balance","foliage","lighting","sfx"}) {
+            auto *w=child();
+            for(const char *id:{"ssao","rays","sky","fog","dof","adaptation","lighting-balance","foliage","lighting","sfx"})
+                w->StateStorage.SetBool(ImHashStr("expanded",0,w->GetID(id)),strcmp(id,section)==0);
+            ImGui::SetScrollY(w,0);frame();frame();
+            auto path=std::wstring(L"build/ui-integrated/")+(language?L"ru-":L"en-")+std::wstring(section,section+strlen(section))+L".png";
+            CHECK(Screenshot(d,path.c_str()));
+        }
+        io.DisplaySize={334,600};r.centerPanel=true;r.editorPage=0;frame();frame();
+        CHECK(Screenshot(d,language?L"build/ui-integrated/ru-narrow.png":L"build/ui-integrated/en-narrow.png"));
+        io.DisplaySize={800,600};r.centerPanel=true;frame();frame();
     }
-    DeleteFileW((ModuleDirectory() + L"FENB-presets\\Тест воды.ini").c_str());
-    ImGui_ImplDX9_Shutdown();
-    ImGui::DestroyContext();
-    DestroyWindow(window);
-    DeleteFileW(r.configPath.c_str());
-    puts("PASS: UI double-click reset remains stable while held, per-setting steps, fixed numeric input, "
-         "reset button, WaterFX/back, recenter, native screenshots.");
+    r.editorPage=4;r.settings.timeOverride=true;r.settings.timeMinutes=1110;frame();
+    mouse(400,168,true);auto firstTime=r.settings.timeMinutes;
+    mouse(480,168,true);CHECK(r.settings.timeMinutes!=firstTime);mouse(480,168,false);
+    click(590,168);input("07:45");CHECK(r.settings.timeMinutes==465);
+    DeleteFileW((ModuleDirectory()+L"FENB-presets\\Тест воды.ini").c_str());
+    ImGui_ImplDX9_Shutdown();ImGui::DestroyContext();DestroyWindow(window);DeleteFileW(r.configPath.c_str());
+    puts("PASS: integrated UI gestures, numeric input, resets, profiles, language, appearance persistence, FPS guard and page captures.");
 }

@@ -6,6 +6,8 @@ if (-not $toolchain) { throw 'Portable LLVM-MinGW is missing from .tools. See BU
 $cxx=Join-Path $toolchain.FullName 'bin\i686-w64-mingw32-clang++.exe'
 $outputDirectory=if($Diagnostics){'dist-diagnostics'}else{'dist'}
 New-Item -ItemType Directory -Force -Path 'build',$outputDirectory,'src/generated' | Out-Null
+node tools/embed-cursor.mjs src/generated/ui_cursor.hpp
+if ($LASTEXITCODE) { throw 'Cursor embedding failed' }
 node tools/embed-font.mjs
 if ($LASTEXITCODE) { throw 'Font embedding failed' }
 node tools/embed-logo.mjs

@@ -141,6 +141,8 @@ bool Settings::load(const std::wstring &path) {
         next.m = number;
         READ_BOOL("enabled", enabled)
         READ_BOOL("unlock_fps", unlockFps)
+        READ_BOOL("custom_cursor", customCursor)
+        READ_BOOL("interface_motion", interfaceMotion)
         READ_BOOL("precise_water_depth", preciseWaterDepth)
         READ_BOOL("time_override", timeOverride)
         READ_BOOL("freeze_time", freezeTime)
@@ -225,6 +227,9 @@ bool Settings::save(const std::wstring &path) const {
         waterTint, waterRefraction, waterTexture, waterDepth, waterShore, waterSSR, waterSSRQuality,
         waterCaustics, waterDispersion, waterCausticScale);
     bool ok = written > 0 && !ferror(file);
+    if (fprintf(file, "\n[Interface]\ncustom_cursor=%d\ninterface_motion=%d\n",
+                customCursor, interfaceMotion) < 0)
+        ok = false;
     if (fprintf(file, "\n[Environment]\ntime_override=%d\ntime_minutes=%.0f\nfreeze_time=%d\n"
                       "weather_override=%d\nweather_type=%d\nweather_intensity=%.6f\n",
                 timeOverride, timeMinutes, freezeTime, weatherOverride, weatherType, weatherIntensity) < 0)
@@ -255,7 +260,7 @@ bool Settings::save(const std::wstring &path) const {
 
 void Settings::preserveControls(const Settings &source) {
 #define KEEP(member) member = source.member;
-    KEEP(enabled)
+    KEEP(enabled) KEEP(customCursor) KEEP(interfaceMotion)
     KEEP(openOnStart) KEEP(unlockFps) KEEP(preciseWaterDepth) KEEP(msaaSamples) KEEP(panelPage) KEEP(language)
         KEEP(timeOverride) KEEP(timeMinutes) KEEP(freezeTime) KEEP(weatherOverride) KEEP(weatherType)
             KEEP(weatherIntensity)

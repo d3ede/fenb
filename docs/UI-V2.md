@@ -1,6 +1,8 @@
 # UI v2 concepts
 
-A standalone, native x86 ImGui / DirectX 9 interface study for FENB, a graphics mod for Flyff inspired by ENBSeries. The production panel is unchanged. This concept does not load the proxy, connect to a game, read or write settings, or apply graphics effects.
+A standalone, native x86 ImGui / DirectX 9 interface study for FENB, a graphics mod for Flyff inspired by ENBSeries. The revised A design is now also used by the production panel. The standalone concept still does not load the proxy, connect to a game, read or write settings, or apply graphics effects.
+
+The production adaptation retains every effect parameter, supported-client checks, numeric input, step arrows, resets, built-in and named profiles, autosave and keyboard shortcuts. Long sections scroll within the fixed panel. It uses the same muted violet palette and rectangular ivory-lavender slider thumbs, a symbol-only header, EN/RU buttons, compact reset and profile creation controls, and a persistent Unlock FPS footer toggle. Appearance is available from the ellipsis menu; its cursor and motion options are saved as `custom_cursor` and `interface_motion` under `[Interface]`. Profiles and effect resets preserve these preferences. Narrow displays use a second header row so controls do not overlap. `tools/embed-cursor.mjs` generates both the production header and the standalone preview header from the same editable SVG.
 
 Build with the existing portable toolchain:
 

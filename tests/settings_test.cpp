@@ -227,6 +227,8 @@ int main() {
     for (int index = 0; index < BuiltInPresetCount; ++index) {
         Settings controls;
         controls.enabled = false;
+        controls.customCursor = false;
+        controls.interfaceMotion = false;
         controls.unlockFps = true;
         controls.msaaSamples = 8;
         controls.language = Language::Russian;

@@ -42,6 +42,7 @@ struct Settings {
     int weatherType = 0; // 0 clear, 1 rain, 2 snow; independent of server weather.
     int panelPage = 0;
     Language language = Language::English;
+    bool customCursor = true, interfaceMotion = true;
     bool operator==(const Settings &) const = default;
     void sanitize();
     bool load(const std::wstring &path);

@@ -5,6 +5,11 @@ if(NOT WIN32 OR NOT CMAKE_SIZEOF_VOID_P EQUAL 4)
 endif()
 set(CMAKE_CXX_STANDARD 20)
 find_program(FENB_NODE_EXECUTABLE node REQUIRED)
+add_custom_command(OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/src/generated/ui_cursor.hpp"
+  COMMAND "${FENB_NODE_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/embed-cursor.mjs" "${CMAKE_CURRENT_SOURCE_DIR}/src/generated/ui_cursor.hpp"
+  DEPENDS tools/embed-cursor.mjs assets/cursors/fenb-pointer.svg
+  WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+set_source_files_properties(src/ui.cpp PROPERTIES OBJECT_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/generated/ui_cursor.hpp")
 add_custom_command(OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/src/generated/presets.hpp"
   COMMAND "${FENB_NODE_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/embed-presets.mjs"
   DEPENDS tools/embed-presets.mjs config/FENB.ini config/builtins.json src/settings.cpp src/scene_settings.inc)

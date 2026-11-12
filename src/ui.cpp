@@ -3,10 +3,12 @@
 #include "version.hpp"
 #include "ui_branding.hpp"
 #include "generated/ui_logo.hpp"
+#include "generated/ui_cursor.hpp"
 #include <cstdio>
 
 namespace {
 thread_local Language uiLanguage = Language::English;
+thread_local bool uiMotion = true;
 const char *Tr(UiText text) {
     return Translate(uiLanguage, text);
 }
@@ -16,13 +18,56 @@ std::string Label(UiText text) {
 constexpr ImU32 Background = IM_COL32(29, 30, 33, 255), Raised = IM_COL32(35, 36, 40, 255);
 constexpr ImU32 Line = IM_COL32(54, 56, 61, 255), Text = IM_COL32(221, 223, 227, 255);
 constexpr ImU32 Muted = IM_COL32(143, 147, 155, 255), Accent = IM_COL32(171, 157, 204, 255);
-constexpr float RowHeight = 26;
+constexpr ImU32 Purple = IM_COL32(144, 116, 177, 255), Lavender = IM_COL32(190, 171, 213, 255);
+constexpr float RowHeight = 28;
 ImU32 Opacity(ImU32 color) {
     auto a = static_cast<ImU32>((color >> 24) * ImGui::GetStyle().Alpha);
     return (color & 0x00ffffff) | (a << 24);
 }
 void TextAt(ImDrawList *draw, ImVec2 p, const char *text, ImU32 color = Text, float size = 15) {
     draw->AddText(ImGui::GetFont(), size, {std::floor(p.x), std::floor(p.y)}, Opacity(color), text);
+}
+float Animate(const char *id, float target) {
+    auto *state = ImGui::GetStateStorage();
+    auto key = ImGui::GetID(id);
+    float v = state->GetFloat(key, target);
+    v = uiMotion ? v + (target - v) * (1 - std::exp(-ImGui::GetIO().DeltaTime * 18)) : target;
+    state->SetFloat(key, v);
+    return v;
+}
+ImU32 Blend(ImU32 a, ImU32 b, float t) {
+    auto x = ImGui::ColorConvertU32ToFloat4(a), y = ImGui::ColorConvertU32ToFloat4(b);
+    return ImGui::ColorConvertFloat4ToU32({x.x+(y.x-x.x)*t, x.y+(y.y-x.y)*t,
+        x.z+(y.z-x.z)*t, x.w+(y.w-x.w)*t});
+}
+bool BeginCombo(const char *id, const char *preview, ImGuiComboFlags flags = 0) {
+    auto p = ImGui::GetCursorScreenPos();
+    float w = ImGui::CalcItemWidth(), h = ImGui::GetFrameHeight();
+    auto *d = ImGui::GetWindowDrawList();
+    auto *state = ImGui::GetStateStorage();
+    auto key = ImGui::GetID(id);
+    bool open = ImGui::BeginCombo(id, preview, flags | ImGuiComboFlags_NoArrowButton);
+    float v = state->GetFloat(key, open ? 1.f : 0.f), target = open ? 1.f : 0.f;
+    v = uiMotion ? v + (target-v)*(1-std::exp(-ImGui::GetIO().DeltaTime*18)) : target;
+    state->SetFloat(key,v);
+    float a = v * 3.14159265f, c = std::cos(a), sn = std::sin(a);
+    auto point = [&](float x, float y) { return ImVec2(p.x+w-13+x*c-y*sn,p.y+h*.5f+x*sn+y*c); };
+    d->AddLine(point(-3,-1.5f),point(0,1.5f),Opacity(Muted),1.2f);
+    d->AddLine(point(0,1.5f),point(3,-1.5f),Opacity(Muted),1.2f);
+    return open;
+}
+bool Combo(const char *id, int *selected, const char *const items[], int count) {
+    bool changed = false;
+    if (BeginCombo(id, items[*selected])) {
+        for (int i=0;i<count;++i) if (ImGui::Selectable(items[i],*selected==i)) { *selected=i; changed=true; }
+        ImGui::EndCombo();
+    }
+    return changed;
+}
+void ResetAll(Settings &s) {
+    auto controls = s;
+    s = Settings{};
+    s.preserveControls(controls);
 }
 float HeaderBrand(ImDrawList *d, ImVec2 origin, float panelWidth, const PanelBranding &branding) {
     auto layout = branding.layout;
@@ -42,7 +87,7 @@ float HeaderBrand(ImDrawList *d, ImVec2 origin, float panelWidth, const PanelBra
         return 68;
     float height = std::min(width / aspect, 30.f);
     width = height * aspect;
-    const ImVec2 p{origin.x + 12, origin.y + std::floor((40 - height) / 2)};
+    const ImVec2 p{origin.x + 12, origin.y + std::floor((44 - height) / 2) + 2};
     d->AddImage(ImTextureRef(static_cast<ImTextureID>(reinterpret_cast<uintptr_t>(texture))), p,
                 {p.x + width, p.y + height}, {0, 0}, {1, 1}, Opacity(IM_COL32_WHITE));
     if (layout == PanelBranding::Layout::SymbolText) {
@@ -51,21 +96,12 @@ float HeaderBrand(ImDrawList *d, ImVec2 origin, float panelWidth, const PanelBra
     }
     return layout == PanelBranding::Layout::Horizontal ? 126.f : 51.f;
 }
-void HeaderTabHighlight(ImDrawList *draw, ImVec2 origin, float left, float right) {
-    if (right <= left)
-        return;
-    draw->AddRectFilled({origin.x + left, origin.y + 6}, {origin.x + right, origin.y + 34},
-                        Opacity(IM_COL32(171, 133, 225, 20)), 3);
-    draw->AddRectFilled({origin.x + left + 6, origin.y + 32},
-                        {origin.x + right - 6, origin.y + 34},
-                        Opacity(IM_COL32(181, 144, 235, 210)), 1);
-}
 void Theme() {
     auto &s = ImGui::GetStyle();
     for (auto &c : s.Colors)
         c = ImVec4(.23f, .24f, .27f, 1);
     s.WindowPadding = {0, 0};
-    s.WindowRounding = 5;
+    s.WindowRounding = 2;
     s.WindowBorderSize = 1;
     s.ChildRounding = 0;
     s.ChildBorderSize = 0;
@@ -77,14 +113,14 @@ void Theme() {
     s.ScrollbarSize = 5;
     s.ScrollbarRounding = 2;
     s.GrabRounding = 1;
-    s.PopupRounding = 3;
+    s.PopupRounding = 2;
     s.PopupBorderSize = 1;
     s.Colors[ImGuiCol_Text] = {.87f, .88f, .90f, 1};
     s.Colors[ImGuiCol_TextDisabled] = {.48f, .50f, .54f, 1};
     s.Colors[ImGuiCol_WindowBg] = ImGui::ColorConvertU32ToFloat4(Background);
     s.Colors[ImGuiCol_ChildBg] = {0, 0, 0, 0};
     s.Colors[ImGuiCol_Border] = ImGui::ColorConvertU32ToFloat4(Line);
-    s.Colors[ImGuiCol_FrameBg] = {0, 0, 0, 0};
+    s.Colors[ImGuiCol_FrameBg] = {.145f, .153f, .173f, 1};
     s.Colors[ImGuiCol_FrameBgHovered] = {.19f, .20f, .23f, 1};
     s.Colors[ImGuiCol_FrameBgActive] = {.23f, .24f, .28f, 1};
     s.Colors[ImGuiCol_Button] = {0, 0, 0, 0};
@@ -96,8 +132,8 @@ void Theme() {
     s.Colors[ImGuiCol_ScrollbarBg] = {0, 0, 0, 0};
     s.Colors[ImGuiCol_ScrollbarGrab] = {.30f, .31f, .35f, 1};
     s.Colors[ImGuiCol_PopupBg] = {.13f, .14f, .16f, 1};
-    s.Colors[ImGuiCol_Header] = {.24f, .25f, .28f, 1};
-    s.Colors[ImGuiCol_HeaderHovered] = {.28f, .29f, .33f, 1};
+    s.Colors[ImGuiCol_Header] = {.227f, .184f, .286f, 1};
+    s.Colors[ImGuiCol_HeaderHovered] = {.286f, .227f, .357f, 1};
     s.Colors[ImGuiCol_HeaderActive] = {.32f, .33f, .37f, 1};
     s.Colors[ImGuiCol_TextSelectedBg] = {.40f, .37f, .49f, .65f};
     s.Colors[ImGuiCol_NavCursor] = ImGui::ColorConvertU32ToFloat4(Accent);
@@ -111,21 +147,20 @@ void Tip(const char *text, ImGuiHoveredFlags flags = ImGuiHoveredFlags_None) {
         ImGui::EndTooltip();
     }
 }
-bool SquareSwitch(const char *id, bool &value, ImVec2 size = {18, 18}) {
+bool SquareSwitch(const char *id, bool &value, ImVec2 size = {28, 18}) {
     auto p = ImGui::GetCursorScreenPos();
     bool changed = ImGui::InvisibleButton(id, size, ImGuiButtonFlags_EnableNav);
     if (changed)
         value = !value;
     auto *d = ImGui::GetWindowDrawList();
-    auto center = ImVec2(std::floor(p.x + size.x / 2), std::floor(p.y + size.y / 2));
-    d->AddRectFilled({center.x - 6, center.y - 6}, {center.x + 6, center.y + 6},
-                     value ? IM_COL32(176, 179, 187, 255) : Raised, 2);
-    d->AddRect({center.x - 6, center.y - 6}, {center.x + 6, center.y + 6},
-               ImGui::IsItemHovered() ? Accent : IM_COL32(104, 107, 116, 255), 2);
-    if (value) {
-        d->AddLine({center.x - 3, center.y}, {center.x - 1, center.y + 2}, Background, 1.5f);
-        d->AddLine({center.x - 1, center.y + 2}, {center.x + 3, center.y - 3}, Background, 1.5f);
-    }
+    ImGui::PushID(id);
+    const float t = Animate("position", value ? 1.f : 0.f);
+    ImGui::PopID();
+    ImVec2 center{std::floor(p.x+size.x*.5f),std::floor(p.y+size.y*.5f)};
+    d->AddRectFilled({center.x-14,center.y-7.5f},{center.x+14,center.y+7.5f},
+        Opacity(Blend(IM_COL32(56,58,64,255),Purple,t)),8);
+    d->AddCircleFilled({center.x-6.5f+13*t,center.y},4.5f,
+        Opacity(Blend(Muted,IM_COL32(224,225,231,255),t)),20);
     return changed;
 }
 void ResetGlyph(ImDrawList *d, ImVec2 p, ImU32 color) {
@@ -153,11 +188,13 @@ void Row(UiText label, const char *help, float &value, float low, float high, fl
     auto p = ImGui::GetCursorScreenPos();
     float width = ImGui::GetContentRegionAvail().x;
     auto *d = ImGui::GetWindowDrawList();
-    const float trackX = std::min(146.f, width * .32f), inputX = width - 120,
+    const float trackX = std::min(191.f, width * .38f), inputX = width - 120,
                 trackWidth = std::max(20.f, inputX - trackX - 10);
     ImGui::InvisibleButton("label", {trackX - 8, RowHeight});
     Tip(help);
-    TextAt(d, {p.x, p.y + 5}, Tr(label));
+    d->PushClipRect(p, {p.x + trackX - 8, p.y + RowHeight}, true);
+    TextAt(d, {p.x, p.y + 6}, Tr(label), Text, 13);
+    d->PopClipRect();
     ImGui::SetCursorScreenPos({p.x + trackX, p.y});
     ImGui::InvisibleButton("track", {trackWidth, RowHeight}, ImGuiButtonFlags_EnableNav);
     bool hover = ImGui::IsItemHovered(), active = ImGui::IsItemActive();
@@ -186,9 +223,9 @@ void Row(UiText label, const char *help, float &value, float low, float high, fl
     float zero = std::floor(left + (right - left) * (neutral - low) / (high - low));
     d->AddLine({left, y}, {right, y}, Opacity(IM_COL32(76, 79, 86, 255)), 1);
     d->AddLine({zero, y - 3}, {zero, y + 3}, Opacity(IM_COL32(99, 102, 110, 255)), 1);
-    d->AddLine({zero, y}, {knob, y}, Opacity(IM_COL32(145, 148, 157, 255)), 2);
+    d->AddLine({left, y}, {knob, y}, Opacity(Purple), 2);
     d->AddRectFilled({knob - 2, y - 5}, {knob + 3, y + 5},
-                     Opacity(active ? Accent : IM_COL32(191, 194, 201, 255)), 1);
+                     Opacity(active || hover ? IM_COL32(247, 241, 255, 255) : IM_COL32(235, 226, 247, 255)), 1);
     // All three fields keep their positions during text editing. Arrow buttons reserve their space.
     ImGui::PushFont(nullptr, 14);
     ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ColorConvertU32ToFloat4(Muted));
@@ -262,8 +299,8 @@ bool Section(const char *id, const char *title, bool &enabled, bool &reset, bool
     auto key = ImGui::GetID("expanded");
     auto *state = ImGui::GetStateStorage();
     bool expanded = state->GetBool(key, initiallyOpen);
-    d->AddLine(p, {p.x + width, p.y}, Line, 1);
-    if (ImGui::InvisibleButton("heading", {width - 60, 28}, ImGuiButtonFlags_EnableNav)) {
+    d->AddRectFilled(p, {p.x + width, p.y + 30}, Raised, 2);
+    if (ImGui::InvisibleButton("heading", {width - 74, 30}, ImGuiButtonFlags_EnableNav)) {
         expanded = !expanded;
         state->SetBool(key, expanded);
     }
@@ -272,18 +309,18 @@ bool Section(const char *id, const char *title, bool &enabled, bool &reset, bool
         d->AddTriangleFilled({p.x + 1, p.y + 12}, {p.x + 8, p.y + 12}, {p.x + 4.5f, p.y + 16}, c);
     else
         d->AddTriangleFilled({p.x + 2, p.y + 10}, {p.x + 2, p.y + 17}, {p.x + 6, p.y + 13.5f}, c);
-    TextAt(d, {p.x + 17, p.y + 6}, title);
-    ImGui::SetCursorScreenPos({p.x + width - 50, p.y + 5});
+    TextAt(d, {p.x + 17, p.y + 8}, title, Text, 13);
+    ImGui::SetCursorScreenPos({p.x + width - 66, p.y + 6});
     reset = ImGui::InvisibleButton("reset-section", {22, 18}, ImGuiButtonFlags_EnableNav);
     ResetGlyph(d, ImGui::GetItemRectMin(), ImGui::IsItemHovered() ? Text : Muted);
     Tip(Tr(UiText::ResetSection));
     if (showEnable) {
-        ImGui::SetCursorScreenPos({p.x + width - 22, p.y + 5});
+        ImGui::SetCursorScreenPos({p.x + width - 38, p.y + 6});
         SquareSwitch("enabled", enabled);
         Tip(enabled ? Tr(UiText::DisableEffect) : Tr(UiText::EnableEffect));
     }
     ImGui::SetCursorScreenPos(p);
-    ImGui::Dummy({width, 28});
+    ImGui::Dummy({width, 34});
     ImGui::PopID();
     return expanded;
 }
@@ -328,7 +365,7 @@ void ProfilePicker(Runtime &r, float width) {
     ImGui::AlignTextToFramePadding();
     ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(Muted), "%s", Tr(UiText::Profile));
     ImGui::SameLine(88);
-    ImGui::SetNextItemWidth(width - 216);
+    ImGui::SetNextItemWidth(width - 164);
     const auto &presets = BuiltInProfileNames;
     bool createRequested = false;
     int matching = MatchingPreset(s);
@@ -342,7 +379,7 @@ void ProfilePicker(Runtime &r, float width) {
     ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(.16f, .17f, .19f, 1));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10, 9));
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8, 6));
-    if (ImGui::BeginCombo("##profile", caption.c_str(),
+    if (BeginCombo("##profile", caption.c_str(),
                           ImGuiComboFlags_HeightLarge)) {
         ImGui::PushStyleVar(ImGuiStyleVar_SeparatorTextBorderSize, 1.f);
         ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, ImVec2(0, .5f));
@@ -397,9 +434,15 @@ void ProfilePicker(Runtime &r, float width) {
     ImGui::PopStyleVar(2);
     ImGui::PopStyleColor();
     Tip(Tr(UiText::ProfileFolderHelp));
-    ImGui::SameLine(width - 112);
-    if (ImGui::Button(Label(r.selectedProfile.empty() ? UiText::Create : UiText::SaveAs).c_str(), {96, 23}) ||
-        createRequested) {
+    ImGui::SameLine(width - 66);
+    bool resetAll = ImGui::InvisibleButton("reset-all", {24, 24}, ImGuiButtonFlags_EnableNav);
+    ResetGlyph(ImGui::GetWindowDrawList(), ImGui::GetItemRectMin(), ImGui::IsItemHovered() ? Text : Muted);
+    Tip(Tr(UiText::ResetAll));
+    if (resetAll) ResetAll(s);
+    ImGui::SameLine(width - 34);
+    bool create = ImGui::Button("+###create-profile", {18, 24});
+    Tip(Tr(r.selectedProfile.empty() ? UiText::Create : UiText::SaveAs));
+    if (create || createRequested) {
         r.profileError = UiText::None;
         if (createRequested)
             r.profileName[0] = 0;
@@ -586,7 +629,7 @@ void SceneControls(Runtime &runtime) {
     auto qualityPos = ImGui::GetCursorScreenPos();
     float qualityWidth = ImGui::GetContentRegionAvail().x;
     TextAt(ImGui::GetWindowDrawList(), {qualityPos.x, qualityPos.y + 5}, Tr(UiText::SceneQuality));
-    ImGui::SetCursorScreenPos({qualityPos.x + qualityWidth - 22, qualityPos.y + 4});
+    ImGui::SetCursorScreenPos({qualityPos.x + qualityWidth - 38, qualityPos.y + 4});
     SquareSwitch("sceneQuality", s.sceneQuality);
     ImGui::SetCursorScreenPos(qualityPos);
     ImGui::Dummy({qualityWidth, RowHeight});
@@ -604,7 +647,7 @@ void AntialiasControls(Runtime &r) {
         int method = s.smaa ? 2 : s.fxaa ? 1 : 0;
         const char *methods[] = {Tr(UiText::Off), Tr(UiText::FXAAMethod), Tr(UiText::SMAAMethod)};
         ImGui::SetNextItemWidth(-1);
-        if (ImGui::BeginCombo("##post-aa", methods[method])) {
+        if (BeginCombo("##post-aa", methods[method])) {
             for (int i = 0; i < 3; ++i) {
                 ImGui::PushID(i);
                 if (ImGui::Selectable((std::string(methods[i]) + "###method").c_str(), method == i)) {
@@ -637,7 +680,7 @@ void AntialiasControls(Runtime &r) {
                               : active == 1 ? Tr(UiText::MSAAMethod)
                                             : nativeLabel;
         ImGui::SetNextItemWidth(-1);
-        if (ImGui::BeginCombo("##msaa", current)) {
+        if (BeginCombo("##msaa", current)) {
             if (choice < 0) {
                 ImGui::BeginDisabled();
                 ImGui::Selectable((std::string(current) + "###native-samples").c_str(), true);
@@ -671,9 +714,9 @@ void EnvironmentControls(Runtime &r) {
         if (minutes != previous)
             s.timeMinutes = minutes;
         auto p = ImGui::GetCursorScreenPos();
-        SquareSwitch("freeze-time", s.freezeTime, {18, RowHeight});
+        SquareSwitch("freeze-time", s.freezeTime, {28, RowHeight});
         Tip(Tr(UiText::FreezeTimeHelp));
-        TextAt(ImGui::GetWindowDrawList(), {p.x + 25, p.y + 5}, Tr(UiText::FreezeTime));
+        TextAt(ImGui::GetWindowDrawList(), {p.x + 36, p.y + 6}, Tr(UiText::FreezeTime), Text, 13);
         ImGui::EndDisabled();
     }
     ImGui::Dummy({0, 14});
@@ -686,7 +729,7 @@ void EnvironmentControls(Runtime &r) {
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10, 8));
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8, 5));
         ImGui::SetNextItemWidth(std::min(240.f, ImGui::GetContentRegionAvail().x));
-        if (ImGui::BeginCombo("##weather-type", Tr(types[s.weatherType]))) {
+        if (BeginCombo("##weather-type", Tr(types[s.weatherType]))) {
             for (int i = 0; i < 3; ++i) {
                 if (ImGui::Selectable(Label(types[i]).c_str(), s.weatherType == i))
                     s.weatherType = i;
@@ -710,8 +753,9 @@ void DrawPanel(Runtime &r, const PanelBranding &branding) {
     auto &s = r.settings;
     const Settings before = s;
     uiLanguage = s.language;
-    ImVec2 size{std::max(310.f, std::min(540.f, io.DisplaySize.x - 24)),
-                std::max(250.f, std::min(520.f, io.DisplaySize.y - 24))};
+    uiMotion = s.interfaceMotion;
+    ImVec2 size{std::max(310.f, std::min(560.f, io.DisplaySize.x - 24)),
+                std::max(250.f, std::min(540.f, io.DisplaySize.y - 24))};
     ImGui::SetNextWindowSize(size, ImGuiCond_Always);
     ImGui::SetNextWindowPos({(io.DisplaySize.x - size.x) * .5f, (io.DisplaySize.y - size.y) * .5f},
                             r.centerPanel ? ImGuiCond_Always : ImGuiCond_Appearing);
@@ -721,72 +765,35 @@ void DrawPanel(Runtime &r, const PanelBranding &branding) {
                      ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar);
     auto origin = ImGui::GetWindowPos();
     auto *d = ImGui::GetWindowDrawList();
-    float brandEnd = HeaderBrand(d, origin, size.x, branding);
-    float titleX = brandEnd + 12;
-    d->AddLine({origin.x + brandEnd, origin.y + 12}, {origin.x + brandEnd, origin.y + 27}, Line, 1);
-    const char *pageTitle = r.editorPage == 1   ? "WaterFX"
-                            : r.editorPage == 2 ? Tr(UiText::LightAtmosphere)
-                            : r.editorPage == 3 ? Tr(UiText::Antialiasing)
-                                                : Tr(UiText::Image);
-    bool showEffectsLabel = size.x >= 480;
-    float masterX = size.x - (showEffectsLabel ? 151 : 88);
-    ImGui::PushFont(nullptr, 14);
-    const char *languageTitle = Tr(size.x < 380 ? UiText::LanguageShort : UiText::LanguageTab);
-    float languageWidth = ImGui::CalcTextSize(languageTitle).x + 16;
-    float worldWidth = ImGui::CalcTextSize(Tr(UiText::WorldTab)).x + 16;
-    float titleWidth = ImGui::CalcTextSize(pageTitle).x + 8;
-    float languageX = std::min(titleX + titleWidth + worldWidth + 24, masterX - languageWidth - 8);
-    float worldX = languageX - worldWidth - 12;
-    ImGui::PopFont();
-    ImGui::SetCursorPos({titleX - 4, 8});
-    if (ImGui::InvisibleButton("image-tab", {std::max(1.f, worldX - titleX - 8), 24}, ImGuiButtonFlags_EnableNav))
-        r.editorPage = 0;
-    ImGui::SetCursorPos({worldX, 8});
-    if (ImGui::InvisibleButton("world-tab", {worldWidth, 24}, ImGuiButtonFlags_EnableNav))
-        r.editorPage = 4;
-    bool worldHovered = ImGui::IsItemHovered();
-    Tip(Tr(r.environmentSupported() ? UiText::WorldHelp : UiText::EnvironmentUnavailable));
-    d->AddLine({origin.x + worldX - 6, origin.y + 12}, {origin.x + worldX - 6, origin.y + 27}, Line);
-    TextAt(d, {origin.x + worldX + 8, origin.y + 12}, Tr(UiText::WorldTab),
-           r.editorPage == 4 ? IM_COL32(217, 199, 245, 255) : worldHovered ? Text : Muted, 14);
-    d->AddLine({origin.x + languageX - 6, origin.y + 12}, {origin.x + languageX - 6, origin.y + 27}, Line);
-    ImGui::SetCursorPos({languageX, 8});
-    if (ImGui::InvisibleButton("language", {languageWidth, 24}, ImGuiButtonFlags_EnableNav))
-        ImGui::OpenPopup("languages");
-    bool languageHovered = ImGui::IsItemHovered();
-    bool languageSelected = ImGui::IsPopupOpen("languages");
-    const ImU32 selectedText = IM_COL32(217, 199, 245, 255);
-    if (languageSelected)
-        HeaderTabHighlight(d, origin, languageX, languageX + languageWidth);
-    else if (r.editorPage == 4)
-        HeaderTabHighlight(d, origin, worldX, worldX + worldWidth);
-    else
-        HeaderTabHighlight(d, origin, titleX - 6, worldX - 10);
-    ImVec4 titleClip{origin.x + titleX, origin.y + 8, origin.x + worldX - 10, origin.y + 31};
-    d->AddText(ImGui::GetFont(), 14, {origin.x + titleX, origin.y + 12},
-               Opacity(languageSelected || r.editorPage == 4 ? Muted : selectedText), pageTitle, nullptr, 0, &titleClip);
-    if (languageHovered && !languageSelected)
-        d->AddRectFilled(ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), Raised, 2);
-    TextAt(d, {origin.x + languageX + 8, origin.y + 12}, languageTitle,
-           languageSelected ? selectedText : languageHovered ? Text : Muted, 14);
-    ImGui::SetNextWindowPos({origin.x + languageX, origin.y + 36}, ImGuiCond_Appearing);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10, 8));
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8, 5));
-    if (ImGui::BeginPopup("languages")) {
-        if (ImGui::Selectable("English", s.language == Language::English, 0, {140, 24}))
-            s.language = Language::English;
-        if (ImGui::Selectable("Русский", s.language == Language::Russian, 0, {140, 24}))
-            s.language = Language::Russian;
-        ImGui::EndPopup();
+    const float brandEnd = HeaderBrand(d, origin, size.x, branding);
+    float tabX = brandEnd + 2;
+    ImGui::PushFont(nullptr, 13);
+    for (int i=0;i<2;++i) {
+        const char *label = Tr(i ? UiText::WorldTab : UiText::Image);
+        const float w = ImGui::CalcTextSize(label).x+20;
+        ImGui::SetCursorPos({tabX,7});
+        if (ImGui::InvisibleButton(i ? "world-tab" : "image-tab",{w,32},ImGuiButtonFlags_EnableNav)) r.editorPage=i?4:0;
+        const bool selected = i ? r.editorPage==4 : r.editorPage<4;
+        if (ImGui::IsItemHovered()) d->AddRectFilled({origin.x+tabX,origin.y+7},{origin.x+tabX+w,origin.y+39},Raised,2);
+        TextAt(d,{origin.x+tabX+10,origin.y+15},label,selected?Lavender:Muted,13);
+        if(selected) d->AddRectFilled({origin.x+tabX+10,origin.y+37},{origin.x+tabX+w-10,origin.y+39},Accent,1);
+        tabX+=w+8;
     }
-    ImGui::PopStyleVar(2);
-    uiLanguage = s.language;
-    ImGui::SetCursorPos({masterX, 8});
-    SquareSwitch("master", s.enabled, {20, 24});
+    ImGui::PopFont();
+    // On small displays move language controls onto a second header row.
+    const bool narrow = tabX > size.x-230;
+    const float languageY = narrow ? 43.f : 8.f;
+    for(int i=0;i<2;++i) {
+        ImGui::SetCursorPos({narrow ? 16+i*31.f : size.x-230+i*31.f,languageY});
+        if(ImGui::InvisibleButton(i?"language-ru":"language-en",{28,27},ImGuiButtonFlags_EnableNav)) s.language=i?Language::Russian:Language::English;
+        auto p=ImGui::GetItemRectMin();
+        TextAt(d,{p.x+5,p.y+8},i?"RU":"EN",int(s.language==Language::Russian)==i?Text:Muted,11);
+    }
+    uiLanguage=s.language;
+    ImGui::SetCursorPos({size.x-152,narrow?46.f:14.f});
+    SquareSwitch("master",s.enabled,{28,18});
     Tip(Tr(UiText::MasterHelp));
-    if (showEffectsLabel)
-        TextAt(d, {origin.x + size.x - 125, origin.y + 13}, Tr(UiText::Effects), s.enabled ? Text : Muted,
-               13);
+    TextAt(d,{origin.x+size.x-118,origin.y+(narrow?48.f:16.f)},Tr(UiText::Effects),Muted,11);
     ImGui::SetCursorPos({size.x - 57, 8});
     if (ImGui::InvisibleButton("menu", {24, 24}, ImGuiButtonFlags_EnableNav))
         ImGui::OpenPopup("actions");
@@ -797,10 +804,7 @@ void DrawPanel(Runtime &r, const PanelBranding &branding) {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10, 8));
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(10, 7));
     if (ImGui::BeginPopup("actions")) {
-        bool fpsSupported = r.fpsUnlockSupported();
-        ImGui::MenuItem(Label(UiText::UnlockFPS).c_str(), nullptr, &s.unlockFps, fpsSupported || s.unlockFps);
-        Tip(fpsSupported ? Tr(UiText::UnlockFPSHelp) : Tr(UiText::UnsupportedClient),
-            ImGuiHoveredFlags_AllowWhenDisabled);
+        if (ImGui::MenuItem(Label(UiText::V2Appearance).c_str())) r.editorPage=5;
         ImGui::Separator();
 #ifdef FENB_DIAGNOSTICS
         if (ImGui::MenuItem(Label(UiText::CaptureFrames).c_str()))
@@ -816,16 +820,7 @@ void DrawPanel(Runtime &r, const PanelBranding &branding) {
             r.reload();
         ImGui::Separator();
         if (ImGui::MenuItem(Label(UiText::ResetAll).c_str())) {
-            bool open = s.openOnStart;
-            bool unlock = s.unlockFps, precise = s.preciseWaterDepth;
-            int msaa = s.msaaSamples;
-            auto language = s.language;
-            s = Settings{};
-            s.openOnStart = open;
-            s.unlockFps = unlock;
-            s.preciseWaterDepth = precise;
-            s.msaaSamples = msaa;
-            s.language = language;
+            ResetAll(s);
         }
         ImGui::EndPopup();
     }
@@ -838,11 +833,16 @@ void DrawPanel(Runtime &r, const PanelBranding &branding) {
     auto cp = ImGui::GetItemRectMin();
     d->AddLine({cp.x + 7, cp.y + 8}, {cp.x + 15, cp.y + 16}, Muted, 1);
     d->AddLine({cp.x + 15, cp.y + 8}, {cp.x + 7, cp.y + 16}, Muted, 1);
-    d->AddLine({origin.x + 1, origin.y + 40}, {origin.x + size.x - 1, origin.y + 40}, Line, 1);
-    ImGui::SetCursorPos({16, 48});
+    d->AddLine({origin.x + 1, origin.y + (narrow?76:44)}, {origin.x + size.x - 1, origin.y + (narrow?76:44)}, Line, 1);
+    const float headerExtra = narrow ? 32.f : 0.f;
+    ImGui::SetCursorPos({16, 53 + headerExtra});
+    ImGui::PushFont(nullptr, 12);
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10, 7));
     ProfilePicker(r, size.x);
-    ImGui::SetCursorPos({16, 80});
-    ImGui::BeginChild("adjustments", {size.x - 32, size.y - 116}, ImGuiChildFlags_None);
+    ImGui::PopStyleVar();
+    ImGui::PopFont();
+    ImGui::SetCursorPos({16, 91 + headerExtra});
+    ImGui::BeginChild("adjustments", {size.x - 32, size.y - 130 - headerExtra}, ImGuiChildFlags_None);
     const Settings defaults;
     bool reset = false;
     if (r.editorPage == 0) {
@@ -852,26 +852,26 @@ void DrawPanel(Runtime &r, const PanelBranding &branding) {
         navDraw->AddLine(p, {p.x + waterWidth, p.y}, Line);
         if (ImGui::InvisibleButton("scene-settings", {waterWidth, 30}, ImGuiButtonFlags_EnableNav))
             r.editorPage = 2;
-        TextAt(navDraw, {p.x + 17, p.y + 7}, Tr(UiText::LightAtmosphere), Text);
+        TextAt(navDraw, {p.x + 12, p.y + 7}, Tr(UiText::LightAtmosphere), Text, 13);
         TextAt(navDraw, {p.x + waterWidth - 44, p.y + 7}, "→", Muted);
         p = ImGui::GetCursorScreenPos();
         navDraw->AddLine(p, {p.x + waterWidth, p.y}, Line);
         if (ImGui::InvisibleButton("aa-settings", {waterWidth, 30}, ImGuiButtonFlags_EnableNav))
             r.editorPage = 3;
-        TextAt(navDraw, {p.x + 17, p.y + 7}, Tr(UiText::Antialiasing), Text);
+        TextAt(navDraw, {p.x + 12, p.y + 7}, Tr(UiText::Antialiasing), Text, 13);
         TextAt(navDraw, {p.x + waterWidth - 44, p.y + 7}, "→", Muted);
         ImGui::Dummy({0, 0});
         auto waterPos = ImGui::GetCursorScreenPos();
         navDraw->AddLine(waterPos, {waterPos.x + waterWidth, waterPos.y}, Line);
-        if (ImGui::InvisibleButton("water-settings", {waterWidth - 30, 30}, ImGuiButtonFlags_EnableNav))
+        if (ImGui::InvisibleButton("water-settings", {waterWidth - 48, 30}, ImGuiButtonFlags_EnableNav))
             r.editorPage = 1;
         ImU32 navColor = ImGui::IsItemHovered() ? Text : Muted;
-        TextAt(navDraw, {waterPos.x + 17, waterPos.y + 7}, "WaterFX", Text, 15);
-        float arrowX = waterPos.x + waterWidth - 39;
+        TextAt(navDraw, {waterPos.x + 12, waterPos.y + 7}, "WaterFX", Text, 13);
+        float arrowX = waterPos.x + waterWidth - 63;
         navDraw->AddLine({arrowX - 5, waterPos.y + 15}, {arrowX + 5, waterPos.y + 15}, navColor, 1.3f);
         navDraw->AddLine({arrowX + 1, waterPos.y + 11}, {arrowX + 5, waterPos.y + 15}, navColor, 1.3f);
         navDraw->AddLine({arrowX + 5, waterPos.y + 15}, {arrowX + 1, waterPos.y + 19}, navColor, 1.3f);
-        ImGui::SetCursorScreenPos({waterPos.x + waterWidth - 22, waterPos.y + 6});
+        ImGui::SetCursorScreenPos({waterPos.x + waterWidth - 38, waterPos.y + 6});
         SquareSwitch("waterMain", s.water);
         ImGui::SetCursorScreenPos(waterPos);
         ImGui::Dummy({waterWidth, 30});
@@ -914,7 +914,7 @@ void DrawPanel(Runtime &r, const PanelBranding &branding) {
             ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(.14f, .15f, .17f, 1));
             int quality = s.bloomScale == 4 ? 0 : 1;
             const char *options[] = {Tr(UiText::Economical), Tr(UiText::High)};
-            if (ImGui::Combo("##quality", &quality, options, 2))
+            if (Combo("##quality", &quality, options, 2))
                 s.bloomScale = quality ? 2 : 4;
             ImGui::PopStyleColor();
             Tip(Tr(UiText::BloomQualityHelp));
@@ -983,7 +983,7 @@ void DrawPanel(Runtime &r, const PanelBranding &branding) {
             ImGui::SetCursorScreenPos({p.x + 146, p.y + 2});
             ImGui::SetNextItemWidth(width - 171);
             const char *qualities[] = {Tr(UiText::Economical), Tr(UiText::Detailed)};
-            ImGui::Combo("##waterSSRQuality", &s.waterSSRQuality, qualities, 2);
+            Combo("##waterSSRQuality", &s.waterSSRQuality, qualities, 2);
             Tip(Tr(UiText::SSRQualityHelp));
             ImGui::SetCursorScreenPos(p);
             ImGui::Dummy({width, RowHeight});
@@ -996,7 +996,7 @@ void DrawPanel(Runtime &r, const PanelBranding &branding) {
             ImGui::SetCursorScreenPos({p.x + 146, p.y + 2});
             ImGui::SetNextItemWidth(width - 171);
             int causticQuality = s.waterCausticScale == 2 ? 1 : 0;
-            if (ImGui::Combo("##causticQuality", &causticQuality, qualities, 2))
+            if (Combo("##causticQuality", &causticQuality, qualities, 2))
                 s.waterCausticScale = causticQuality ? 2 : 4;
             ImGui::SetCursorScreenPos(p);
             ImGui::Dummy({width, RowHeight});
@@ -1018,6 +1018,20 @@ void DrawPanel(Runtime &r, const PanelBranding &branding) {
     }
     if (r.editorPage == 4)
         EnvironmentControls(r);
+    if (r.editorPage == 5) {
+        auto heading=ImGui::GetCursorScreenPos();
+        d->AddRectFilled(heading,{heading.x+size.x-32,heading.y+30},Raised,2);
+        TextAt(d,{heading.x+12,heading.y+8},Tr(UiText::V2Appearance),Text,13);
+        ImGui::Dummy({size.x-32,34});
+        auto p=ImGui::GetCursorScreenPos();
+        TextAt(d,{p.x+12,p.y+8},Tr(UiText::V2Cursor),Text,13);
+        ImGui::SetCursorScreenPos({p.x+size.x-72,p.y+5});
+        SquareSwitch("custom-cursor",s.customCursor);
+        ImGui::SetCursorScreenPos({p.x,p.y+34});
+        TextAt(d,{p.x+12,p.y+42},Tr(UiText::V2Motion),Text,13);
+        ImGui::SetCursorScreenPos({p.x+size.x-72,p.y+39});
+        SquareSwitch("interface-motion",s.interfaceMotion);
+    }
     ImGui::EndChild();
     float footer = size.y - 28;
     d->AddLine({origin.x + 1, origin.y + footer}, {origin.x + size.x - 1, origin.y + footer}, Line, 1);
@@ -1025,14 +1039,31 @@ void DrawPanel(Runtime &r, const PanelBranding &branding) {
                          : r.pendingSave()         ? Tr(UiText::Saving)
                                                    : Tr(UiText::Autosave);
     TextAt(d, {origin.x + 16, origin.y + footer + 7}, FENBVersion, Muted, 12);
-    TextAt(d, {origin.x + 65, origin.y + footer + 7}, status, Muted, 12);
-    TextAt(d, {origin.x + size.x - 113, origin.y + footer + 7}, "Shift + Enter", Muted, 12);
+    d->PushClipRect({origin.x+65,origin.y+footer},{origin.x+size.x-198,origin.y+size.y},true);
+    if (size.x >= 430) TextAt(d, {origin.x + 65, origin.y + footer + 7}, status, Muted, 12);
+    d->PopClipRect();
+    TextAt(d,{origin.x+size.x-190,origin.y+footer+8},Tr(UiText::UnlockFPS),Muted,11);
+    ImGui::SetCursorPos({size.x-56,footer+6});
+    const bool fpsSupported=r.fpsUnlockSupported();
+    ImGui::BeginDisabled(!fpsSupported && !s.unlockFps);
+    SquareSwitch("unlock-fps",s.unlockFps);
+    Tip(Tr(fpsSupported?UiText::UnlockFPSHelp:UiText::UnsupportedClient),ImGuiHoveredFlags_AllowWhenDisabled);
+    ImGui::EndDisabled();
     s.sanitize();
     if (!(s == before))
         r.settingsChanged();
     if (!r.visible && r.pendingSave())
         r.save();
     ImGui::End();
+    if (s.customCursor && ImGui::IsMousePosValid() && ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow)) {
+        ImGui::SetMouseCursor(ImGuiMouseCursor_None);
+        auto p=io.MousePos;
+        ImVec2 polygon[4];
+        for(int i=0;i<4;++i) polygon[i]={std::floor(p.x)+CursorPoints[i].x-1,std::floor(p.y)+CursorPoints[i].y-1};
+        auto *foreground=ImGui::GetForegroundDrawList();
+        foreground->AddConcavePolyFilled(polygon,4,CursorFill);
+        foreground->AddPolyline(polygon,4,CursorEdge,CursorWeight,ImDrawFlags_Closed);
+    }
 }
 
 PanelBranding Runtime::panelBranding() {

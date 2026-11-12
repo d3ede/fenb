@@ -34,7 +34,7 @@ A graphics mod inspired by ENBSeries, with adjustable effects and an in-game set
 | **Skill effects** | Adjustable color, intensity, soft edges and local glow for recognized world particles, with bounded blending to retain overlapping detail. |
 | **Antialiasing** | FXAA, SMAA and hardware MSAA where supported. |
 | **Profiles** | Five translated built-in looks: Default, Clear water, Golden light, Soft atmosphere and Night lights. Save your own profiles alongside them. Settings save automatically. |
-| **In-game controls** | English and Russian interface, individual effect switches and a master effects toggle. Processing preserves the game HUD. |
+| **In-game controls** | Compact English/Russian panel with muted violet accents, animated switches and dropdown arrows, an optional compact cursor, individual effect switches and a master toggle. Unlock FPS stays visible in the footer on supported clients. Processing preserves the game HUD. |
 
 ## Installation
 
