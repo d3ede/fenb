@@ -14,13 +14,13 @@ FENB is a graphics mod for Flyff, inspired by ENBSeries. It uses a Windows x86 D
 
 Four visual presets are included: **Спокойная вода** (calmer surface), **Мягкая бирюза** (soft turquoise), **Прозрачная вода** (clear water), and **Насыщенная вода** (stronger color). The calm preset accompanies the revised material, with reduced waves, glints and original texture detail. Its new shader has native DX9 fixture verification; it has not yet been visually checked in the running client. The other three presets were tuned with the earlier material. None adds scene reflections or underwater caustics.
 
-## Optional client FPS unlock
+## Native client frame pacing
 
-Open the panel's actions menu (three dots) and enable **Снять лимит FPS**, or set `unlock_fps=1` under `[General]` in `FENB.ini`. The setting is off by default, applies independently of the effects switch and survives visual preset changes. INI edits apply while the panel is closed, like the existing image settings.
+**FPS unlocking is disabled.** Removing the inspected Homesickness client's native 16 ms frame budget (about 62.5 FPS) was reported to accelerate gameplay. Verifying executable signatures established the limiter's location, not that simulation could safely run at higher frame rates.
 
-The unlock supports only the inspected Homesickness `Neuz.exe` revision with SHA-256 `ce32e350c6002496acf9e8774275784971186e6144901f7c2c7d9b37a4aa41a1`. FENB verifies the executable file, PE identity, relocated frame-gate instructions and writable limiter data before changing the client's existing in-memory limiter flag. Unknown revisions and modified code are left unchanged; the menu entry is unavailable. No executable file or machine code is patched, and VSync and driver limits remain in force.
+FENB now leaves the client limiter flag and timing data untouched, including on the previously recognized executable. The **Снять лимит FPS** action is disabled and explains the gameplay-speed problem. Existing `unlock_fps=1` settings are ignored on load, normalization and preset selection; saving writes `unlock_fps=0`. Other image, water and profile settings remain available.
 
-The original client waits for a 16 ms frame budget (about 62.5 FPS). FENB clears that flag while enabled and restores its original value with a fresh wait budget when disabled or when the last FENB device is released. Multiple devices share ownership, and scene changes that reset the flag are handled on the next presentation. This removes that particular cap; it does not guarantee 500 FPS or establish game-logic compatibility at high frame rates. A DLL update requires restarting the client. Native tests use disposable mapped images and do not modify a running game.
+If an older loaded DLL has the unlock enabled, turn it off in the actions menu before continuing. Replacing the DLL on disk takes effect only after restarting the client. A higher rendering rate requires separately addressing the client's simulation timing; this graphics DLL does not implement that separation. Regression tests use protected disposable limiter and clock data to verify that an unlock request cannot modify them; they do not modify a running game.
 
 ## WaterFX implementation and limits
 

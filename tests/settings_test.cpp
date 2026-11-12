@@ -1,5 +1,6 @@
 #include "settings.hpp"
 #include <cstdio>
+#include <cstring>
 #include <limits>
 #define CHECK(x) do { if (!(x)) { printf("FAIL %d: %s\n",__LINE__,#x); return 1; } } while(0)
 int main() {
@@ -16,28 +17,36 @@ int main() {
     s.unlockFps=true;
     s.bloomScale=3; s.exposure=std::numeric_limits<float>::infinity(); s.gamma=0; s.threshold=9;
     s.sanitize();
+    CHECK(!s.unlockFps);
     CHECK(s.bloomScale==4 && s.exposure==0 && s.gamma==.5f && s.threshold==1);
     auto path=std::wstring(L"build\\settings-roundtrip.ini");
     s.preset(2); s.enabled=false; s.shadows=-.25f;
-    CHECK(s.unlockFps); // Visual presets preserve the independent performance setting.
+    CHECK(!s.unlockFps);
     s.water=false;s.waterWaves=.075f;s.waterGlints=1.4f;s.waterOpacity=.3f;
     s.waterRefraction=.72f;s.waterTexture=.18f;
     CHECK(s.save(path));
     Settings loaded; CHECK(loaded.load(path));
-    CHECK(loaded.unlockFps);
+    CHECK(!loaded.unlockFps);
     CHECK(!loaded.enabled && loaded.temperature==s.temperature && loaded.shadows==s.shadows);
     CHECK(!loaded.water&&loaded.waterWaves==s.waterWaves&&loaded.waterGlints==s.waterGlints&&loaded.waterOpacity==s.waterOpacity);
     CHECK(loaded.waterRefraction==s.waterRefraction&&loaded.waterTexture==s.waterTexture);
     FILE* file=_wfopen(path.c_str(),L"wb"); CHECK(file);
-    fputs("exposure=nan\ngamma=0\nbloom_scale=1e35\nsaturation=999\nunknown=3\nwater_length=0\nwater_waves=99\nwater_opacity=nan\n",file); fclose(file);
+    fputs("unlock_fps=1\nexposure=nan\ngamma=0\nbloom_scale=1e35\nsaturation=999\nunknown=3\nwater_length=0\nwater_waves=99\nwater_opacity=nan\n",file); fclose(file);
     CHECK(loaded.load(path));
-    CHECK(!loaded.unlockFps); // Old INIs opt out rather than silently changing game pacing.
+    CHECK(!loaded.unlockFps); // Explicit legacy opt-in must not accelerate gameplay.
     CHECK(loaded.waterRefraction==Settings{}.waterRefraction&&loaded.waterTexture==Settings{}.waterTexture);
     CHECK(loaded.exposure==0 && loaded.gamma==.5f && loaded.bloomScale==4 && loaded.saturation==2);
     CHECK(loaded.waterLength==1&&loaded.waterWaves==.15f&&loaded.waterOpacity==.55f);
     CHECK(!loaded.save(L"build\\missing-directory\\config.ini"));
     Settings before=loaded; CHECK(!loaded.load(L"build\\missing-file.ini"));
     CHECK(loaded.saturation==before.saturation);
+    s.unlockFps=true;CHECK(s.save(path));
+    CHECK(loaded.load(path)&&!loaded.unlockFps);
+    file=_wfopen(path.c_str(),L"rb");CHECK(file);
+    bool safeUnlock=false;char line[256];
+    while(fgets(line,sizeof(line),file))if(!strcmp(line,"unlock_fps=0\n"))safeUnlock=true;
+    fclose(file);CHECK(safeUnlock); // Direct save cannot reintroduce the unsafe setting.
+    s.unlockFps=true;s.preset(1);CHECK(!s.unlockFps);
     DeleteFileW(path.c_str());
     puts("PASS: config round-trip, sanitization, corrupt values, failed IO.");
 }

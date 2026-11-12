@@ -1,6 +1,5 @@
 #include "fps_limiter.hpp"
 #include <bcrypt.h>
-#include <mmsystem.h>
 #include <array>
 #include <cstring>
 #include <cstdint>
@@ -51,20 +50,6 @@ bool Address(HMODULE image, DWORD offset, DWORD target) {
     return base <= UINT32_MAX - ImageSize &&
            Read(reinterpret_cast<unsigned char *>(image) + offset, &actual, sizeof(actual)) &&
            actual == base + target;
-}
-fps_detail::Binding Discover() {
-    HMODULE image = GetModuleHandleW(nullptr);
-    // Cheap header rejection keeps previews and unrelated applications out of file hashing.
-    if (!Headers(image))
-        return {};
-    wchar_t path[32768]{};
-    DWORD length = GetModuleFileNameW(image, path, DWORD(std::size(path)));
-    if (!length || length >= std::size(path) || !fps_detail::KnownClientFile(path))
-        return {};
-    auto binding = fps_detail::InspectImage(image);
-    Log(binding ? "FPS unlock: verified Homesickness client."
-                : "FPS unlock: client memory differs; left unchanged.");
-    return binding;
 }
 } // namespace
 
@@ -136,44 +121,11 @@ bool fps_detail::KnownClientFile(const wchar_t *path) {
     return ok;
 }
 
-fps_detail::State &FpsLimiter::state() {
-    if (!state_) {
-        static fps_detail::State shared(Discover());
-        state_ = &shared;
-    }
-    return *state_;
-}
 bool FpsLimiter::supported() {
-    return bool(state().binding);
+    // The pinned client advances gameplay with frames. A verified address is not
+    // evidence that rendering can be uncapped without accelerating simulation.
+    return false;
 }
-FpsLimiter::~FpsLimiter() {
-    update(false);
-}
-void FpsLimiter::update(bool unlock) {
-    if (!unlock && !active_)
-        return;
-    auto &s = state();
-    if (!s.binding)
-        return;
-    std::lock_guard lock(s.mutex);
-    auto &b = s.binding;
-    if (unlock) {
-        if (!active_) {
-            if (!s.owners)
-                s.original = *b.enabled;
-            ++s.owners;
-            active_ = true;
-        }
-        // Neuz can re-enable its flag on scene changes. Only touch this verified data flag.
-        if (*b.enabled != 0)
-            InterlockedExchange(b.enabled, 0);
-    } else {
-        active_ = false;
-        if (!--s.owners && *b.enabled == 0) {
-            // Start the original wait budget from now, not from a stale pre-unlock timestamp.
-            *b.lastTick = timeGetTime();
-            *b.elapsed = 0;
-            InterlockedExchange(b.enabled, s.original);
-        }
-    }
+void FpsLimiter::update(bool) {
+    // Legacy settings and callers must never alter the client's limiter or clocks.
 }

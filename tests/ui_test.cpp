@@ -116,9 +116,12 @@ int main() {
     CHECK(Screenshot(d, L"build/FENB-fps-menu.png"));
     CHECK(ImGui::IsPopupOpen("actions", ImGuiPopupFlags_AnyPopupId));
     CHECK(!r.fpsUnlockSupported() && !r.settings.unlockFps);
+    r.settings.unlockFps = true; // A stale in-memory opt-in cannot re-enable the action.
+    frame();
+    CHECK(!r.settings.unlockFps);
     auto fpsPopup = ImGui::GetCurrentContext()->OpenPopupStack.back().Window->Pos;
     click(fpsPopup.x + 70, fpsPopup.y + 17);
-    CHECK(!r.settings.unlockFps); // Unknown executables cannot enable the menu item.
+    CHECK(!r.settings.unlockFps); // Unsafe unlock stays unavailable on every executable.
     click(150, 60);               // Close the action menu before the existing interaction checks.
     frame();
     // Main: WaterFX navigation is visible before color controls. First slider starts at y=181.

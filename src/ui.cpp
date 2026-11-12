@@ -409,10 +409,9 @@ void DrawPanel(Runtime &r) {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10, 8));
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(10, 7));
     if (ImGui::BeginPopup("actions")) {
-        bool fpsSupported = r.fpsUnlockSupported();
-        ImGui::MenuItem("Снять лимит FPS", nullptr, &s.unlockFps, fpsSupported || s.unlockFps);
-        Tip(fpsSupported ? "Убирает встроенный лимит около 60 FPS. Ограничения драйвера и VSync сохраняются."
-                         : "Эта версия клиента не поддерживается. Игра остаётся без изменений.",
+        s.unlockFps = false;
+        ImGui::MenuItem("Снять лимит FPS", nullptr, false, false);
+        Tip("Недоступно: скорость игры зависит от FPS. Штатный лимит сохранён.",
             ImGuiHoveredFlags_AllowWhenDisabled);
         ImGui::Separator();
 #ifdef FENB_DIAGNOSTICS

@@ -39,6 +39,7 @@ void Settings::resetWater() {
 }
 
 void Settings::sanitize() {
+    unlockFps = false;
     auto range = [](float &v, float lo, float hi, float fallback) {
         v = std::isfinite(v) ? std::clamp(v, lo, hi) : fallback;
     };
@@ -140,7 +141,7 @@ bool Settings::save(const std::wstring &path) const {
         "\n[WaterFX]\nwater=%d\nwater_waves=%.6f\nwater_length=%.6f\nwater_speed=%.6f\nwater_ripples=%."
         "6f\nwater_ripple_scale=%.6f\nwater_opacity=%.6f\nwater_sky=%.6f\nwater_glints=%.6f\nwater_gloss=%."
         "6f\nwater_tint=%.6f\nwater_refraction=%.6f\nwater_texture=%.6f\n",
-        enabled, openOnStart, panelPage, unlockFps, bloom, bloomStrength, threshold, knee, radius, bloomScale,
+        enabled, openOnStart, panelPage, 0, bloom, bloomStrength, threshold, knee, radius, bloomScale,
         color, exposure, contrast, saturation, temperature, tint, gamma, shadows, highlights, water,
         waterWaves, waterLength, waterSpeed, waterRipples, waterRippleScale, waterOpacity, waterSky,
         waterGlints, waterGloss, waterTint, waterRefraction, waterTexture);
@@ -160,11 +161,9 @@ bool Settings::save(const std::wstring &path) const {
 
 void Settings::preset(int index) {
     bool open = openOnStart;
-    bool unlock = unlockFps;
     int page = panelPage;
     *this = Settings{};
     openOnStart = open;
-    unlockFps = unlock;
     panelPage = page;
     if (index == 1) {
         bloomStrength = .32f;

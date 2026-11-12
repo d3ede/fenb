@@ -2,7 +2,6 @@
 #include <cstdio>
 #include <cstring>
 #include <cstdint>
-#include <mmsystem.h>
 
 void Log(const char *) {}
 #define CHECK(x)                                                                                             \
@@ -80,36 +79,40 @@ int main() {
     CHECK(fps_detail::InspectImage(module));
 
     fps_detail::State state(binding);
+    *binding.lastTick = 1234;
+    *binding.elapsed = 5678;
+    // Even a fully verified client must be rejected. Protect both data pages so
+    // any regression that writes the old limiter flag or clocks fails immediately.
+    CHECK(VirtualProtect(image + 0x829000, 0x1000, PAGE_READONLY, &previous));
+    CHECK(VirtualProtect(image + 0x844000, 0x1000, PAGE_READONLY, &previous));
     {
         FpsLimiter first(state), second(state);
+        CHECK(!first.supported() && !second.supported());
         first.update(false);
-        CHECK(*flag == 1 && state.owners == 0);
         first.update(true);
-        CHECK(*flag == 0 && first.active() && state.owners == 1);
-        *flag = 1; // The client resets the flag on a scene change.
         first.update(true);
-        CHECK(*flag == 0 && state.owners == 1);
         second.update(true);
         first.update(false);
-        CHECK(*flag == 0 && state.owners == 1);
-        *binding.lastTick = 0;
-        *binding.elapsed = 12345;
         second.update(false);
-        CHECK(*flag == 1 && state.owners == 0 && *binding.elapsed == 0);
-        CHECK(timeGetTime() - *binding.lastTick < 1000);
         second.update(true);
+        CHECK(!first.active() && !second.active());
     }
-    CHECK(*flag == 1 && state.owners == 0); // Last owner destruction restores the client.
+    CHECK(*flag == 1 && *binding.lastTick == 1234 && *binding.elapsed == 5678);
+    CHECK(VirtualProtect(image + 0x829000, 0x1000, PAGE_READWRITE, &previous));
+    CHECK(VirtualProtect(image + 0x844000, 0x1000, PAGE_READWRITE, &previous));
     *flag = 0;
     {
         FpsLimiter limiter(state);
         limiter.update(true);
     }
-    CHECK(*flag == 0); // Preserve an already unlimited client.
+    CHECK(*flag == 0 && *binding.lastTick == 1234 && *binding.elapsed == 5678);
     fps_detail::State unknown;
     FpsLimiter unsupported(unknown);
     unsupported.update(true);
-    CHECK(!unsupported.supported() && !unsupported.active() && unknown.owners == 0);
+    CHECK(!unsupported.supported() && !unsupported.active());
+    FpsLimiter production;
+    production.update(true);
+    CHECK(!production.supported() && !production.active());
     CHECK(!fps_detail::InspectImage(GetModuleHandleW(nullptr)));
     CHECK(!fps_detail::InspectImage(nullptr));
     CHECK(!fps_detail::KnownClientFile(L"build/fps-missing.exe"));
@@ -122,6 +125,6 @@ int main() {
                fps_detail::KnownClientFile(L"X:/Games/Homesickness/Neuz.exe") ? "yes"
                                                                               : "no (different revision)");
     CHECK(VirtualFree(image, 0, MEM_RELEASE));
-    puts("PASS: relocated client signatures, unsupported images, reversible FPS flag, multiple devices, "
-         "scene resets.");
+    puts("PASS: read-only client detection; FPS unlock refused for verified and unknown clients; "
+         "protected limiter flag and clocks unchanged.");
 }

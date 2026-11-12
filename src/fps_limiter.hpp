@@ -17,27 +17,18 @@ bool KnownClientFile(const wchar_t *path);
 struct State {
     explicit State(Binding binding = {}) : binding(binding) {}
     Binding binding;
-    std::mutex mutex;
-    unsigned owners = 0;
-    LONG original = 0;
 };
 } // namespace fps_detail
 
 class FpsLimiter {
   public:
     FpsLimiter() = default;
-    explicit FpsLimiter(fps_detail::State &state) : state_(&state) {}
-    ~FpsLimiter();
+    explicit FpsLimiter(fps_detail::State &) {}
     FpsLimiter(const FpsLimiter &) = delete;
     FpsLimiter &operator=(const FpsLimiter &) = delete;
     void update(bool unlock);
     bool supported();
     bool active() const {
-        return active_;
+        return false;
     }
-
-  private:
-    fps_detail::State &state();
-    fps_detail::State *state_ = nullptr;
-    bool active_ = false;
 };

@@ -15,7 +15,7 @@ struct Settings {
     float waterTint = .25f;
     float waterRefraction = .35f, waterTexture = .05f;
     bool openOnStart = false;
-    bool unlockFps = false;
+    bool unlockFps = false; // Legacy INI compatibility only; uncapping accelerates gameplay.
     int panelPage = 0;
     bool operator==(const Settings &) const = default;
     void sanitize();
