@@ -1,7 +1,7 @@
 FENB - Installation / Установка
 
 ENGLISH
-=======
+-------
 
 FENB is a graphics mod for Flyff, inspired by ENBSeries.
 
@@ -50,7 +50,7 @@ License texts and copyright notices: LICENSES.txt
 
 
 РУССКИЙ
-=======
+-------
 
 FENB — графический мод для Flyff, вдохновлённый ENBSeries.
 
