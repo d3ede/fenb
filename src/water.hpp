@@ -23,13 +23,14 @@ inline void InvalidateWaterSurface(IDirect3DSurface9 *surface) {
         InvalidateWaterTag(texture);
 }
 class WaterFX {
+    friend struct WaterFXFixture;
     IDirect3DDevice9 *device_;
     Com<IDirect3DVertexShader9> vs_;
     Com<IDirect3DPixelShader9> ps_;
     Com<IDirect3DPixelShader9> reflectionPS_;
     Com<IDirect3DTexture9> reflection_;
     Com<IDirect3DSurface9> reflectionSurface_;
-    bool traceReady_ = false;
+    bool traceReady_ = false, reflectionCleared_ = false;
     Com<IDirect3DTexture9> normals_;
     size_t normalBytes_ = 0;
     bool normalFailed_ = false;
@@ -71,6 +72,7 @@ class WaterFX {
     void captureEnvironment(D3DPRIMITIVETYPE type, UINT start, UINT count, SceneFX *sky = nullptr,
                             const Settings *settings = nullptr);
     void beginFrame(bool refraction = true, bool sky = true, bool depth = true, bool caustics = true) {
+        reflectionCleared_ = false;
         sceneAttempted_ = sceneReady_ = false;
         causticAttempted_ = causticReady_ = false;
         if (!caustics) {

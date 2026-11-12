@@ -14,6 +14,26 @@ std::wstring ModuleDirectory() {
 void Log(const char *s) {
     puts(s);
 }
+struct WaterFXFixture {
+    static bool seed(WaterFX &water, IDirect3DDevice9 *d) {
+        return water.reflectionSurface_.p &&
+               SUCCEEDED(d->ColorFill(water.reflectionSurface_, nullptr, 0xff00ffff));
+    }
+    static std::vector<DWORD> reflection(WaterFX &water, IDirect3DDevice9 *d) {
+        if (!water.reflectionSurface_.p) return {};
+        D3DSURFACE_DESC desc{}; water.reflectionSurface_->GetDesc(&desc);
+        Com<IDirect3DSurface9> read;
+        if (FAILED(d->CreateOffscreenPlainSurface(desc.Width, desc.Height, desc.Format,
+                                                D3DPOOL_SYSTEMMEM, read.out(), nullptr)) ||
+            FAILED(d->GetRenderTargetData(water.reflectionSurface_, read))) return {};
+        D3DLOCKED_RECT data{};
+        if (FAILED(read->LockRect(&data, nullptr, D3DLOCK_READONLY))) return {};
+        std::vector<DWORD> pixels(desc.Width * desc.Height);
+        for (UINT y = 0; y < desc.Height; ++y)
+            memcpy(pixels.data() + y * desc.Width, (BYTE *)data.pBits + y * data.Pitch, desc.Width * 4);
+        read->UnlockRect(); return pixels;
+    }
+};
 namespace {
 constexpr UINT Width = 640, Height = 400;
 std::vector<DWORD> ReadFrame(IDirect3DDevice9 *d) {
@@ -161,6 +181,7 @@ int main(int argc, char **argv) {
     settings.waterOpacity = .49f;
     settings.waterRefraction = .4f;
     float sceneLight = -1;
+    float wallSlope = 0;
     bool steppedMesh = false;
     bool foregroundBank = false;
     bool translatedScene = false;
@@ -200,8 +221,8 @@ int main(int argc, char **argv) {
                          {12, floorY, -5, 0xff827050},
                          {12, floorY, 60, 0xff827050}};
         d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, floor, sizeof(Floor));
-        Floor object[] = {{-2, 0, 18, 0xffd05028}, {2, 0, 18, 0xffd05028}, {-2, 8, 18, 0xffd05028},
-                          {-2, 8, 18, 0xffd05028}, {2, 0, 18, 0xffd05028}, {2, 8, 18, 0xffd05028}};
+        Floor object[] = {{-2, 0, 18, 0xffd05028}, {2, 0, 18, 0xffd05028}, {-2, 8, 18+8*wallSlope, 0xffd05028},
+                          {-2, 8, 18+8*wallSlope, 0xffd05028}, {2, 0, 18, 0xffd05028}, {2, 8, 18+8*wallSlope, 0xffd05028}};
         if (wall)
             d->DrawPrimitiveUP(D3DPT_TRIANGLELIST, 2, object, sizeof(Floor));
         if (foregroundBank) {
@@ -299,11 +320,27 @@ int main(int argc, char **argv) {
             CHECK(Save(on, L"build/water-scene-ssr-on.bmp"));
         }
         if (!reset) {
+            CHECK(WaterFXFixture::seed(water, d));
+            CHECK(render(-2, false, true));
+            auto fresh = WaterFXFixture::reflection(water, d);
+            CHECK(fresh.size() == Width * Height && (fresh[0] >> 24) == 0);
+            auto fullProjection = projection;
+            projection._33 = 60.f / 59.9f;
+            projection._43 = -.1f * projection._33;
+            CHECK(render(-2, false, true));
+            unsigned skyHits = 0;
+            for (DWORD pixel : WaterFXFixture::reflection(water, d))
+                skyHits += (pixel >> 24) != 0;
+            printf("SSR false sky-plane hits: %u\n", skyHits);
+            CHECK(skyHits == 0);
+            projection = fullProjection;
             auto savedView = view;
             settings.waterRefraction = 0;
             // Red reflection pixels must lie inside the analytic reflection of the actual red wall.
             // Repeat with camera yaw and an intersecting foreground bank, rather than only a static view.
-            for (float yaw : {-.4f, 0.f, .4f}) {
+            for (float slope : {0.f, 2.f}) {
+              wallSlope = slope;
+              for (float yaw : {-.4f, 0.f, .4f}) {
                 float ex = std::sin(yaw) * 8, ey = 4, ez = -std::cos(yaw) * 8;
                 float zx = -ex, zy = -ey, zz = 12 - ez;
                 float len = std::sqrt(zx * zx + zy * zy + zz * zz);
@@ -331,7 +368,7 @@ int main(int argc, char **argv) {
                         -ex * yx - ey * yy - ez * yz,
                         -ex * zx - ey * zy - ez * zz,
                         1};
-                foregroundBank = true;
+                foregroundBank = slope == 0;
                 settings.waterSSR = 0;
                 CHECK(render(-2, true, true));
                 auto noMirror = ReadFrame(d);
@@ -353,17 +390,19 @@ int main(int argc, char **argv) {
                         float rx = vx * xx + vy * yx + zx, ry = vy * yy + zy, rz = vx * xz + vy * yz + zz;
                         float t = -ey / ry;
                         float wx = ex + rx * t, wz = ez + rz * t;
-                        float reflectedT = (18 - wz) / rz;
+                        float reflectedT = (18 - wz) / (rz + slope * ry);
                         float hx = wx + rx * reflectedT, hy = -ry * reflectedT;
                         invalid +=
                             !(t > 0 && reflectedT > 0 && hx > -2.2f && hx < 2.2f && hy > -.2f && hy < 8.2f);
                     }
-                printf("SSR camera yaw=%.2f: hits=%u outside analytic mirror=%u\n", yaw, hits, invalid);
+                printf("SSR slope=%.1f camera yaw=%.2f: hits=%u outside analytic mirror=%u\n", slope, yaw, hits, invalid);
                 CHECK(Save(mirror, yaw < 0   ? L"build/water-orbit-left.bmp"
                                    : yaw > 0 ? L"build/water-orbit-right.bmp"
                                              : L"build/water-orbit-center.bmp"));
                 CHECK(hits > 100 && invalid * 100 < hits * 2);
+              }
             }
+            wallSlope = 0;
             foregroundBank = false;
             view = savedView;
             settings.waterRefraction = .4f;

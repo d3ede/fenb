@@ -597,7 +597,10 @@ void WaterFX::reflect(DrawCall draw) {
                 device_->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
                 device_->SetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
                 device_->SetRenderState(D3DRS_COLORWRITEENABLE, 15);
-                ok = SUCCEEDED(draw());
+                device_->SetRenderState(D3DRS_SCISSORTESTENABLE, FALSE);
+                if (!reflectionCleared_)
+                    reflectionCleared_ = SUCCEEDED(device_->Clear(0, nullptr, D3DCLEAR_TARGET, 0, 1, 0));
+                ok = reflectionCleared_ && SUCCEEDED(draw());
             }
         }
     }
