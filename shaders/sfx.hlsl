@@ -57,8 +57,7 @@ float4 SfxPS(float2 uv:TEXCOORD0,float fogDepth:TEXCOORD1,float4 color:COLOR0,fl
   gradient/=max(.02,length(gradient));
   float mask=saturate(signal*Texel.w*Screen.w);
   float3 surface=tex2D(Background,screenUV+gradient*Screen.xy*(4.5*Screen.w*Texel.w)).rgb;
-  float light=dot(surface,float3(.2126,.7152,.0722));
-  result=float4(surface+float3(.75,.88,1)*(.03+.06*light),mask);
+  result=float4(surface,mask);
   return result;
  }
  float safeUV=all(uv>=Bounds.xy)&&all(uv<=Bounds.zw);

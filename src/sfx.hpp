@@ -193,7 +193,7 @@ class SfxFX {
         return snapshot_;
     }
     bool begin(const Settings &s, bool waterVisible, bool canSnapshot = true) {
-        if (!s.sfx || !camera_ || active_)
+        if ((!s.sfx && !(s.water && s.sfxWake > 0 && waterVisible)) || !camera_ || active_)
             return false;
         DWORD fvf = 0, z = 0, write = 0, blend = 0, src = 0, dst = 0, lit = 0, test = 0, stage1 = 0,
               coord = 0, transform = 0;
@@ -228,7 +228,7 @@ class SfxFX {
             return false;
         auto *texture = static_cast<IDirect3DTexture9 *>(base.p);
         unsigned kind = classify(texture);
-        if (!kind)
+        if (!kind || (!s.sfx && kind != 3))
             return false;
         D3DMATRIX world{}, view{}, projection{}, uv{};
         D3DVIEWPORT9 vp{};
@@ -273,6 +273,8 @@ class SfxFX {
                     operations[5] == D3DTA_DIFFUSE;
         if (kind == 3 && !wake)
             kind = 1;
+        if (!wake && !s.sfx)
+            return false;
         if (wake && (s.sfxWake <= 0 || (!snapshot_ && !canSnapshot) || !snapshotWorld()))
             return false;
         if ((!vs_.p && FAILED(device_->CreateVertexShader(ShaderSfxVS, vs_.out()))) ||

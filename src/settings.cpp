@@ -29,6 +29,7 @@ void Settings::resetWater() {
 }
 void Settings::resetWaterSurface() {
     const Settings d;
+    sfxWake = d.sfxWake;
     waterWaves = d.waterWaves;
     waterLength = d.waterLength;
     waterSpeed = d.waterSpeed;

@@ -140,7 +140,7 @@ int main(int argc, char **argv) {
     projection._33 = 100.f / 99.9f;
     projection._34 = 1;
     projection._43 = -.1f * projection._33;
-    bool water = false, occlude = false;
+    bool water = false, occlude = false, flatBackground = false;
     int layers = 1;
     DWORD fade = 0x80ff8040;
     auto setup = [&] {
@@ -183,7 +183,8 @@ int main(int argc, char **argv) {
             for (int x = 0; x < int(W); x += 12)
                 if ((x / 12 + y / 12) % 2)
                     tiles.push_back({x, y, x + 12, y + 12});
-        d->Clear(UINT(tiles.size()), tiles.data(), D3DCLEAR_TARGET, 0xff506060, 1, 0);
+        if (!flatBackground)
+            d->Clear(UINT(tiles.size()), tiles.data(), D3DCLEAR_TARGET, 0xff506060, 1, 0);
         if (occlude) {
             D3DRECT r{0, 0, int(W / 2), int(H)};
             d->Clear(1, &r, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, 0xff202020, 0, 0);
@@ -332,6 +333,7 @@ int main(int argc, char **argv) {
             CHECK(blocked[y * W + x] == occluded[y * W + x]);
     occlude = false;
     water = true;
+    settings.sfx = false; // Water footsteps must remain active independently of skill styling.
     tag = 3;
     texture->SetPrivateData(SfxTag, &tag, 4, 0);
     world = id;
@@ -353,6 +355,12 @@ int main(int argc, char **argv) {
     CHECK(sfx.bytes() == W * H * 4);
     Save(whiteRings, L"build/wake-native.bmp");
     Save(refracted, L"build/wake-refracted.bmp");
+    flatBackground = true;
+    background();
+    auto flat = Read(d);
+    CHECK(render(true));
+    CHECK(Difference(flat, Read(d)) == 0);
+    flatBackground = false;
     // Verify the actual native water-ring material, without requiring assets in clean checkouts.
     if (FILE *file = _wfopen(L"X:\\Games\\Homesickness\\SFX\\Texture\\water.dds", L"rb")) {
         DWORD header[32]{};

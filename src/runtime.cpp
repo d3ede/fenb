@@ -198,7 +198,7 @@ void Runtime::afterPresent(HRESULT result) {
     }
 }
 void Runtime::resetFrame() {
-    sfx_->beginFrame(settings.enabled && settings.sfx && !compare);
+    sfx_->beginFrame(settings.enabled && (settings.sfx || (settings.water && settings.sfxWake > 0)) && !compare);
     effects_->sceneFX().beginFrame();
     lastWaterDraws = waterDraws;
     waterDraws = 0;
@@ -215,7 +215,7 @@ void Runtime::resetFrame() {
     invalidateDrawState();
 }
 void Runtime::beforeWaterDraw(UINT upStride, DrawCall draw) {
-    if (!lost_ && settings.enabled && settings.sfx && !compare && !vertexShaderActive_ &&
+    if (!lost_ && settings.enabled && (settings.sfx || (settings.water && settings.sfxWake > 0)) && !compare && !vertexShaderActive_ &&
         fvfKnown_ && (drawFVF_ == 0x102 || drawFVF_ == 0x142) &&
         sceneBackbuffer_ && drawTarget_ == sceneBackbuffer_)
         sfx_->begin(settings, waterDraws > 0, !hudStarted_);
@@ -288,7 +288,7 @@ void Runtime::beforeDraw() {
     }
     const bool screenSpace = !vertexShaderActive_ && (drawFVF_ & D3DFVF_POSITION_MASK) == D3DFVF_XYZRHW;
     if (!screenSpace) {
-        if (settings.enabled && settings.sfx && !compare && !vertexShaderActive_)
+        if (settings.enabled && (settings.sfx || (settings.water && settings.sfxWake > 0)) && !compare && !vertexShaderActive_)
             sfx_->observe();
         if (settings.enabled && !compare && !vertexShaderActive_)
             effects_->sceneFX().observe(settings);
@@ -304,7 +304,7 @@ void Runtime::beforeDraw() {
     if (!sawWorld_ || !settings.enabled || compare)
         return;
     if (!settings.postEnabled()) {
-        if(settings.sfx && settings.sfxWake>0 && waterDraws>0)sfx_->snapshotWorld();
+        if(settings.water && settings.sfxWake>0 && waterDraws>0)sfx_->snapshotWorld();
         return;
     }
     StateGuard state(device_);
@@ -321,7 +321,7 @@ void Runtime::beforeDraw() {
     effects_->draw(sceneBackbuffer_, settings);
     if (ownScene)
         device_->EndScene();
-    if(settings.sfx && settings.sfxWake>0 && waterDraws>0)sfx_->snapshotWorld(true);
+    if(settings.water && settings.sfxWake>0 && waterDraws>0)sfx_->snapshotWorld(true);
 }
 void Runtime::beforePresent(IDirect3DSwapChain9 *provided, DWORD flags, HWND windowOverride) {
     std::lock_guard lock(mutex_);

@@ -44,7 +44,9 @@ int main() {
         particles.language = Language::Russian;
         particles.resetSceneSection(11);
         CHECK(!particles.sfx && particles.sfxIntensity == Settings{}.sfxIntensity &&
-              particles.sfxWake == Settings{}.sfxWake && particles.language == Language::Russian);
+              particles.sfxWake == 0 && particles.language == Language::Russian);
+        particles.resetWaterSurface();
+        CHECK(particles.sfxWake == Settings{}.sfxWake && !particles.sfx);
         CHECK(particles.save(L"build/sfx-settings.ini"));
         Settings restored;
         CHECK(restored.load(L"build/sfx-settings.ini") && restored == particles);

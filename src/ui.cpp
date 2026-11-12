@@ -578,7 +578,6 @@ void SceneControls(Runtime &runtime) {
         Row(UiText::SfxGlow, Tr(UiText::SfxGlowHelp), s.sfxGlow, 0, 1, defaults.sfxGlow,"%.2f",.05f);
         Row(UiText::Saturation, Tr(UiText::SaturationHelp), s.sfxSaturation, .5f, 1.5f, defaults.sfxSaturation,"%.2f",.05f);
         Row(UiText::SfxSoftness, Tr(UiText::SfxSoftnessHelp), s.sfxSoftness, 0, 1, defaults.sfxSoftness,"%.2f",.05f);
-        Row(UiText::WaterWake, Tr(UiText::WaterWakeHelp), s.sfxWake, 0, 1.5f, defaults.sfxWake,"%.2f",.05f);
         ImGui::EndDisabled();
     }
     ImGui::Spacing();
@@ -945,6 +944,8 @@ void DrawPanel(Runtime &r, const PanelBranding &branding) {
                 .02f);
             Row(UiText::RippleFrequency, Tr(UiText::RippleFrequencyHelp), s.waterRippleScale, .25f, 6,
                 defaults.waterRippleScale, "%.2f", .05f);
+            Row(UiText::WaterWake, Tr(UiText::WaterWakeHelp), s.sfxWake, 0, 1.5f,
+                defaults.sfxWake, "%.2f", .05f);
             ImGui::Dummy({0, 8});
             Row(UiText::Opacity, Tr(UiText::OpacityHelp), s.waterOpacity, .15f, 1, defaults.waterOpacity,
                 "%.2f", .02f);
