@@ -130,9 +130,9 @@ int main() {
     frame();
     CHECK(r.settings.exposure == 0);
     mouse(440, 161, false); // held second click must not drag away from default
-    click(618, 161);
+    click(610, 161);
     CHECK(std::abs(r.settings.exposure - .01f) < .00001f); // explicit right step
-    click(538, 161);
+    click(556, 161);
     CHECK(r.settings.exposure == 0); // matching left step
     click(590, 161);
     io.AddKeyEvent(ImGuiMod_Ctrl, true);

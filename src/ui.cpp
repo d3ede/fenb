@@ -143,20 +143,36 @@ void Row(const char *label, const char *help, float &value, float low, float hig
     // All three fields keep their positions during text editing. Arrow buttons reserve their space.
     ImGui::PushFont(nullptr, 14);
     ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ColorConvertU32ToFloat4(Muted));
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(2, 3));
-    ImGui::SetCursorScreenPos({p.x + inputX, p.y + 2});
-    if (ImGui::ArrowButton("less", ImGuiDir_Left))
+    char displayed[48];
+    std::snprintf(displayed, sizeof(displayed), format, value);
+    float numberPadding = std::max(2.f, (40 - ImGui::CalcTextSize(displayed).x) * .5f);
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(numberPadding, 3));
+    auto stepArrow = [&](const char *id, float x, bool rightward) {
+        ImGui::SetCursorScreenPos({p.x + x, p.y + 4});
+        ImGui::PushItemFlag(ImGuiItemFlags_ButtonRepeat, true);
+        bool pressed = ImGui::InvisibleButton(id, {14, 18}, ImGuiButtonFlags_EnableNav);
+        ImGui::PopItemFlag();
+        auto min = ImGui::GetItemRectMin(), max = ImGui::GetItemRectMax();
+        bool hovered = ImGui::IsItemHovered(), held = ImGui::IsItemActive();
+        if (hovered || held)
+            d->AddRectFilled(min, max, Opacity(held ? IM_COL32(57, 59, 65, 255) : Raised), 2);
+        float cx = std::floor(min.x + 7), cy = std::floor(min.y + 9), direction = rightward ? 1.f : -1.f;
+        ImU32 color = Opacity(hovered || held ? Text : Muted);
+        d->AddLine({cx - direction * 1.5f, cy - 3}, {cx + direction * 1.5f, cy}, color, 1);
+        d->AddLine({cx + direction * 1.5f, cy}, {cx - direction * 1.5f, cy + 3}, color, 1);
+        return pressed;
+    };
+    if (stepArrow("less", inputX + 15, false))
         value = Snap(value - step, low, high, neutral, step);
-    ImGui::SetCursorScreenPos({p.x + inputX + 20, p.y + 2});
-    ImGui::SetNextItemWidth(58);
+    ImGui::SetCursorScreenPos({p.x + inputX + 29, p.y + 2});
+    ImGui::SetNextItemWidth(40);
     if (ImGui::InputFloat("##value", &value, 0, 0, format, ImGuiInputTextFlags_AutoSelectAll)) {
         value = std::isfinite(value) ? std::clamp(value, low, high) : neutral;
         if (std::abs(value - neutral) < step * .01f)
             value = neutral;
     }
     Tip("Щелчок — ввести число. Стрелки рядом — изменить на один шаг.");
-    ImGui::SetCursorScreenPos({p.x + inputX + 80, p.y + 2});
-    if (ImGui::ArrowButton("more", ImGuiDir_Right))
+    if (stepArrow("more", inputX + 69, true))
         value = Snap(value + step, low, high, neutral, step);
     ImGui::PopStyleVar();
     ImGui::PopStyleColor();
@@ -546,14 +562,15 @@ void DrawPanel(Runtime &r) {
             Row("Непрозрачность",
                 "Плотность воды. При доступной глубине поглощение усиливается с толщиной слоя.",
                 s.waterOpacity, .15f, 1, defaults.waterOpacity, "%.2f", .02f);
-            Row("Преломление", "Искажение сцены под водой; при доступной глубине берег не затягивается в воду.",
+            Row("Преломление",
+                "Искажение сцены под водой; при доступной глубине берег не затягивается в воду.",
                 s.waterRefraction, 0, 1, defaults.waterRefraction, "%.2f", .02f);
             Row("Исходная текстура", "Примесь старой текстуры: выше — заметнее её повторяющиеся полосы.",
                 s.waterTexture, 0, 1, defaults.waterTexture, "%.2f", .02f);
             Row("Бирюзовый тон", "От прохладного голубого к бирюзовому цвету воды.", s.waterTint, 0, 1,
                 defaults.waterTint, "%.2f", .02f);
-            Row("Отражение неба", "Небо и облака клиента. Отражения объектов настраиваются ниже.",
-                s.waterSky, 0, 1, defaults.waterSky, "%.2f", .02f);
+            Row("Отражение неба", "Небо и облака клиента. Отражения объектов настраиваются ниже.", s.waterSky,
+                0, 1, defaults.waterSky, "%.2f", .02f);
             Row("Солнечные блики", "Блики от направленного света игры. Ноль отключает блики.", s.waterGlints,
                 0, 2, defaults.waterGlints, "%.2f", .05f);
             Row("Гладкость", "Выше — уже и резче солнечный блик.", s.waterGloss, 0, 1, defaults.waterGloss,
@@ -563,12 +580,13 @@ void DrawPanel(Runtime &r) {
         ImGui::Dummy({0, 6});
         bool sceneSection = true;
         if (Section("waterScene", "Глубина и отражения", sceneSection, reset, false)) {
-            if (reset) s.resetWaterScene();
+            if (reset)
+                s.resetWaterScene();
             ImGui::BeginDisabled(!s.water || !s.enabled);
             Row("Поглощение", "Изменение прозрачности по толщине воды. Ноль — равномерная прозрачность.",
                 s.waterDepth, 0, 2, defaults.waterDepth, "%.2f", .05f);
-            Row("Переход у берега", "Расстояние мягкого перехода у геометрии в единицах мира.",
-                s.waterShore, .05f, 3, defaults.waterShore, "%.2f", .05f);
+            Row("Переход у берега", "Расстояние мягкого перехода у геометрии в единицах мира.", s.waterShore,
+                .05f, 3, defaults.waterShore, "%.2f", .05f);
             Row("Отражения мира", "SSR: отражаются только уже видимые объекты. Ноль отключает трассировку.",
                 s.waterSSR, 0, 1, defaults.waterSSR, "%.2f", .05f);
             auto p = ImGui::GetCursorScreenPos();
@@ -582,7 +600,8 @@ void DrawPanel(Runtime &r) {
             ImGui::SetCursorScreenPos(p);
             ImGui::Dummy({width, RowHeight});
             ImGui::EndDisabled();
-        } else if (reset) s.resetWaterScene();
+        } else if (reset)
+            s.resetWaterScene();
     }
     ImGui::EndChild();
     float footer = size.y - 28;
