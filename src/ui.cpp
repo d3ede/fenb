@@ -507,11 +507,10 @@ void DrawPanel(Runtime &r) {
             r.editorPage = 1;
         ImU32 navColor = ImGui::IsItemHovered() ? Text : Muted;
         TextAt(navDraw, {waterPos.x + 17, waterPos.y + 7}, "WaterFX", Text, 15);
-        for (int i = 0; i < 2; ++i) {
-            float x = waterPos.x + waterWidth - 64 + i * 7;
-            navDraw->AddLine({x, waterPos.y + 10}, {x + 5, waterPos.y + 15}, navColor, 1.5f);
-            navDraw->AddLine({x + 5, waterPos.y + 15}, {x, waterPos.y + 20}, navColor, 1.5f);
-        }
+        float arrowX = waterPos.x + waterWidth - 39;
+        navDraw->AddLine({arrowX - 5, waterPos.y + 15}, {arrowX + 5, waterPos.y + 15}, navColor, 1.3f);
+        navDraw->AddLine({arrowX + 1, waterPos.y + 11}, {arrowX + 5, waterPos.y + 15}, navColor, 1.3f);
+        navDraw->AddLine({arrowX + 5, waterPos.y + 15}, {arrowX + 1, waterPos.y + 19}, navColor, 1.3f);
         ImGui::SetCursorScreenPos({waterPos.x + waterWidth - 22, waterPos.y + 6});
         SquareSwitch("waterMain", s.water);
         ImGui::SetCursorScreenPos(waterPos);

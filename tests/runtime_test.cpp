@@ -87,11 +87,13 @@ int main() {
         GetKeyboardState(originalKeys);
         for (int shift : {VK_LSHIFT, VK_RSHIFT}) {
             runtime.visible = false;
+            runtime.editorPage = 1;
             for (int toggle = 0; toggle < 2; ++toggle) {
                 memset(chord, 0, sizeof(chord));chord[VK_SHIFT]=chord[shift]=0x80;
                 SetKeyboardState(chord);
                 SendMessageW(window,WM_KEYDOWN,VK_RETURN,1);
                 CHECK(runtime.visible == (toggle == 0));
+                if(toggle==0)CHECK(runtime.editorPage==0);
                 SendMessageW(window,WM_KEYDOWN,VK_RETURN,static_cast<LPARAM>(0x40000001u));
                 CHECK(runtime.visible == (toggle == 0));
                 SendMessageW(window,WM_CHAR,'\r',1);
