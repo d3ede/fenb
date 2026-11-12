@@ -16,7 +16,10 @@ struct Settings {
     float waterRefraction = .35f, waterTexture = .05f;
     float waterDepth = 1.f, waterShore = .6f, waterSSR = .65f;
     int waterSSRQuality = 0;
+    float waterCaustics = 0.f, waterDispersion = .15f;
+    int waterCausticScale = 4;
     bool openOnStart = false;
+    bool preciseWaterDepth = true;
     bool unlockFps = false; // Opt-in rendering unlock with a fixed 16 ms simulation step.
     int panelPage = 0;
     bool operator==(const Settings &) const = default;

@@ -26,6 +26,11 @@ class WaterFX {
     Com<IDirect3DTexture9> scene_;
     Com<IDirect3DSurface9> sceneSurface_;
     DepthCopy depth_;
+    Com<IDirect3DTexture9> caustics_;
+    Com<IDirect3DSurface9> causticSurface_;
+    Com<IDirect3DPixelShader9> causticShader_;
+    UINT causticWidth_ = 0, causticHeight_ = 0;
+    bool causticAttempted_ = false, causticReady_ = false, causticFailed_ = false;
     Com<IDirect3DCubeTexture9> environment_;
     bool skySeen_ = false, environmentReady_ = false, environmentUpdating_ = false;
     bool environmentFailed_ = false;
@@ -39,14 +44,23 @@ class WaterFX {
     DWORD classify(IDirect3DTexture9 *texture);
     bool captureScene();
     bool normalTexture();
+    bool prepareCaustics(const Settings &, const D3DMATRIX &, const float *, const float *, const float *,
+                         const float *, const float *);
 
   public:
     explicit WaterFX(IDirect3DDevice9 *device) : device_(device), depth_(device) {}
     ~WaterFX();
     bool begin(const Settings &settings, UINT upStride = 0);
     void captureEnvironment(D3DPRIMITIVETYPE type, UINT start, UINT count);
-    void beginFrame(bool refraction = true, bool sky = true, bool depth = true) {
+    void beginFrame(bool refraction = true, bool sky = true, bool depth = true, bool caustics = true) {
         sceneAttempted_ = sceneReady_ = false;
+        causticAttempted_ = causticReady_ = false;
+        if (!caustics) {
+            causticSurface_.out();
+            caustics_.out();
+            causticWidth_ = causticHeight_ = 0;
+            causticFailed_ = false;
+        }
         depth_.beginFrame(depth);
         skySeen_ = environmentUpdating_ = false;
         if (!sky) {
@@ -60,7 +74,8 @@ class WaterFX {
     }
     size_t bytes() const {
         return (scene_.p ? size_t(sceneWidth_) * sceneHeight_ * 4 : 0) +
-               (environment_.p ? 128 * 128 * 4 * 6 : 0) + depth_.bytes() + normalBytes_;
+               (environment_.p ? 128 * 128 * 4 * 6 : 0) + depth_.bytes() + normalBytes_ +
+               (caustics_.p ? size_t(causticWidth_) * causticHeight_ * 4 : 0);
     }
     void end(bool up = false, bool indexed = false) {
         const bool replaced = state_ != nullptr;

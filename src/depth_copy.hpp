@@ -20,6 +20,7 @@ class DepthCopy {
     Com<IDirect3DSurface9> source_;
     Com<IDirect3DTexture9> texture_;
     UINT width_ = 0, height_ = 0;
+    unsigned bits_ = 16;
     bool driver() {
         if (tried_)
             return initialized_;
@@ -101,6 +102,9 @@ class DepthCopy {
             }
             width_ = width;
             height_ = height;
+            bits_ = desc.Format == D3DFMT_D16 ? 16 : 24;
+            Log(bits_ == 24 ? "Water depth: NVIDIA copy uses a 24-bit source."
+                            : "Water depth: NVIDIA copy uses a 16-bit source.");
         }
         // Driver copies can have implementation-specific state effects. Restore immediately.
         StateGuard state(device_);
@@ -114,5 +118,8 @@ class DepthCopy {
     }
     size_t bytes() const {
         return texture_.p ? size_t(width_) * height_ * 4 : 0;
+    }
+    float quantum() const {
+        return bits_ == 24 ? 1.f / 16777215.f : 1.f / 65535.f;
     }
 };

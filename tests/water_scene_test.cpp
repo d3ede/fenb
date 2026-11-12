@@ -66,7 +66,12 @@ int Difference(DWORD a, DWORD b) {
            std::abs(int((a >> 8) & 255) - int((b >> 8) & 255)) + std::abs(int(a & 255) - int(b & 255));
 }
 } // namespace
-int main(int argc, char **) {
+int main(int argc, char **argv) {
+    bool msaa = false, depth24 = false;
+    for (int i = 1; i < argc; ++i) {
+        msaa |= !strcmp(argv[i], "--msaa");
+        depth24 |= !strcmp(argv[i], "--depth24");
+    }
     WNDCLASSW wc{};
     wc.lpfnWndProc = DefWindowProcW;
     wc.hInstance = GetModuleHandleW(nullptr);
@@ -85,8 +90,8 @@ int main(int argc, char **) {
     pp.BackBufferFormat = D3DFMT_X8R8G8B8;
     pp.SwapEffect = D3DSWAPEFFECT_DISCARD;
     pp.EnableAutoDepthStencil = TRUE;
-    pp.AutoDepthStencilFormat = D3DFMT_D16;
-    if (argc > 1) {
+    pp.AutoDepthStencilFormat = depth24 ? D3DFMT_D24X8 : D3DFMT_D16;
+    if (msaa) {
         if (FAILED(root->CheckDeviceMultiSampleType(0, D3DDEVTYPE_HAL, pp.BackBufferFormat, TRUE,
                                                     D3DMULTISAMPLE_8_SAMPLES, nullptr))) {
             puts("SKIP: 8x MSAA unavailable");
@@ -104,6 +109,7 @@ int main(int argc, char **) {
             puts("SKIP: optional NVIDIA depth copy unavailable; fallback material is tested separately");
             return 0;
         }
+        CHECK(probe.quantum() == (depth24 ? 1.f / 16777215.f : 1.f / 65535.f));
     }
     Com<IDirect3DTexture9> texture;
     CHECK(SUCCEEDED(d->CreateTexture(1, 1, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, texture.out(), nullptr)));
@@ -158,7 +164,7 @@ int main(int argc, char **) {
     bool steppedMesh = false;
     bool translatedScene = false;
     auto render = [&](float floorY, bool wall, bool replace) {
-        water.beginFrame(true, true, true);
+        water.beginFrame(true, true, true, settings.waterCaustics > 0);
         d->SetRenderState(D3DRS_ZENABLE, TRUE);
         d->SetRenderState(D3DRS_ZWRITEENABLE, TRUE);
         d->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
@@ -222,7 +228,10 @@ int main(int argc, char **) {
             ok = water.begin(settings, sizeof(Vertex));
             float optics[4]{};
             d->GetPixelShaderConstantF(14, optics, 1);
-            ok = ok && optics[0] == ((settings.waterDepth > 0 || settings.waterSSR > 0) ? 1.f : 0.f);
+            ok = ok &&
+                 optics[0] ==
+                     ((settings.waterDepth > 0 || settings.waterSSR > 0 || settings.waterCaustics > 0) ? 1.f
+                                                                                                       : 0.f);
             if (ok && !steppedMesh)
                 ok = SUCCEEDED(d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, vertices, sizeof(Vertex)));
             else if (ok) {
@@ -346,6 +355,59 @@ int main(int argc, char **) {
         };
         CHECK(luminance(night[sample]) < luminance(day[sample]) / 3);
         printf("Water lighting: day=%d night=%d\n", luminance(day[sample]), luminance(night[sample]));
+        sceneLight = -1;
+        // Caustics light only the transmitted underwater scene, not the real object above it.
+        settings.waterSky = 0;
+        settings.waterWaves = .03f;
+        settings.waterRipples = .7f;
+        settings.waterDepth = .8f;
+        sceneLight = 1;
+        settings.waterCaustics = 0;
+        CHECK(render(-2, true, true));
+        auto unlitFloor = ReadFrame(d);
+        settings.waterCaustics = 1;
+        CHECK(render(-2, true, true));
+        auto focusedFloor = ReadFrame(d);
+        unsigned focused = 0;
+        for (UINT y = Height / 2; y < Height; ++y)
+            for (UINT x = Width / 4; x < Width * 3 / 4; ++x)
+                focused += Difference(unlitFloor[y * Width + x], focusedFloor[y * Width + x]) > 3;
+        printf("Caustic receiver pixels: %u depth24=%d\n", focused, depth24);
+        CHECK(focused > 100);
+        CHECK(unlitFloor[80 * Width + 320] == focusedFloor[80 * Width + 320]);
+        const auto quarterBytes = water.bytes();
+        settings.waterCausticScale = 2;
+        CHECK(render(-2, true, true));
+        CHECK(water.bytes() == quarterBytes + Width * Height * 3 / 4);
+        settings.waterCausticScale = 4;
+        sceneLight = .07f;
+        settings.waterCaustics = 0;
+        CHECK(render(-2, true, true));
+        auto nightOff = ReadFrame(d);
+        CHECK(water.bytes() == quarterBytes - Width * Height / 4);
+        settings.waterCaustics = 1;
+        CHECK(render(-2, true, true));
+        auto nightOn = ReadFrame(d);
+        unsigned dayDifference = 0, nightDifference = 0;
+        for (UINT y = Height / 2; y < Height; ++y)
+            for (UINT x = Width / 4; x < Width * 3 / 4; ++x) {
+                auto i = y * Width + x;
+                dayDifference += Difference(unlitFloor[i], focusedFloor[i]);
+                nightDifference += Difference(nightOff[i], nightOn[i]);
+            }
+        CHECK(dayDifference > nightDifference * 4);
+        sceneLight = 1;
+        if (!reset) {
+            CHECK(Save(unlitFloor, L"build/water-caustics-off.bmp"));
+            CHECK(Save(focusedFloor, L"build/water-caustics-on.bmp"));
+        }
+        settings.waterWaves = settings.waterRipples = 0;
+        CHECK(render(-2, false, true));
+        auto flatFocused = ReadFrame(d);
+        settings.waterCaustics = 0;
+        CHECK(render(-2, false, true));
+        CHECK(flatFocused == ReadFrame(d));
+        settings.waterSky = .75f;
         sceneLight = -1;
         settings.waterDepth = 1;
         settings.waterRefraction = .4f;

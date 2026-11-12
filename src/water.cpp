@@ -2,6 +2,7 @@
 #include "generated/water_catalog.hpp"
 #include <generated/water_vs.hpp>
 #include <generated/water_ps.hpp>
+#include <generated/caustics.hpp>
 #include <cstring>
 
 WaterFX::~WaterFX() {
@@ -17,6 +18,11 @@ void WaterFX::invalidate() {
     normalBytes_ = 0;
     normalFailed_ = false;
     depth_.invalidate();
+    causticSurface_.out();
+    caustics_.out();
+    causticShader_.out();
+    causticWidth_ = causticHeight_ = 0;
+    causticFailed_ = false;
     sceneSurface_.out();
     scene_.out();
     sceneWidth_ = sceneHeight_ = 0;
@@ -263,6 +269,79 @@ void WaterFX::captureEnvironment(D3DPRIMITIVETYPE type, UINT start, UINT count) 
     if (ok)
         environmentTime_ = GetTickCount();
 }
+bool WaterFX::prepareCaustics(const Settings &s, const D3DMATRIX &view, const float *eye, const float *camera,
+                              const float *viewport, const float *dir, const float *light) {
+    if (causticAttempted_)
+        return causticReady_;
+    causticAttempted_ = true;
+    if (causticFailed_ || s.waterCaustics <= 0 || dir[3] == 0 || dir[1] <= .05f)
+        return false;
+    const UINT width = std::max(1u, sceneWidth_ / s.waterCausticScale);
+    const UINT height = std::max(1u, sceneHeight_ / s.waterCausticScale);
+    if (!causticShader_.p && FAILED(device_->CreatePixelShader(ShaderCausticFieldPS, causticShader_.out()))) {
+        causticFailed_ = true;
+        return false;
+    }
+    if (!caustics_.p || width != causticWidth_ || height != causticHeight_) {
+        causticSurface_.out();
+        caustics_.out();
+        if (FAILED(device_->CreateTexture(width, height, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8,
+                                          D3DPOOL_DEFAULT, caustics_.out(), nullptr)) ||
+            FAILED(caustics_->GetSurfaceLevel(0, causticSurface_.out()))) {
+            caustics_.out();
+            causticFailed_ = true;
+            return false;
+        }
+        causticWidth_ = width;
+        causticHeight_ = height;
+    }
+    StateGuard state(device_);
+    if (!state.valid())
+        return false;
+    state.isolateTargets();
+    for (DWORD sampler = 0; sampler < 6; ++sampler)
+        device_->SetTexture(sampler, nullptr);
+    const D3DVIEWPORT9 vp{0, 0, width, height, 0, 1};
+    float waves[] = {s.waterWaves, s.waterLength, s.waterSpeed, s.waterRipples};
+    float optics[] = {s.waterRippleScale, s.waterCaustics, 2.f, s.waterDispersion};
+    if (FAILED(device_->SetRenderTarget(0, causticSurface_)) || FAILED(device_->SetViewport(&vp)) ||
+        FAILED(device_->SetVertexShader(nullptr)) || FAILED(device_->SetFVF(D3DFVF_XYZRHW | D3DFVF_TEX1)) ||
+        FAILED(device_->SetPixelShader(causticShader_)) ||
+        FAILED(device_->SetPixelShaderConstantF(0, eye, 1)) ||
+        FAILED(device_->SetPixelShaderConstantF(1, camera, 1)) ||
+        FAILED(device_->SetPixelShaderConstantF(2, viewport, 1)) ||
+        FAILED(device_->SetPixelShaderConstantF(3, &view.m[0][0], 4)) ||
+        FAILED(device_->SetPixelShaderConstantF(7, waves, 1)) ||
+        FAILED(device_->SetPixelShaderConstantF(8, optics, 1)) ||
+        FAILED(device_->SetPixelShaderConstantF(9, dir, 1)) ||
+        FAILED(device_->SetPixelShaderConstantF(10, light, 1)) ||
+        FAILED(device_->SetTexture(0, depth_.texture())) || FAILED(device_->SetTexture(1, normals_)))
+        return false;
+    for (auto key : {D3DRS_ZENABLE, D3DRS_ZWRITEENABLE, D3DRS_ALPHABLENDENABLE, D3DRS_ALPHATESTENABLE,
+                     D3DRS_STENCILENABLE, D3DRS_SCISSORTESTENABLE, D3DRS_FOGENABLE, D3DRS_SRGBWRITEENABLE,
+                     D3DRS_CLIPPLANEENABLE})
+        device_->SetRenderState(key, FALSE);
+    device_->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
+    device_->SetRenderState(D3DRS_FILLMODE, D3DFILL_SOLID);
+    device_->SetRenderState(D3DRS_COLORWRITEENABLE, 15);
+    for (DWORD sampler : {0u, 1u}) {
+        device_->SetSamplerState(sampler, D3DSAMP_MINFILTER, sampler ? D3DTEXF_LINEAR : D3DTEXF_POINT);
+        device_->SetSamplerState(sampler, D3DSAMP_MAGFILTER, sampler ? D3DTEXF_LINEAR : D3DTEXF_POINT);
+        device_->SetSamplerState(sampler, D3DSAMP_MIPFILTER, sampler ? D3DTEXF_LINEAR : D3DTEXF_NONE);
+        device_->SetSamplerState(sampler, D3DSAMP_ADDRESSU, sampler ? D3DTADDRESS_WRAP : D3DTADDRESS_CLAMP);
+        device_->SetSamplerState(sampler, D3DSAMP_ADDRESSV, sampler ? D3DTADDRESS_WRAP : D3DTADDRESS_CLAMP);
+        device_->SetSamplerState(sampler, D3DSAMP_SRGBTEXTURE, FALSE);
+    }
+    struct Vertex {
+        float x, y, z, w, u, v;
+    };
+    const Vertex quad[] = {{-.5f, -.5f, 0, 1, 0, 0},
+                           {width - .5f, -.5f, 0, 1, 1, 0},
+                           {-.5f, height - .5f, 0, 1, 0, 1},
+                           {width - .5f, height - .5f, 0, 1, 1, 1}};
+    causticReady_ = SUCCEEDED(device_->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, quad, sizeof(Vertex)));
+    return causticReady_;
+}
 bool WaterFX::begin(const Settings &s, UINT upStride) {
     if (failed_ || state_)
         return false;
@@ -311,7 +390,7 @@ bool WaterFX::begin(const Settings &s, UINT upStride) {
     float waves[] = {s.waterWaves, s.waterLength, s.waterSpeed, rangeFog ? 1.f : 0.f};
     float surface[] = {s.waterRipples, s.waterRippleScale, s.waterOpacity, s.waterSky};
     float sun[] = {s.waterGlints, s.waterGloss, s.waterTint, s.waterSpeed};
-    bool needScene = s.waterRefraction > 0 || s.waterDepth > 0 || s.waterSSR > 0;
+    bool needScene = s.waterRefraction > 0 || s.waterDepth > 0 || s.waterSSR > 0 || s.waterCaustics > 0;
     bool refract = needScene && captureScene();
     if (!needScene && scene_.p) {
         sceneSurface_.out();
@@ -326,7 +405,7 @@ bool WaterFX::begin(const Settings &s, UINT upStride) {
     bool perspective = std::abs(projection._34 - 1) < .001f && std::abs(projection._44) < .001f &&
                        std::abs(projection._31) + std::abs(projection._32) < .001f && projection._11 > 0 &&
                        projection._22 > 0;
-    bool depth = refract && perspective && (s.waterDepth > 0 || s.waterSSR > 0) &&
+    bool depth = refract && perspective && (s.waterDepth > 0 || s.waterSSR > 0 || s.waterCaustics > 0) &&
                  depth_.capture(sceneWidth_, sceneHeight_);
     float optics[] = {depth ? 1.f : 0.f, s.waterDepth, s.waterShore, s.waterSSR};
     float camera[] = {projection._11, projection._22, projection._33, projection._43};
@@ -337,13 +416,15 @@ bool WaterFX::begin(const Settings &s, UINT upStride) {
     bool normalMap = normalTexture();
     if (!normalMap)
         return false;
-    float trace[] = {s.waterSSRQuality ? 24.f : 12.f, 80.f, normalMap ? 1.f : 0.f, 0};
+    float trace[] = {s.waterSSRQuality ? 24.f : 12.f, 80.f, normalMap ? 1.f : 0.f, depth_.quantum()};
     D3DLIGHT9 light{};
     BOOL on = FALSE;
     bool lit = SUCCEEDED(device_->GetLight(0, &light)) && SUCCEEDED(device_->GetLightEnable(0, &on)) && on &&
                light.Type == D3DLIGHT_DIRECTIONAL;
     float dir[] = {-light.Direction.x, -light.Direction.y, -light.Direction.z, lit ? 1.f : 0.f};
     float lightColor[] = {light.Diffuse.r, light.Diffuse.g, light.Diffuse.b, 1};
+    bool caustics = depth && prepareCaustics(s, v, eye, camera, viewportUV, dir, lightColor);
+    float subsurface[] = {caustics ? 1.f : 0.f, 0, 0, 0};
     DWORD lighting = 0, ambientColor = 0;
     device_->GetRenderState(D3DRS_LIGHTING, &lighting);
     device_->GetRenderState(D3DRS_AMBIENT, &ambientColor);
@@ -405,15 +486,17 @@ bool WaterFX::begin(const Settings &s, UINT upStride) {
         FAILED(device_->SetPixelShaderConstantF(17, trace, 1)) ||
         FAILED(device_->SetPixelShaderConstantF(18, ambient, 1)) ||
         FAILED(device_->SetPixelShaderConstantF(19, diffuse, 1)) ||
+        FAILED(device_->SetPixelShaderConstantF(20, subsurface, 1)) ||
         FAILED(device_->SetTexture(1, refract ? scene_.p : nullptr)) ||
         FAILED(device_->SetTexture(2, environment ? environment_.p : nullptr)) ||
         FAILED(device_->SetTexture(3, depth ? depth_.texture() : nullptr)) ||
-        FAILED(device_->SetTexture(4, normalMap ? normals_.p : nullptr))) {
+        FAILED(device_->SetTexture(4, normalMap ? normals_.p : nullptr)) ||
+        FAILED(device_->SetTexture(5, caustics ? caustics_.p : nullptr))) {
         end();
         return false;
     }
     device_->SetRenderState(D3DRS_FOGENABLE, FALSE); // PS performs the original fog exactly once
-    for (DWORD sampler : {1u, 2u}) {
+    for (DWORD sampler : {1u, 2u, 5u}) {
         for (auto key : {D3DSAMP_MINFILTER, D3DSAMP_MAGFILTER})
             device_->SetSamplerState(sampler, key, D3DTEXF_LINEAR);
         device_->SetSamplerState(sampler, D3DSAMP_MIPFILTER, D3DTEXF_NONE);

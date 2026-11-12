@@ -16,6 +16,8 @@ if ($LASTEXITCODE) { throw 'HLSL compilation failed' }
 if ($LASTEXITCODE) { throw 'Water VS compilation failed' }
 & '.\build\shaderc.exe' 'shaders/water_ps.hlsl' 'src/generated/water_ps.hpp' 'WaterPS' 'ps_3_0'
 if ($LASTEXITCODE) { throw 'Water PS compilation failed' }
+& '.\build\shaderc.exe' 'shaders/caustics.hlsl' 'src/generated/caustics.hpp' 'CausticFieldPS' 'ps_3_0'
+if ($LASTEXITCODE) { throw 'Caustics compilation failed' }
 $imgui='vendor/imgui-1.92.9b'
 $sources=@('src/exports.cpp','src/generated/exports.cpp','src/proxy.cpp','src/generated/proxies.cpp','src/settings.cpp','src/runtime.cpp','src/effects.cpp','src/water.cpp','src/fps_limiter.cpp','src/ui.cpp',
     "$imgui/imgui.cpp","$imgui/imgui_draw.cpp","$imgui/imgui_tables.cpp","$imgui/imgui_widgets.cpp","$imgui/backends/imgui_impl_win32.cpp","$imgui/backends/imgui_impl_dx9.cpp")
@@ -39,6 +41,10 @@ if ($Tests) {
     if ($LASTEXITCODE) { throw 'FPS limiter test build failed' }
     & '.\build\fps-limiter-test.exe'
     if ($LASTEXITCODE) { throw 'FPS limiter tests failed' }
+    & $cxx '-std=c++20' '-O2' '-static' '-Isrc' 'tests/depth_policy_test.cpp' 'src/settings.cpp' 'src/fps_limiter.cpp' '-ld3d9' '-lbcrypt' '-lwinmm' '-o' 'build/depth-policy-test.exe'
+    if ($LASTEXITCODE) { throw 'Depth policy test build failed' }
+    & '.\build\depth-policy-test.exe'
+    if ($LASTEXITCODE) { throw 'Depth policy tests failed' }
     & $cxx '-std=c++20' '-O2' '-static' '-Isrc' 'tests/water_test.cpp' 'src/water.cpp' '-ld3d9' '-ldxguid' '-lbcrypt' '-o' 'build/water-test.exe'
     if($LASTEXITCODE){throw 'Water test build failed'}
     & '.\build\water-test.exe'
@@ -51,6 +57,10 @@ if ($Tests) {
     if($LASTEXITCODE){throw 'Water scene test failed'}
     & '.\build\water-scene-test.exe' '--msaa'
     if($LASTEXITCODE){throw 'MSAA water scene test failed'}
+    & '.\build\water-scene-test.exe' '--depth24'
+    if($LASTEXITCODE){throw 'D24 water scene test failed'}
+    & '.\build\water-scene-test.exe' '--depth24' '--msaa'
+    if($LASTEXITCODE){throw 'D24 MSAA water scene test failed'}
     & $cxx '-std=c++20' '-O2' '-static' '-Isrc' 'tests/dx9_test.cpp' 'src/settings.cpp' '-ld3d9' '-ldxguid' '-lgdi32' '-lgdiplus' '-lpsapi' '-o' "$outputDirectory/FENB-preview.exe"
     if ($LASTEXITCODE) { throw 'DX9 test build failed' }
     & $cxx '-std=c++20' '-O2' '-static' '-Isrc' 'tests/hud_test.cpp' 'src/settings.cpp' '-ld3d9' '-ldxguid' '-o' "$outputDirectory/hud-test.exe"

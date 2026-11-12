@@ -233,6 +233,7 @@ int MatchingPreset(const Settings &s) {
         candidate.openOnStart = s.openOnStart;
         candidate.panelPage = s.panelPage;
         candidate.unlockFps = s.unlockFps;
+        candidate.preciseWaterDepth = s.preciseWaterDepth;
         if (candidate == s)
             return i;
     }
@@ -285,6 +286,7 @@ void ProfilePicker(Runtime &r, float width) {
     saved.openOnStart = s.openOnStart;
     saved.panelPage = s.panelPage;
     saved.unlockFps = s.unlockFps;
+    saved.preciseWaterDepth = s.preciseWaterDepth;
     std::string caption = r.selectedProfile + (saved == s ? "" : " *");
     ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(.16f, .17f, .19f, 1));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10, 9));
@@ -321,6 +323,7 @@ void ProfilePicker(Runtime &r, float width) {
                         next.panelPage = s.panelPage;
                         next.enabled = s.enabled;
                         next.unlockFps = s.unlockFps;
+                        next.preciseWaterDepth = s.preciseWaterDepth;
                         s = next;
                         r.selectedProfile = label;
                         r.selectedProfileSettings = s;
@@ -433,10 +436,13 @@ void DrawPanel(Runtime &r) {
             ImGuiHoveredFlags_AllowWhenDisabled);
         ImGui::Separator();
 #ifdef FENB_DIAGNOSTICS
-        if (ImGui::MenuItem("Записать 3 кадра DX9"))
+        if (ImGui::MenuItem("Записать 3 кадра DX9 (через 3 с)"))
             r.requestCapture();
         ImGui::Separator();
 #endif
+        ImGui::MenuItem("Глубина воды 24 бита",nullptr,&s.preciseWaterDepth);
+        Tip("После перезапуска клиента. Уменьшает полосы глубины. При 1920×1080 и 8× MSAA — около 32 МБ видеопамяти.");
+        ImGui::Separator();
         if (ImGui::MenuItem("Сохранить настройки", "Ctrl+S"))
             r.save();
         if (ImGui::MenuItem("Перечитать FENB.ini"))
@@ -597,6 +603,19 @@ void DrawPanel(Runtime &r) {
             const char *qualities[] = {"Экономное", "Подробное"};
             ImGui::Combo("##waterSSRQuality", &s.waterSSRQuality, qualities, 2);
             Tip("12 или 24 шага. Нужна читаемая глубина; при недоступности остаётся отражение неба.");
+            ImGui::SetCursorScreenPos(p);
+            ImGui::Dummy({width, RowHeight});
+            Row("Каустика", "Подвижное освещение дна преломлённым светом. Нужна читаемая глубина.",
+                s.waterCaustics, 0, 2, defaults.waterCaustics, "%.2f", .05f);
+            Row("Дисперсия", "Слабое разделение цвета по краям каустики, без искажения всего экрана.",
+                s.waterDispersion, 0, 1, defaults.waterDispersion, "%.2f", .05f);
+            p = ImGui::GetCursorScreenPos();
+            TextAt(ImGui::GetWindowDrawList(), {p.x, p.y + 5}, "Качество каустики");
+            ImGui::SetCursorScreenPos({p.x + 146, p.y + 2});
+            ImGui::SetNextItemWidth(width - 171);
+            int causticQuality = s.waterCausticScale == 2 ? 1 : 0;
+            if (ImGui::Combo("##causticQuality", &causticQuality, qualities, 2))
+                s.waterCausticScale = causticQuality ? 2 : 4;
             ImGui::SetCursorScreenPos(p);
             ImGui::Dummy({width, RowHeight});
             ImGui::EndDisabled();

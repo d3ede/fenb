@@ -3,6 +3,7 @@ sampler2D SceneColor : register(s1);
 samplerCUBE SkyEnvironment : register(s2);
 sampler2D SceneDepth : register(s3);
 sampler2D WaterNormals : register(s4);
+sampler2D CausticField : register(s5);
 float4 EyeTime : register(c0);
 float4 Surface : register(c1); // ripple strength, scale, opacity, sky
 float4 Sun : register(c2); // glints, gloss, tint, speed
@@ -17,9 +18,10 @@ row_major float4x4 View : register(c10);
 float4 Optics : register(c14); // valid depth, absorption, shore width, SSR
 float4 Camera : register(c15); // projection _11, _22, _33, _43
 float4 Viewport : register(c16); // origin UV, extent UV
-float4 Trace : register(c17); // steps, world-distance budget
+float4 Trace : register(c17); // steps, world-distance budget, normal map, source depth quantum
 float4 BodyAmbient : register(c18);
 float4 BodyDiffuse : register(c19);
+float4 Subsurface : register(c20);
 
 float DepthZ(float2 uv) {
     float z=tex2Dlod(SceneDepth,float4(uv,0,0)).r;
@@ -60,7 +62,7 @@ float4 TraceReflection(float3 start,float3 direction,float3 planeNormal) {
             float hitZ=DepthZ(hitUV);
             float3 hit=ViewPoint(hitUV,hitZ);
             // Reject silhouette jumps and loose depth matches instead of stretching a bank into water.
-            float tolerance=clamp(2*hitZ*hitZ/(max(.01,abs(Camera.w))*65535),.03,.35);
+            float tolerance=clamp(2*hitZ*hitZ*Trace.w/max(.01,abs(Camera.w)),.03,.35);
             float edgeZ=max(abs(DepthZ(hitUV+float2(Screen.x,0))-hitZ),abs(DepthZ(hitUV+float2(0,Screen.y))-hitZ));
             float2 edge=min((hitUV-Viewport.xy)/Viewport.zw,1-(hitUV-Viewport.xy)/Viewport.zw);
             float confidence=saturate(min(edge.x,edge.y)*14)*saturate(1-hi/Trace.y);
@@ -76,7 +78,8 @@ float4 WaterPS(float2 uv:TEXCOORD0,float3 relative:TEXCOORD1,float3 normal:TEXCO
     float t=EyeTime.w*Sun.w;
     float3 world=relative+EyeTime.xyz;
     float2 p=world.xz*Surface.y;
-    float footprint=max(length(ddx(p)),length(ddy(p)));
+    float2 footprintXY=max(abs(ddx(p)),abs(ddy(p)));
+    float footprint=max(footprintXY.x,footprintXY.y)*1.414214;
     float3 viewPosition=mul(float4(relative,0),View).xyz;
     float3 v=normalize(-relative);
     float3 geometric=cross(ddx(relative),ddy(relative));
@@ -92,11 +95,10 @@ float4 WaterPS(float2 uv:TEXCOORD0,float3 relative:TEXCOORD1,float3 normal:TEXCO
         worldReflection=TraceReflection(viewPosition+planeNormal*.05,direction,planeNormal);
     }
     // Crossed, domain-warped wave bands break the old regular horizontal comb.
-    float firstLOD=clamp(log2(max(1,footprint*128*.065)),0,7);
-    float secondLOD=clamp(log2(max(1,footprint*128*.109)),0,7);
+    float firstLOD=clamp(log2(max(1,footprint*128*.109)),0,7);
     float2 first=tex2Dlod(WaterNormals,float4(p*.065+t*float2(.011,.007),0,firstLOD)).rg*2-1;
     float2 rotated=float2(p.x*.8-p.y*.6,p.x*.6+p.y*.8);
-    float2 second=tex2Dlod(WaterNormals,float4(rotated*.109+t*float2(-.008,.009),0,secondLOD)).rg*2-1;
+    float2 second=tex2Dlod(WaterNormals,float4(rotated*.109+t*float2(-.008,.009),0,firstLOD)).rg*2-1;
     float2 ripple=first+float2(second.x*.8+second.y*.6,-second.x*.6+second.y*.8)*.5;
     // Attenuate subpixel ripples at distance instead of letting specular highlights shimmer.
     float rippleFade=rcp(1+footprint*footprint*6);
@@ -104,7 +106,7 @@ float4 WaterPS(float2 uv:TEXCOORD0,float3 relative:TEXCOORD1,float3 normal:TEXCO
     float3 n=normalize(lerp(geometric,normal,surface)+float3(ripple.x,0,ripple.y)*Surface.x*.12*rippleFade*surface);
     float2 screenUV=(pixel+.5)*Screen.xy;
     float path=0,shore=1;
-    if(Optics.x>.5 && Optics.y>0){
+    if(Optics.x>.5){
         float floorZ=DepthZ(screenUV);
         path=clamp((floorZ-viewPosition.z)*length(viewPosition)/max(.1,viewPosition.z),0,80);
         shore=smoothstep(0,max(Optics.z,fwidth(path)*2),path);
@@ -139,6 +141,10 @@ float4 WaterPS(float2 uv:TEXCOORD0,float3 relative:TEXCOORD1,float3 normal:TEXCO
             if(sampleZ<viewPosition.z+.01 || dot(samplePosition-viewPosition,planeNormal)>.03)sampleUV=screenUV;
         }
         float3 through=tex2D(SceneColor,sampleUV).rgb;
+        if(Subsurface.x>.5){
+            float3 focused=(tex2D(CausticField,sampleUV).rgb-128/255.0)*8;
+            through*=max(0,1+focused*(saturate(path*4)/(1+path*.1))*shore*surface);
+        }
         if(Optics.x>.5 && Optics.y>0){
             float density=-log(max(.001,1-Surface.z))*.14*Optics.y;
             float3 transmission=exp(-float3(1.5,.48,.27)*path*density);

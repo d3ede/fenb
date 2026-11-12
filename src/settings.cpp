@@ -47,6 +47,9 @@ void Settings::resetWaterScene() {
     waterShore = d.waterShore;
     waterSSR = d.waterSSR;
     waterSSRQuality = d.waterSSRQuality;
+    waterCaustics = d.waterCaustics;
+    waterDispersion = d.waterDispersion;
+    waterCausticScale = d.waterCausticScale;
 }
 
 void Settings::sanitize() {
@@ -83,6 +86,9 @@ void Settings::sanitize() {
     range(waterShore, .05f, 3, .6f);
     range(waterSSR, 0, 1, .65f);
     waterSSRQuality = waterSSRQuality == 1 ? 1 : 0;
+    range(waterCaustics, 0, 2, 0);
+    range(waterDispersion, 0, 1, .15f);
+    waterCausticScale = waterCausticScale == 2 ? 2 : 4;
 }
 
 bool Settings::load(const std::wstring &path) {
@@ -107,31 +113,33 @@ bool Settings::load(const std::wstring &path) {
         next.m = number;
         READ_BOOL("enabled", enabled)
         READ_BOOL("unlock_fps", unlockFps)
+        READ_BOOL("precise_water_depth", preciseWaterDepth)
         READ_BOOL("bloom", bloom)
-        READ_BOOL("color", color) READ_BOOL("open_on_start", openOnStart)
-            READ_FLOAT("bloom_strength", bloomStrength) READ_FLOAT("threshold", threshold)
-                READ_FLOAT("knee", knee) READ_FLOAT("radius", radius) if (strcmp(key, "bloom_scale") == 0)
+        READ_BOOL("color", color)
+        READ_BOOL("open_on_start", openOnStart) READ_FLOAT("bloom_strength", bloomStrength)
+            READ_FLOAT("threshold", threshold) READ_FLOAT("knee", knee)
+                READ_FLOAT("radius", radius) if (strcmp(key, "bloom_scale") == 0)
                     next.bloomScale = number == 2 ? 2 : 4;
         if (strcmp(key, "panel_page") == 0)
             next.panelPage = int(std::clamp(number, 0.f, 3.f));
         READ_FLOAT("exposure", exposure)
         READ_FLOAT("contrast", contrast)
-        READ_FLOAT("saturation", saturation) READ_FLOAT("temperature", temperature) READ_FLOAT("tint", tint)
-            READ_FLOAT("gamma", gamma) READ_FLOAT("shadows", shadows) READ_FLOAT("highlights", highlights)
-                READ_BOOL("water", water) READ_FLOAT("water_waves", waterWaves)
-                    READ_FLOAT("water_length", waterLength) READ_FLOAT("water_speed", waterSpeed)
-                        READ_FLOAT("water_ripples", waterRipples)
-                            READ_FLOAT("water_ripple_scale", waterRippleScale)
-                                READ_FLOAT("water_opacity", waterOpacity) READ_FLOAT("water_sky", waterSky)
-                                    READ_FLOAT("water_glints", waterGlints)
-                                        READ_FLOAT("water_gloss", waterGloss)
-                                            READ_FLOAT("water_tint", waterTint)
-        READ_FLOAT("water_refraction", waterRefraction)
-        READ_FLOAT("water_texture", waterTexture)
-        READ_FLOAT("water_depth", waterDepth)
-        READ_FLOAT("water_shore", waterShore)
-        READ_FLOAT("water_ssr", waterSSR)
-        if (strcmp(key, "water_ssr_quality") == 0) next.waterSSRQuality = number == 1 ? 1 : 0;
+        READ_FLOAT("saturation", saturation)
+        READ_FLOAT("temperature", temperature) READ_FLOAT("tint", tint) READ_FLOAT("gamma", gamma) READ_FLOAT(
+            "shadows", shadows) READ_FLOAT("highlights", highlights) READ_BOOL("water", water)
+            READ_FLOAT("water_waves", waterWaves) READ_FLOAT("water_length", waterLength)
+                READ_FLOAT("water_speed", waterSpeed) READ_FLOAT("water_ripples", waterRipples) READ_FLOAT(
+                    "water_ripple_scale", waterRippleScale) READ_FLOAT("water_opacity", waterOpacity)
+                    READ_FLOAT("water_sky", waterSky) READ_FLOAT("water_glints", waterGlints)
+                        READ_FLOAT("water_gloss", waterGloss) READ_FLOAT("water_tint", waterTint) READ_FLOAT(
+                            "water_refraction", waterRefraction) READ_FLOAT("water_texture", waterTexture)
+                            READ_FLOAT("water_depth", waterDepth) READ_FLOAT("water_shore", waterShore)
+                                READ_FLOAT("water_ssr", waterSSR) READ_FLOAT("water_caustics", waterCaustics)
+                                    READ_FLOAT("water_dispersion",
+                                               waterDispersion) if (strcmp(key, "water_caustic_scale") == 0)
+                                        next.waterCausticScale = number == 2 ? 2 : 4;
+        if (strcmp(key, "water_ssr_quality") == 0)
+            next.waterSSRQuality = number == 1 ? 1 : 0;
 #undef READ_BOOL
 #undef READ_FLOAT
     }
@@ -152,18 +160,21 @@ bool Settings::save(const std::wstring &path) const {
     int written = fprintf(
         file,
         "; FENB / Shift + Enter opens the "
-        "panel\n[General]\nenabled=%d\nopen_on_start=%d\npanel_page=%d\nunlock_fps=%d\n"
+        "panel\n[General]\nenabled=%d\nopen_on_start=%d\npanel_page=%d\nunlock_fps=%d\nprecise_water_depth=%"
+        "d\n"
         "\n[Bloom]\nbloom=%d\nbloom_strength=%.6f\nthreshold=%.6f\nknee=%.6f\nradius=%.6f\nbloom_scale=%d\n"
         "\n[Color]\ncolor=%d\nexposure=%.6f\ncontrast=%.6f\nsaturation=%.6f\ntemperature=%.6f\ntint=%."
         "6f\ngamma=%.6f\nshadows=%.6f\nhighlights=%.6f\n"
         "\n[WaterFX]\nwater=%d\nwater_waves=%.6f\nwater_length=%.6f\nwater_speed=%.6f\nwater_ripples=%."
         "6f\nwater_ripple_scale=%.6f\nwater_opacity=%.6f\nwater_sky=%.6f\nwater_glints=%.6f\nwater_gloss=%."
         "6f\nwater_tint=%.6f\nwater_refraction=%.6f\nwater_texture=%.6f\nwater_depth=%.6f\n"
-        "water_shore=%.6f\nwater_ssr=%.6f\nwater_ssr_quality=%d\n",
-        enabled, openOnStart, panelPage, unlockFps, bloom, bloomStrength, threshold, knee, radius, bloomScale,
-        color, exposure, contrast, saturation, temperature, tint, gamma, shadows, highlights, water,
-        waterWaves, waterLength, waterSpeed, waterRipples, waterRippleScale, waterOpacity, waterSky,
-        waterGlints, waterGloss, waterTint, waterRefraction, waterTexture, waterDepth, waterShore, waterSSR, waterSSRQuality);
+        "water_shore=%.6f\nwater_ssr=%.6f\nwater_ssr_quality=%d\nwater_caustics=%.6f\nwater_dispersion=%."
+        "6f\nwater_caustic_scale=%d\n",
+        enabled, openOnStart, panelPage, unlockFps, preciseWaterDepth, bloom, bloomStrength, threshold, knee,
+        radius, bloomScale, color, exposure, contrast, saturation, temperature, tint, gamma, shadows,
+        highlights, water, waterWaves, waterLength, waterSpeed, waterRipples, waterRippleScale, waterOpacity,
+        waterSky, waterGlints, waterGloss, waterTint, waterRefraction, waterTexture, waterDepth, waterShore,
+        waterSSR, waterSSRQuality, waterCaustics, waterDispersion, waterCausticScale);
     bool ok = written > 0 && !ferror(file);
     if (fclose(file) != 0)
         ok = false;
@@ -181,10 +192,12 @@ bool Settings::save(const std::wstring &path) const {
 void Settings::preset(int index) {
     bool open = openOnStart;
     bool unlock = unlockFps;
+    bool precise = preciseWaterDepth;
     int page = panelPage;
     *this = Settings{};
     openOnStart = open;
     unlockFps = unlock;
+    preciseWaterDepth = precise;
     panelPage = page;
     if (index == 1) {
         bloomStrength = .32f;

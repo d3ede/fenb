@@ -81,6 +81,7 @@ class Runtime {
     FpsLimiter fpsLimiter_;
 #ifdef FENB_DIAGNOSTICS
     std::unique_ptr<PipelineProbe> probe_;
+    ULONGLONG captureDeadline_ = 0;
 #endif
     ImGuiContext *context_ = nullptr;
     HWND window_ = nullptr;

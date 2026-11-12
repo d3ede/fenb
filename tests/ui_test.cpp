@@ -165,6 +165,9 @@ int main() {
     click(610, 168);
     CHECK(r.settings.waterOpacity == Settings{}.waterOpacity);
     CHECK(Screenshot(d, L"build/FENB-water-panel.png"));
+    click(185, 168); // Expose depth/caustic controls without scrolling the full surface section.
+    frame();
+    CHECK(Screenshot(d, L"build/FENB-water-optics.png"));
     click(185, 132);
     CHECK(r.editorPage == 0);
     frame();

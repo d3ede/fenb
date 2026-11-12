@@ -121,6 +121,7 @@ void Runtime::beforeReset() {
     resetFrame();
 #ifdef FENB_DIAGNOSTICS
     probe_->abort();
+    captureDeadline_ = 0;
 #endif
     lost_ = true;
     inScene_ = false;
@@ -148,9 +149,10 @@ void Runtime::resetFrame() {
     lastWaterDraws = waterDraws;
     waterDraws = 0;
     bool waterEnabled = settings.enabled && settings.water && !compare;
-    water_->beginFrame(waterEnabled && (settings.waterRefraction > 0 || settings.waterDepth > 0 || settings.waterSSR > 0),
+    water_->beginFrame(waterEnabled && (settings.waterRefraction > 0 || settings.waterDepth > 0 || settings.waterSSR > 0 || settings.waterCaustics > 0),
                        waterEnabled && settings.waterSky > 0,
-                       waterEnabled && (settings.waterDepth > 0 || settings.waterSSR > 0));
+                       waterEnabled && (settings.waterDepth > 0 || settings.waterSSR > 0 || settings.waterCaustics > 0),
+                       waterEnabled && settings.waterCaustics > 0);
     Drop(sceneBackbuffer_);
     drawTarget_ = nullptr;
     sawWorld_ = hudStarted_ = false;
@@ -252,8 +254,13 @@ void Runtime::beforePresent(IDirect3DSwapChain9 *provided, DWORD flags, HWND win
     }
     bool main = attachWindow(window);
 #ifdef FENB_DIAGNOSTICS
-    if (main)
+    if (main) {
+        if (captureDeadline_ && GetTickCount64() >= captureDeadline_) {
+            captureDeadline_ = 0;
+            probe_->request();
+        }
         probe_->boundary();
+    }
 #endif
     DWORD now = GetTickCount();
     bool activeEditor = false;
@@ -319,8 +326,8 @@ double Runtime::gpuBytes() const {
 }
 #ifdef FENB_DIAGNOSTICS
 void Runtime::requestCapture() {
-    probe_->request();
-    message = "Запрошен захват 3 кадров DX9";
+    captureDeadline_ = GetTickCount64() + 3000;
+    message = "Захват через 3 с — закройте панель";
 }
 void Runtime::captureDraw(const char *api, UINT type, UINT primitives, UINT vertices, UINT stride,
                           const void *up) {
