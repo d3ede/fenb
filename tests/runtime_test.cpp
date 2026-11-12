@@ -26,7 +26,7 @@ LRESULT CALLBACK ClientProc(HWND window, UINT message, WPARAM w, LPARAM l) {
         ++enterChars;
     return DefWindowProcW(window, message, w, l);
 }
-}
+} // namespace
 #define CHECK(x)                                                                                             \
     do {                                                                                                     \
         if (!(x)) {                                                                                          \
@@ -89,7 +89,8 @@ int main() {
         int cursorBefore = cursorMessages;
         int mouseBefore = mouseMessages;
         for (int i = 0; i < 12; ++i) {
-            SendMessageW(window, WM_SETCURSOR, reinterpret_cast<WPARAM>(window), MAKELPARAM(HTCLIENT, WM_MOUSEMOVE));
+            SendMessageW(window, WM_SETCURSOR, reinterpret_cast<WPARAM>(window),
+                         MAKELPARAM(HTCLIENT, WM_MOUSEMOVE));
             CHECK(GetCursor() == clientCursor);
             SendMessageW(window, WM_MOUSEMOVE, 0, MAKELPARAM(30 + i, 30));
             runtime.beforePresent(nullptr);
@@ -107,26 +108,29 @@ int main() {
             runtime.visible = false;
             runtime.editorPage = 1;
             for (int toggle = 0; toggle < 2; ++toggle) {
-                memset(chord, 0, sizeof(chord));chord[VK_SHIFT]=chord[shift]=0x80;
+                memset(chord, 0, sizeof(chord));
+                chord[VK_SHIFT] = chord[shift] = 0x80;
                 SetKeyboardState(chord);
-                SendMessageW(window,WM_KEYDOWN,VK_RETURN,1);
+                SendMessageW(window, WM_KEYDOWN, VK_RETURN, 1);
                 CHECK(runtime.visible == (toggle == 0));
-                if(toggle==0)CHECK(runtime.editorPage==0);
-                SendMessageW(window,WM_KEYDOWN,VK_RETURN,static_cast<LPARAM>(0x40000001u));
+                if (toggle == 0)
+                    CHECK(runtime.editorPage == 0);
+                SendMessageW(window, WM_KEYDOWN, VK_RETURN, static_cast<LPARAM>(0x40000001u));
                 CHECK(runtime.visible == (toggle == 0));
-                SendMessageW(window,WM_CHAR,'\r',1);
-                memset(chord,0,sizeof(chord));SetKeyboardState(chord); // release Shift before Enter
-                SendMessageW(window,WM_KEYUP,VK_RETURN,static_cast<LPARAM>(0xC0000001u));
-                SendMessageW(window,WM_CHAR,'\r',1); // delayed TranslateMessage character
-                SendMessageW(window,WM_SYSCHAR,'\n',1);
+                SendMessageW(window, WM_CHAR, '\r', 1);
+                memset(chord, 0, sizeof(chord));
+                SetKeyboardState(chord); // release Shift before Enter
+                SendMessageW(window, WM_KEYUP, VK_RETURN, static_cast<LPARAM>(0xC0000001u));
+                SendMessageW(window, WM_CHAR, '\r', 1); // delayed TranslateMessage character
+                SendMessageW(window, WM_SYSCHAR, '\n', 1);
             }
         }
         CHECK(enterDown == 0 && enterUp == 0 && enterChars == 0);
-        SendMessageW(window,WM_KEYDOWN,VK_RETURN,1);
-        SendMessageW(window,WM_CHAR,'\r',1);
-        SendMessageW(window,WM_KEYUP,VK_RETURN,static_cast<LPARAM>(0xC0000001u));
+        SendMessageW(window, WM_KEYDOWN, VK_RETURN, 1);
+        SendMessageW(window, WM_CHAR, '\r', 1);
+        SendMessageW(window, WM_KEYUP, VK_RETURN, static_cast<LPARAM>(0xC0000001u));
         CHECK(enterDown == 1 && enterUp == 1 && enterChars == 1); // normal chat Enter is preserved
-        SendMessageW(window,WM_KEYDOWN,VK_F9,1);
+        SendMessageW(window, WM_KEYDOWN, VK_F9, 1);
         CHECK(!runtime.visible); // old shortcut is gone
         SetKeyboardState(originalKeys);
         runtime.visible = true;
@@ -143,6 +147,22 @@ int main() {
     Settings after;
     CHECK(after.load(config));
     CHECK(after.gamma == 1.2f);
+    auto profiles = ModuleDirectory() + L"FENB-presets\\";
+    CreateDirectoryW(profiles.c_str(), nullptr);
+    auto primary = profiles + L"Основной.ini";
+    auto candidate = after;
+    candidate.language = after.language == Language::English ? Language::Russian : Language::English;
+    candidate.unlockFps = !after.unlockFps;
+    candidate.msaaSamples = 4;
+    CHECK(candidate.save(primary));
+    {
+        Runtime runtime(device);
+        CHECK(runtime.selectedProfile == "Основной");
+        CHECK(runtime.settings.language == after.language &&
+              runtime.settings.msaaSamples == after.msaaSamples);
+    }
+    DeleteFileW(primary.c_str());
+    RemoveDirectoryW(profiles.c_str());
     {
         Runtime runtime(device);
         runtime.configPath = ModuleDirectory() + L"missing\\FENB.ini";
@@ -153,6 +173,7 @@ int main() {
     }
     DestroyWindow(window);
     DeleteFileW(config.c_str());
-    puts("PASS: Shift+Enter without chat leakage, normal Enter preserved, single cursor, autosave, shutdown flush.");
+    puts("PASS: Shift+Enter without chat leakage, normal Enter preserved, single cursor, autosave, shutdown "
+         "flush.");
     return 0;
 }
