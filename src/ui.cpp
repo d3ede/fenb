@@ -305,11 +305,14 @@ bool Section(const char *id, const char *title, bool &enabled, bool &reset, bool
         state->SetBool(key, expanded);
     }
     ImU32 c = ImGui::IsItemHovered() ? Text : Muted;
-    if (expanded)
-        d->AddTriangleFilled({p.x + 1, p.y + 12}, {p.x + 8, p.y + 12}, {p.x + 4.5f, p.y + 16}, c);
-    else
-        d->AddTriangleFilled({p.x + 2, p.y + 10}, {p.x + 2, p.y + 17}, {p.x + 6, p.y + 13.5f}, c);
-    TextAt(d, {p.x + 17, p.y + 8}, title, Text, 13);
+    // Rotate one equal-sized silhouette around an inset center in both states.
+    const float angle = Animate("heading-arrow", expanded ? 1.f : 0.f) * 1.57079633f;
+    const float cs = std::cos(angle), sn = std::sin(angle);
+    auto arrow = [&](float x, float y) {
+        return ImVec2(p.x + 12 + x * cs - y * sn, p.y + 15 + x * sn + y * cs);
+    };
+    d->AddTriangleFilled(arrow(-3, -4), arrow(4, 0), arrow(-3, 4), Opacity(c));
+    TextAt(d, {p.x + 28, p.y + 8}, title, Text, 13);
     ImGui::SetCursorScreenPos({p.x + width - 66, p.y + 6});
     reset = ImGui::InvisibleButton("reset-section", {22, 18}, ImGuiButtonFlags_EnableNav);
     ResetGlyph(d, ImGui::GetItemRectMin(), ImGui::IsItemHovered() ? Text : Muted);
@@ -1055,7 +1058,9 @@ void DrawPanel(Runtime &r, const PanelBranding &branding) {
     if (!r.visible && r.pendingSave())
         r.save();
     ImGui::End();
-    if (s.customCursor && ImGui::IsMousePosValid() && ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow)) {
+    const auto mouse = io.MousePos;
+    if (s.customCursor && r.visible && ImGui::IsMousePosValid() && mouse.x >= 0 && mouse.y >= 0 &&
+        mouse.x < io.DisplaySize.x && mouse.y < io.DisplaySize.y) {
         ImGui::SetMouseCursor(ImGuiMouseCursor_None);
         auto p=io.MousePos;
         ImVec2 polygon[4];

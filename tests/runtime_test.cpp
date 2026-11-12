@@ -93,16 +93,35 @@ int main() {
         CHECK(GetFileAttributesW(config.c_str()) == INVALID_FILE_ATTRIBUTES);
         int cursorBefore = cursorMessages;
         int mouseBefore = mouseMessages;
+        SetCursor(clientCursor);
         for (int i = 0; i < 12; ++i) {
             SendMessageW(window, WM_SETCURSOR, reinterpret_cast<WPARAM>(window),
                          MAKELPARAM(HTCLIENT, WM_MOUSEMOVE));
-            CHECK(GetCursor() == clientCursor);
+            CHECK(GetCursor() == nullptr);
             SendMessageW(window, WM_MOUSEMOVE, 0, MAKELPARAM(30 + i, 30));
             runtime.beforePresent(nullptr);
-            CHECK(GetCursor() == clientCursor);
+            CHECK(GetCursor() == nullptr);
         }
-        CHECK(cursorMessages == cursorBefore + 12);
+        CHECK(cursorMessages == cursorBefore); // client cannot reinstate its cursor over the custom pointer
         CHECK(mouseMessages == mouseBefore); // game input stays blocked while the panel is open
+        runtime.settings.customCursor = false;
+        runtime.beforePresent(nullptr);
+        CHECK(GetCursor() == clientCursor);
+        SendMessageW(window, WM_SETCURSOR, reinterpret_cast<WPARAM>(window), MAKELPARAM(HTCLIENT, WM_MOUSEMOVE));
+        CHECK(GetCursor() == clientCursor && cursorMessages == cursorBefore + 1);
+        runtime.settings.customCursor = true;
+        SendMessageW(window, WM_SETCURSOR, reinterpret_cast<WPARAM>(window), MAKELPARAM(HTCLIENT, WM_MOUSEMOVE));
+        CHECK(GetCursor() == nullptr);
+        SendMessageW(window, WM_SETCURSOR, reinterpret_cast<WPARAM>(window), MAKELPARAM(HTCAPTION, WM_MOUSEMOVE));
+        CHECK(GetCursor() == clientCursor); // window borders retain native cursor handling
+        SendMessageW(window, WM_SETCURSOR, reinterpret_cast<WPARAM>(window), MAKELPARAM(HTCLIENT, WM_MOUSEMOVE));
+        CHECK(GetCursor() == nullptr);
+        SendMessageW(window, WM_KILLFOCUS, 0, 0);
+        CHECK(GetCursor() == clientCursor);
+        SendMessageW(window, WM_SETCURSOR, reinterpret_cast<WPARAM>(window), MAKELPARAM(HTCLIENT, WM_MOUSEMOVE));
+        CHECK(GetCursor() == nullptr);
+        SendMessageW(window, WM_KEYDOWN, VK_ESCAPE, 1);
+        CHECK(!runtime.visible && GetCursor() == clientCursor);
         runtime.visible = false;
         SendMessageW(window, WM_MOUSEMOVE, 0, MAKELPARAM(50, 50));
         CHECK(mouseMessages == mouseBefore + 1);

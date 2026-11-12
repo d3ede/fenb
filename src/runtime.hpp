@@ -109,6 +109,7 @@ class Runtime {
     static LRESULT CALLBACK WindowProc(HWND, UINT, WPARAM, LPARAM, UINT_PTR, DWORD_PTR);
     bool attachWindow(HWND window);
     bool initUI();
+    void updateCursor(bool custom);
     void recognizeProfile();
     void invalidate();
     void resetFrame();
@@ -126,6 +127,8 @@ class Runtime {
     ImGuiContext *context_ = nullptr;
     Com<IDirect3DTexture9> panelLogo_;
     HWND window_ = nullptr;
+    HCURSOR nativeCursor_ = nullptr; // borrowed; the client owns its cursor resource
+    bool cursorHidden_ = false;
     bool lost_ = false, inScene_ = false, subclassed_ = false;
     std::recursive_mutex mutex_;
     bool forwardedKeys_[256]{};

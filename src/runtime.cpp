@@ -50,6 +50,7 @@ Runtime::Runtime(IDirect3DDevice9 *device)
 }
 Runtime::~Runtime() {
     std::lock_guard lock(mutex_);
+    updateCursor(false);
     resetFrame();
 #ifdef FENB_DIAGNOSTICS
     probe_.reset();
@@ -103,6 +104,18 @@ void Runtime::recognizeProfile() {
         }
     } while (++count < 128 && FindNextFileW(find, &data));
     FindClose(find);
+}
+void Runtime::updateCursor(bool custom) {
+    if (custom) {
+        if (!cursorHidden_)
+            nativeCursor_ = GetCursor();
+        SetCursor(nullptr);
+        cursorHidden_ = true;
+    } else if (cursorHidden_) {
+        SetCursor(nativeCursor_);
+        nativeCursor_ = nullptr;
+        cursorHidden_ = false;
+    }
 }
 bool Runtime::attachWindow(HWND window) {
     if (!window || !IsWindow(window))
@@ -164,6 +177,7 @@ void Runtime::invalidate() {
 }
 void Runtime::beforeReset() {
     std::lock_guard lock(mutex_);
+    updateCursor(false);
     environment_.reset();
     resetFrame();
 #ifdef FENB_DIAGNOSTICS
@@ -379,6 +393,8 @@ void Runtime::beforePresent(IDirect3DSwapChain9 *provided, DWORD flags, HWND win
     }
     fpsLimiter_.update(settings.unlockFps);
     bool panel = visible && main && initUI();
+    if (!visible || !settings.customCursor || (main && !panel))
+        updateCursor(false);
     if (!settings.enabled || !settings.postEnabled())
         effects_->idle(settings);
     // Final-frame filtering would recolor HUD. Only use this fallback if the frame
@@ -409,11 +425,17 @@ void Runtime::beforePresent(IDirect3DSwapChain9 *provided, DWORD flags, HWND win
         D3DSURFACE_DESC desc{};
         backbuffer->GetDesc(&desc);
         ImGui::GetIO().DisplaySize = ImVec2(float(desc.Width), float(desc.Height));
-        // Neuz owns a Win32 .cur cursor. Sharing it avoids a second software cursor
-        // and competing SetCursor(nullptr)/SetCursor(gameCursor) calls.
+        // Cursor ownership is explicit: the backend must not fight the game.
         ImGui::GetIO().MouseDrawCursor = false;
         ImGui::NewFrame();
         DrawPanel(*this);
+        const auto &io = ImGui::GetIO();
+        if (visible && settings.customCursor && GetForegroundWindow() == window_ && ImGui::IsMousePosValid() &&
+            io.MousePos.x >= 0 && io.MousePos.y >= 0 && io.MousePos.x < io.DisplaySize.x &&
+            io.MousePos.y < io.DisplaySize.y)
+            updateCursor(true);
+        else if (!visible || !settings.customCursor)
+            updateCursor(false);
         ImGui::Render();
         ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());
     }
@@ -517,6 +539,7 @@ LRESULT CALLBACK Runtime::WindowProc(HWND hwnd, UINT msg, WPARAM w, LPARAM l, UI
     auto *self = reinterpret_cast<Runtime *>(data);
     std::lock_guard lock(self->mutex_);
     if (msg == WM_NCDESTROY) {
+        self->updateCursor(false);
         RemoveWindowSubclass(hwnd, WindowProc, id);
         self->subclassed_ = false;
         self->window_ = nullptr;
@@ -566,6 +589,8 @@ LRESULT CALLBACK Runtime::WindowProc(HWND hwnd, UINT msg, WPARAM w, LPARAM l, UI
             ReleaseCapture();
         if (!self->visible && self->dirty_)
             self->save();
+        if (!self->visible)
+            self->updateCursor(false);
         return 0;
     }
     bool editingText = false;
@@ -576,6 +601,7 @@ LRESULT CALLBACK Runtime::WindowProc(HWND hwnd, UINT msg, WPARAM w, LPARAM l, UI
             ImGui_ImplWin32_WndProcHandler(hwnd, msg, w, l);
     }
     if (msg == WM_KILLFOCUS) {
+        self->updateCursor(false);
         self->compare = false;
         self->hotkeyHeld_ = false;
         self->suppressEnterChar_ = false;
@@ -589,13 +615,19 @@ LRESULT CALLBACK Runtime::WindowProc(HWND hwnd, UINT msg, WPARAM w, LPARAM l, UI
         }
         if (msg == WM_KEYDOWN && w == VK_ESCAPE && !editingText) {
             self->visible = false;
+            self->updateCursor(false);
             self->compare = false;
             if (self->dirty_)
                 self->save();
             return 0;
         }
-        // Always let the game's WM_SETCURSOR handler run. NoMouseCursorChange
-        // prevents the ImGui backend from replacing it even over UI controls.
+        if (msg == WM_SETCURSOR) {
+            if (LOWORD(l) == HTCLIENT && self->settings.customCursor && self->context_) {
+                self->updateCursor(true);
+                return TRUE;
+            }
+            self->updateCursor(false);
+        }
         bool mouse = (msg >= WM_MOUSEFIRST && msg <= WM_MOUSELAST) || msg == WM_INPUT;
         bool keyboard = (msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN || msg == WM_CHAR || msg == WM_SYSCHAR);
         if ((msg == WM_KEYUP || msg == WM_SYSKEYUP) && w < 256) {

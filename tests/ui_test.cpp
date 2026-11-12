@@ -148,6 +148,14 @@ int main() {
     frame(); frame();
     auto *panel=ImGui::FindWindowByName("FENB");
     CHECK(panel && panel->Pos.x==120 && panel->Pos.y==30);
+    // The custom pointer also covers client space outside the panel and restores the native fallback.
+    io.AddMousePosEvent(30,30);frame();
+    CHECK(ImGui::GetMouseCursor()==ImGuiMouseCursor_None);
+    CHECK(ImGui::GetForegroundDrawList()->VtxBuffer.Size>0);
+    CHECK(Screenshot(d,L"build/FENB-custom-pointer.png"));
+    r.settings.customCursor=false;frame();
+    CHECK(ImGui::GetMouseCursor()!=ImGuiMouseCursor_None);
+    r.settings.customCursor=true;io.AddMousePosEvent(-FLT_MAX,-FLT_MAX);frame();
     auto child = [&]() -> ImGuiWindow * {
         for(auto *w:ImGui::GetCurrentContext()->Windows)
             if(w->ParentWindow==panel && strstr(w->Name,"adjustments")) return w;
