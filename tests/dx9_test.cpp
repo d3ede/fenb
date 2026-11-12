@@ -71,9 +71,10 @@ void Scene(IDirect3DDevice9* dev,IDirect3DSurface9* surface,UINT width,UINT heig
         state.isolateTargets();dev->SetRenderTarget(0,surface);
         if(SUCCEEDED(dev->BeginScene())){
             D3DMATRIX identity{};identity._11=identity._22=identity._33=identity._44=1;
-            dev->SetTransform(D3DTS_WORLD,&identity);dev->SetTransform(D3DTS_VIEW,&identity);dev->SetTransform(D3DTS_PROJECTION,&identity);
+            auto perspective=identity;perspective._33=perspective._34=1;perspective._43=-.1f;perspective._44=0;
+            dev->SetTransform(D3DTS_WORLD,&identity);dev->SetTransform(D3DTS_VIEW,&identity);dev->SetTransform(D3DTS_PROJECTION,&perspective);
             dev->SetVertexShader(nullptr);dev->SetPixelShader(nullptr);dev->SetFVF(D3DFVF_XYZ|D3DFVF_DIFFUSE);
-            dev->SetRenderState(D3DRS_LIGHTING,FALSE);dev->SetRenderState(D3DRS_ZENABLE,FALSE);
+            dev->SetRenderState(D3DRS_LIGHTING,FALSE);dev->SetRenderState(D3DRS_ZENABLE,FALSE);dev->SetRenderState(D3DRS_ZWRITEENABLE,TRUE);
             struct V{float x,y,z;DWORD color;};V marker[]={{3,3,.5f,0xffffffff},{4,3,.5f,0xffffffff},{3,4,.5f,0xffffffff}};
             dev->DrawPrimitiveUP(D3DPT_TRIANGLELIST,1,marker,sizeof(V));dev->EndScene();
         }

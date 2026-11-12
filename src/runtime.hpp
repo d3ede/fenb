@@ -143,6 +143,6 @@ class Runtime {
     IDirect3DSurface9 *drawTarget_ = nullptr; // borrowed from current native binding
     DWORD drawFVF_ = 0;
     bool fvfKnown_ = false, shaderKnown_ = false, targetKnown_ = false, vertexShaderActive_ = false;
-    bool sawWorld_ = false, hudStarted_ = false;
+    bool sawWorld_ = false, hudStarted_ = false, sawScreenSpace_ = false;
 };
 void DrawPanel(Runtime &runtime);

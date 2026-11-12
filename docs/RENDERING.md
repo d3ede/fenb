@@ -1,4 +1,4 @@
-# FENB 0.2g
+# FENB 0.3a
 
 FENB is a graphics mod for Flyff, inspired by ENBSeries. It uses a Windows x86 Direct3D 9 proxy, C++20, precompiled shaders and a native Dear ImGui settings panel.
 
@@ -22,7 +22,7 @@ The built-in list contains exactly five looks: **Default / Основной**, *
 
 All five are compiled into the DLL; the default image settings come from `config/FENB.ini`, with named variations in `config/builtins.json`. `node tools/embed-presets.mjs` regenerates `src/generated/presets.hpp`, and both build paths keep it in sync. No shipped `.ini` is added under **My profiles**. The old saved copy of Основной can be archived when migrating to the identical built-in, without discarding user edits. Custom files remain independently supported. Image-profile changes preserve the master switch, language, hardware/FPS choices and local time/weather controls. Modified built-ins retain their translated name with an asterisk, and can be saved as a custom profile.
 
-The lower-left corner shows the public version, **0.2g**, followed by save status. Public versions use the form `digit.digitletter`.
+The lower-left corner shows the public version, **0.3a**, followed by save status. Public versions use the form `digit.digitletter`.
 
 ## When an effect is visible
 
@@ -116,7 +116,7 @@ The stability fixture also compares zero and maximum wave amplitude: reflected-o
 
 Restoration also preserves the input-binding changes required by [DrawPrimitiveUP](https://learn.microsoft.com/en-us/windows/win32/api/d3d9/nf-d3d9-idirect3ddevice9-drawprimitiveup) and [DrawIndexedPrimitiveUP](https://learn.microsoft.com/en-us/windows/win32/api/d3d9/nf-d3d9-idirect3ddevice9-drawindexedprimitiveup). Native regression tests exercise both paths.
 
-Post-processing runs before the first screen-space HUD draw, preserving interface colors and later 3D portraits. Present and swap-chain Present remain supported.
+Post-processing runs at the first RHW draw after confirmed depth-writing perspective geometry, preserving interface colors and later 3D portraits. Sky geometry and pre-world RHW passes cannot latch processing off for the rest of the frame. Screen-space-only UI frames and late orthographic portraits remain excluded from the Present fallback. Present and swap-chain Present remain supported.
 
 ## Build and checks
 

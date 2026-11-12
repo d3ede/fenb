@@ -226,7 +226,7 @@ void Runtime::resetFrame() {
                        waterEnabled && settings.waterCaustics > 0);
     Drop(sceneBackbuffer_);
     drawTarget_ = nullptr;
-    sawWorld_ = hudStarted_ = false;
+    sawWorld_ = hudStarted_ = sawScreenSpace_ = false;
     invalidateDrawState();
 }
 void Runtime::beforeWaterDraw(UINT upStride, DrawCall draw) {
@@ -311,11 +311,22 @@ void Runtime::beforeDraw() {
         if (settings.enabled && !compare && !vertexShaderActive_)
             effects_->sceneFX().observe(settings);
         DWORD position = drawFVF_ & D3DFVF_POSITION_MASK;
-        if (vertexShaderActive_ || position == D3DFVF_XYZ ||
-            (position >= D3DFVF_XYZB1 && position <= D3DFVF_XYZB5))
-            sawWorld_ = true;
+        if (!sawWorld_ && (vertexShaderActive_ || position == D3DFVF_XYZ ||
+                          (position >= D3DFVF_XYZB1 && position <= D3DFVF_XYZB5))) {
+            // Sky and translucent world sprites can precede RHW sun/occlusion quads.
+            // Only an opaque perspective pass establishes the main world phase.
+            DWORD write = 0;
+            D3DMATRIX projection{};
+            if (SUCCEEDED(device_->GetRenderState(D3DRS_ZWRITEENABLE, &write)) && write &&
+                SUCCEEDED(device_->GetTransform(D3DTS_PROJECTION, &projection)) &&
+                std::abs(projection._34 - 1) < .001f && std::abs(projection._44) < .001f)
+                sawWorld_ = true;
+        }
         return;
     }
+    sawScreenSpace_ = true;
+    if (!sawWorld_)
+        return; // A pre-world screen-space draw must not latch the renderer off for this frame.
     // Neuz switches from world geometry to RHW HUD/nameplates. Process once BEFORE
     // the first HUD draw. Any later 3D UI previews must remain unprocessed as well.
     hudStarted_ = true;
@@ -399,7 +410,7 @@ void Runtime::beforePresent(IDirect3DSwapChain9 *provided, DWORD flags, HWND win
         effects_->idle(settings);
     // Final-frame filtering would recolor HUD. Only use this fallback if the frame
     // contains confirmed world geometry and no screen-space UI was drawn at all.
-    bool process = sawWorld_ && !hudStarted_ && settings.enabled && !compare && settings.postEnabled();
+    bool process = sawWorld_ && !sawScreenSpace_ && !hudStarted_ && settings.enabled && !compare && settings.postEnabled();
     if (!panel && !process) {
         return;
     }

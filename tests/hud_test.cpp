@@ -16,7 +16,7 @@ void Marker(IDirect3DDevice9* device){
     struct V{float x,y,z;DWORD color;};V v[]={{3,3,.5f,0xffffffff},{4,3,.5f,0xffffffff},{3,4,.5f,0xffffffff}};
     device->SetFVF(D3DFVF_XYZ|D3DFVF_DIFFUSE);device->DrawPrimitiveUP(D3DPT_TRIANGLELIST,1,v,sizeof(V));
 }
-bool Frame(IDirect3DDevice9* device,bool world,bool swapchain,bool readAfter){
+bool Frame(IDirect3DDevice9* device,bool world,bool swapchain,bool readAfter,bool preWorld=false){
     Com<IDirect3DSurface9> bb;device->GetBackBuffer(0,0,D3DBACKBUFFER_TYPE_MONO,bb.out());
     device->ColorFill(bb,nullptr,0xff202830);
     if(FAILED(device->BeginScene()))return false;
@@ -26,10 +26,21 @@ bool Frame(IDirect3DDevice9* device,bool world,bool swapchain,bool readAfter){
     device->SetRenderState(D3DRS_LIGHTING,FALSE);device->SetRenderState(D3DRS_ZENABLE,FALSE);device->SetRenderState(D3DRS_ALPHABLENDENABLE,FALSE);device->SetRenderState(D3DRS_CULLMODE,D3DCULL_NONE);
     device->SetTextureStageState(0,D3DTSS_COLOROP,D3DTOP_SELECTARG1);device->SetTextureStageState(0,D3DTSS_COLORARG1,D3DTA_DIFFUSE);
     device->SetTextureStageState(1,D3DTSS_COLOROP,D3DTOP_DISABLE);
-    if(world)Marker(device);
     struct UI{float x,y,z,w;DWORD color;};UI v[]={{20,20,0,1,0xff40a0e0},{100,20,0,1,0xff40a0e0},{20,60,0,1,0xff40a0e0},{100,60,0,1,0xff40a0e0}};
+    auto perspective=identity;perspective._33=perspective._34=1;perspective._43=-.1f;perspective._44=0;
+    device->SetTransform(D3DTS_PROJECTION,&perspective);
+    if(preWorld){
+        device->SetRenderState(D3DRS_ZWRITEENABLE,FALSE);
+        Marker(device); // Sky geometry alone is not the opaque world phase.
+        device->SetFVF(D3DFVF_XYZRHW|D3DFVF_DIFFUSE);
+        if(FAILED(device->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP,2,v,sizeof(UI))))return false;
+        device->Clear(0,nullptr,D3DCLEAR_TARGET,0xff202830,1,0);
+    }
+    device->SetRenderState(D3DRS_ZWRITEENABLE,TRUE);
+    if(world)Marker(device);
     device->SetFVF(D3DFVF_XYZRHW|D3DFVF_DIFFUSE);
     if(FAILED(device->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP,2,v,sizeof(UI))))return false;
+    device->SetTransform(D3DTS_PROJECTION,&identity);
     Marker(device); // 3D portrait/preview after HUD must not trigger another full-screen pass
     if(FAILED(device->EndScene()))return false;
     DWORD hud=Pixel(device,bb,40,40),background=Pixel(device,bb,200,150);
@@ -53,6 +64,7 @@ int main(){
         D3DPRESENT_PARAMETERS pp{};pp.Windowed=TRUE;pp.SwapEffect=msaa?D3DSWAPEFFECT_DISCARD:D3DSWAPEFFECT_COPY;pp.hDeviceWindow=window;pp.BackBufferWidth=320;pp.BackBufferHeight=240;pp.BackBufferFormat=D3DFMT_X8R8G8B8;pp.MultiSampleType=D3DMULTISAMPLE_TYPE(msaa);
         Com<IDirect3DDevice9> device;CHECK(SUCCEEDED(root->CreateDevice(0,D3DDEVTYPE_HAL,window,D3DCREATE_SOFTWARE_VERTEXPROCESSING,&pp,device.out())));
         CHECK(Frame(device,true,false,!msaa));CHECK(Frame(device,true,true,!msaa));CHECK(Frame(device,false,false,!msaa));
+        CHECK(Frame(device,true,false,!msaa,true)); // Pre-world RHW passes cannot disable post effects.
         CHECK(SUCCEEDED(device->Reset(&pp)));CHECK(Frame(device,true,false,!msaa));
         printf("PASS: HUD exact RGB preserved, world graded once, UI-only skipped, Reset, MSAA=%d\n",msaa);
     }
