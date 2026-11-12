@@ -20,7 +20,7 @@ float4 Factor : register(c3);
 float4 Constant : register(c4);
 float4 Bounds : register(c5);
 float4 Texel : register(c6); // texel xy, kind, crowding/age attenuation
-float4 Screen : register(c7); // inverse viewport, snapshot valid, wake strength
+float4 Screen : register(c7); // inverse viewport, snapshot valid, wake strength / curtain time
 float4 FogColor : register(c8);
 float4 Fog : register(c9);
 float4 FogExtra : register(c10);
@@ -54,8 +54,16 @@ float4 ReconstructArt(float2 uv,float2 low,float2 high) {
  return saturate(sum);
 }
 float4 SfxPS(float2 uv:TEXCOORD0,float fogDepth:TEXCOORD1,float4 color:COLOR0,float2 pixel:VPOS):COLOR0 {
- float4 original=Native(tex2D(Art,uv),color);
- if(Texel.z>2.5 && Screen.z>.5) {
+ float2 low=Bounds.xy+Texel.xy*.5,high=max(low,Bounds.zw-Texel.xy*.5);
+ float2 materialUV=uv;
+ bool curtain=Texel.z>4.5;
+ bool styled=Style.x!=1 || Style.y>0 || Style.z!=1 || Style.w>0;
+ if(curtain && Style.y>0) {
+  float flow=sin(uv.y*4.4+Screen.w*.13+sin(uv.x*8));
+  materialUV=clamp(uv+float2(flow*.012,sin(uv.x*5+Screen.w*.09)*.004)*Style.y,low,high);
+ }
+ float4 original=Native(tex2D(Art,materialUV),color);
+ if(Texel.z==3 && Screen.z>.5) {
   float2 screenUV=(pixel+.5)*Screen.xy;
   float signal=dot(original.rgb,float3(.2126,.7152,.0722))*original.a;
   float2 gradient=float2(ddx(signal),ddy(signal));
@@ -66,20 +74,18 @@ float4 SfxPS(float2 uv:TEXCOORD0,float fogDepth:TEXCOORD1,float4 color:COLOR0,fl
  }
  float2 uvDx=ddx(uv),uvDy=ddy(uv);
  float footprint=max(length(uvDx/Texel.xy),length(uvDy/Texel.xy));
- float safeUV=all(uv>=Bounds.xy)&&all(uv<=Bounds.zw);
- float2 low=Bounds.xy+Texel.xy*.5,high=max(low,Bounds.zw-Texel.xy*.5);
- bool styled=Style.x!=1 || Style.y>0 || Style.z!=1 || Style.w>0;
+ float safeUV=all(materialUV>=Bounds.xy)&&all(materialUV<=Bounds.zw);
  [branch]if(styled) {
   // Detailed quality improves the actual material sampling; distant particles keep mip filtering.
   [branch]if(AlphaStage.w>.5 && footprint<1.2 && safeUV>.5)
-   original=lerp(original,Native(ReconstructArt(uv,low,high),color),Texel.w*.65);
+   original=lerp(original,Native(ReconstructArt(materialUV,low,high),color),Texel.w*.65);
   float2 offset=Texel.xy*1.5;
-  float4 left=Native(tex2Dgrad(Art,clamp(uv-float2(offset.x,0),low,high),uvDx,uvDy),color);
-  float4 right=Native(tex2Dgrad(Art,clamp(uv+float2(offset.x,0),low,high),uvDx,uvDy),color);
-  float4 up=Native(tex2Dgrad(Art,clamp(uv-float2(0,offset.y),low,high),uvDx,uvDy),color);
-  float4 down=Native(tex2Dgrad(Art,clamp(uv+float2(0,offset.y),low,high),uvDx,uvDy),color);
+  float4 left=Native(tex2Dgrad(Art,clamp(materialUV-float2(offset.x,0),low,high),uvDx,uvDy),color);
+  float4 right=Native(tex2Dgrad(Art,clamp(materialUV+float2(offset.x,0),low,high),uvDx,uvDy),color);
+  float4 up=Native(tex2Dgrad(Art,clamp(materialUV-float2(0,offset.y),low,high),uvDx,uvDy),color);
+  float4 down=Native(tex2Dgrad(Art,clamp(materialUV+float2(0,offset.y),low,high),uvDx,uvDy),color);
   float3 average=(left.rgb+right.rgb+up.rgb+down.rgb)*.25;
-  float smoke=Texel.z>1.5,peak=max(original.r,max(original.g,original.b));
+  float smoke=Texel.z==2,peak=max(original.r,max(original.g,original.b));
   float soft=Style.w*(smoke?.18:.08)*(1-smoothstep(.08,.35,peak))*safeUV;
   float3 filtered=lerp(original.rgb,average,soft);
   // Local detail contrast separates rune strokes from their haze without changing vertex fading.
@@ -88,6 +94,13 @@ float4 SfxPS(float2 uv:TEXCOORD0,float fogDepth:TEXCOORD1,float4 color:COLOR0,fl
   float luminance=dot(filtered,float3(.2126,.7152,.0722));
   float3 rgb=max(0,lerp(luminance.xxx,filtered,Style.z))*Style.x;
   rgb+=average*(Style.y*(smoke?.06:.16))*pow(saturate(1-peak),2)*safeUV;
+  if(curtain) {
+   float tint=.5+.5*sin(uv.y*4+Screen.w*.05);
+   float3 palette=lerp(float3(.35,.65,1),float3(.26,1,.68),tint);
+   float filaments=pow(saturate(.5+.5*sin(uv.x*120+sin(uv.y*5-Screen.w*.1))),6);
+   rgb=lerp(rgb,max(rgb.r,max(rgb.g,rgb.b))*palette,saturate(Style.y*.9));
+   rgb+=peak*palette*filaments*(Style.y*.45);
+  }
   // Preserve the native additive energy and bright cores. Bound only shader overshoot,
   // never replace the game's blend with Screen or remap every faint layer through a shoulder.
   rgb/=max(1,max(rgb.r,max(rgb.g,rgb.b)));

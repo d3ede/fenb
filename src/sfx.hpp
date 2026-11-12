@@ -201,7 +201,7 @@ class SfxFX {
         device_->GetRenderState(D3DRS_DESTBLEND, &dst);
         device_->GetRenderState(D3DRS_LIGHTING, &lit);
         device_->GetRenderState(D3DRS_ALPHATESTENABLE, &test);
-        if (!z || write || !blend || lit || test || (src != D3DBLEND_SRCALPHA && src != D3DBLEND_ONE) ||
+        if (write || !blend || lit || test || (src != D3DBLEND_SRCALPHA && src != D3DBLEND_ONE) ||
             (dst != D3DBLEND_ONE && !(dst == D3DBLEND_INVSRCALPHA && src == D3DBLEND_SRCALPHA)))
             return false;
         DWORD blendOp = 0, separate = 0;
@@ -222,7 +222,7 @@ class SfxFX {
             return false;
         auto *texture = static_cast<IDirect3DTexture9 *>(base.p);
         unsigned kind = classify(texture);
-        if (!kind || (!s.sfx && kind != 3))
+        if (!kind || (!s.sfx && kind != 3) || (!z && kind != 5))
             return false;
         D3DMATRIX world{}, view{}, projection{}, uv{};
         D3DVIEWPORT9 vp{};
@@ -319,7 +319,7 @@ class SfxFX {
         c[7][0] = width_ ? 1.f / width_ : 0;
         c[7][1] = height_ ? 1.f / height_ : 0;
         c[7][2] = snapshot_ ? 1.f : 0;
-        c[7][3] = s.sfxWake;
+        c[7][3] = kind == 5 ? float(GetTickCount64() % 3600000) * .001f : s.sfxWake;
         DWORD fog = 0, mode = 0, packed = 0, start = 0, end = 0, density = 0;
         device_->GetRenderState(D3DRS_FOGENABLE, &fog);
         device_->GetRenderState(D3DRS_FOGTABLEMODE, &mode);

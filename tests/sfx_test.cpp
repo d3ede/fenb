@@ -1,6 +1,7 @@
 #include "sfx.hpp"
 #include <cstdio>
 #include <array>
+#include <cwchar>
 
 #define CHECK(x)                                                                                             \
     do {                                                                                                     \
@@ -140,7 +141,7 @@ int main(int argc, char **argv) {
     projection._33 = 100.f / 99.9f;
     projection._34 = 1;
     projection._43 = -.1f * projection._33;
-    bool water = false, occlude = false, flatBackground = false;
+    bool water = false, occlude = false, flatBackground = false, depthEnabled = true, fixedCurtainTime = false;
     int layers = 1;
     DWORD fade = 0x80ff8040;
     bool nativeBlend = true;
@@ -155,7 +156,7 @@ int main(int argc, char **argv) {
         d->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
         d->SetRenderState(D3DRS_LIGHTING, FALSE);
         d->SetRenderState(D3DRS_FOGENABLE, FALSE);
-        d->SetRenderState(D3DRS_ZENABLE, TRUE);
+        d->SetRenderState(D3DRS_ZENABLE, depthEnabled);
         d->SetRenderState(D3DRS_ZWRITEENABLE, FALSE);
         d->SetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
         d->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
@@ -200,6 +201,11 @@ int main(int argc, char **argv) {
         d->SetRenderState(D3DRS_ZWRITEENABLE, FALSE);
         d->BeginScene();
         bool applied = enhance && sfx.begin(settings, water, canSnapshot);
+        if (applied && fixedCurtainTime) {
+            float screen[4]{};
+            d->GetPixelShaderConstantF(7, screen, 1); screen[3] = 17;
+            d->SetPixelShaderConstantF(7, screen, 1);
+        }
         if (applied && !water) {
             DWORD src = 0, dst = 0;
             d->GetRenderState(D3DRS_SRCBLEND, &src);
@@ -342,7 +348,10 @@ int main(int argc, char **argv) {
     occlude = false;
     // Use a real rune material as well as the synthetic ring: detailed quality must
     // change sampling without fading the native additive effect into translucent smoke.
-    if (FILE *file = _wfopen(L"X:/Games/Homesickness/SFX/Texture/sfx_SklAssCheAccura01.dds", L"rb")) {
+    for (const wchar_t *material : {L"sfx_SklAssCheAccura01.dds", L"obj_skylighting02.dds"})
+      if (FILE *file = _wfopen((std::wstring(L"X:/Games/Homesickness/SFX/Texture/") + material).c_str(), L"rb")) {
+        const bool curtain = std::wcsstr(material, L"skylighting") != nullptr;
+        depthEnabled = !curtain; fixedCurtainTime = curtain;
         DWORD header[32]{};
         CHECK(fread(header, 1, 128, file) == 128);
         const UINT w = header[4], h = header[3];
@@ -364,17 +373,23 @@ int main(int argc, char **argv) {
         world._11 = world._22 = 2;
         fade = 0xd0ffffff;
         render(false); auto runeNative = Read(d);
+        settings.sfxIntensity = settings.sfxSaturation = 1;
+        settings.sfxGlow = settings.sfxSoftness = 0;
+        CHECK(render(true) && Difference(runeNative, Read(d)) == 0);
+        settings = Settings{};
         settings.sceneQuality = false;
         CHECK(render(true)); auto economical = Read(d);
         settings.sceneQuality = true;
         CHECK(render(true)); auto detailed = Read(d);
         CHECK(Difference(economical, detailed) > 100 && nativeBlend);
-        Save(runeNative, L"build/sfx-rune-native.bmp");
-        Save(economical, L"build/sfx-rune-economical.bmp");
-        Save(detailed, L"build/sfx-rune-detailed.bmp");
+        Save(runeNative, curtain ? L"build/sfx-aurora-native.bmp" : L"build/sfx-rune-native.bmp");
+        Save(economical, curtain ? L"build/sfx-aurora-economical.bmp" : L"build/sfx-rune-economical.bmp");
+        Save(detailed, curtain ? L"build/sfx-aurora-detailed.bmp" : L"build/sfx-rune-detailed.bmp");
         Drop(texture.p); texture.p = previous.p; previous.p = nullptr;
         settings = savedSettings; world = id; fade = 0x80ff8040;
-        puts("Actual rune DDS: native additive blending and detailed sampling PASS");
+        depthEnabled = true; fixedCurtainTime = false;
+        puts(curtain ? "Actual world-light curtain: depth-off guard, neutral parity and material flow PASS" :
+                       "Actual rune DDS: native additive blending and detailed sampling PASS");
     }
     water = true;
     settings.sfx = false; // Water footsteps must remain active independently of skill styling.

@@ -3345,13 +3345,13 @@
     "file": "SFX/Texture/obj_skylighting.dds",
     "sha256": "bc3a878a060b6b2681cd6c90fddb3b233cfdc6ca45b3b68b674c5effeda2e546",
     "rawHash": "2ce737ec62d4a7922a1392ccbe7f82b6c54c31015c60d77515f849b46dc324dc",
-    "kind": 1
+    "kind": 5
   },
   {
     "file": "SFX/Texture/obj_skylighting02.dds",
     "sha256": "21311bef3d068ef9148c54095690c0b870e89d184aeb088dc97020e936b9d5be",
     "rawHash": "ea6483fd2d432c3f3b0a3b6b3a6d0f5efb131db4c314f100bb7495b7e3c2cc68",
-    "kind": 1
+    "kind": 5
   },
   {
     "file": "SFX/Texture/obj_Thunder01-1.dds",
