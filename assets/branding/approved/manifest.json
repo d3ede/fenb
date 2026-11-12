@@ -1,0 +1,185 @@
+{
+  "version": "Approved Refined Bloom",
+  "assets": [
+    {
+      "theme": "dark",
+      "composition": "stacked",
+      "transparent": false,
+      "svg": "SVG\\Dark\\fenb-dark-stacked-on-dark.svg",
+      "png": "PNG\\Dark\\fenb-dark-stacked-on-dark.png",
+      "svgSize": [
+        1024,
+        1024
+      ],
+      "pngSize": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "theme": "dark",
+      "composition": "stacked",
+      "transparent": true,
+      "svg": "SVG\\Dark\\fenb-dark-stacked-transparent.svg",
+      "png": "PNG\\Dark\\fenb-dark-stacked-transparent.png",
+      "svgSize": [
+        1024,
+        1024
+      ],
+      "pngSize": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "theme": "dark",
+      "composition": "symbol",
+      "transparent": false,
+      "svg": "SVG\\Dark\\fenb-dark-symbol-on-dark.svg",
+      "png": "PNG\\Dark\\fenb-dark-symbol-on-dark.png",
+      "svgSize": [
+        1024,
+        1024
+      ],
+      "pngSize": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "theme": "dark",
+      "composition": "symbol",
+      "transparent": true,
+      "svg": "SVG\\Dark\\fenb-dark-symbol-transparent.svg",
+      "png": "PNG\\Dark\\fenb-dark-symbol-transparent.png",
+      "svgSize": [
+        1024,
+        1024
+      ],
+      "pngSize": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "theme": "dark",
+      "composition": "horizontal",
+      "transparent": false,
+      "svg": "SVG\\Dark\\fenb-dark-horizontal-on-dark.svg",
+      "png": "PNG\\Dark\\fenb-dark-horizontal-on-dark.png",
+      "svgSize": [
+        1600,
+        500
+      ],
+      "pngSize": [
+        3200,
+        1000
+      ]
+    },
+    {
+      "theme": "dark",
+      "composition": "horizontal",
+      "transparent": true,
+      "svg": "SVG\\Dark\\fenb-dark-horizontal-transparent.svg",
+      "png": "PNG\\Dark\\fenb-dark-horizontal-transparent.png",
+      "svgSize": [
+        1600,
+        500
+      ],
+      "pngSize": [
+        3200,
+        1000
+      ]
+    },
+    {
+      "theme": "light",
+      "composition": "stacked",
+      "transparent": false,
+      "svg": "SVG\\Light\\fenb-light-stacked-on-white.svg",
+      "png": "PNG\\Light\\fenb-light-stacked-on-white.png",
+      "svgSize": [
+        1024,
+        1024
+      ],
+      "pngSize": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "theme": "light",
+      "composition": "stacked",
+      "transparent": true,
+      "svg": "SVG\\Light\\fenb-light-stacked-transparent.svg",
+      "png": "PNG\\Light\\fenb-light-stacked-transparent.png",
+      "svgSize": [
+        1024,
+        1024
+      ],
+      "pngSize": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "theme": "light",
+      "composition": "symbol",
+      "transparent": false,
+      "svg": "SVG\\Light\\fenb-light-symbol-on-white.svg",
+      "png": "PNG\\Light\\fenb-light-symbol-on-white.png",
+      "svgSize": [
+        1024,
+        1024
+      ],
+      "pngSize": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "theme": "light",
+      "composition": "symbol",
+      "transparent": true,
+      "svg": "SVG\\Light\\fenb-light-symbol-transparent.svg",
+      "png": "PNG\\Light\\fenb-light-symbol-transparent.png",
+      "svgSize": [
+        1024,
+        1024
+      ],
+      "pngSize": [
+        2048,
+        2048
+      ]
+    },
+    {
+      "theme": "light",
+      "composition": "horizontal",
+      "transparent": false,
+      "svg": "SVG\\Light\\fenb-light-horizontal-on-white.svg",
+      "png": "PNG\\Light\\fenb-light-horizontal-on-white.png",
+      "svgSize": [
+        1600,
+        500
+      ],
+      "pngSize": [
+        3200,
+        1000
+      ]
+    },
+    {
+      "theme": "light",
+      "composition": "horizontal",
+      "transparent": true,
+      "svg": "SVG\\Light\\fenb-light-horizontal-transparent.svg",
+      "png": "PNG\\Light\\fenb-light-horizontal-transparent.png",
+      "svgSize": [
+        1600,
+        500
+      ],
+      "pngSize": [
+        3200,
+        1000
+      ]
+    }
+  ]
+}
