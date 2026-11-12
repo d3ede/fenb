@@ -143,6 +143,7 @@ int main(int argc, char **argv) {
     bool water = false, occlude = false, flatBackground = false;
     int layers = 1;
     DWORD fade = 0x80ff8040;
+    bool nativeBlend = true;
     auto setup = [&] {
         d->SetVertexShader(nullptr);
         d->SetPixelShader(nullptr);
@@ -199,6 +200,12 @@ int main(int argc, char **argv) {
         d->SetRenderState(D3DRS_ZWRITEENABLE, FALSE);
         d->BeginScene();
         bool applied = enhance && sfx.begin(settings, water, canSnapshot);
+        if (applied && !water) {
+            DWORD src = 0, dst = 0;
+            d->GetRenderState(D3DRS_SRCBLEND, &src);
+            d->GetRenderState(D3DRS_DESTBLEND, &dst);
+            nativeBlend &= src == D3DBLEND_SRCALPHA && dst == D3DBLEND_ONE;
+        }
         for (auto &v : quad)
             v.color = fade;
         HRESULT result = S_OK;
@@ -215,6 +222,7 @@ int main(int argc, char **argv) {
     settings.sfxGlow = 0;
     settings.sfxSaturation = 1;
     settings.sfxSoftness = 0;
+    settings.sceneQuality = true;
     if (benchmark) {
         world._11 = world._22 = world._33 = .015f;
         render(true); // Warm shaders and material identity before timing steady-state draws.
@@ -294,7 +302,7 @@ int main(int argc, char **argv) {
         styledWhite += white(stackedStyled[i]);
     }
     printf("Overlapping particle clipped pixels: native=%u styled=%u\n", nativeWhite, styledWhite);
-    CHECK(nativeWhite > 50 && styledWhite < nativeWhite / 4);
+    CHECK(nativeWhite > 50 && nativeBlend);
     Save(stackedNative, L"build/sfx-overlap-native.bmp");
     Save(stackedStyled, L"build/sfx-overlap-styled.bmp");
     d->GetRenderState(D3DRS_SRCBLEND, &value);
@@ -332,6 +340,42 @@ int main(int argc, char **argv) {
         for (UINT x = 0; x < W / 2; ++x)
             CHECK(blocked[y * W + x] == occluded[y * W + x]);
     occlude = false;
+    // Use a real rune material as well as the synthetic ring: detailed quality must
+    // change sampling without fading the native additive effect into translucent smoke.
+    if (FILE *file = _wfopen(L"X:/Games/Homesickness/SFX/Texture/sfx_SklAssCheAccura01.dds", L"rb")) {
+        DWORD header[32]{};
+        CHECK(fread(header, 1, 128, file) == 128);
+        const UINT w = header[4], h = header[3];
+        const auto format = D3DFORMAT(header[21]);
+        CHECK(format == D3DFMT_DXT1 || format == D3DFMT_DXT3 || format == D3DFMT_DXT5);
+        const UINT rowBytes = (w + 3) / 4 * (format == D3DFMT_DXT1 ? 8 : 16), rows = (h + 3) / 4;
+        std::vector<BYTE> data(rowBytes * rows);
+        CHECK(fread(data.data(), 1, data.size(), file) == data.size());
+        fclose(file);
+        Com<IDirect3DTexture9> previous;
+        previous.p = texture.p; previous->AddRef();
+        CHECK(SUCCEEDED(d->CreateTexture(w, h, 1, 0, format, D3DPOOL_MANAGED, texture.out(), nullptr)));
+        CHECK(SUCCEEDED(texture->LockRect(0, &lock, nullptr, 0)));
+        for (UINT y = 0; y < rows; ++y)
+            memcpy((BYTE *)lock.pBits + y * lock.Pitch, data.data() + y * rowBytes, rowBytes);
+        texture->UnlockRect(0);
+        auto savedSettings = settings;
+        settings = Settings{};
+        world._11 = world._22 = 2;
+        fade = 0xd0ffffff;
+        render(false); auto runeNative = Read(d);
+        settings.sceneQuality = false;
+        CHECK(render(true)); auto economical = Read(d);
+        settings.sceneQuality = true;
+        CHECK(render(true)); auto detailed = Read(d);
+        CHECK(Difference(economical, detailed) > 100 && nativeBlend);
+        Save(runeNative, L"build/sfx-rune-native.bmp");
+        Save(economical, L"build/sfx-rune-economical.bmp");
+        Save(detailed, L"build/sfx-rune-detailed.bmp");
+        Drop(texture.p); texture.p = previous.p; previous.p = nullptr;
+        settings = savedSettings; world = id; fade = 0x80ff8040;
+        puts("Actual rune DDS: native additive blending and detailed sampling PASS");
+    }
     water = true;
     settings.sfx = false; // Water footsteps must remain active independently of skill styling.
     tag = 3;

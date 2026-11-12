@@ -40,16 +40,21 @@ float4 Native(float4 texel,float4 diffuse) {
  float alpha=ColorStage.w<1.5?diffuse.a:Operation(ColorStage.w,Argument(AlphaStage.x,texel,diffuse),Argument(AlphaStage.y,texel,diffuse)).a;
  return saturate(float4(rgb,alpha));
 }
+// Nine-tap Catmull-Rom reconstruction is confined to magnification and the current atlas cell.
+float4 ReconstructArt(float2 uv,float2 low,float2 high) {
+ float2 p=uv/Texel.xy-.5,base=floor(p),f=frac(p);
+ float2 w0=f*(-.5+f*(1-.5*f)),w1=1+f*f*(-2.5+1.5*f);
+ float2 w2=f*(.5+f*(2-1.5*f)),w3=f*f*(-.5+.5*f),w12=w1+w2;
+ float3 x=float3(base.x-.5,base.x+.5+w2.x/w12.x,base.x+2.5)*Texel.x;
+ float3 y=float3(base.y-.5,base.y+.5+w2.y/w12.y,base.y+2.5)*Texel.y;
+ float3 wx=float3(w0.x,w12.x,w3.x),wy=float3(w0.y,w12.y,w3.y);
+ float4 sum=0;
+ [unroll]for(int j=0;j<3;++j)[unroll]for(int i=0;i<3;++i)
+  sum+=tex2Dlod(Art,float4(clamp(float2(x[i],y[j]),low,high),0,0))*wx[i]*wy[j];
+ return saturate(sum);
+}
 float4 SfxPS(float2 uv:TEXCOORD0,float fogDepth:TEXCOORD1,float4 color:COLOR0,float2 pixel:VPOS):COLOR0 {
  float4 original=Native(tex2D(Art,uv),color);
- float2 offset=Texel.xy*1.5;
- float2 low=Bounds.xy+Texel.xy*.5,high=max(low,Bounds.zw-Texel.xy*.5);
- float4 left=Native(tex2D(Art,clamp(uv-float2(offset.x,0),low,high)),color);
- float4 right=Native(tex2D(Art,clamp(uv+float2(offset.x,0),low,high)),color);
- float4 up=Native(tex2D(Art,clamp(uv-float2(0,offset.y),low,high)),color);
- float4 down=Native(tex2D(Art,clamp(uv+float2(0,offset.y),low,high)),color);
- float4 average=(left+right+up+down)*.25;
- float4 result=original;
  if(Texel.z>2.5 && Screen.z>.5) {
   float2 screenUV=(pixel+.5)*Screen.xy;
   float signal=dot(original.rgb,float3(.2126,.7152,.0722))*original.a;
@@ -57,38 +62,43 @@ float4 SfxPS(float2 uv:TEXCOORD0,float fogDepth:TEXCOORD1,float4 color:COLOR0,fl
   gradient/=max(.02,length(gradient));
   float mask=saturate(signal*Texel.w*Screen.w);
   float3 surface=tex2D(Background,screenUV+gradient*Screen.xy*(4.5*Screen.w*Texel.w)).rgb;
-  result=float4(surface,mask);
-  return result;
+  return float4(surface,mask);
  }
+ float2 uvDx=ddx(uv),uvDy=ddy(uv);
+ float footprint=max(length(uvDx/Texel.xy),length(uvDy/Texel.xy));
  float safeUV=all(uv>=Bounds.xy)&&all(uv<=Bounds.zw);
- float smoke=Texel.z>1.5;
- // Preserve rune lines and hot cores; soften only dim texture edges, never expand coverage.
- float peak=max(original.r,max(original.g,original.b));
- float soft=Style.w*(smoke?.18:.08)*(1-smoothstep(.08,.35,peak))*safeUV;
- float4 softened=lerp(original,average,soft);
- float luminance=dot(softened.rgb,float3(.2126,.7152,.0722));
- float3 rgb=max(0,lerp(luminance.xxx,softened.rgb,Style.z))*Style.x;
- rgb+=average.rgb*(Style.y*(smoke?.06:.22))*pow(saturate(1-peak),2)*safeUV;
- float compression=saturate(abs(Style.x-1)+Style.y+abs(Style.z-1)+Style.w)*.18;
- rgb/=1+max(0,max(rgb.r,max(rgb.g,rgb.b))-.85)*compression;
- result.rgb=lerp(original.rgb,rgb,Texel.w);
- result.a=original.a;
+ float2 low=Bounds.xy+Texel.xy*.5,high=max(low,Bounds.zw-Texel.xy*.5);
+ bool styled=Style.x!=1 || Style.y>0 || Style.z!=1 || Style.w>0;
+ [branch]if(styled) {
+  // Detailed quality improves the actual material sampling; distant particles keep mip filtering.
+  [branch]if(AlphaStage.w>.5 && footprint<1.2 && safeUV>.5)
+   original=lerp(original,Native(ReconstructArt(uv,low,high),color),Texel.w*.65);
+  float2 offset=Texel.xy*1.5;
+  float4 left=Native(tex2Dgrad(Art,clamp(uv-float2(offset.x,0),low,high),uvDx,uvDy),color);
+  float4 right=Native(tex2Dgrad(Art,clamp(uv+float2(offset.x,0),low,high),uvDx,uvDy),color);
+  float4 up=Native(tex2Dgrad(Art,clamp(uv-float2(0,offset.y),low,high),uvDx,uvDy),color);
+  float4 down=Native(tex2Dgrad(Art,clamp(uv+float2(0,offset.y),low,high),uvDx,uvDy),color);
+  float3 average=(left.rgb+right.rgb+up.rgb+down.rgb)*.25;
+  float smoke=Texel.z>1.5,peak=max(original.r,max(original.g,original.b));
+  float soft=Style.w*(smoke?.18:.08)*(1-smoothstep(.08,.35,peak))*safeUV;
+  float3 filtered=lerp(original.rgb,average,soft);
+  // Local detail contrast separates rune strokes from their haze without changing vertex fading.
+  float sharp=(1-smoke)*AlphaStage.w*.08*saturate(Style.x)*safeUV*saturate(2-footprint);
+  filtered=max(0,filtered+(original.rgb-average)*sharp);
+  float luminance=dot(filtered,float3(.2126,.7152,.0722));
+  float3 rgb=max(0,lerp(luminance.xxx,filtered,Style.z))*Style.x;
+  rgb+=average*(Style.y*(smoke?.06:.16))*pow(saturate(1-peak),2)*safeUV;
+  // Preserve the native additive energy and bright cores. Bound only shader overshoot,
+  // never replace the game's blend with Screen or remap every faint layer through a shoulder.
+  rgb/=max(1,max(rgb.r,max(rgb.g,rgb.b)));
+  original.rgb=lerp(original.rgb,rgb,Texel.w);
+ }
  float visibility=1;
  if(Fog.x>.5) {
   if(Fog.y>2.5)visibility=saturate((Fog.w-fogDepth)/max(.001,Fog.w-Fog.z));
   else if(Fog.y>1.5)visibility=exp(-pow(FogExtra.x*fogDepth,2));
   else visibility=exp(-FogExtra.x*fogDepth);
  }
- result.rgb=lerp(FogColor.rgb,result.rgb,visibility);
- // Screen composition retains gradients when many additive rings overlap in an LDR backbuffer.
- // Carry the original SRCALPHA contribution in RGB; native ONE contributions are already weighted.
- if(AlphaStage.w>.5){
-  result.rgb*=lerp(1,original.a,AlphaStage.z);
-  float energy=max(result.r,max(result.g,result.b));
-  // Bright texture strokes deserve a hot core; applying fade after the shoulder made
-  // even those strokes look like translucent smoke. Dim outer glow keeps its old energy.
-  float coreGain=1+smoothstep(.3,.85,peak);
-  result.rgb*= (1-exp(-max(0,energy)*coreGain))/max(.00001,energy);
- }
- return result;
+ original.rgb=lerp(FogColor.rgb,original.rgb,visibility);
+ return original;
 }

@@ -21,9 +21,7 @@ class SfxFX {
     D3DVIEWPORT9 viewport_{};
     // Material replacement never changes targets, transforms, streams or the vertex declaration.
     // A full D3DSBT_ALL block per particle restores render targets and stalls the driver.
-    bool active_ = false, wakeState_ = false, screenState_ = false;
-    bool screenSupported_ = false;
-    DWORD savedSource_ = 0;
+    bool active_ = false, wakeState_ = false;
     float savedVertex_[13][4]{}, savedPixel_[11][4]{};
     DWORD savedFog_ = 0, savedFilters_[2]{}, savedWakeSampler_[4]{}, savedDestination_ = 0;
     Com<IDirect3DBaseTexture9> savedTexture_;
@@ -115,11 +113,7 @@ class SfxFX {
     }
 
   public:
-    explicit SfxFX(IDirect3DDevice9 *d) : device_(d) {
-        D3DCAPS9 caps{};
-        screenSupported_ =
-            SUCCEEDED(d->GetDeviceCaps(&caps)) && (caps.SrcBlendCaps & D3DPBLENDCAPS_INVDESTCOLOR);
-    }
+    explicit SfxFX(IDirect3DDevice9 *d) : device_(d) {}
     ~SfxFX() {
         invalidate();
         if (hash_)
@@ -282,9 +276,6 @@ class SfxFX {
             return false;
         if (!saveState(wake))
             return false;
-        screenState_ = screenSupported_ && !wake && kind == 1 && dst == D3DBLEND_ONE &&
-                       (s.sfxIntensity != 1 || s.sfxGlow > 0 || s.sfxSaturation != 1 || s.sfxSoftness > 0);
-        savedSource_ = src;
         auto worldView = multiply(world, view), clip = multiply(worldView, projection);
         DWORD range = 0;
         device_->GetRenderState(D3DRS_RANGEFOGENABLE, &range);
@@ -301,7 +292,7 @@ class SfxFX {
         c[2][0] = float(operations[4]);
         c[2][1] = float(operations[5]);
         c[2][2] = src == D3DBLEND_SRCALPHA ? 1.f : 0.f;
-        c[2][3] = screenState_ ? 1.f : 0.f;
+        c[2][3] = s.sceneQuality ? 1.f : 0.f;
         auto rgba = [](DWORD value, float *out) {
             for (int i = 0; i < 3; ++i)
                 out[i] = float((value >> (16 - i * 8)) & 255) / 255;
@@ -352,8 +343,6 @@ class SfxFX {
         device_->SetVertexShaderConstantF(12, layout, 1);
         device_->SetPixelShaderConstantF(0, c[0], 11);
         device_->SetRenderState(D3DRS_FOGENABLE, FALSE);
-        if (screenState_)
-            device_->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_INVDESTCOLOR);
         device_->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
         device_->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
         if (wake) {
@@ -375,8 +364,6 @@ class SfxFX {
         device_->SetVertexShaderConstantF(0, savedVertex_[0], 13);
         device_->SetPixelShaderConstantF(0, savedPixel_[0], 11);
         device_->SetRenderState(D3DRS_FOGENABLE, savedFog_);
-        if (screenState_)
-            device_->SetRenderState(D3DRS_SRCBLEND, savedSource_);
         for (int i = 0; i < 2; ++i)
             device_->SetSamplerState(0, filters_[i], savedFilters_[i]);
         if (wakeState_) {
@@ -387,6 +374,6 @@ class SfxFX {
                 device_->SetSamplerState(1, wakeSampler_[i], savedWakeSampler_[i]);
         }
         // Draw*UP already performs the native stream/index clearing. No unrelated state is rebound.
-        active_ = wakeState_ = screenState_ = false;
+        active_ = wakeState_ = false;
     }
 };
