@@ -408,9 +408,10 @@ void DrawPanel(Runtime &r) {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10, 8));
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(10, 7));
     if (ImGui::BeginPopup("actions")) {
-        s.unlockFps = false;
-        ImGui::MenuItem("Снять лимит FPS", nullptr, false, false);
-        Tip("Недоступно: скорость игры зависит от FPS. Штатный лимит сохранён.",
+        bool fpsSupported = r.fpsUnlockSupported();
+        ImGui::MenuItem("Снять лимит FPS", nullptr, &s.unlockFps, fpsSupported || s.unlockFps);
+        Tip(fpsSupported ? "Рендер без штатного лимита. Логика игры обновляется с прежним шагом 16 мс."
+                         : "Эта версия клиента не поддерживается. Игра остаётся без изменений.",
             ImGuiHoveredFlags_AllowWhenDisabled);
         ImGui::Separator();
 #ifdef FENB_DIAGNOSTICS

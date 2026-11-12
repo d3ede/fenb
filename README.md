@@ -16,11 +16,13 @@ Four visual presets are included: **Спокойная вода** (calmer surfac
 
 ## Native client frame pacing
 
-**FPS unlocking is disabled.** Removing the inspected Homesickness client's native 16 ms frame budget (about 62.5 FPS) was reported to accelerate gameplay. Verifying executable signatures established the limiter's location, not that simulation could safely run at higher frame rates.
+The original flag-only unlock accelerated gameplay because the client calls its simulation once per main-loop iteration. The replacement installs a gate on the verified application's `FrameMove` virtual method before clearing the native frame limiter. Rendering remains independent; simulation uses the original 16 ms cadence (62.5 updates/s) and receives a fixed 0.016 s delta. Real wall clocks and network timers are not scaled. Short stalls allow bounded catch-up; long stalls start a fresh cadence without replaying a loading screen. Render-time animation interpolation is not added.
 
-FENB now leaves the client limiter flag and timing data untouched, including on the previously recognized executable. The **Снять лимит FPS** action is disabled and explains the gameplay-speed problem. Existing `unlock_fps=1` settings are ignored on load, normalization and preset selection; saving writes `unlock_fps=0`. Other image, water and profile settings remain available.
+Enable **Снять лимит FPS** in the panel's actions menu, or set `unlock_fps=1` under `[General]`. It is off by default, independent of the effects switch, and preserved when changing image presets. Unknown clients are left unchanged. This implementation is pinned to the inspected Homesickness `Neuz.exe` SHA-256 `ce32e350c6002496acf9e8774275784971186e6144901f7c2c7d9b37a4aa41a1`; it verifies relocated frame gates, the application and its update method, and code/data protections. The in-memory vtable entry and limiter flag are restored when disabled or the last device is released. No EXE file or executable instructions are patched. Driver and VSync limits still apply.
 
-If an older loaded DLL has the unlock enabled, turn it off in the actions menu before continuing. Replacing the DLL on disk takes effect only after restarting the client. A higher rendering rate requires separately addressing the client's simulation timing; this graphics DLL does not implement that separation. Regression tests use protected disposable limiter and clock data to verify that an unlock request cannot modify them; they do not modify a running game.
+Native tests invoke the actual x86 callback through a disposable vtable and compare simulation counts and elapsed time at 30, 60, 144, 500 and 1000 render FPS. These tests do not establish live gameplay compatibility: movement, attacks, jumping, world and UI animation still require comparison in the supported client. A high render count does not imply interpolated simulation or a guaranteed 500 FPS.
+
+If an older loaded DLL has the flag-only unlock enabled, turn it off before continuing. Replacing the DLL takes effect only after restarting the client. Regression tests use disposable mapped images and callbacks; they do not modify a running game or installation.
 
 ## WaterFX implementation and limits
 
