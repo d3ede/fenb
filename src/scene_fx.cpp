@@ -53,11 +53,11 @@ bool SceneFX::programs() {
     PROGRAM(adaptPS_, Adapt)
     PROGRAM(skyPS_, SkyPS)
     PROGRAM(emitterPS_, EmitterPS)
-    PROGRAM(sumPS_, EmitterSum) PROGRAM(localPS_, EmitterLighting) PROGRAM(visibilityPS_, EmitterVisibility)
-        PROGRAM(fxaaPS_, FXAA)
+    PROGRAM(sumPS_, EmitterSum)
+    PROGRAM(localPS_, EmitterLighting) PROGRAM(visibilityPS_, EmitterVisibility) PROGRAM(fxaaPS_, FXAA)
 #undef PROGRAM
-            if (!emitterVS_.p &&
-                FAILED(device_->CreateVertexShader(ShaderEmitterVS, emitterVS_.out()))) return false;
+        if (!emitterVS_.p &&
+            FAILED(device_->CreateVertexShader(ShaderEmitterVS, emitterVS_.out()))) return false;
     return skyVS_.p || SUCCEEDED(device_->CreateVertexShader(ShaderSkyVS, skyVS_.out()));
 }
 void SceneFX::beginFrame() {
@@ -142,7 +142,8 @@ size_t SceneFX::bytes() const {
     return n + localField_.bytes() + visibleEmitters_.bytes();
 }
 void SceneFX::observe(const Settings &s) {
-    if (camera_ || (!s.ssao && !s.sunRays && !s.fog && !s.dof && !s.localLighting && s.nightFoliage <= 0))
+    if (camera_ || (!s.ssao && !s.sunRays && !s.fog && !s.dof && !s.localLighting && !s.lightingBalance &&
+                    s.nightFoliage <= 0))
         return;
     DWORD z = 0;
     device_->GetRenderState(D3DRS_ZWRITEENABLE, &z);
@@ -449,7 +450,7 @@ bool SceneFX::emissive(IDirect3DTexture9 *texture) {
     return (tag & 1) != 0;
 }
 void SceneFX::beginFoliage(const Settings &s) {
-    if (s.nightFoliage <= 0 || !camera_ || !sunValid_ || foliageActive_ || skyState_)
+    if ((s.nightFoliage <= 0 && !s.lightingBalance) || !camera_ || !sunValid_ || foliageActive_ || skyState_)
         return;
     float night = std::clamp(1 - LightLuminance(sun_.Diffuse) / .55f, 0.f, 1.f);
     if (night <= 0)
@@ -459,6 +460,9 @@ void SceneFX::beginFoliage(const Settings &s) {
     device_->GetFVF(&fvf);
     if (!lit || fvf != 0x112)
         return;
+    DWORD write = 0, blend = 0;
+    device_->GetRenderState(D3DRS_ZWRITEENABLE, &write);
+    device_->GetRenderState(D3DRS_ALPHABLENDENABLE, &blend);
     Com<IDirect3DPixelShader9> ps;
     device_->GetPixelShader(ps.out());
     if (ps.p)
@@ -469,14 +473,20 @@ void SceneFX::beginFoliage(const Settings &s) {
     auto *texture = static_cast<IDirect3DTexture9 *>(base.p);
     emissive(texture);
     DWORD tag = 0, size = 4;
-    if (FAILED(texture->GetPrivateData(EmitterTag, &tag, &size)) || !(tag & 2))
+    texture->GetPrivateData(EmitterTag, &tag, &size);
+    float fill = (tag & 2) ? s.nightFoliage * .25f : 0.f;
+    // Common opaque fixed-function props and weapons receive bounded ambient illumination
+    // before texture shading. Skinned/programmed paths are covered by the shared tone balance.
+    if (s.lightingBalance && write && !blend)
+        fill = std::max(fill, s.lightingBalanceStrength * .12f);
+    if (fill <= 0)
         return;
     DWORD ambient = 0;
     device_->GetRenderState(D3DRS_AMBIENT, &ambient);
     DWORD brighter = 0;
     for (int i = 0; i < 3; ++i) {
         int value = int((ambient >> (16 - i * 8)) & 255);
-        value = std::min(90, value + int(255 * s.nightFoliage * night * .25f));
+        value = std::max(value, std::min(90, value + int(255 * fill * night)));
         brighter |= DWORD(value) << (16 - i * 8);
     }
     D3DMATERIAL9 material{};

@@ -487,7 +487,8 @@ int main(int argc, char **) {
             ((DWORD *)((BYTE *)lock.pBits + y * lock.Pitch))[x] =
                 ((x / 8 + y / 8) % 3) ? 0xff3098db : 0xffe0e8eb;
     skyArt->UnlockRect(0);
-    auto materialFrame = [&](bool sky, bool improve, bool day, bool blueNight = false) {
+    auto materialFrame = [&](bool sky, bool improve, bool day, bool blueNight = false,
+                             bool universalFill = false, bool scroll = false, bool neutralSky = false) {
         fx.sceneFX().beginFrame();
         d->SetVertexShader(nullptr);
         d->SetPixelShader(nullptr);
@@ -510,6 +511,14 @@ int main(int argc, char **) {
         d->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
         d->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
         d->SetTextureStageState(0, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
+        D3DMATRIX skyUV = id;
+        skyUV._31 = .125f;
+        skyUV._32 = .25f;
+        skyUV._41 = .3125f;
+        skyUV._42 = .0625f;
+        d->SetTransform(D3DTS_TEXTURE0, &skyUV);
+        if (scroll)
+            d->SetTextureStageState(0, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
         d->SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
         D3DMATERIAL9 material{};
         material.Ambient = material.Diffuse = {1, 1, 1, 1};
@@ -526,6 +535,15 @@ int main(int argc, char **) {
         Settings s;
         s.sky = improve;
         s.nightFoliage = .8f;
+        if (universalFill) {
+            s.lightingBalance = improve;
+            s.nightFoliage = 0;
+        }
+        if (neutralSky) {
+            s.skyStrength = 0;
+            s.sunHalo = 0;
+            s.cloudContrast = 1;
+        }
         fx.sceneFX().observe(s);
         d->Clear(0, nullptr, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, 0xff000000, 1, 0);
         d->BeginScene();
@@ -554,7 +572,7 @@ int main(int argc, char **) {
                      {3, 1, 10, 0, 0, -1, 1, 1},
                      {3, 7, 10, 0, 0, -1, 1, 0}};
             d->SetFVF(0x112);
-            DWORD foliage = 2;
+            DWORD foliage = universalFill ? 4 : 2;
             emitter->SetPrivateData(EmitterTag, &foliage, 4, 0);
             if (improve)
                 fx.sceneFX().beginFoliage(s);
@@ -573,6 +591,15 @@ int main(int argc, char **) {
     auto newSky = Read(d);
     CHECK(Difference(oldSky, newSky) > 1000);
     CHECK(Save(newSky, L"build/scene-skyfx.bmp"));
+    CHECK(materialFrame(true, false, true, false, false, true, true));
+    auto nativeScrolledSky = Read(d);
+    CHECK(materialFrame(true, true, true, false, false, true, true));
+    auto replacedScrolledSky = Read(d);
+    unsigned wrongUV = 0;
+    for (UINT i = 0; i < W * H; ++i)
+        wrongUV += std::abs(Luma(nativeScrolledSky[i]) - Luma(replacedScrolledSky[i])) > 6;
+    printf("Sky neutral native-stage/scroll mismatch pixels: %u\n", wrongUV);
+    CHECK(wrongUV < 100);
     auto skyProgram = SceneFXFixture::skyProgram(fx.sceneFX());
     Settings skyOnly;
     skyOnly.sky = true;
@@ -589,6 +616,15 @@ int main(int argc, char **) {
     auto blueLeaves = Read(d);
     CHECK(materialFrame(false, true, false, true));
     CHECK(Difference(blueLeaves, Read(d)) > 1000);
+    CHECK(materialFrame(false, false, false, false, true));
+    auto darkProp = Read(d);
+    CHECK(materialFrame(false, true, false, false, true));
+    CHECK(Difference(darkProp, Read(d)) > 1000); // Unknown opaque prop, not a foliage catalog match.
+    CHECK(Save(Read(d), L"build/scene-night-prop.bmp"));
+    CHECK(materialFrame(false, false, true, false, true));
+    auto dayProp = Read(d);
+    CHECK(materialFrame(false, true, true, false, true));
+    CHECK(dayProp == Read(d));
     CHECK(materialFrame(false, false, true));
     auto dayLeaves = Read(d);
     CHECK(materialFrame(false, true, true));

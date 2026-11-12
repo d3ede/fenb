@@ -212,7 +212,8 @@ void Runtime::resetFrame() {
 }
 void Runtime::beforeWaterDraw(UINT upStride) {
     if (!lost_ && !hudStarted_ && settings.enabled && !compare && !vertexShaderActive_ && fvfKnown_ &&
-        drawFVF_ == 0x112 && settings.nightFoliage > 0 && sceneBackbuffer_ && drawTarget_ == sceneBackbuffer_)
+        drawFVF_ == 0x112 && (settings.nightFoliage > 0 || settings.lightingBalance) && sceneBackbuffer_ &&
+        drawTarget_ == sceneBackbuffer_)
         effects_->sceneFX().beginFoliage(settings);
     if (lost_ || hudStarted_ || !settings.enabled || !settings.water || compare || vertexShaderActive_ ||
         !fvfKnown_ || drawFVF_ != 0x152 || !sceneBackbuffer_ || drawTarget_ != sceneBackbuffer_)
