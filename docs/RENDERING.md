@@ -1,4 +1,4 @@
-# FENB 0.2d
+# FENB 0.2e
 
 FENB is a graphics mod for Flyff, inspired by ENBSeries. It uses a Windows x86 Direct3D 9 proxy, C++20, precompiled shaders and a native Dear ImGui settings panel.
 
@@ -22,7 +22,7 @@ The built-in list contains exactly five looks: **Default / Основной**, *
 
 All five are compiled into the DLL; the default image settings come from `config/FENB.ini`, with named variations in `config/builtins.json`. `node tools/embed-presets.mjs` regenerates `src/generated/presets.hpp`, and both build paths keep it in sync. No shipped `.ini` is added under **My profiles**. The old saved copy of Основной can be archived when migrating to the identical built-in, without discarding user edits. Custom files remain independently supported. Image-profile changes preserve the master switch, language, hardware/FPS choices and local time/weather controls. Modified built-ins retain their translated name with an asterisk, and can be saved as a custom profile.
 
-The lower-left corner shows the public version, **0.2d**, followed by save status. Public versions use the form `digit.digitletter`.
+The lower-left corner shows the public version, **0.2e**, followed by save status. Public versions use the form `digit.digitletter`.
 
 ## When an effect is visible
 
@@ -96,7 +96,7 @@ Opacity is controlled by FENB and texture cutout coverage. Legacy vertex and mat
 
 Refraction uses a GPU-only color snapshot taken once before the first matched water draw in each frame. It does not sample the live render target or recursively refract previously drawn FENB water. With valid depth, the material computes the optical path between the water surface and opaque scene, applies channel-dependent absorption, softens the shoreline and fades fine normals at contact. Refracted samples above the water plane or in front of its surface are rejected. Without valid depth, it retains uniform transparency and conservative distortion; foreground color leakage is still possible in that fallback. Only geometry already drawn before the snapshot is available.
 
-Sky reflection captures the exact identified `skybox01`–`skybox06`, `cloud01`–`cloud05` and `rartesia_cloud` families, including low-resolution versions. It replays their fixed-function geometry into a 128-pixel cubemap, updated at most four times per second. Only their original DrawPrimitive calls are repeated, with six camera orientations, the original texture stages and no depth buffer; no world scene is replayed or retained. The water samples this actual sky/cloud rendering with its reflected normal. Unknown sky textures or unsupported paths use the analytic gradient. A frame without a matched sky cannot reuse a stale map from another scene. The native fixture verifies the capture, cubemap selection, main-target preservation and state restoration; appearance in the live client still needs checking after restart.
+Sky reflection captures the exact identified `skybox01`–`skybox06`, `cloud01`–`cloud05` and `rartesia_cloud` families, including low-resolution versions. It replays their fixed-function geometry into a 128-pixel cubemap, updated at most four times per second. The refresh decision is latched on the first sky draw and the faces are cleared only once per frame, preserving every subsequently blended skybox/cloud layer during day/night transitions. A failed face invalidates that refresh instead of publishing a partial map. Only their original DrawPrimitive calls are repeated, with six camera orientations, the original texture stages and no depth buffer; no world scene is replayed or retained. The water samples this actual sky/cloud rendering with its reflected normal. Unknown sky textures or unsupported paths use the analytic gradient. A frame without a matched sky cannot reuse a stale map from another scene. The native fixture verifies the capture, cubemap selection, main-target preservation and state restoration; appearance in the live client still needs checking after restart.
 
 Depth-based optics currently use the optional NVIDIA driver path: registered D16/D24 scene depth is copied into an INTZ texture through [NvAPI_D3D9_StretchRectEx](https://docs.nvidia.com/nvapi/group__dx.html). The native fixture verifies actual sampling of the resolved depth and rendering with both D16 and D24 at zero and 8x MSAA. The copied source remains the actual depth surface used for scene rendering. Driver functions are loaded only from the system directory; no NVAPI redistributable is required. Unsupported drivers, formats, projections or failed copies use the fallback material. RESZ support alone is not assumed.
 

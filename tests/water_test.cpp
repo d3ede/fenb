@@ -355,6 +355,20 @@ int main(int argc, char **) {
             water.beginFrame();
             d->BeginScene();
             water.captureEnvironment(D3DPT_TRIANGLELIST, 0, 2);
+            // Neuz blends multiple skybox materials at dusk. Both layers must survive the
+            // same capture, even though the first draw has just advanced the refresh timer.
+            d->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TFACTOR);
+            d->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TFACTOR);
+            d->SetRenderState(D3DRS_TEXTUREFACTOR, 0xffff0000);
+            d->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
+            water.captureEnvironment(D3DPT_TRIANGLELIST, 0, 2);
+            d->SetRenderState(D3DRS_TEXTUREFACTOR, 0x800000ff);
+            d->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+            d->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+            d->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+            water.captureEnvironment(D3DPT_TRIANGLELIST, 0, 2);
+            d->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+            d->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
             d->EndScene();
             CHECK(Pixel(d, bb) == beforeCapture); // Repeated sky draws never touch the real scene.
             CHECK(water.bytes() == 128 * 128 * 4 * 6 + normalBytes);
@@ -394,6 +408,9 @@ int main(int argc, char **) {
             DWORD cubePixel = *(DWORD *)((BYTE *)skyLock.pBits + 64 * skyLock.Pitch + 64 * 4);
             skyRead->UnlockRect();
             CHECK((cubePixel & 0xffffff) != 0);
+            CHECK(abs(int((cubePixel >> 16) & 255) - 127) <= 1);
+            CHECK(abs(int(cubePixel & 255) - 128) <= 1);
+            CHECK((cubePixel & 0xff00) == 0);
             water.beginFrame(); // A different/unknown sky next frame must not display stale reflections.
             d->BeginScene();
             CHECK(water.begin(settings));

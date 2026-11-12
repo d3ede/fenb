@@ -220,7 +220,8 @@ void WaterFX::captureEnvironment(D3DPRIMITIVETYPE type, UINT start, UINT count, 
         std::abs(view._41) + std::abs(view._42) + std::abs(view._43) > .001f ||
         std::abs(projection._34 - 1) > .001f)
         return;
-    if (tag == 3) {
+    const bool firstSky = tag == 3 && !skySeen_;
+    if (firstSky) {
         skySeen_ = true;
         environmentUpdating_ =
             !environment_.p || !environmentReady_ || GetTickCount() - environmentTime_ >= 250;
@@ -268,7 +269,7 @@ void WaterFX::captureEnvironment(D3DPRIMITIVETYPE type, UINT start, UINT count, 
         if (FAILED(environment_->GetCubeMapSurface(D3DCUBEMAP_FACES(face), 0, target.out())) ||
             FAILED(device_->SetRenderTarget(0, target)) || FAILED(device_->SetViewport(&vp)) ||
             FAILED(device_->SetTransform(D3DTS_VIEW, &m)) ||
-            (tag == 3 && FAILED(device_->Clear(0, nullptr, D3DCLEAR_TARGET, fog | 0xff000000, 1, 0)))) {
+            (firstSky && FAILED(device_->Clear(0, nullptr, D3DCLEAR_TARGET, fog | 0xff000000, 1, 0)))) {
             ok = false;
             break;
         }
@@ -283,6 +284,11 @@ void WaterFX::captureEnvironment(D3DPRIMITIVETYPE type, UINT start, UINT count, 
         }
     }
     environmentReady_ = ok;
+    // A transition may blend several skyboxes before the cloud layer. Latch the update for
+    // the entire frame: restarting the timer/clearing per draw drops all but one layer.
+    // Never publish a partial capture after a failed face, even if a later layer succeeds.
+    if (!ok)
+        environmentUpdating_ = false;
     if (ok)
         environmentTime_ = GetTickCount();
 }
