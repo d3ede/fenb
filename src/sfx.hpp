@@ -1,6 +1,5 @@
 #pragma once
 #include "settings.hpp"
-#include "state_guard.hpp"
 #include "scene_tags.hpp"
 #include "generated/sfx_catalog.hpp"
 #include <generated/sfx_shaders.hpp>
@@ -20,7 +19,37 @@ class SfxFX {
     unsigned draws_ = 0;
     D3DMATRIX view_{}, projection_{};
     D3DVIEWPORT9 viewport_{};
-    std::unique_ptr<StateGuard> state_;
+    // Material replacement never changes targets, transforms, streams or the vertex declaration.
+    // A full D3DSBT_ALL block per particle restores render targets and stalls the driver.
+    bool active_ = false, wakeState_ = false;
+    float savedVertex_[13][4]{}, savedPixel_[11][4]{};
+    DWORD savedFog_ = 0, savedFilters_[2]{}, savedWakeSampler_[4]{}, savedDestination_ = 0;
+    Com<IDirect3DBaseTexture9> savedTexture_;
+    static constexpr D3DSAMPLERSTATETYPE filters_[] = {D3DSAMP_MINFILTER, D3DSAMP_MAGFILTER};
+    static constexpr D3DSAMPLERSTATETYPE wakeSampler_[] = {D3DSAMP_MINFILTER, D3DSAMP_MAGFILTER,
+                                                           D3DSAMP_ADDRESSU, D3DSAMP_ADDRESSV};
+    bool saveState(bool wake) {
+        if (FAILED(device_->GetVertexShaderConstantF(0, savedVertex_[0], 13)) ||
+            FAILED(device_->GetPixelShaderConstantF(0, savedPixel_[0], 11)) ||
+            FAILED(device_->GetRenderState(D3DRS_FOGENABLE, &savedFog_)))
+            return false;
+        for (int i = 0; i < 2; ++i)
+            if (FAILED(device_->GetSamplerState(0, filters_[i], savedFilters_ + i)))
+                return false;
+        if (wake) {
+            if (FAILED(device_->GetTexture(1, savedTexture_.out())) ||
+                FAILED(device_->GetRenderState(D3DRS_DESTBLEND, &savedDestination_)))
+                return false;
+            for (int i = 0; i < 4; ++i)
+                if (FAILED(device_->GetSamplerState(1, wakeSampler_[i], savedWakeSampler_ + i))) {
+                    savedTexture_.out();
+                    return false;
+                }
+        }
+        wakeState_ = wake;
+        active_ = true;
+        return true;
+    }
     static D3DMATRIX multiply(const D3DMATRIX &a, const D3DMATRIX &b) {
         D3DMATRIX result{};
         for (int r = 0; r < 4; ++r)
@@ -91,7 +120,7 @@ class SfxFX {
             BCryptCloseAlgorithmProvider(hash_, 0);
     }
     void invalidate() {
-        state_.reset();
+        end();
         vs_.out();
         ps_.out();
         backgroundSurface_.out();
@@ -158,7 +187,7 @@ class SfxFX {
         return snapshot_;
     }
     bool begin(const Settings &s, bool waterVisible, bool canSnapshot = true) {
-        if (!s.sfx || !camera_ || state_)
+        if (!s.sfx || !camera_ || active_)
             return false;
         DWORD fvf = 0, z = 0, write = 0, blend = 0, src = 0, dst = 0, lit = 0, test = 0, stage1 = 0,
               coord = 0, transform = 0;
@@ -183,6 +212,10 @@ class SfxFX {
         Com<IDirect3DPixelShader9> original;
         device_->GetPixelShader(original.out());
         if (original.p)
+            return false;
+        Com<IDirect3DVertexShader9> originalVertex;
+        device_->GetVertexShader(originalVertex.out());
+        if (originalVertex.p)
             return false;
         Com<IDirect3DBaseTexture9> base;
         if (FAILED(device_->GetTexture(0, base.out())) || !base.p || base->GetType() != D3DRTYPE_TEXTURE)
@@ -239,10 +272,8 @@ class SfxFX {
         if ((!vs_.p && FAILED(device_->CreateVertexShader(ShaderSfxVS, vs_.out()))) ||
             (!ps_.p && FAILED(device_->CreatePixelShader(ShaderSfxPS, ps_.out()))))
             return false;
-        auto guard = std::make_unique<StateGuard>(device_);
-        if (!guard->valid())
+        if (!saveState(wake))
             return false;
-        state_ = std::move(guard);
         auto worldView = multiply(world, view), clip = multiply(worldView, projection);
         DWORD range = 0;
         device_->GetRenderState(D3DRS_RANGEFOGENABLE, &range);
@@ -322,11 +353,23 @@ class SfxFX {
         return true;
     }
     void end(bool up = false, bool indexed = false) {
-        bool active = bool(state_);
-        state_.reset();
-        if (active && up)
-            device_->SetStreamSource(0, nullptr, 0, 0);
-        if (active && indexed)
-            device_->SetIndices(nullptr);
+        if (!active_)
+            return;
+        device_->SetVertexShader(nullptr);
+        device_->SetPixelShader(nullptr);
+        device_->SetVertexShaderConstantF(0, savedVertex_[0], 13);
+        device_->SetPixelShaderConstantF(0, savedPixel_[0], 11);
+        device_->SetRenderState(D3DRS_FOGENABLE, savedFog_);
+        for (int i = 0; i < 2; ++i)
+            device_->SetSamplerState(0, filters_[i], savedFilters_[i]);
+        if (wakeState_) {
+            device_->SetTexture(1, savedTexture_);
+            savedTexture_.out();
+            device_->SetRenderState(D3DRS_DESTBLEND, savedDestination_);
+            for (int i = 0; i < 4; ++i)
+                device_->SetSamplerState(1, wakeSampler_[i], savedWakeSampler_[i]);
+        }
+        // Draw*UP already performs the native stream/index clearing. No unrelated state is rebound.
+        active_ = wakeState_ = false;
     }
 };

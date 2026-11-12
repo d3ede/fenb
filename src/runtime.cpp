@@ -216,6 +216,7 @@ void Runtime::resetFrame() {
 }
 void Runtime::beforeWaterDraw(UINT upStride, DrawCall draw) {
     if (!lost_ && settings.enabled && settings.sfx && !compare && !vertexShaderActive_ &&
+        fvfKnown_ && (drawFVF_ == 0x102 || drawFVF_ == 0x142) &&
         sceneBackbuffer_ && drawTarget_ == sceneBackbuffer_)
         sfx_->begin(settings, waterDraws > 0, !hudStarted_);
     if (!lost_ && settings.enabled && !compare && !vertexShaderActive_ && fvfKnown_ &&

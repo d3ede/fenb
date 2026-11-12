@@ -70,7 +70,8 @@ unsigned Difference(const std::vector<DWORD> &a, const std::vector<DWORD> &b, in
     return n;
 }
 } // namespace
-int main(int argc, char **) {
+int main(int argc, char **argv) {
+    const bool benchmark = argc > 1 && !strcmp(argv[1], "--benchmark");
     WNDCLASSW wc{};
     wc.lpfnWndProc = DefWindowProcW;
     wc.hInstance = GetModuleHandleW(nullptr);
@@ -90,7 +91,7 @@ int main(int argc, char **) {
     pp.hDeviceWindow = window;
     pp.EnableAutoDepthStencil = TRUE;
     pp.AutoDepthStencilFormat = D3DFMT_D16;
-    if (argc > 1) {
+    if (argc > 1 && !benchmark) {
         pp.MultiSampleType = D3DMULTISAMPLE_8_SAMPLES;
         if (FAILED(root->CheckDeviceMultiSampleType(0, D3DDEVTYPE_HAL, pp.BackBufferFormat, TRUE,
                                                     pp.MultiSampleType, nullptr))) {
@@ -210,6 +211,33 @@ int main(int argc, char **) {
     settings.sfxGlow = 0;
     settings.sfxSaturation = 1;
     settings.sfxSoftness = 0;
+    if (benchmark) {
+        world._11 = world._22 = world._33 = .015f;
+        render(true); // Warm shaders and material identity before timing steady-state draws.
+        LARGE_INTEGER frequency{};
+        QueryPerformanceFrequency(&frequency);
+        for (bool enhance : {false, true}) {
+            double elapsed = 0;
+            for (int frame = 0; frame < 5; ++frame) {
+                render(false);
+                d->BeginScene();
+                LARGE_INTEGER start{}, finish{};
+                QueryPerformanceCounter(&start);
+                for (int i = 0; i < 2000; ++i) {
+                    if (enhance && !sfx.begin(settings, false))
+                        return 2;
+                    d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, quad, sizeof(V));
+                    if (enhance)
+                        sfx.end(true);
+                }
+                QueryPerformanceCounter(&finish);
+                d->EndScene();
+                elapsed += double(finish.QuadPart - start.QuadPart) * 1000 / frequency.QuadPart;
+            }
+            printf("BENCH %s: %.3f ms / 2000 particle draws\n", enhance ? "SFX" : "native", elapsed / 5);
+        }
+        return 0;
+    }
     render(false);
     auto native = Read(d);
     CHECK(render(true));
@@ -220,7 +248,20 @@ int main(int argc, char **) {
     settings.sfxGlow = .8f;
     settings.sfxSaturation = 1.2f;
     settings.sfxSoftness = .5f;
+    float savedVS[13][4]{}, savedPS[11][4]{};
+    for (int i = 0; i < 13; ++i)
+        for (int j = 0; j < 4; ++j)
+            savedVS[i][j] = float(i * 4 + j) * .125f;
+    for (int i = 0; i < 11; ++i)
+        for (int j = 0; j < 4; ++j)
+            savedPS[i][j] = float(i * 4 + j) * .25f;
+    d->SetVertexShaderConstantF(0, savedVS[0], 13);
+    d->SetPixelShaderConstantF(0, savedPS[0], 11);
     CHECK(render(true));
+    float restoredVS[13][4]{}, restoredPS[11][4]{};
+    CHECK(SUCCEEDED(d->GetVertexShaderConstantF(0, restoredVS[0], 13)));
+    CHECK(SUCCEEDED(d->GetPixelShaderConstantF(0, restoredPS[0], 11)));
+    CHECK(!memcmp(savedVS, restoredVS, sizeof(savedVS)) && !memcmp(savedPS, restoredPS, sizeof(savedPS)));
     auto styled = Read(d);
     CHECK(Difference(native, styled) > 100);
     Save(native, L"build/sfx-native.bmp");
