@@ -48,7 +48,16 @@ float HeaderBrand(ImDrawList *d, ImVec2 origin, float panelWidth, const PanelBra
         TextAt(d, {origin.x + 49, origin.y + 12}, "FENB");
         return 98;
     }
-    return layout == PanelBranding::Layout::Horizontal ? 126.f : 46.f;
+    return layout == PanelBranding::Layout::Horizontal ? 126.f : 51.f;
+}
+void HeaderTabHighlight(ImDrawList *draw, ImVec2 origin, float left, float right) {
+    if (right <= left)
+        return;
+    draw->AddRectFilled({origin.x + left, origin.y + 6}, {origin.x + right, origin.y + 34},
+                        Opacity(IM_COL32(171, 133, 225, 20)), 3);
+    draw->AddRectFilled({origin.x + left + 6, origin.y + 32},
+                        {origin.x + right - 6, origin.y + 34},
+                        Opacity(IM_COL32(181, 144, 235, 210)), 1);
 }
 void Theme() {
     auto &s = ImGui::GetStyle();
@@ -676,18 +685,24 @@ void DrawPanel(Runtime &r, const PanelBranding &branding) {
     float languageWidth = ImGui::CalcTextSize(Tr(UiText::LanguageTab)).x + 16;
     float languageX = std::min(titleX + ImGui::CalcTextSize(pageTitle).x + 16, masterX - languageWidth - 12);
     ImGui::PopFont();
-    ImVec4 titleClip{origin.x + titleX, origin.y + 8, origin.x + languageX - 10, origin.y + 33};
-    d->AddText(ImGui::GetFont(), 14, {origin.x + titleX, origin.y + 12}, Muted, pageTitle, nullptr, 0,
-               &titleClip);
     d->AddLine({origin.x + languageX - 6, origin.y + 12}, {origin.x + languageX - 6, origin.y + 27}, Line);
     ImGui::SetCursorPos({languageX, 8});
     if (ImGui::InvisibleButton("language", {languageWidth, 24}, ImGuiButtonFlags_EnableNav))
         ImGui::OpenPopup("languages");
     bool languageHovered = ImGui::IsItemHovered();
-    if (languageHovered || ImGui::IsPopupOpen("languages"))
+    bool languageSelected = ImGui::IsPopupOpen("languages");
+    const ImU32 selectedText = IM_COL32(217, 199, 245, 255);
+    if (languageSelected)
+        HeaderTabHighlight(d, origin, languageX, languageX + languageWidth);
+    else
+        HeaderTabHighlight(d, origin, titleX - 6, languageX - 10);
+    ImVec4 titleClip{origin.x + titleX, origin.y + 8, origin.x + languageX - 10, origin.y + 31};
+    d->AddText(ImGui::GetFont(), 14, {origin.x + titleX, origin.y + 12},
+               Opacity(languageSelected ? Muted : selectedText), pageTitle, nullptr, 0, &titleClip);
+    if (languageHovered && !languageSelected)
         d->AddRectFilled(ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), Raised, 2);
     TextAt(d, {origin.x + languageX + 8, origin.y + 12}, Tr(UiText::LanguageTab),
-           languageHovered || ImGui::IsPopupOpen("languages") ? Text : Muted, 14);
+           languageSelected ? selectedText : languageHovered ? Text : Muted, 14);
     ImGui::SetNextWindowPos({origin.x + languageX, origin.y + 36}, ImGuiCond_Appearing);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10, 8));
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8, 5));

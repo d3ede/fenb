@@ -178,6 +178,18 @@ int main() {
                             (language ? L"-ru" : L"-en") + (narrow ? L"-narrow.png" : L".png");
                 CHECK(Screenshot(d, path.c_str()));
                 CHECK(r.settings.language == (language ? Language::Russian : Language::English));
+                if (variant == 2 && !narrow) {
+                    click(language ? 310 : 270, 60);
+                    frame();
+                    CHECK(ImGui::IsPopupOpen("languages", ImGuiPopupFlags_AnyPopupId));
+                    auto languagePath = std::wstring(L"artifacts/header-logo-options/") + names[variant] +
+                                        (language ? L"-ru-language.png" : L"-en-language.png");
+                    CHECK(Screenshot(d, languagePath.c_str()));
+                    click(150, 60); // Closing the popup restores the current-page highlight.
+                    frame();
+                    CHECK(!ImGui::IsPopupOpen("languages", ImGuiPopupFlags_AnyPopupId));
+                    CHECK(r.settings.language == (language ? Language::Russian : Language::English));
+                }
             }
         }
     }
