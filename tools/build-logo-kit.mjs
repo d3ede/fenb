@@ -24,7 +24,7 @@ export function defs(p,k) { return `<defs>
 <linearGradient id="${k}-star" x1="430" y1="230" x2="489" y2="312" gradientUnits="userSpaceOnUse"><stop stop-color="${p.shine}"/><stop offset=".5" stop-color="${p.mid}"/><stop offset="1" stop-color="${p.ring}"/></linearGradient>
 <linearGradient id="${k}-word" x1="310" y1="0" x2="330" y2="90" gradientUnits="userSpaceOnUse"><stop stop-color="${p.wordTop ?? p.top}"/><stop offset="1" stop-color="${p.word}"/></linearGradient>
 </defs>`; }
-function emblem(p,k) { return `<g id="${k}-emblem">
+export function emblem(p,k) { return `<g id="${k}-emblem">
 <path id="${k}-orbit-back" d="M398 152C503 121 571 134 561 173C555 196 527 224 484 252L477 244C515 216 540 190 535 173C529 151 470 145 398 152Z" fill="url(#${k}-orbit)"/>
 <path id="${k}-F" d="${F}" fill="url(#${k}-metal)" stroke="${p.edge}" stroke-opacity=".65" stroke-width="1.6" stroke-linejoin="round"/>
 <g id="${k}-facets" clip-path="url(#${k}-F-clip)">
@@ -37,7 +37,7 @@ function emblem(p,k) { return `<g id="${k}-emblem">
 <path id="${k}-spark" d="${star}" fill="url(#${k}-star)"/>
 <path id="${k}-spark-core" d="M458 230C458 261 453 269 421 269C453 269 458 277 458 307C458 277 464 269 496 269C464 269 458 261 458 230Z" fill="${p.shine}" opacity=".65"/>
 </g>`; }
-function wordmark(p,k) {return `<g id="${k}-wordmark" fill="url(#${k}-word)" fill-rule="evenodd">${letters.map(([n,x,d])=>`<path id="${k}-letter-${n}" transform="translate(${x} 0)" d="${d}"/>`).join('')}</g>`;}
+export function wordmark(p,k) {return `<g id="${k}-wordmark" fill="url(#${k}-word)" fill-rule="evenodd">${letters.map(([n,x,d])=>`<path id="${k}-letter-${n}" transform="translate(${x} 0)" d="${d}"/>`).join('')}</g>`;}
 export function body(p,k,layout){
   if(layout==='square') return `<g transform="translate(212 110)">${emblem(p,k)}</g><g transform="translate(194.5 625)">${wordmark(p,k)}</g>`;
   if(layout==='horizontal') return `<g transform="translate(34 10) scale(.83)">${emblem(p,k)}</g><g transform="translate(580 194) scale(1.38)">${wordmark(p,k)}</g>`;
