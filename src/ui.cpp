@@ -579,18 +579,29 @@ void AntialiasControls(Runtime &r) {
         s.fxaa = s.smaa = false;
     }
     ImGui::Dummy({0, 8});
-    if (Section("msaa", "MSAA", hardware, reset, false)) {
+    if (Section("msaa", Tr(UiText::MSAAMethod), hardware, reset, false)) {
         if (reset)
             s.msaaSamples = 0;
-        int modes[] = {0, -1, 2, 4, 8}, choice = 0;
-        for (int i = 0; i < 5; ++i)
-            if (s.msaaSamples == modes[i])
+        const unsigned active = r.activeMSAA();
+        int modes[] = {-1, 2, 4, 8}, choice = -1;
+        for (int i = 0; i < 4; ++i)
+            if (active == unsigned(modes[i] < 0 ? 0 : modes[i]))
                 choice = i;
-        const char *labels[] = {Tr(UiText::GameDefault), Tr(UiText::Off), Tr(UiText::MSAATwo),
-                                Tr(UiText::MSAAFour), Tr(UiText::MSAAEight)};
+        const char *labels[] = {Tr(UiText::Off), Tr(UiText::MSAATwo), Tr(UiText::MSAAFour),
+                                Tr(UiText::MSAAEight)};
+        char nativeLabel[32];
+        std::snprintf(nativeLabel, sizeof(nativeLabel), Tr(UiText::MSAAMultiplier), active);
+        const char *current = choice >= 0   ? labels[choice]
+                              : active == 1 ? Tr(UiText::MSAAMethod)
+                                            : nativeLabel;
         ImGui::SetNextItemWidth(-1);
-        if (ImGui::BeginCombo("##msaa", labels[choice])) {
-            for (int i = 0; i < 5; ++i) {
+        if (ImGui::BeginCombo("##msaa", current)) {
+            if (choice < 0) {
+                ImGui::BeginDisabled();
+                ImGui::Selectable((std::string(current) + "###native-samples").c_str(), true);
+                ImGui::EndDisabled();
+            }
+            for (int i = 0; i < 4; ++i) {
                 bool available = r.msaaAvailable(modes[i]);
                 ImGui::PushID(i);
                 ImGui::BeginDisabled(!available);

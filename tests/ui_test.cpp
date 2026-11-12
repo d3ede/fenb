@@ -19,11 +19,22 @@ std::wstring ModuleDirectory() {
 }
 void Log(const char *) {}
 bool Screenshot(IDirect3DDevice9 *d, const wchar_t *path) {
-    Com<IDirect3DSurface9> bb, read;
+    Com<IDirect3DSurface9> bb, read, resolved;
     d->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, bb.out());
+    D3DSURFACE_DESC desc{};
+    if (FAILED(bb->GetDesc(&desc)))
+        return false;
+    IDirect3DSurface9 *source = bb;
+    if (desc.MultiSampleType != D3DMULTISAMPLE_NONE) {
+        if (FAILED(d->CreateRenderTarget(desc.Width, desc.Height, desc.Format, D3DMULTISAMPLE_NONE,
+                                         0, FALSE, resolved.out(), nullptr)) ||
+            FAILED(d->StretchRect(bb, nullptr, resolved, nullptr, D3DTEXF_NONE)))
+            return false;
+        source = resolved;
+    }
     if (FAILED(d->CreateOffscreenPlainSurface(800, 600, D3DFMT_X8R8G8B8, D3DPOOL_SYSTEMMEM, read.out(),
                                               nullptr)) ||
-        FAILED(d->GetRenderTargetData(bb, read)))
+        FAILED(d->GetRenderTargetData(source, read)))
         return false;
     D3DLOCKED_RECT l{};
     if (FAILED(read->LockRect(&l, nullptr, D3DLOCK_READONLY)))
@@ -279,6 +290,41 @@ int main() {
     r.settings.language = Language::Russian;
     frame();
     CHECK(Screenshot(d, L"build/FENB-narrow-russian.png"));
+    // A legacy preserve-game setting must display the real native samples, even if an override differs.
+    DWORD msaaQuality = 0;
+    if (SUCCEEDED(root->CheckDeviceMultiSampleType(0, D3DDEVTYPE_HAL, pp.BackBufferFormat, TRUE,
+                                                   D3DMULTISAMPLE_8_SAMPLES, &msaaQuality)) && msaaQuality) {
+        ImGui_ImplDX9_InvalidateDeviceObjects();
+        r.beforeReset();
+        auto multisampled = pp;
+        multisampled.SwapEffect = D3DSWAPEFFECT_DISCARD;
+        multisampled.MultiSampleType = D3DMULTISAMPLE_8_SAMPLES;
+        auto result = d->Reset(&multisampled);
+        CHECK(SUCCEEDED(result));
+        r.afterReset(result);
+        CHECK(r.activeMSAA() == 8);
+        io.DisplaySize = {800, 600};
+        r.centerPanel = true;
+        r.editorPage = 3;
+        r.settings.msaaSamples = 0;
+        r.settings.language = Language::English;
+        frame();
+        frame();
+        CHECK(r.settings.msaaSamples == 0);
+        CHECK(Screenshot(d, L"build/FENB-antialias-native8-english.png"));
+        click(400, 245);
+        frame();
+        CHECK(!ImGui::GetCurrentContext()->OpenPopupStack.empty());
+        CHECK(Screenshot(d, L"build/FENB-antialias-native8-menu.png"));
+        io.AddKeyEvent(ImGuiKey_Escape, true);
+        frame();
+        io.AddKeyEvent(ImGuiKey_Escape, false);
+        frame();
+        r.settings.msaaSamples = 4; // A pending or failed request must not disguise the active 8x mode.
+        r.settings.language = Language::Russian;
+        frame();
+        CHECK(Screenshot(d, L"build/FENB-antialias-native8-russian.png"));
+    }
     DeleteFileW((ModuleDirectory() + L"FENB-presets\\Тест воды.ini").c_str());
     ImGui_ImplDX9_Shutdown();
     ImGui::DestroyContext();
