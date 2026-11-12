@@ -163,8 +163,8 @@ bool SquareSwitch(const char *id, bool &value, ImVec2 size = {28, 18}) {
         Opacity(Blend(Muted,IM_COL32(224,225,231,255),t)),20);
     return changed;
 }
-void ResetGlyph(ImDrawList *d, ImVec2 p, ImU32 color) {
-    ImVec2 c{p.x + 10, p.y + 9};
+void ResetGlyph(ImDrawList *d, ImVec2 p, ImU32 color, ImVec2 size = {20, 18}) {
+    ImVec2 c{p.x + size.x*.5f, p.y + size.y*.5f};
     d->PathArcTo(c, 5, -2.35f, 2.65f, 24);
     d->PathStroke(color, 1.35f);
     // Counter-clockwise arrow; the tip meets the arc at the upper left.
@@ -365,6 +365,8 @@ std::wstring ProfileName(const char *text) {
 }
 void ProfilePicker(Runtime &r, float width) {
     auto &s = r.settings;
+    const auto rowOrigin = ImGui::GetCursorScreenPos();
+    const float actionSize = ImGui::GetFrameHeight();
     ImGui::AlignTextToFramePadding();
     ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(Muted), "%s", Tr(UiText::Profile));
     ImGui::SameLine(88);
@@ -437,13 +439,29 @@ void ProfilePicker(Runtime &r, float width) {
     ImGui::PopStyleVar(2);
     ImGui::PopStyleColor();
     Tip(Tr(UiText::ProfileFolderHelp));
-    ImGui::SameLine(width - 66);
-    bool resetAll = ImGui::InvisibleButton("reset-all", {24, 24}, ImGuiButtonFlags_EnableNav);
-    ResetGlyph(ImGui::GetWindowDrawList(), ImGui::GetItemRectMin(), ImGui::IsItemHovered() ? Text : Muted);
+    auto action = [&](const char *id, float x, bool reset) {
+        ImGui::SetCursorScreenPos({ImGui::GetWindowPos().x+x, rowOrigin.y});
+        bool pressed = ImGui::InvisibleButton(id, {actionSize, actionSize}, ImGuiButtonFlags_EnableNav);
+        const auto p = ImGui::GetItemRectMin();
+        auto *draw = ImGui::GetWindowDrawList();
+        const bool hovered = ImGui::IsItemHovered();
+        if (hovered || ImGui::IsItemActive())
+            draw->AddRectFilled(p, {p.x+actionSize,p.y+actionSize},
+                ImGui::GetColorU32(ImGui::IsItemActive()?ImGuiCol_ButtonActive:ImGuiCol_ButtonHovered),2);
+        const auto color = hovered ? Text : Muted;
+        if (reset)
+            ResetGlyph(draw,p,color,{actionSize,actionSize});
+        else {
+            ImVec2 c{p.x+actionSize*.5f,p.y+actionSize*.5f};
+            draw->AddLine({c.x-5,c.y},{c.x+5,c.y},color,1.35f);
+            draw->AddLine({c.x,c.y-5},{c.x,c.y+5},color,1.35f);
+        }
+        return pressed;
+    };
+    bool resetAll = action("reset-all", width-68, true);
     Tip(Tr(UiText::ResetAll));
     if (resetAll) ResetAll(s);
-    ImGui::SameLine(width - 34);
-    bool create = ImGui::Button("+###create-profile", {18, 24});
+    bool create = action("+###create-profile", width-36, false);
     Tip(Tr(r.selectedProfile.empty() ? UiText::Create : UiText::SaveAs));
     if (create || createRequested) {
         r.profileError = UiText::None;
@@ -795,8 +813,9 @@ void DrawPanel(Runtime &r, const PanelBranding &branding) {
     uiLanguage=s.language;
     ImGui::SetCursorPos({size.x-152,narrow?46.f:14.f});
     SquareSwitch("master",s.enabled,{28,18});
+    const auto master = ImGui::GetItemRectMin();
     Tip(Tr(UiText::MasterHelp));
-    TextAt(d,{origin.x+size.x-118,origin.y+(narrow?48.f:16.f)},Tr(UiText::Effects),Muted,11);
+    TextAt(d,{origin.x+size.x-118,std::floor(master.y+9-11*.5f)},Tr(UiText::Effects),Muted,11);
     ImGui::SetCursorPos({size.x - 57, 8});
     if (ImGui::InvisibleButton("menu", {24, 24}, ImGuiButtonFlags_EnableNav))
         ImGui::OpenPopup("actions");

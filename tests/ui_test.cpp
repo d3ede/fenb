@@ -243,6 +243,9 @@ int main() {
     io.AddMousePosEvent(-FLT_MAX,-FLT_MAX);frame();
     for(int language=0;language<2;++language) {
         r.settings.language=language?Language::Russian:Language::English;
+        activate(panel,"menu");
+        CHECK(Screenshot(d,language?L"build/ui-integrated/ru-actions.png":L"build/ui-integrated/en-actions.png"));
+        ImGui::ClosePopupToLevel(0,true);frame();
         for(int page=0;page<6;++page) {
             r.editorPage=page;ImGui::SetScrollY(child(),0);frame();frame();
             auto path=std::wstring(L"build/ui-integrated/")+(language?L"ru-":L"en-")+std::to_wstring(page)+L".png";
