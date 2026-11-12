@@ -65,6 +65,9 @@ class WaterFX {
     DWORD materialTag(IDirect3DTexture9 *texture) {
         return classify(texture);
     }
+    IDirect3DCubeTexture9 *skyEnvironment() const {
+        return skySeen_ && environmentReady_ ? environment_.p : nullptr;
+    }
     void captureEnvironment(D3DPRIMITIVETYPE type, UINT start, UINT count, SceneFX *sky = nullptr,
                             const Settings *settings = nullptr);
     void beginFrame(bool refraction = true, bool sky = true, bool depth = true, bool caustics = true) {

@@ -29,6 +29,7 @@ class SceneFX {
     Smaa smaa_;
     Target output_, ao_, rays_, raySource_, luma_[4], exposure_[2], balance_[2];
     Target skyBackdrop_;
+    Com<IDirect3DCubeTexture9> skyEnvironment_;
     Target skyMean_[3];
     Com<IDirect3DPixelShader9> skyMeanPS_;
     bool skyBackdropReady_ = false;
@@ -96,6 +97,12 @@ class SceneFX {
         return balance_[balanceIndex_].texture;
     }
     bool beginSky(const Settings &, DWORD materialTag);
+    void skyEnvironment(IDirect3DCubeTexture9 *texture) {
+        if (skyEnvironment_.p == texture) return;
+        skyEnvironment_.out();
+        skyEnvironment_.p = texture;
+        if (texture) texture->AddRef();
+    }
     void beginFlare(const Settings &);
     void endSky() {
         skyState_.reset();

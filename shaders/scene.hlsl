@@ -5,6 +5,7 @@ sampler2D Rays : register(s3);
 sampler2D LocalField : register(s4);
 sampler2D SkyBackdrop : register(s5);
 sampler2D MeanSky : register(s6);
+samplerCUBE Atmosphere : register(s7);
 float4 Camera : register(c0);
 float4 Viewport : register(c1);
 float4 Texel : register(c2);
@@ -154,22 +155,27 @@ float4 SceneComposite(float2 uv:TEXCOORD0):COLOR0 {
         // Soft bounded response avoids hard clipping and harsh polygon-shaped light patches.
         rgb+=saturate(1-rgb)*(1-exp(-extra));
     }
-    float3 air=FogBackdrop.x>.5?tex2Dlod(MeanSky,float4(.5,.5,0,0)).rgb:pow(max(0,FogTint.rgb),2.2)*Illumination.rgb;
-    if(Enabled.y>.5 && raw<1){
+    if(Enabled.w>.5)rgb+=tex2D(Rays,uv).rgb;
+    // Match the native DX9 fog composition space when replacing its existing air color.
+    rgb=pow(saturate(rgb),1/2.2);
+    float3 air=FogBackdrop.x>.5?tex2Dlod(MeanSky,float4(.5,.5,0,0)).rgb:FogTint.rgb*sqrt(Illumination.rgb);
+    if(Enabled.y>.5 && FogParameters.x>0 && raw<1){
         float3 worldDelta=mul((float3x3)View,p);
         float density=FogParameters.x*exp(clamp(-(Eye.y+worldDelta.y*.5-FogParameters.z)*FogParameters.w,-8,8));
         float fog=1-exp(-max(0,length(p)-FogParameters.y)*density);
         float3 inscatter=air;
         if(FogBackdrop.x>.5){
             // Atmospheric light is diffuse. Never project moon/cloud detail through an opaque object.
-            // Fade the engine's already-flat native fog silhouettes into that same backdrop.
-            if(FogBackdrop.y>.5 && FogBackdrop.w>FogBackdrop.z)
-                fog=max(fog,smoothstep(FogBackdrop.z,FogBackdrop.w,NativeFog.w>.5?length(p):p.z));
-            inscatter*=lerp(FogTint.rgb/float3(.56,.66,.76),1,saturate(fog));
+            // Retint the native fog already in the image instead of fogging its attenuated
+            // detail a second time. Additional extinction only fills the difference in opacity.
+            float native=NativeFog.x*saturate(((NativeFog.w>.5?length(p):p.z)-NativeFog.y)/max(.001,NativeFog.z-NativeFog.y));
+            rgb=max(0,rgb+(air-NativeFogColor.rgb)*native*saturate(FogParameters.x*500));
+            fog=saturate((fog-native)/max(.001,1-native));
+            inscatter*=lerp(FogTint.rgb/float3(.56,.66,.76),1,fog);
         }
-        rgb=lerp(rgb,inscatter,saturate(fog));
+        rgb=lerp(rgb,inscatter,fog);
     }
-    if(Enabled.y>.5 && FogBackdrop.x>.5 && NativeFog.x>.5 &&
+    if(Enabled.y>.5 && FogParameters.x>0 && FogBackdrop.x>.5 && NativeFog.x>.5 &&
        (raw>=1 || (NativeFog.w>.5?length(p):p.z)>=NativeFog.z*.995)) {
         // At the far clip, one MSAA depth sample can be sky even though color contains fogged terrain.
         // Recover only coverage consistent with the known native fog/sky mixture, preserving the sky.
@@ -179,12 +185,20 @@ float4 SceneComposite(float2 uv:TEXCOORD0):COLOR0 {
         float coverage=saturate(dot(source.rgb-sky,difference)/max(.00001,denominator));
         float error=length(source.rgb-lerp(sky,NativeFogColor.rgb,coverage));
         if(denominator>.0001 && error<.025)
-            rgb=lerp(pow(max(0,sky),2.2),air,coverage);
+            rgb=lerp(sky,air,coverage);
     }
-    if(Enabled.w>.5)rgb+=tex2D(Rays,uv).rgb;
-    return float4(pow(saturate(rgb),1/2.2),source.a);
+    return float4(saturate(rgb),source.a);
 }
 float4 SkyMean(float2 uv:TEXCOORD0):COLOR0 {
+    if(Camera.w>.5){
+        // World-space horizon radiance, not a view-dependent average dominated by the zenith.
+        // The shared sky-only cubemap has no terrain, particles or HUD in it.
+        float a=uv.x*6.2831853,y=uv.y*.15;
+        float3 rgb=texCUBElod(Atmosphere,float4(cos(a),y,sin(a),0)).rgb;
+        rgb=pow(max(0,rgb),2.2);
+        rgb/=max(1,dot(rgb,float3(.2126,.7152,.0722))/.65);
+        return float4(rgb,1);
+    }
     float3 sum=0;
     [unroll]for(int y=0;y<4;++y)[unroll]for(int x=0;x<4;++x) {
         float3 rgb=tex2D(Image,uv+float2(x-1.5,y-1.5)*Camera.xy).rgb;
@@ -194,7 +208,9 @@ float4 SkyMean(float2 uv:TEXCOORD0):COLOR0 {
         }
         sum+=rgb;
     }
-    return float4(sum/16,1);
+    float3 mean=sum/16;
+    if(Camera.w<-.5)mean=pow(max(0,mean),1/2.2);
+    return float4(mean,1);
 }
 // Exposure reduction stores mean log2 luminance, mapped from [-12,0] to [0,1].
 float4 Luminance(float2 uv:TEXCOORD0):COLOR0 {

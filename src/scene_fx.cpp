@@ -66,6 +66,7 @@ bool SceneFX::programs() {
     return skyVS_.p || SUCCEEDED(device_->CreateVertexShader(ShaderSkyVS, skyVS_.out()));
 }
 void SceneFX::beginFrame() {
+    skyEnvironment_.out();
     camera_ = depthReady_ = emitters_ = false;
     skyApplied_ = sunOnScreen_ = false;
     skyBackdropReady_ = false;
@@ -119,6 +120,7 @@ void SceneFX::invalidate() {
     beginFrame();
 }
 void SceneFX::releasePost() {
+    skyEnvironment_.out();
     smaa_.invalidate();
     depth_.invalidate();
     output_.clear();
@@ -343,13 +345,16 @@ IDirect3DTexture9 *SceneFX::process(IDirect3DTexture9 *input, const Settings &s)
     if (!depthReady_ || !output_.texture.p)
         return input;
     if(s.fog && skyBackdropReady_) {
+        device_->SetTexture(7, skyEnvironment_);
         auto *source=skyBackdrop_.texture.p;
         for(UINT i=0;i<3;++i) {
-            float step[]={1.f/(skyMean_[i].width*4),1.f/(skyMean_[i].height*4),i==0?1.f:0.f,0};
+            float step[]={1.f/(skyMean_[i].width*4),1.f/(skyMean_[i].height*4),i==0?1.f:0.f,
+                          i==0 && skyEnvironment_.p ? 1.f : i==2 ? -1.f : 0.f};
             device_->SetPixelShaderConstantF(0,step,1);
             if(!pass(skyMean_[i],skyMeanPS_,source)){skyBackdropReady_=false;break;}
             source=skyMean_[i].texture.p;
         }
+        device_->SetTexture(7, nullptr);
     }
     const float w = float(output_.width), h = float(output_.height);
     float c[20][4]{};

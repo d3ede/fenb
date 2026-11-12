@@ -187,6 +187,19 @@ int main(int argc, char **) {
     bool emit = false, nativePoint = true, occluded = false, foreground = false;
     float cameraYaw = 0;
     bool planeOnly = false, moonBackdrop = false;
+    bool nativeFogScene = false, horizonCube = false;
+    Com<IDirect3DCubeTexture9> fogSky;
+    CHECK(SUCCEEDED(d->CreateCubeTexture(4, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED,
+                                       fogSky.out(), nullptr)));
+    for (UINT face = 0; face < 6; ++face) {
+        D3DLOCKED_RECT skyLock{};
+        CHECK(SUCCEEDED(fogSky->LockRect(D3DCUBEMAP_FACES(face), 0, &skyLock, nullptr, 0)));
+        for (UINT y = 0; y < 4; ++y)
+            for (UINT x = 0; x < 4; ++x)
+                ((DWORD *)((BYTE *)skyLock.pBits + y * skyLock.Pitch))[x] =
+                    face == D3DCUBEMAP_FACE_POSITIVE_Y ? 0xff3070cc : 0xffb06030;
+        fogSky->UnlockRect(D3DCUBEMAP_FACES(face), 0);
+    }
     int moonShift = 0;
     float emitterFade = 1;
     DWORD solidColor = 0xff303030;
@@ -268,6 +281,17 @@ int main(int argc, char **) {
         d->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
         d->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
         d->SetRenderState(D3DRS_FOGENABLE, FALSE);
+        if (nativeFogScene) {
+            float start = 0, end = 30; DWORD startBits = 0, endBits = 0;
+            memcpy(&startBits, &start, 4); memcpy(&endBits, &end, 4);
+            d->SetRenderState(D3DRS_FOGENABLE, TRUE);
+            d->SetRenderState(D3DRS_FOGTABLEMODE, D3DFOG_NONE);
+            d->SetRenderState(D3DRS_FOGVERTEXMODE, D3DFOG_LINEAR);
+            d->SetRenderState(D3DRS_RANGEFOGENABLE, FALSE);
+            d->SetRenderState(D3DRS_FOGSTART, startBits);
+            d->SetRenderState(D3DRS_FOGEND, endBits);
+            d->SetRenderState(D3DRS_FOGCOLOR, 0xffb06030);
+        }
         d->SetTexture(0, nullptr);
         d->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
         d->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_DIFFUSE);
@@ -294,6 +318,8 @@ int main(int argc, char **) {
             d->Clear(1,&moon,D3DCLEAR_TARGET,0xffd0e8ff,1,0);
         }
         fx.sceneFX().observe(settings);
+        if (horizonCube)
+            fx.sceneFX().skyEnvironment(fogSky);
         if (FAILED(d->BeginScene()))
             return false;
         if (!solid) {
@@ -410,6 +436,28 @@ int main(int argc, char **) {
     CHECK(leakedMoon==0);
     CHECK(Save(moonRight,L"build/scene-fog-no-moon-through-wall.bmp"));
     moonBackdrop=false;
+    // Horizon color comes from world-space side faces, not a blue zenith/view average.
+    horizonCube = true;
+    CHECK(render());
+    auto warmHorizon = Read(d);
+    const DWORD expectedAir = 0xffb06030;
+    for (int shift : {0, 8, 16})
+        CHECK(abs(int((warmHorizon[120 * W + W / 2] >> shift) & 255) -
+                  int((expectedAir >> shift) & 255)) <= 2);
+    CHECK(Save(warmHorizon, L"build/scene-fog-warm-horizon.bmp"));
+    nativeFogScene = true;
+    settings.fog = false;
+    CHECK(render()); auto nativeFogOnly = Read(d);
+    settings.fog = true; settings.fogDensity = .001f;
+    CHECK(render()); auto compatibleFog = Read(d);
+    unsigned doubleFogged = 0;
+    for (UINT y = H / 2; y < H - 10; ++y)
+        for (UINT x = W / 4; x < W * 3 / 4; ++x)
+            doubleFogged += abs(Luma(nativeFogOnly[y * W + x]) - Luma(compatibleFog[y * W + x])) > 3;
+    printf("Native fog detail changed pixels: %u\n", doubleFogged);
+    CHECK(doubleFogged == 0);
+    CHECK(Save(compatibleFog, L"build/scene-fog-native-detail.bmp"));
+    nativeFogScene = horizonCube = false;
     CHECK(SceneFXFixture::hasSkyBackdrop(fx.sceneFX()));
     disableEffect(3);
     settings.nightFoliage = 0;

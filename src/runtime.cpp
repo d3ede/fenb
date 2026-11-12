@@ -205,7 +205,8 @@ void Runtime::resetFrame() {
     bool waterEnabled = settings.enabled && settings.water && !compare;
     water_->beginFrame(waterEnabled && (settings.waterRefraction > 0 || settings.waterDepth > 0 ||
                                         settings.waterSSR > 0 || settings.waterCaustics > 0),
-                       waterEnabled && settings.waterSky > 0,
+                       (waterEnabled && settings.waterSky > 0) ||
+                           (settings.enabled && settings.fog && !compare),
                        waterEnabled &&
                            (settings.waterDepth > 0 || settings.waterSSR > 0 || settings.waterCaustics > 0),
                        waterEnabled && settings.waterCaustics > 0);
@@ -236,11 +237,14 @@ void Runtime::beforeWaterDraw(UINT upStride, DrawCall draw) {
 }
 void Runtime::environmentDraw(D3DPRIMITIVETYPE type, UINT start, UINT count) {
     if (lost_ || hudStarted_ || !settings.enabled ||
-        (!(settings.water && settings.waterSky > 0) && !settings.sky) || compare || vertexShaderActive_ ||
+        (!(settings.water && settings.waterSky > 0) && !settings.sky && !settings.fog) || compare || vertexShaderActive_ ||
         !fvfKnown_ || drawFVF_ != 0x142 || !sceneBackbuffer_ || drawTarget_ != sceneBackbuffer_)
         return;
-    if (settings.water && settings.waterSky > 0)
+    if ((settings.water && settings.waterSky > 0) || settings.fog) {
         water_->captureEnvironment(type, start, count, &effects_->sceneFX(), &settings);
+        if (settings.fog)
+            effects_->sceneFX().skyEnvironment(water_->skyEnvironment());
+    }
     Com<IDirect3DBaseTexture9> texture;
     if (SUCCEEDED(device_->GetTexture(0, texture.out())) && texture.p &&
         texture->GetType() == D3DRTYPE_TEXTURE)
