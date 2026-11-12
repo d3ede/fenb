@@ -40,7 +40,7 @@ A graphics mod inspired by ENBSeries, with adjustable effects and an in-game set
 
 **Original above, FENB below.** Each pair uses the same crop, with the game interface removed. Captures were taken moments apart, so animated objects may differ.
 
-<details open>
+<details>
 <summary><strong>01 — River</strong></summary>
 
 ![River: original above, FENB below](assets/screenshots/01-riverbank-pair.png)
@@ -54,7 +54,7 @@ A graphics mod inspired by ENBSeries, with adjustable effects and an in-game set
 
 </details>
 
-<details>
+<details open>
 <summary><strong>03 — Town</strong></summary>
 
 ![Town: original above, FENB below](assets/screenshots/03-town-pair.png)
