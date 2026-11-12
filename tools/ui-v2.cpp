@@ -6,7 +6,6 @@
 #include "generated/ui_logo.hpp"
 #include "imgui.h"
 #include "ui_cursor.hpp"
-#include "ui_studio_logo.hpp"
 #include "backends/imgui_impl_win32.h"
 #include "backends/imgui_impl_dx9.h"
 #include <gdiplus.h>
@@ -40,7 +39,6 @@ constexpr float defaults[ParameterCount] = {.50f, .55f, .58f, .32f, .38f, .72f, 
 float values[ParameterCount];
 double pageStart = 0;
 IDirect3DTexture9 *logo = nullptr;
-IDirect3DTexture9 *studioLogo = nullptr;
 ImVec2 origin{};
 ImDrawList *draw = nullptr;
 
@@ -381,17 +379,18 @@ void Panel() {
     draw = ImGui::GetWindowDrawList();
     Rect(0, 0, PanelWidth, PanelHeight, IM_COL32(29, 30, 34, 255), 5);
     draw->AddRect(P(0, 0), P(PanelWidth, PanelHeight), Line, studio ? 2 : 5);
-    if (studio && studioLogo) {
-        const float h = 84.f * STUDIO_LOGO_HEIGHT / STUDIO_LOGO_WIDTH;
-        draw->AddImage(ImTextureRef(static_cast<ImTextureID>(reinterpret_cast<uintptr_t>(studioLogo))),
-            P(14, 22 - h / 2), P(98, 22 + h / 2));
-    } else if (logo) {
-        float h = 28.f * UI_LOGO_HEIGHT / UI_LOGO_WIDTH;
-        draw->AddImage(ImTextureRef(static_cast<ImTextureID>(reinterpret_cast<uintptr_t>(logo))), P(11, 22 - h / 2), P(39, 22 + h / 2));
+    if (logo) {
+        const float width = studio ? 30.f : 28.f;
+        const float h = width * UI_LOGO_HEIGHT / UI_LOGO_WIDTH;
+        const float x = studio ? 12.f : 11.f;
+        const float y = studio ? std::floor((40 - h) / 2) : 22 - h / 2;
+        draw->AddImage(ImTextureRef(static_cast<ImTextureID>(reinterpret_cast<uintptr_t>(logo))),
+            P(x, y), P(x + width, y + h));
     }
+    if (studio) draw->AddLine(P(51, 12), P(51, 27), Line);
     if (!studio) Text(47, 15, "FENB", 13, Ink);
     const UiText tabs[] = {UiText::Image, UiText::WorldTab};
-    float tabX = studio ? 113 : 103;
+    float tabX = studio ? 53 : 103;
     for (int i = 0; i < 2; ++i) {
         ImGui::PushID(i);
         const float textWidth = std::ceil(TextWidth(Tr(tabs[i]), 13));
@@ -541,17 +540,6 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR command, int) {
         memcpy(static_cast<BYTE *>(locked.pBits) + y * locked.Pitch, UI_LOGO_BGRA + y * UI_LOGO_WIDTH, UI_LOGO_WIDTH * 4);
     symbol->UnlockRect(0);
     logo = symbol;
-    Com<IDirect3DTexture9> horizontalLogo;
-    if (studio) {
-        if (FAILED(device->CreateTexture(STUDIO_LOGO_WIDTH, STUDIO_LOGO_HEIGHT, 1, 0, D3DFMT_A8R8G8B8,
-            D3DPOOL_MANAGED, horizontalLogo.out(), nullptr))) return 5;
-        if (FAILED(horizontalLogo->LockRect(0, &locked, nullptr, 0))) return 6;
-        for (unsigned y = 0; y < STUDIO_LOGO_HEIGHT; ++y)
-            memcpy(static_cast<BYTE *>(locked.pBits) + y * locked.Pitch,
-                STUDIO_LOGO_BGRA + y * STUDIO_LOGO_WIDTH, STUDIO_LOGO_WIDTH * 4);
-        horizontalLogo->UnlockRect(0);
-        studioLogo = horizontalLogo;
-    }
     ImGui::CreateContext();
     auto &io = ImGui::GetIO();
     io.IniFilename = io.LogFilename = nullptr;
@@ -627,7 +615,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR command, int) {
         if (capture) {
             // Render actual hovered widget states, including the compact cursor.
             const int view = (frame / 4) % 8;
-            const float hoverX = (Width - PanelWidth) / 2 + (studio ? 135 : 125);
+            const float hoverX = (Width - PanelWidth) / 2 + (studio ? 75 : 125);
             const float hoverY = (Height - PanelHeight) / 2 + 22;
             io.AddMousePosEvent(view >= 6 ? hoverX : -FLT_MAX, view >= 6 ? hoverY : -FLT_MAX);
         }
