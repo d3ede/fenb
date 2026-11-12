@@ -187,7 +187,7 @@ int main(int argc, char **) {
     bool emit = false, nativePoint = true, occluded = false, foreground = false;
     float cameraYaw = 0;
     bool planeOnly = false, moonBackdrop = false;
-    bool nativeFogScene = false, horizonCube = false;
+    bool nativeFogScene = false, horizonCube = false, hostilePostState = false, swapHudDepth = false;
     Com<IDirect3DCubeTexture9> fogSky;
     CHECK(SUCCEEDED(d->CreateCubeTexture(4, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED,
                                        fogSky.out(), nullptr)));
@@ -389,6 +389,23 @@ int main(int argc, char **) {
         Com<IDirect3DSurface9> bb;
         d->GetRenderTarget(0, bb.out());
         bool ok = true;
+        Com<IDirect3DSurface9> mainDepth,hudDepth;
+        if(swapHudDepth) {
+            D3DSURFACE_DESC desc{};
+            ok = SUCCEEDED(d->GetDepthStencilSurface(mainDepth.out())) && SUCCEEDED(mainDepth->GetDesc(&desc)) &&
+                 SUCCEEDED(d->CreateDepthStencilSurface(W,H,D3DFMT_D16,desc.MultiSampleType,desc.MultiSampleQuality,
+                                                       TRUE,hudDepth.out(),nullptr));
+            if(!ok)return false;
+            d->SetDepthStencilSurface(hudDepth);
+            d->Clear(0,nullptr,D3DCLEAR_ZBUFFER,0,.05f,0); // UI/marker depth must not become world geometry.
+        }
+        if(hostilePostState) {
+            const float plane[]={0,0,0,-1};
+            d->SetClipPlane(0,plane);
+            d->SetRenderState(D3DRS_CLIPPLANEENABLE,1);
+            d->SetRenderState(D3DRS_MULTISAMPLEMASK,0);
+            d->SetRenderState(D3DRS_WRAP0,D3DWRAP_U|D3DWRAP_V);
+        }
         {
             StateGuard state(d);
             if (fx.prepare(bb, settings)) {
@@ -397,7 +414,18 @@ int main(int argc, char **) {
             } else if (settings.postEnabled())
                 ok = false;
         }
+        if(hostilePostState) {
+            DWORD clips=0,mask=1,wrap=0;
+            d->GetRenderState(D3DRS_CLIPPLANEENABLE,&clips);
+            d->GetRenderState(D3DRS_MULTISAMPLEMASK,&mask);
+            d->GetRenderState(D3DRS_WRAP0,&wrap);
+            ok &= clips==1 && mask==0 && wrap==(D3DWRAP_U|D3DWRAP_V);
+            d->SetRenderState(D3DRS_CLIPPLANEENABLE,0);
+            d->SetRenderState(D3DRS_MULTISAMPLEMASK,0xffffffff);
+            d->SetRenderState(D3DRS_WRAP0,0);
+        }
         // Simulated HUD after the world processing must retain its exact RGB.
+        if(swapHudDepth)d->SetDepthStencilSurface(mainDepth);
         D3DRECT rect{8, 8, 40, 28};
         d->Clear(1, &rect, D3DCLEAR_TARGET, 0xff40a0e0, 1, 0);
         d->EndScene();
@@ -407,9 +435,25 @@ int main(int argc, char **) {
     auto original = Read(d);
     CHECK(original.size() == W * H);
     CHECK(Save(original, L"build/scene-original.bmp"));
+    settings.color=true;settings.exposure=1;
+    CHECK(render());auto normalPost=Read(d);
+    hostilePostState=true;
+    CHECK(render());auto isolatedPost=Read(d);
+    unsigned postError=0;
+    for(size_t i=0;i<normalPost.size();++i) for(int shift:{0,8,16})
+        postError+=abs(int((normalPost[i]>>shift)&255)-int((isolatedPost[i]>>shift)&255));
+    CHECK(postError < normalPost.size()); // Allow subpixel MSAA edge changes, never a missing color pass.
+    CHECK(normalPost[(H-20)*W+W/2]==isolatedPost[(H-20)*W+W/2]);
+    hostilePostState=false;settings.color=false;settings.exposure=0;
     settings.fog = true;
     settings.fogDensity = .025f;
     settings.fogStart = 0;
+    CHECK(render());auto worldFog=Read(d);
+    swapHudDepth=true;CHECK(render());auto markerDepthFog=Read(d);swapHudDepth=false;
+    unsigned depthSourceError=0;
+    for(size_t i=0;i<worldFog.size();++i)for(int shift:{0,8,16})
+        depthSourceError+=abs(int((worldFog[i]>>shift)&255)-int((markerDepthFog[i]>>shift)&255));
+    CHECK(depthSourceError < worldFog.size());
     settings.fogFalloff = 0;
     CHECK(render());
     if (!fx.sceneFX().depthReady()) {

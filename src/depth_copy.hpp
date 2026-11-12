@@ -116,7 +116,7 @@ class DepthCopy {
         if (!enabled)
             invalidate();
     }
-    bool capture(UINT width, UINT height) {
+    bool capture(UINT width, UINT height, IDirect3DSurface9 *worldSource = nullptr) {
         if (disabled_)
             return false;
         if (attempted_)
@@ -125,8 +125,9 @@ class DepthCopy {
         if (!driver())
             return false;
         Com<IDirect3DSurface9> source;
+        if(worldSource) { source.p=worldSource; source->AddRef(); }
         D3DSURFACE_DESC desc{};
-        if (FAILED(device_->GetDepthStencilSurface(source.out())) || FAILED(source->GetDesc(&desc)) ||
+        if ((!source.p && FAILED(device_->GetDepthStencilSurface(source.out()))) || FAILED(source->GetDesc(&desc)) ||
             desc.Width != width || desc.Height != height ||
             (desc.Format != D3DFMT_D16 && desc.Format != D3DFMT_D24X8 && desc.Format != D3DFMT_D24S8))
             return false;
@@ -158,6 +159,8 @@ class DepthCopy {
         // Driver copies can have implementation-specific state effects. Restore immediately.
         StateGuard state(device_);
         if (!state.valid())
+            return false;
+        if (worldSource && FAILED(device_->SetDepthStencilSurface(source_)))
             return false;
         ready_ = backend_->copy(device_, source_, nullptr, texture_, nullptr, D3DTEXF_NONE) == 0;
         return ready_;

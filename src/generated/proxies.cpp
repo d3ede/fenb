@@ -352,7 +352,7 @@ public:
     HRESULT STDMETHODCALLTYPE GetDepthStencilSurface(IDirect3DSurface9** ppZStencilSurface) noexcept override { auto hr = real_->GetDepthStencilSurface(ppZStencilSurface); if (SUCCEEDED(hr)) Adopt(ppZStencilSurface, self_); return hr; }
     HRESULT STDMETHODCALLTYPE BeginScene() noexcept override { auto hr = real_->BeginScene(); if (SUCCEEDED(hr)) runtime_->scene(true); return hr; }
     HRESULT STDMETHODCALLTYPE EndScene() noexcept override { auto hr = real_->EndScene(); if (SUCCEEDED(hr)) runtime_->scene(false); return hr; }
-    HRESULT STDMETHODCALLTYPE Clear(DWORD rect_count, const D3DRECT *rects, DWORD flags, D3DCOLOR color, float z, DWORD stencil) noexcept override { auto hr = real_->Clear(rect_count, rects, flags, color, z, stencil); return hr; }
+    HRESULT STDMETHODCALLTYPE Clear(DWORD rect_count, const D3DRECT *rects, DWORD flags, D3DCOLOR color, float z, DWORD stencil) noexcept override { auto hr = real_->Clear(rect_count, rects, flags, color, z, stencil); if (SUCCEEDED(hr)) runtime_->targetCleared(flags,rect_count); return hr; }
     HRESULT STDMETHODCALLTYPE SetTransform(D3DTRANSFORMSTATETYPE state, const D3DMATRIX *matrix) noexcept override { auto hr = real_->SetTransform(state, matrix); return hr; }
     HRESULT STDMETHODCALLTYPE GetTransform(D3DTRANSFORMSTATETYPE State, D3DMATRIX* pMatrix) noexcept override { auto hr = real_->GetTransform(State, pMatrix); return hr; }
     HRESULT STDMETHODCALLTYPE MultiplyTransform(D3DTRANSFORMSTATETYPE state, const D3DMATRIX *matrix) noexcept override { auto hr = real_->MultiplyTransform(state, matrix); return hr; }
@@ -540,7 +540,7 @@ public:
     HRESULT STDMETHODCALLTYPE GetDepthStencilSurface(IDirect3DSurface9 **depth_stencil) noexcept override { auto hr = real_->GetDepthStencilSurface(depth_stencil); if (SUCCEEDED(hr)) Adopt(depth_stencil, self_); return hr; }
     HRESULT STDMETHODCALLTYPE BeginScene() noexcept override { auto hr = real_->BeginScene(); if (SUCCEEDED(hr)) runtime_->scene(true); return hr; }
     HRESULT STDMETHODCALLTYPE EndScene() noexcept override { auto hr = real_->EndScene(); if (SUCCEEDED(hr)) runtime_->scene(false); return hr; }
-    HRESULT STDMETHODCALLTYPE Clear(DWORD rect_count, const D3DRECT *rects, DWORD flags, D3DCOLOR colour, float z, DWORD stencil) noexcept override { auto hr = real_->Clear(rect_count, rects, flags, colour, z, stencil); return hr; }
+    HRESULT STDMETHODCALLTYPE Clear(DWORD rect_count, const D3DRECT *rects, DWORD flags, D3DCOLOR colour, float z, DWORD stencil) noexcept override { auto hr = real_->Clear(rect_count, rects, flags, colour, z, stencil); if (SUCCEEDED(hr)) runtime_->targetCleared(flags,rect_count); return hr; }
     HRESULT STDMETHODCALLTYPE SetTransform(D3DTRANSFORMSTATETYPE state, const D3DMATRIX *matrix) noexcept override { auto hr = real_->SetTransform(state, matrix); return hr; }
     HRESULT STDMETHODCALLTYPE GetTransform(D3DTRANSFORMSTATETYPE State, D3DMATRIX *matrix) noexcept override { auto hr = real_->GetTransform(State, matrix); return hr; }
     HRESULT STDMETHODCALLTYPE MultiplyTransform(D3DTRANSFORMSTATETYPE state, const D3DMATRIX *matrix) noexcept override { auto hr = real_->MultiplyTransform(state, matrix); return hr; }

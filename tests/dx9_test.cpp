@@ -74,7 +74,7 @@ void Scene(IDirect3DDevice9* dev,IDirect3DSurface9* surface,UINT width,UINT heig
             auto perspective=identity;perspective._33=perspective._34=1;perspective._43=-.1f;perspective._44=0;
             dev->SetTransform(D3DTS_WORLD,&identity);dev->SetTransform(D3DTS_VIEW,&identity);dev->SetTransform(D3DTS_PROJECTION,&perspective);
             dev->SetVertexShader(nullptr);dev->SetPixelShader(nullptr);dev->SetFVF(D3DFVF_XYZ|D3DFVF_DIFFUSE);
-            dev->SetRenderState(D3DRS_LIGHTING,FALSE);dev->SetRenderState(D3DRS_ZENABLE,FALSE);dev->SetRenderState(D3DRS_ZWRITEENABLE,TRUE);
+            dev->SetRenderState(D3DRS_LIGHTING,FALSE);dev->SetRenderState(D3DRS_ZENABLE,TRUE);dev->SetRenderState(D3DRS_ZWRITEENABLE,TRUE);
             struct V{float x,y,z;DWORD color;};V marker[]={{3,3,.5f,0xffffffff},{4,3,.5f,0xffffffff},{3,4,.5f,0xffffffff}};
             dev->DrawPrimitiveUP(D3DPT_TRIANGLELIST,1,marker,sizeof(V));dev->EndScene();
         }
@@ -107,6 +107,7 @@ int main(int argc,char** argv) {
     D3DPRESENT_PARAMETERS pp{};pp.Windowed=TRUE;pp.SwapEffect=(interactive||aaTest)?D3DSWAPEFFECT_DISCARD:D3DSWAPEFFECT_COPY;pp.hDeviceWindow=window;
     pp.BackBufferFormat=D3DFMT_X8R8G8B8;pp.BackBufferWidth=1160;pp.BackBufferHeight=800;pp.BackBufferCount=1;
     pp.PresentationInterval=D3DPRESENT_INTERVAL_IMMEDIATE;
+    pp.EnableAutoDepthStencil=TRUE;pp.AutoDepthStencilFormat=D3DFMT_D16;
     Com<IDirect3DDevice9> dev;
     HRESULT hr=d3d->CreateDevice(0,D3DDEVTYPE_HAL,window,D3DCREATE_HARDWARE_VERTEXPROCESSING,&pp,dev.out());
     if(FAILED(hr))hr=d3d->CreateDevice(0,D3DDEVTYPE_HAL,window,D3DCREATE_SOFTWARE_VERTEXPROCESSING,&pp,dev.out());

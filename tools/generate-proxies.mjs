@@ -69,6 +69,7 @@ for (const [,type,parent,body] of definitions) {
       if (device && name === 'TestCooperativeLevel') after += 'hr = runtime_->cooperativeResult(hr); ';
       if (device && name === 'BeginScene') after += 'if (SUCCEEDED(hr)) runtime_->scene(true); ';
       if (device && name === 'EndScene') after += 'if (SUCCEEDED(hr)) runtime_->scene(false); ';
+      if (device && name === 'Clear') after += `if (SUCCEEDED(hr)) runtime_->targetCleared(${names[2]},${names[0]}); `;
       if (ret === 'HRESULT') {
         for (let i=0;i<params.length;i++) {
           if (/\bIDirect3D\w+\s*\*\s*\*\s*\w+$/.test(params[i]) && name !== 'CheckResourceResidency')

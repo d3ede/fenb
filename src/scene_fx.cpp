@@ -67,6 +67,7 @@ bool SceneFX::programs() {
     return skyVS_.p || SUCCEEDED(device_->CreateVertexShader(ShaderSkyVS, skyVS_.out()));
 }
 void SceneFX::beginFrame() {
+    worldDepth_.out();
     skyEnvironment_.out();
     camera_ = depthReady_ = emitters_ = false;
     skyApplied_ = sunOnScreen_ = false;
@@ -173,6 +174,9 @@ void SceneFX::observe(const Settings &s) {
     device_->GetRenderState(D3DRS_ZWRITEENABLE, &z);
     if (!z)
         return;
+    device_->GetRenderState(D3DRS_ZENABLE, &z);
+    if (!z)
+        return;
     D3DMATRIX v{}, p{};
     if (FAILED(device_->GetTransform(D3DTS_VIEW, &v)) ||
         FAILED(device_->GetTransform(D3DTS_PROJECTION, &p)) || std::abs(p._34 - 1) > .001f ||
@@ -190,6 +194,7 @@ void SceneFX::observe(const Settings &s) {
         return;
     view_ = v;
     projection_ = p;
+    device_->GetDepthStencilSurface(worldDepth_.out());
     camera_ = true;
     // This call precedes the first opaque world draw, so the target still contains the real sky.
     if (s.fog) {
@@ -273,7 +278,7 @@ bool SceneFX::prepare(UINT width, UINT height, const Settings &s) {
         }
     }
     device_->SetPixelShaderConstantF(44, life[0], 8);
-    depthReady_ = geometry && camera_ && depth_.capture(width, height);
+    depthReady_ = geometry && camera_ && worldDepth_.p && depth_.capture(width, height, worldDepth_);
     if (!geometry)
         depth_.invalidate();
     if (!depthReady_) {

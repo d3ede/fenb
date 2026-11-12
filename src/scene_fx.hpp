@@ -26,6 +26,7 @@ class SceneFX {
     };
     IDirect3DDevice9 *device_;
     DepthCopy depth_;
+    Com<IDirect3DSurface9> worldDepth_;
     Smaa smaa_;
     Target output_, ao_, rays_, raySource_, luma_[4], exposure_[2], balance_[2];
     Target skyBackdrop_;

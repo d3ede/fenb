@@ -87,6 +87,11 @@ bool Effects::prepare(IDirect3DSurface9 *backbuffer, const Settings &settings) {
     }
     if (!shaders())
         return false;
+    // Driver color/depth resolves can use internal draws too. Isolate them from
+    // the host's occlusion sample mask and clipping before taking snapshots.
+    device_->SetRenderState(D3DRS_CLIPPLANEENABLE, 0);
+    device_->SetRenderState(D3DRS_MULTISAMPLEMASK, 0xffffffff);
+    device_->SetRenderState(D3DRS_WRAP0, 0);
     // Color-only resolve. BeginScene restrictions apply to depth/stencil copies,
     // which FENB does not perform. This also supports the pre-HUD scene boundary.
     if (FAILED(device_->StretchRect(backbuffer, nullptr, frameSurface_, nullptr, D3DTEXF_NONE)))
@@ -132,6 +137,9 @@ void Effects::draw(IDirect3DSurface9 *backbuffer, const Settings &s) {
     device_->SetRenderState(D3DRS_STENCILENABLE, FALSE);
     device_->SetRenderState(D3DRS_SCISSORTESTENABLE, FALSE);
     device_->SetRenderState(D3DRS_CLIPPING, FALSE);
+    device_->SetRenderState(D3DRS_CLIPPLANEENABLE, 0);
+    device_->SetRenderState(D3DRS_MULTISAMPLEMASK, 0xffffffff);
+    device_->SetRenderState(D3DRS_WRAP0, 0);
     device_->SetRenderState(D3DRS_FILLMODE, D3DFILL_SOLID);
     device_->SetRenderState(D3DRS_COLORWRITEENABLE, 15);
     device_->SetRenderState(D3DRS_SRGBWRITEENABLE, FALSE);

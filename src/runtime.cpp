@@ -315,15 +315,21 @@ void Runtime::beforeDraw() {
                           (position >= D3DFVF_XYZB1 && position <= D3DFVF_XYZB5))) {
             // Sky and translucent world sprites can precede RHW sun/occlusion quads.
             // Only an opaque perspective pass establishes the main world phase.
-            DWORD write = 0;
+            DWORD write = 0, depth = 0;
             D3DMATRIX projection{};
             if (SUCCEEDED(device_->GetRenderState(D3DRS_ZWRITEENABLE, &write)) && write &&
+                SUCCEEDED(device_->GetRenderState(D3DRS_ZENABLE, &depth)) && depth &&
                 SUCCEEDED(device_->GetTransform(D3DTS_PROJECTION, &projection)) &&
                 std::abs(projection._34 - 1) < .001f && std::abs(projection._44) < .001f)
                 sawWorld_ = true;
         }
         return;
     }
+    DWORD screenDepth = 0, screenWrites = 0;
+    if (FAILED(device_->GetRenderState(D3DRS_ZENABLE, &screenDepth)) ||
+        FAILED(device_->GetRenderState(D3DRS_COLORWRITEENABLE, &screenWrites)) ||
+        screenDepth || !(screenWrites & 7))
+        return; // Depth-tested/color-suppressed visibility probes are not the HUD.
     sawScreenSpace_ = true;
     if (!sawWorld_)
         return; // A pre-world screen-space draw must not latch the renderer off for this frame.
@@ -351,6 +357,19 @@ void Runtime::beforeDraw() {
     if (ownScene)
         device_->EndScene();
     if(settings.water && settings.sfxWake>0 && waterDraws>0)sfx_->snapshotWorld(true);
+}
+void Runtime::targetCleared(DWORD flags, DWORD rectangles) {
+    if (lost_ || rectangles || !(flags & D3DCLEAR_TARGET)) return;
+    Com<IDirect3DSurface9> target, backbuffer;
+    D3DSURFACE_DESC desc{}; D3DVIEWPORT9 viewport{};
+    if (FAILED(device_->GetRenderTarget(0, target.out())) ||
+        FAILED(device_->GetBackBuffer(0,0,D3DBACKBUFFER_TYPE_MONO,backbuffer.out())) ||
+        target.p != backbuffer.p || FAILED(target->GetDesc(&desc)) ||
+        FAILED(device_->GetViewport(&viewport)) || viewport.X || viewport.Y ||
+        viewport.Width != desc.Width || viewport.Height != desc.Height) return;
+    // A new full world render can start inside one Present interval. Previous
+    // shadow/occlusion/UI epochs must not suppress this new scene's processing.
+    resetFrame();
 }
 void Runtime::beforePresent(IDirect3DSwapChain9 *provided, DWORD flags, HWND windowOverride) {
     std::lock_guard lock(mutex_);

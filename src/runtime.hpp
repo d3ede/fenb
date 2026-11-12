@@ -75,6 +75,7 @@ class Runtime {
     bool environmentSupported() { return environment_.supported(); }
     float environmentMinutes() const { return environment_.minutes(settings); }
     void beforeDraw();
+    void targetCleared(DWORD flags, DWORD rectangles);
     void environmentDraw(D3DPRIMITIVETYPE type, UINT start, UINT count);
     void beforeWaterDraw(UINT upStride, DrawCall);
     void afterWaterDraw(bool up = false, bool indexed = false);
