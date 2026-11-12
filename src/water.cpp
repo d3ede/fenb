@@ -3,6 +3,7 @@
 #include "generated/water_catalog.hpp"
 #include <generated/water_vs.hpp>
 #include <generated/water_ps.hpp>
+#include <generated/reflection_ps.hpp>
 #include <generated/caustics.hpp>
 #include <cstring>
 
@@ -15,6 +16,9 @@ void WaterFX::invalidate() {
     end();
     vs_.out();
     ps_.out();
+    reflectionPS_.out();
+    reflectionSurface_.out();
+    reflection_.out();
     normals_.out();
     normalBytes_ = 0;
     normalFailed_ = false;
@@ -422,6 +426,28 @@ bool WaterFX::begin(const Settings &s, UINT upStride) {
                  depth_.capture(sceneWidth_, sceneHeight_);
     // Shore softness describes the thin contact edge, not a multi-unit band without a surface.
     float optics[] = {depth ? 1.f : 0.f, s.waterDepth, s.waterShore * .1f, s.waterSSR};
+    traceReady_ = depth && s.waterSSR > 0;
+    if (!traceReady_) {
+        reflectionSurface_.out();
+        reflection_.out();
+    } else {
+        D3DSURFACE_DESC reflectionDesc{};
+        if (reflection_.p &&
+            (!reflectionSurface_.p || FAILED(reflection_->GetLevelDesc(0, &reflectionDesc)) ||
+             reflectionDesc.Width != sceneWidth_ || reflectionDesc.Height != sceneHeight_)) {
+            reflectionSurface_.out();
+            reflection_.out();
+        }
+        if ((!reflectionPS_.p &&
+             FAILED(device_->CreatePixelShader(ShaderReflectionPS, reflectionPS_.out()))) ||
+            (!reflection_.p &&
+             (FAILED(device_->CreateTexture(sceneWidth_, sceneHeight_, 1, D3DUSAGE_RENDERTARGET,
+                                            D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, reflection_.out(), nullptr)) ||
+              FAILED(reflection_->GetSurfaceLevel(0, reflectionSurface_.out())))))
+            traceReady_ = false;
+    }
+    if (!traceReady_)
+        optics[3] = 0;
     float camera[] = {projection._11, projection._22, projection._33, projection._43};
     D3DVIEWPORT9 viewport{};
     device_->GetViewport(&viewport);
@@ -542,4 +568,42 @@ bool WaterFX::begin(const Settings &s, UINT upStride) {
     device_->SetSamplerState(4, D3DSAMP_ADDRESSV, D3DTADDRESS_WRAP);
     device_->SetSamplerState(4, D3DSAMP_SRGBTEXTURE, FALSE);
     return true;
+}
+void WaterFX::reflect(DrawCall draw) {
+    if (!state_ || !traceReady_)
+        return;
+    bool ok = false;
+    {
+        StateGuard guard(device_);
+        D3DVIEWPORT9 viewport{};
+        if (guard.valid()) {
+            guard.isolateTargets();
+            device_->GetViewport(&viewport);
+            device_->SetTexture(6, nullptr);
+            if (SUCCEEDED(device_->SetRenderTarget(0, reflectionSurface_)) &&
+                SUCCEEDED(device_->SetViewport(&viewport)) &&
+                SUCCEEDED(device_->SetPixelShader(reflectionPS_))) {
+                device_->SetRenderState(D3DRS_ZENABLE, FALSE);
+                device_->SetRenderState(D3DRS_ZWRITEENABLE, FALSE);
+                device_->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
+                device_->SetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
+                device_->SetRenderState(D3DRS_COLORWRITEENABLE, 15);
+                ok = SUCCEEDED(draw());
+            }
+        }
+    }
+    if (ok) {
+        device_->SetTexture(6, reflection_);
+        for (auto key : {D3DSAMP_MINFILTER, D3DSAMP_MAGFILTER})
+            device_->SetSamplerState(6, key, D3DTEXF_POINT);
+        device_->SetSamplerState(6, D3DSAMP_MIPFILTER, D3DTEXF_NONE);
+        device_->SetSamplerState(6, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
+        device_->SetSamplerState(6, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
+        device_->SetSamplerState(6, D3DSAMP_SRGBTEXTURE, FALSE);
+    } else {
+        float optics[4]{};
+        device_->GetPixelShaderConstantF(14, optics, 1);
+        optics[3] = 0;
+        device_->SetPixelShaderConstantF(14, optics, 1);
+    }
 }

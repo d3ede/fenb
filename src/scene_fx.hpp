@@ -28,14 +28,27 @@ class SceneFX {
     DepthCopy depth_;
     Smaa smaa_;
     Target output_, ao_, rays_, luma_[4], exposure_[2], balance_[2];
-    Target emitterColor_[4], emitterPosition_[4], localField_, visibleEmitters_;
+    Target skyBackdrop_;
+    bool skyBackdropReady_ = false;
+    float nativeFog_[4]{}; // enabled, start, end, range-based
+    Target emitterColor_[4], emitterPosition_[4], localField_;
     Com<IDirect3DPixelShader9> aoPS_, rayPS_, compositePS_, lumaPS_, reducePS_, adaptPS_, skyPS_;
     Com<IDirect3DVertexShader9> skyVS_;
+    Com<IDirect3DPixelShader9> flarePS_;
     Com<IDirect3DVertexShader9> emitterVS_;
-    Com<IDirect3DPixelShader9> emitterPS_, sumPS_, localPS_, visibilityPS_, fxaaPS_;
+    Com<IDirect3DPixelShader9> emitterPS_, sumPS_, localPS_, fxaaPS_;
     BCRYPT_ALG_HANDLE hash_ = nullptr;
     bool emitters_ = false;
     unsigned emitterDraws_ = 0;
+    struct SourceSlot {
+        uint64_t key = 0;
+        ULONGLONG seen = 0;
+        unsigned frame = 0;
+    };
+    SourceSlot sources_[32]{};
+    unsigned sourceFrame_ = 0;
+    float sourceOrigin_[4]{};
+    bool sourceOriginValid_ = false;
     std::unique_ptr<StateGuard> skyState_;
     bool foliageActive_ = false;
     DWORD originalAmbient_ = 0;
@@ -66,12 +79,20 @@ class SceneFX {
     void invalidate();
     void releasePost();
     bool prepare(UINT, UINT, const Settings &);
-    IDirect3DTexture9 *process(IDirect3DTexture9 *, const Settings &, IDirect3DSurface9 *reusable = nullptr);
+    IDirect3DTexture9 *process(IDirect3DTexture9 *, const Settings &);
+    IDirect3DTexture9 *postTexture() const {
+        return output_.texture;
+    }
+    IDirect3DSurface9 *postSurface() const {
+        return output_.surface;
+    }
+    bool antialias(IDirect3DTexture9 *, IDirect3DSurface9 *, const Settings &);
     IDirect3DTexture9 *exposure(IDirect3DTexture9 *, const Settings &);
     IDirect3DTexture9 *balanceHistory() const {
         return balance_[balanceIndex_].texture;
     }
     bool beginSky(const Settings &, DWORD materialTag);
+    void beginFlare(const Settings &);
     void endSky() {
         skyState_.reset();
     }

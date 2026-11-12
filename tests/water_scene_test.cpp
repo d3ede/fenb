@@ -162,6 +162,7 @@ int main(int argc, char **argv) {
     settings.waterRefraction = .4f;
     float sceneLight = -1;
     bool steppedMesh = false;
+    bool foregroundBank = false;
     bool translatedScene = false;
     auto render = [&](float floorY, bool wall, bool replace) {
         water.beginFrame(true, true, true, settings.waterCaustics > 0);
@@ -203,6 +204,11 @@ int main(int argc, char **argv) {
                           {-2, 8, 18, 0xffd05028}, {2, 0, 18, 0xffd05028}, {2, 8, 18, 0xffd05028}};
         if (wall)
             d->DrawPrimitiveUP(D3DPT_TRIANGLELIST, 2, object, sizeof(Floor));
+        if (foregroundBank) {
+            Floor bank[] = {
+                {1, 0, 5, 0xff406020}, {5, 0, 8, 0xff406020}, {1, 9, 5, 0xff406020}, {5, 9, 8, 0xff406020}};
+            d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, bank, sizeof(Floor));
+        }
         bool ok = true;
         if (replace) {
             if (sceneLight >= 0) {
@@ -232,9 +238,11 @@ int main(int argc, char **argv) {
                  optics[0] ==
                      ((settings.waterDepth > 0 || settings.waterSSR > 0 || settings.waterCaustics > 0) ? 1.f
                                                                                                        : 0.f);
-            if (ok && !steppedMesh)
+            if (ok && !steppedMesh) {
+                water.reflect(
+                    [&]() { return d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, vertices, sizeof(Vertex)); });
                 ok = SUCCEEDED(d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, vertices, sizeof(Vertex)));
-            else if (ok) {
+            } else if (ok) {
                 Vertex left[4], right[4];
                 memcpy(left, vertices, sizeof(vertices));
                 memcpy(right, vertices, sizeof(vertices));
@@ -289,6 +297,76 @@ int main(int argc, char **argv) {
         if (reset == 0) {
             CHECK(Save(off, L"build/water-scene-ssr-off.bmp"));
             CHECK(Save(on, L"build/water-scene-ssr-on.bmp"));
+        }
+        if (!reset) {
+            auto savedView = view;
+            settings.waterRefraction = 0;
+            // Red reflection pixels must lie inside the analytic reflection of the actual red wall.
+            // Repeat with camera yaw and an intersecting foreground bank, rather than only a static view.
+            for (float yaw : {-.4f, 0.f, .4f}) {
+                float ex = std::sin(yaw) * 8, ey = 4, ez = -std::cos(yaw) * 8;
+                float zx = -ex, zy = -ey, zz = 12 - ez;
+                float len = std::sqrt(zx * zx + zy * zy + zz * zz);
+                zx /= len;
+                zy /= len;
+                zz /= len;
+                float xx = zz, xz = -zx;
+                len = std::sqrt(xx * xx + xz * xz);
+                xx /= len;
+                xz /= len;
+                float yx = zy * xz, yy = zz * xx - zx * xz, yz = -zy * xx;
+                view = {xx,
+                        yx,
+                        zx,
+                        0,
+                        0,
+                        yy,
+                        zy,
+                        0,
+                        xz,
+                        yz,
+                        zz,
+                        0,
+                        -ex * xx - ez * xz,
+                        -ex * yx - ey * yy - ez * yz,
+                        -ex * zx - ey * zy - ez * zz,
+                        1};
+                foregroundBank = true;
+                settings.waterSSR = 0;
+                CHECK(render(-2, true, true));
+                auto noMirror = ReadFrame(d);
+                settings.waterSSR = 1;
+                CHECK(render(-2, true, true));
+                auto mirror = ReadFrame(d);
+                unsigned hits = 0, invalid = 0;
+                for (UINT y = 0; y < Height; ++y)
+                    for (UINT x = 0; x < Width; ++x) {
+                        auto i = y * Width + x;
+                        int dr = int((mirror[i] >> 16) & 255) - int((noMirror[i] >> 16) & 255);
+                        int dg = int((mirror[i] >> 8) & 255) - int((noMirror[i] >> 8) & 255);
+                        int db = int(mirror[i] & 255) - int(noMirror[i] & 255);
+                        if (dr <= 6 || dr - dg <= 8 || dr - db <= 8)
+                            continue;
+                        ++hits;
+                        float vx = (float(x) / Width * 2 - 1) / projection._11;
+                        float vy = (1 - float(y) / Height * 2) / projection._22;
+                        float rx = vx * xx + vy * yx + zx, ry = vy * yy + zy, rz = vx * xz + vy * yz + zz;
+                        float t = -ey / ry;
+                        float wx = ex + rx * t, wz = ez + rz * t;
+                        float reflectedT = (18 - wz) / rz;
+                        float hx = wx + rx * reflectedT, hy = -ry * reflectedT;
+                        invalid +=
+                            !(t > 0 && reflectedT > 0 && hx > -2.2f && hx < 2.2f && hy > -.2f && hy < 8.2f);
+                    }
+                printf("SSR camera yaw=%.2f: hits=%u outside analytic mirror=%u\n", yaw, hits, invalid);
+                CHECK(Save(mirror, yaw < 0   ? L"build/water-orbit-left.bmp"
+                                   : yaw > 0 ? L"build/water-orbit-right.bmp"
+                                             : L"build/water-orbit-center.bmp"));
+                CHECK(hits > 100 && invalid * 100 < hits * 2);
+            }
+            foregroundBank = false;
+            view = savedView;
+            settings.waterRefraction = .4f;
         }
         settings.waterSSR = 0;
         CHECK(render(-.02f, false, false));
@@ -439,6 +517,8 @@ int main(int argc, char **argv) {
         settings.waterDepth = 1;
         settings.waterRefraction = .4f;
         settings.waterOpacity = .49f;
+        water.beginFrame(false, false, false, false);
+        CHECK(water.bytes() == 87380); // Only the small managed normal mip chain remains.
         water.invalidate();
         CHECK(water.bytes() == 0);
         CHECK(SUCCEEDED(d->Reset(&pp)));

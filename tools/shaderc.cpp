@@ -12,7 +12,7 @@ int main(int argc, char** argv) {
     FILE* output = fopen(argv[2], "wb"); if (!output) return 4;
     fprintf(output, "#pragma once\n#include <windows.h>\n");
     const char* entries[] = {"Bright", "Blur", "Composite"};
-    const char* sceneEntries[]={"SceneAO","SceneRays","SceneComposite","Luminance","Reduce","Adapt","SkyVS","SkyPS","EmitterVS","EmitterPS","EmitterSum","EmitterLighting","EmitterVisibility","FXAA"};
+    const char* sceneEntries[]={"SceneAO","SceneRays","SceneComposite","Luminance","Reduce","Adapt","SkyVS","SkyPS","FlarePS","EmitterVS","EmitterPS","EmitterSum","EmitterLighting","FXAA"};
     const char* smaaEntries[]={"SMAAEdges","SMAAWeights","SMAABlend"};
     const bool smaa=argc==4 && !strcmp(argv[3],"smaa");
     const int count=argc==5?1:smaa?3:argc==4?14:3;
@@ -20,7 +20,7 @@ int main(int argc, char** argv) {
         const char* entry=argc==5?argv[3]:smaa?smaaEntries[index]:argc==4?sceneEntries[index]:entries[index];
         ID3DBlob* code = nullptr; ID3DBlob* error = nullptr;
         HRESULT hr = D3DCompile(source.data(), source.size(), argv[1], nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE,
-            entry, argc==5?argv[4]:!smaa&&argc==4&&(index==6||index==8)?"vs_3_0":"ps_3_0", D3DCOMPILE_OPTIMIZATION_LEVEL3, 0, &code, &error);
+            entry, argc==5?argv[4]:!smaa&&argc==4&&(index==6||index==9)?"vs_3_0":"ps_3_0", D3DCOMPILE_OPTIMIZATION_LEVEL3, 0, &code, &error);
         if (error) { fprintf(stderr, "%s", (char*)error->GetBufferPointer()); error->Release(); }
         if (FAILED(hr)) { fclose(output); return 5; }
         ID3DBlob* assembly=nullptr;

@@ -74,7 +74,7 @@ class Runtime {
     float environmentMinutes() const { return environment_.minutes(settings); }
     void beforeDraw();
     void environmentDraw(D3DPRIMITIVETYPE type, UINT start, UINT count);
-    void beforeWaterDraw(UINT upStride = 0);
+    void beforeWaterDraw(UINT upStride, DrawCall);
     void afterWaterDraw(bool up = false, bool indexed = false);
     void emitterDraw(DrawCall);
     void drawFVF(DWORD value) {

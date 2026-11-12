@@ -934,7 +934,6 @@ void DrawPanel(Runtime &r, const PanelBranding &branding) {
         TextAt(draw, {back.x + 20, back.y + 6}, Tr(UiText::Back), ImGui::IsItemHovered() ? Text : Muted, 14);
         draw->AddLine({back.x + 10, back.y + 9}, {back.x + 6, back.y + 13}, Muted);
         draw->AddLine({back.x + 6, back.y + 13}, {back.x + 10, back.y + 17}, Muted);
-        TextAt(draw, {back.x + 98, back.y + 6}, Tr(UiText::WavesLighting), Muted, 14);
         ImGui::SetCursorScreenPos(back);
         ImGui::Dummy({280, 34});
         bool expanded = Section("waterMotion", Tr(UiText::Surface), s.water, reset);

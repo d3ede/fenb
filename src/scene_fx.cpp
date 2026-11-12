@@ -2,6 +2,7 @@
 #include <generated/scene_shaders.hpp>
 #include "generated/emitter_catalog.hpp"
 #include "generated/foliage_catalog.hpp"
+#include "generated/sun_catalog.hpp"
 #include <cstring>
 namespace {
 struct PointSampler {
@@ -52,18 +53,22 @@ bool SceneFX::programs() {
     PROGRAM(reducePS_, Reduce)
     PROGRAM(adaptPS_, Adapt)
     PROGRAM(skyPS_, SkyPS)
+    PROGRAM(flarePS_, FlarePS)
     PROGRAM(emitterPS_, EmitterPS)
     PROGRAM(sumPS_, EmitterSum)
-    PROGRAM(localPS_, EmitterLighting) PROGRAM(visibilityPS_, EmitterVisibility) PROGRAM(fxaaPS_, FXAA)
+    PROGRAM(localPS_, EmitterLighting)
+    PROGRAM(fxaaPS_, FXAA)
 #undef PROGRAM
-        if (!emitterVS_.p &&
-            FAILED(device_->CreateVertexShader(ShaderEmitterVS, emitterVS_.out()))) return false;
+    if (!emitterVS_.p && FAILED(device_->CreateVertexShader(ShaderEmitterVS, emitterVS_.out())))
+        return false;
     return skyVS_.p || SUCCEEDED(device_->CreateVertexShader(ShaderSkyVS, skyVS_.out()));
 }
 void SceneFX::beginFrame() {
     camera_ = depthReady_ = emitters_ = false;
     skyApplied_ = sunOnScreen_ = false;
+    skyBackdropReady_ = false;
     lights_ = emitterDraws_ = 0;
+    ++sourceFrame_;
     depth_.beginFrame(true);
 }
 void SceneFX::invalidate() {
@@ -72,6 +77,7 @@ void SceneFX::invalidate() {
     endFoliage();
     depth_.invalidate();
     output_.clear();
+    skyBackdrop_.clear();
     ao_.clear();
     rays_.clear();
     for (auto &t : luma_)
@@ -88,7 +94,8 @@ void SceneFX::invalidate() {
     for (auto &t : emitterPosition_)
         t.clear();
     localField_.clear();
-    visibleEmitters_.clear();
+    memset(sources_, 0, sizeof(sources_));
+    sourceOriginValid_ = false;
     aoPS_.out();
     rayPS_.out();
     compositePS_.out();
@@ -96,12 +103,12 @@ void SceneFX::invalidate() {
     reducePS_.out();
     adaptPS_.out();
     skyPS_.out();
+    flarePS_.out();
     skyVS_.out();
     emitterPS_.out();
     emitterVS_.out();
     sumPS_.out();
     localPS_.out();
-    visibilityPS_.out();
     fxaaPS_.out();
     beginFrame();
 }
@@ -109,6 +116,7 @@ void SceneFX::releasePost() {
     smaa_.invalidate();
     depth_.invalidate();
     output_.clear();
+    skyBackdrop_.clear();
     ao_.clear();
     rays_.clear();
     for (auto &t : luma_)
@@ -123,12 +131,14 @@ void SceneFX::releasePost() {
     for (auto &t : emitterPosition_)
         t.clear();
     localField_.clear();
-    visibleEmitters_.clear();
+    memset(sources_, 0, sizeof(sources_));
+    sourceOriginValid_ = false;
     exposureTime_ = 0;
     emitters_ = depthReady_ = false;
 }
 size_t SceneFX::bytes() const {
-    size_t n = depth_.bytes() + output_.bytes() + ao_.bytes() + rays_.bytes() + smaa_.bytes();
+    size_t n =
+        depth_.bytes() + output_.bytes() + ao_.bytes() + rays_.bytes() + smaa_.bytes() + skyBackdrop_.bytes();
     for (auto &t : luma_)
         n += t.bytes();
     for (auto &t : exposure_)
@@ -139,7 +149,7 @@ size_t SceneFX::bytes() const {
         n += t.bytes();
     for (auto &t : emitterPosition_)
         n += t.bytes();
-    return n + localField_.bytes() + visibleEmitters_.bytes();
+    return n + localField_.bytes();
 }
 void SceneFX::observe(const Settings &s) {
     if (camera_ || (!s.ssao && !s.sunRays && !s.fog && !s.dof && !s.localLighting && !s.lightingBalance &&
@@ -167,6 +177,28 @@ void SceneFX::observe(const Settings &s) {
     view_ = v;
     projection_ = p;
     camera_ = true;
+    // This call precedes the first opaque world draw, so the target still contains the real sky.
+    if (s.fog) {
+        Com<IDirect3DSurface9> target;
+        D3DSURFACE_DESC desc{};
+        skyBackdropReady_ =
+            SUCCEEDED(device_->GetRenderTarget(0, target.out())) && SUCCEEDED(target->GetDesc(&desc)) &&
+            skyBackdrop_.make(device_, desc.Width, desc.Height) &&
+            SUCCEEDED(device_->StretchRect(target, nullptr, skyBackdrop_.surface, nullptr, D3DTEXF_NONE));
+        DWORD enabled = 0, mode = 0, start = 0, end = 0, range = 0;
+        device_->GetRenderState(D3DRS_FOGENABLE, &enabled);
+        device_->GetRenderState(D3DRS_FOGTABLEMODE, &mode);
+        if (!mode)
+            device_->GetRenderState(D3DRS_FOGVERTEXMODE, &mode);
+        device_->GetRenderState(D3DRS_FOGSTART, &start);
+        device_->GetRenderState(D3DRS_FOGEND, &end);
+        device_->GetRenderState(D3DRS_RANGEFOGENABLE, &range);
+        nativeFog_[0] = enabled && mode == D3DFOG_LINEAR ? 1.f : 0.f;
+        memcpy(&nativeFog_[1], &start, 4);
+        memcpy(&nativeFog_[2], &end, 4);
+        nativeFog_[3] = range ? 1.f : 0.f;
+    } else
+        skyBackdrop_.clear();
     for (int axis = 0; axis < 3; ++axis)
         eye_[axis] = -(v._41 * v.m[axis][0] + v._42 * v.m[axis][1] + v._43 * v.m[axis][2]);
     BOOL on = FALSE;
@@ -197,6 +229,10 @@ void SceneFX::observe(const Settings &s) {
         }
 }
 bool SceneFX::prepare(UINT width, UINT height, const Settings &s) {
+    if (!s.fog) {
+        skyBackdrop_.clear();
+        skyBackdropReady_ = false;
+    }
     if (!s.smaa)
         smaa_.invalidate();
     const bool geometry = s.ssao || s.sunRays || s.fog || s.dof || s.localLighting;
@@ -206,8 +242,19 @@ bool SceneFX::prepare(UINT width, UINT height, const Settings &s) {
         for (auto &t : emitterPosition_)
             t.clear();
         localField_.clear();
-        visibleEmitters_.clear();
+        memset(sources_, 0, sizeof(sources_));
+        sourceOriginValid_ = false;
     }
+    const auto now = GetTickCount64();
+    float life[8][4]{};
+    for (unsigned i = 0; i < 32; ++i) {
+        const auto age = now - sources_[i].seen;
+        if (s.localLighting && sources_[i].key && age < 500) {
+            emitters_ = true;
+            life[i / 4][i % 4] = std::clamp((500.f - float(age)) / 400.f, 0.f, 1.f);
+        }
+    }
+    device_->SetPixelShaderConstantF(44, life[0], 8);
     depthReady_ = geometry && camera_ && depth_.capture(width, height);
     if (!geometry)
         depth_.invalidate();
@@ -234,12 +281,12 @@ bool SceneFX::prepare(UINT width, UINT height, const Settings &s) {
         rays_.clear();
     else if (!rays_.make(device_, w, h))
         return false;
-    if (s.localLighting && emitters_ && !localField_.make(device_, w, h, D3DFMT_A16B16G16R16F))
-        emitters_ = false;
+    if (s.localLighting && (emitters_ || lights_) && !localField_.make(device_, w, h, D3DFMT_A16B16G16R16F))
+        return false;
     return true;
 }
 bool SceneFX::pass(Target &t, IDirect3DPixelShader9 *ps, IDirect3DTexture9 *image, IDirect3DTexture9 *depth) {
-    for (DWORD i = 0; i < 5; ++i)
+    for (DWORD i = 0; i < 6; ++i)
         device_->SetTexture(i, nullptr);
     D3DVIEWPORT9 vp{0, 0, t.width, t.height, 0, 1};
     if (FAILED(device_->SetRenderTarget(0, t.surface)) || FAILED(device_->SetViewport(&vp)) ||
@@ -255,37 +302,25 @@ bool SceneFX::pass(Target &t, IDirect3DPixelShader9 *ps, IDirect3DTexture9 *imag
                       {t.width - .5f, t.height - .5f, 0, 1, 1, 1}};
     return SUCCEEDED(device_->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, quad, sizeof(V)));
 }
-IDirect3DTexture9 *SceneFX::process(IDirect3DTexture9 *input, const Settings &s,
-                                    IDirect3DSurface9 *reusable) {
+bool SceneFX::antialias(IDirect3DTexture9 *input, IDirect3DSurface9 *target, const Settings &s) {
+    if (s.smaa && smaa_.apply(input, target, output_.width, output_.height))
+        return true;
+    Target borrowed;
+    borrowed.surface.p = target;
+    target->AddRef();
+    borrowed.width = output_.width;
+    borrowed.height = output_.height;
+    float step[] = {1.f / output_.width, 1.f / output_.height, 0, 0};
+    // SMAA failure falls back to an exact copy, without applying grading twice.
+    float control[] = {s.smaa ? 0.f : s.fxaaStrength, s.fxaaThreshold, 0, 0};
+    device_->SetPixelShaderConstantF(0, step, 1);
+    device_->SetPixelShaderConstantF(1, control, 1);
+    return pass(borrowed, fxaaPS_, input);
+}
+IDirect3DTexture9 *SceneFX::process(IDirect3DTexture9 *input, const Settings &s) {
     PointSampler localSampler(device_, 4);
-    auto finish = [&](IDirect3DTexture9 *source) {
-        if ((!s.fxaa && !s.smaa) || !output_.texture.p)
-            return source;
-        Target borrowed;
-        Target *destination = &output_;
-        if (source == output_.texture.p) {
-            if (!reusable)
-                return source;
-            borrowed.texture.p = input;
-            input->AddRef();
-            borrowed.surface.p = reusable;
-            reusable->AddRef();
-            borrowed.width = output_.width;
-            borrowed.height = output_.height;
-            destination = &borrowed;
-        }
-        if (s.smaa)
-            return smaa_.apply(source, destination->surface, output_.width, output_.height)
-                       ? destination->texture.p
-                       : source;
-        float step[] = {1.f / output_.width, 1.f / output_.height, 0, 0},
-              control[] = {s.fxaaStrength, s.fxaaThreshold, 0, 0};
-        device_->SetPixelShaderConstantF(0, step, 1);
-        device_->SetPixelShaderConstantF(1, control, 1);
-        return pass(*destination, fxaaPS_, source) ? destination->texture.p : source;
-    };
     if (!depthReady_ || !output_.texture.p)
-        return finish(input);
+        return input;
     const float w = float(output_.width), h = float(output_.height);
     float c[20][4]{};
     c[0][0] = projection_._11;
@@ -335,11 +370,20 @@ IDirect3DTexture9 *SceneFX::process(IDirect3DTexture9 *input, const Settings &s,
     if (sunValid_)
         memcpy(c[10], &sun_.Diffuse, 16);
     memcpy(c[11], eye_, 16);
+    if (sourceOriginValid_) {
+        float originToEye[] = {sourceOrigin_[0] - eye_[0], sourceOrigin_[1] - eye_[1],
+                               sourceOrigin_[2] - eye_[2], 0};
+        device_->SetPixelShaderConstantF(52, originToEye, 1);
+    }
     memcpy(c[12], &view_, 64);
     memcpy(c[16], illumination_, 16);
+    float fogBackdrop[] = {skyBackdropReady_ ? 1.f : 0.f, nativeFog_[0], nativeFog_[1], nativeFog_[2]};
+    device_->SetPixelShaderConstantF(53, fogBackdrop, 1);
+    device_->SetPixelShaderConstantF(54, nativeFog_, 1);
     c[17][0] = ao_.width ? 1.f / ao_.width : 0;
     c[17][1] = ao_.height ? 1.f / ao_.height : 0;
     c[18][0] = s.sceneQuality ? 16 : 8;
+    c[18][1] = emitters_ ? 1.f : 0.f;
     c[17][2] = localField_.width ? 1.f / localField_.width : 0;
     c[17][3] = localField_.height ? 1.f / localField_.height : 0;
     c[19][0] = s.localLighting ? float(lights_) : 0;
@@ -347,17 +391,15 @@ IDirect3DTexture9 *SceneFX::process(IDirect3DTexture9 *input, const Settings &s,
     c[19][2] = s.localRange;
     if (s.localLighting && emitters_)
         reduceEmitters(s);
-    c[19][3] = s.localLighting && emitters_ ? 1.f : 0.f;
+    c[19][3] = s.localLighting && (emitters_ || lights_) && localField_.texture.p ? 1.f : 0.f;
     device_->SetPixelShaderConstantF(0, c[0], 20);
     device_->SetPixelShaderConstantF(20, positions_[0], 8);
     device_->SetPixelShaderConstantF(28, colors_[0], 8);
     device_->SetPixelShaderConstantF(36, attenuation_[0], 8);
     if (c[19][3] > .5f) {
         PointSampler sourceImage(device_, 0), sourcePositions(device_, 2), sourceColors(device_, 3);
-        if (!visibleEmitters_.make(device_, 8, 4, D3DFMT_A16B16G16R16F) ||
-            !pass(visibleEmitters_, visibilityPS_, emitterPosition_[3].texture, depth_.texture()))
-            c[19][3] = 0;
-        // Same camera/depth constants as the final surface pass; atlas RGB stores actual view positions.
+        // Camera occlusion of the bulb does not imply occlusion from every receiver.
+        // No sparse screen-space shadow test: it creates displaced copies of character silhouettes.
         for (DWORD i = 0; i < 5; ++i)
             device_->SetTexture(i, nullptr);
         D3DVIEWPORT9 vp{0, 0, localField_.width, localField_.height, 0, 1};
@@ -365,7 +407,7 @@ IDirect3DTexture9 *SceneFX::process(IDirect3DTexture9 *input, const Settings &s,
         device_->SetViewport(&vp);
         device_->SetPixelShader(localPS_);
         device_->SetTexture(1, depth_.texture());
-        device_->SetTexture(2, visibleEmitters_.texture);
+        device_->SetTexture(2, emitterPosition_[3].texture);
         device_->SetTexture(3, emitterColor_[3].texture);
         struct V {
             float x, y, z, w, u, v;
@@ -380,9 +422,9 @@ IDirect3DTexture9 *SceneFX::process(IDirect3DTexture9 *input, const Settings &s,
         device_->SetPixelShaderConstantF(19, c[19], 1);
     }
     if (s.ssao && !pass(ao_, aoPS_, input, depth_.texture()))
-        return finish(input);
+        return input;
     if (s.sunRays && !pass(rays_, rayPS_, input, depth_.texture()))
-        return finish(input);
+        return input;
     for (DWORD i = 0; i < 5; ++i)
         device_->SetTexture(i, nullptr);
     D3DVIEWPORT9 vp{0, 0, output_.width, output_.height, 0, 1};
@@ -394,6 +436,7 @@ IDirect3DTexture9 *SceneFX::process(IDirect3DTexture9 *input, const Settings &s,
     device_->SetTexture(2, ao_.texture);
     device_->SetTexture(3, rays_.texture);
     device_->SetTexture(4, c[19][3] > .5f ? localField_.texture.p : nullptr);
+    device_->SetTexture(5, skyBackdropReady_ ? skyBackdrop_.texture.p : nullptr);
     struct V {
         float x, y, z, w, u, v;
     };
@@ -401,9 +444,8 @@ IDirect3DTexture9 *SceneFX::process(IDirect3DTexture9 *input, const Settings &s,
                       {w - .5f, -.5f, 0, 1, 1, 0},
                       {-.5f, h - .5f, 0, 1, 0, 1},
                       {w - .5f, h - .5f, 0, 1, 1, 1}};
-    return finish(SUCCEEDED(device_->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, quad, sizeof(V)))
-                      ? output_.texture.p
-                      : input);
+    return SUCCEEDED(device_->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, quad, sizeof(V))) ? output_.texture.p
+                                                                                        : input;
 }
 bool SceneFX::emissive(IDirect3DTexture9 *texture) {
     DWORD tag = 0, size = 4;
@@ -444,10 +486,55 @@ bool SceneFX::emissive(IDirect3DTexture9 *texture) {
     for (auto &known : FoliageHashes)
         if (!memcmp(digest, known, 32))
             tag |= 2;
+    for (auto &known : SunFlareHashes)
+        if (!memcmp(digest, known, 32))
+            tag |= 8;
     if (!tag)
         tag = 4;
     texture->SetPrivateData(EmitterTag, &tag, 4, 0);
     return (tag & 1) != 0;
+}
+void SceneFX::beginFlare(const Settings &s) {
+    if (!s.sky || skyState_)
+        return;
+    DWORD z = 1, write = 1, blend = 0, src = 0, dst = 0, fvf = 0;
+    device_->GetFVF(&fvf);
+    if (fvf != 0x142)
+        return;
+    device_->GetRenderState(D3DRS_ZENABLE, &z);
+    device_->GetRenderState(D3DRS_ZWRITEENABLE, &write);
+    device_->GetRenderState(D3DRS_ALPHABLENDENABLE, &blend);
+    device_->GetRenderState(D3DRS_SRCBLEND, &src);
+    device_->GetRenderState(D3DRS_DESTBLEND, &dst);
+    if (z || write || !blend || src != D3DBLEND_SRCALPHA || dst != D3DBLEND_INVSRCALPHA)
+        return;
+    Com<IDirect3DBaseTexture9> base;
+    Com<IDirect3DPixelShader9> ps;
+    device_->GetPixelShader(ps.out());
+    if (ps.p || FAILED(device_->GetTexture(0, base.out())) || !base.p || base->GetType() != D3DRTYPE_TEXTURE)
+        return;
+    auto *texture = static_cast<IDirect3DTexture9 *>(base.p);
+    emissive(texture);
+    DWORD tag = 0, size = 4;
+    if (FAILED(texture->GetPrivateData(EmitterTag, &tag, &size)) || !(tag & 8) || !programs())
+        return;
+    D3DMATRIX matrices[3]{};
+    if (FAILED(device_->GetTransform(D3DTS_WORLD, &matrices[0])) ||
+        FAILED(device_->GetTransform(D3DTS_VIEW, &matrices[1])) ||
+        FAILED(device_->GetTransform(D3DTS_PROJECTION, &matrices[2])))
+        return;
+    auto guard = std::make_unique<StateGuard>(device_);
+    if (!guard->valid())
+        return;
+    skyState_ = std::move(guard);
+    float control[] = {s.sunHalo * .12f, 0, 0, 0};
+    float layout[] = {0, 0, 0, 0};
+    device_->SetVertexShader(skyVS_);
+    device_->SetVertexShaderConstantF(0, &matrices[0].m[0][0], 12);
+    device_->SetVertexShaderConstantF(16, layout, 1);
+    device_->SetPixelShaderConstantF(0, control, 1);
+    device_->SetRenderState(D3DRS_FOGENABLE, FALSE);
+    device_->SetPixelShader(flarePS_);
 }
 void SceneFX::beginFoliage(const Settings &s) {
     if ((s.nightFoliage <= 0 && !s.lightingBalance) || !camera_ || !sunValid_ || foliageActive_ || skyState_)
@@ -502,7 +589,7 @@ void SceneFX::beginFoliage(const Settings &s) {
     foliageActive_ = true;
 }
 void SceneFX::captureEmitter(const Settings &s, DrawCall draw) {
-    if (!s.localLighting || !camera_ || emitterDraws_ >= 64)
+    if (!s.localLighting || !camera_ || emitterDraws_ >= 32)
         return;
     DWORD blend = 0, write = 1, source = 0, dest = 0, fvf = 0;
     device_->GetRenderState(D3DRS_ALPHABLENDENABLE, &blend);
@@ -527,6 +614,19 @@ void SceneFX::captureEmitter(const Settings &s, DrawCall draw) {
     if (FAILED(device_->GetTexture(0, base.out())) || !base.p || base->GetType() != D3DRTYPE_TEXTURE ||
         !emissive(static_cast<IDirect3DTexture9 *>(base.p)))
         return;
+    // Native glows may be submitted after nameplates. They feed the next frame's cached lights;
+    // 3D portraits and overlays with a different camera must never supply scene emitters.
+    D3DMATRIX nativeView{}, nativeProjection{};
+    if (FAILED(device_->GetTransform(D3DTS_VIEW, &nativeView)) ||
+        FAILED(device_->GetTransform(D3DTS_PROJECTION, &nativeProjection)))
+        return;
+    for (int row = 0; row < 4; ++row)
+        for (int col = 0; col < 4; ++col) {
+            if (std::abs(nativeProjection.m[row][col] - projection_.m[row][col]) > .00001f)
+                return;
+            if (row < 3 && col < 3 && std::abs(nativeView.m[row][col] - view_.m[row][col]) > .00001f)
+                return;
+        }
     DWORD lighting = 0, test = 0, transform = 0, stage1 = 0, coordinate = 0;
     device_->GetRenderState(D3DRS_LIGHTING, &lighting);
     device_->GetRenderState(D3DRS_ALPHATESTENABLE, &test);
@@ -581,12 +681,64 @@ void SceneFX::captureEmitter(const Settings &s, DrawCall draw) {
     if (FAILED(device_->SetRenderTarget(0, emitterColor_[0].surface)) ||
         FAILED(device_->SetRenderTarget(1, emitterPosition_[0].surface)))
         return;
-    if (!emitters_ && FAILED(device_->Clear(0, nullptr, D3DCLEAR_TARGET, 0, 1, 0)))
+    if (!sourceOriginValid_ && FAILED(device_->Clear(0, nullptr, D3DCLEAR_TARGET, 0, 1, 0)))
         return;
-    D3DVIEWPORT9 vp{0, 0, 256, 128, 0, 1};
+    D3DVIEWPORT9 vp{(emitterDraws_ % 8) * 32, (emitterDraws_ / 8) * 32, 32, 32, 0, 1};
     device_->SetViewport(&vp);
     D3DMATRIX world{};
     device_->GetTransform(D3DTS_WORLD, &world);
+    // Some native glows use camera-relative world translation with the same camera orientation.
+    for (int axis = 0; axis < 3; ++axis)
+        world.m[3][axis] += (nativeView._41 - view_._41) * view_.m[axis][0] +
+                            (nativeView._42 - view_._42) * view_.m[axis][1] +
+                            (nativeView._43 - view_._43) * view_.m[axis][2];
+    // Keep source identity and positions independent of camera projection and screen bins.
+    uint64_t key = 14695981039346656037ull;
+    auto hash = [&](const void *data, size_t bytes) {
+        auto p = static_cast<const unsigned char *>(data);
+        for (size_t i = 0; i < bytes; ++i)
+            key = (key ^ p[i]) * 1099511628211ull;
+    };
+    Com<IDirect3DVertexBuffer9> vb;
+    Com<IDirect3DIndexBuffer9> ib;
+    UINT offset = 0, stride = 0;
+    device_->GetStreamSource(0, vb.out(), &offset, &stride);
+    device_->GetIndices(ib.out());
+    hash(&base.p, sizeof(base.p));
+    hash(&vb.p, sizeof(vb.p));
+    hash(&ib.p, sizeof(ib.p));
+    hash(&offset, sizeof(offset));
+    hash(&stride, sizeof(stride));
+    hash(&world._41, sizeof(float) * 3);
+    unsigned slot = 32;
+    const auto now = GetTickCount64();
+    for (unsigned i = 0; i < 32; ++i)
+        if (sources_[i].key == key && sources_[i].frame != sourceFrame_) {
+            slot = i;
+            break;
+        }
+    if (slot == 32)
+        for (unsigned i = 0; i < 32; ++i)
+            if (!sources_[i].key || now - sources_[i].seen >= 500) {
+                slot = i;
+                break;
+            }
+    if (slot == 32)
+        return;
+    vp.X = (slot % 8) * 32;
+    vp.Y = (slot / 8) * 32;
+    device_->SetViewport(&vp);
+    D3DRECT tile{LONG(vp.X), LONG(vp.Y), LONG(vp.X + 32), LONG(vp.Y + 32)};
+    if (FAILED(device_->Clear(1, &tile, D3DCLEAR_TARGET, 0, 1, 0)))
+        return;
+    if (!sourceOriginValid_) {
+        for (int i = 0; i < 3; ++i)
+            sourceOrigin_[i] = std::floor(eye_[i] / 128) * 128;
+        sourceOriginValid_ = true;
+    }
+    world._41 -= sourceOrigin_[0];
+    world._42 -= sourceOrigin_[1];
+    world._43 -= sourceOrigin_[2];
     D3DMATRIX matrices[] = {world, view_, projection_};
     float flags[] = {fvf & D3DFVF_DIFFUSE ? 1.f : 0.f, 0, 0, 0},
           alpha[] = {source == D3DBLEND_SRCALPHA ? 1.f : 0.f, srgb ? 1.f : 0.f, 0, 0};
@@ -605,6 +757,7 @@ void SceneFX::captureEmitter(const Settings &s, DrawCall draw) {
                      D3DRS_SEPARATEALPHABLENDENABLE, D3DRS_CLIPPLANEENABLE})
         device_->SetRenderState(key, FALSE);
     device_->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+    device_->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
     device_->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_ONE);
     device_->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_ONE);
     device_->SetRenderState(D3DRS_COLORWRITEENABLE, 15);
@@ -612,6 +765,7 @@ void SceneFX::captureEmitter(const Settings &s, DrawCall draw) {
     device_->SetRenderState(D3DRS_SRGBWRITEENABLE, FALSE);
     if (SUCCEEDED(draw())) {
         emitters_ = true;
+        sources_[slot] = {key, now, sourceFrame_};
         ++emitterDraws_;
     }
 }

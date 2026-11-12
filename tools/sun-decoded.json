@@ -1,0 +1,42 @@
+[
+  {
+    "file": "Weather/lenzflare_001.tga",
+    "sha256": "ae9e617089089a13cc4289b260c8321ecf4ee8cc48293b02e24d900c720813a5",
+    "rawHash": "e03a597c09aa0e312a3150b3905eff584208d2a4bbce6fe92b07e3a9aba994a2"
+  },
+  {
+    "file": "Weather/lenzflare_002.tga",
+    "sha256": "1ff7c41e9dcb57074a2a492524b91677c55797b913e48916378d60eca4e8ba74",
+    "rawHash": "4eae6b31457d5165541563d955b8b93c1169a6dfb4be6c69bb7b65be3d038ee8"
+  },
+  {
+    "file": "Weather/lenzflare_003.tga",
+    "sha256": "619aa478a71b083c856579c822dacfb8cfcbf43faa391b5db62fccba2c52615f",
+    "rawHash": "45a8c82afa12efef69562d33526b444ead1b4b029e6688dfca5b129dcae2f1c1"
+  },
+  {
+    "file": "Weather/lenzflare_004.tga",
+    "sha256": "841df04b6b997fba5aacb1d299dd790288a770f8454a365ead9282c6dedfacc9",
+    "rawHash": "1cba39580e9c13ffb0dcf3b2b070d098c20fdae3d3bcb9b8464808028d8934c3"
+  },
+  {
+    "file": "Weather/lenzflare_005.tga",
+    "sha256": "c463bdcd260dfa6c61a4b7c801980cd93dad13d74f4d98cf71f8b28252836922",
+    "rawHash": "d54dd25bf3f66382d50bcb7c330b2cc78bcd5e1b40538065b44201bd36766f6b"
+  },
+  {
+    "file": "Weather/lenzflare_006.tga",
+    "sha256": "126ed013c9d78bcfa506a4e8cd24c8aa2cc477eb4b0b22bec46fdfa0c2473b50",
+    "rawHash": "17fee6a51898204259dde46aa25b376320adce1e2d7b8ea3be35b4797fcc87c4"
+  },
+  {
+    "file": "Weather/lenzflare_007.tga",
+    "sha256": "4831e021ccaddbc808a7b524c50760bb52576bfd4006214685dd5c2976452e4f",
+    "rawHash": "cd842a18aac3024a9b6ad2cde52bf6ff6c00963f2948694179e821322a8d7fe5"
+  },
+  {
+    "file": "Weather/lenzflare_008.tga",
+    "sha256": "3a895b9db47cbb50cdd714d9b8bdf2755406ec518bbc2c1ac8b446ce43a28e6c",
+    "rawHash": "7ea446eae10df21dd0a8f0a532809f4138987408db953aa76289379e5d0ae642"
+  }
+]

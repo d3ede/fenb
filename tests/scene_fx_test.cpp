@@ -2,6 +2,7 @@
 #include "state_guard.hpp"
 #include <cstdio>
 #include <cstring>
+#include <array>
 #define CHECK(x)                                                                                             \
     do {                                                                                                     \
         if (!(x)) {                                                                                          \
@@ -16,6 +17,31 @@ void Log(const char *s) {
     puts(s);
 }
 struct SceneFXFixture {
+    static bool hasSkyBackdrop(const SceneFX &fx) {
+        return fx.skyBackdrop_.texture.p != nullptr;
+    }
+    static std::array<float, 3> sourcePosition(SceneFX &fx, IDirect3DDevice9 *d) {
+        Com<IDirect3DSurface9> read;
+        if (FAILED(d->CreateOffscreenPlainSurface(8, 4, D3DFMT_A16B16G16R16F, D3DPOOL_SYSTEMMEM, read.out(),
+                                                  nullptr)) ||
+            FAILED(d->GetRenderTargetData(fx.emitterPosition_[3].surface, read)))
+            return {999, 999, 999};
+        D3DLOCKED_RECT lock{};
+        if (FAILED(read->LockRect(&lock, nullptr, D3DLOCK_READONLY)))
+            return {999, 999, 999};
+        auto half = [](unsigned h) {
+            float v = (h & 1023) / 1024.f;
+            int e = (h >> 10) & 31;
+            return (h & 0x8000 ? -1.f : 1.f) * (e ? std::ldexp(1 + v, e - 15) : std::ldexp(v, -14));
+        };
+        auto *p = static_cast<unsigned short *>(lock.pBits);
+        float weight = half(p[3]);
+        std::array<float, 3> result{};
+        for (int i = 0; i < 3; ++i)
+            result[i] = half(p[i]) / std::max(.000001f, weight) + fx.sourceOrigin_[i];
+        read->UnlockRect();
+        return result;
+    }
     static IDirect3DVertexShader9 *skyProgram(SceneFX &fx) {
         return fx.skyVS_;
     }
@@ -155,7 +181,8 @@ int main(int argc, char **) {
     emitter->UnlockRect(0);
     DWORD tag = 1;
     emitter->SetPrivateData(EmitterTag, &tag, 4, 0); // Synthetic recognized source.
-    bool emit = false, nativePoint = true, occluded = false;
+    bool emit = false, nativePoint = true, occluded = false, foreground = false;
+    float cameraYaw = 0;
     float emitterFade = 1;
     DWORD solidColor = 0xff303030;
     auto disableEffect = [&](int group) {
@@ -195,7 +222,38 @@ int main(int argc, char **) {
         d->SetPixelShader(nullptr);
         d->SetFVF(D3DFVF_XYZ | D3DFVF_DIFFUSE);
         d->SetTransform(D3DTS_WORLD, &id);
-        d->SetTransform(D3DTS_VIEW, &view);
+        D3DMATRIX currentView = view;
+        if (cameraYaw != 0) {
+            // Orbit around the receiver while keeping the world and emissive geometry fixed.
+            float ex = std::sin(cameraYaw) * 12, ez = 4 - std::cos(cameraYaw) * 12;
+            float zx = -ex, zy = -4, zz = 4 - ez;
+            float length = std::sqrt(zx * zx + zy * zy + zz * zz);
+            zx /= length;
+            zy /= length;
+            zz /= length;
+            float xx = zz, xz = -zx;
+            length = std::sqrt(xx * xx + xz * xz);
+            xx /= length;
+            xz /= length;
+            float yx = zy * xz, yy = zz * xx - zx * xz, yz = -zy * xx;
+            currentView = {xx,
+                           yx,
+                           zx,
+                           0,
+                           0,
+                           yy,
+                           zy,
+                           0,
+                           xz,
+                           yz,
+                           zz,
+                           0,
+                           -ex * xx - ez * xz,
+                           -ex * yx - 4 * yy - ez * yz,
+                           -ex * zx - 4 * zy - ez * zz,
+                           1};
+        }
+        d->SetTransform(D3DTS_VIEW, &currentView);
         d->SetTransform(D3DTS_PROJECTION, &projection);
         d->SetRenderState(D3DRS_ZENABLE, TRUE);
         d->SetRenderState(D3DRS_ZWRITEENABLE, TRUE);
@@ -222,9 +280,9 @@ int main(int argc, char **) {
         light.Attenuation0 = 1;
         d->SetLight(1, &light);
         d->LightEnable(1, nativePoint);
-        fx.sceneFX().observe(settings);
         d->Clear(0, nullptr, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER,
                  solid ? solidColor : (balanceScene ? 0xff101827 : 0xff8faec4), 1, 0);
+        fx.sceneFX().observe(settings);
         if (FAILED(d->BeginScene()))
             return false;
         if (!solid) {
@@ -249,6 +307,13 @@ int main(int argc, char **) {
                 for (auto &v : wall)
                     v.color = 0xffc0c0c0;
             d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, wall, sizeof(Vertex));
+            if (foreground) {
+                Vertex character[] = {{-.35f, 0, 3, 0xff506070},
+                                      {.35f, 0, 3, 0xff506070},
+                                      {-.35f, 2, 3, 0xff506070},
+                                      {.35f, 2, 3, 0xff506070}};
+                d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, character, sizeof(Vertex));
+            }
         }
         if (emit) {
             struct E {
@@ -308,7 +373,20 @@ int main(int argc, char **) {
     CHECK(Difference(original, fog) > 1000);
     CHECK(fog[12 * W + 12] == original[12 * W + 12]);
     CHECK(Save(fog, L"build/scene-fog.bmp"));
+    // Fully fogged distant geometry converges to the actual sky drawn before the world.
+    settings.fogDensity = 2;
+    CHECK(render());
+    auto horizon = Read(d);
+    CHECK(std::abs(Luma(horizon[120 * W + W / 2]) - Luma(original[50 * W + 20])) <= 3);
+    CHECK(horizon[50 * W + 20] == original[50 * W + 20]);
+    CHECK(Save(horizon, L"build/scene-fog-horizon.bmp"));
+    CHECK(SceneFXFixture::hasSkyBackdrop(fx.sceneFX()));
     disableEffect(3);
+    settings.nightFoliage = 0;
+    settings.fxaa = true;
+    CHECK(render());
+    CHECK(!SceneFXFixture::hasSkyBackdrop(fx.sceneFX()));
+    settings.fxaa = false;
     settings.ssao = true;
     settings.aoStrength = 2;
     settings.aoRadius = 3;
@@ -347,6 +425,8 @@ int main(int argc, char **) {
     CHECK(Save(lit, L"build/scene-lighting.bmp"));
     emit = true;
     nativePoint = false;
+    settings.localStrength = 2;
+    settings.localRange = 1.55f;
     settings.localLighting = false;
     CHECK(render());
     auto emitterOff = Read(d);
@@ -360,6 +440,43 @@ int main(int argc, char **) {
     printf("Emissive geometry receiver pixels: %u\n", illuminated);
     CHECK(illuminated > 100);
     CHECK(Save(emitterOn, L"build/scene-emissive-lighting.bmp"));
+    auto fixedSource = SceneFXFixture::sourcePosition(fx.sceneFX(), d);
+    CHECK(std::abs(fixedSource[0]) < .05f && std::abs(fixedSource[1] - 3) < .05f &&
+          std::abs(fixedSource[2] - 9) < .05f);
+    for (float yaw : {-.65f, .35f, .8f}) {
+        cameraYaw = yaw;
+        CHECK(render());
+        auto rotatedSource = SceneFXFixture::sourcePosition(fx.sceneFX(), d);
+        for (int axis = 0; axis < 3; ++axis)
+            CHECK(std::abs(rotatedSource[axis] - fixedSource[axis]) < .02f);
+    }
+    cameraYaw = 0;
+    CHECK(render());
+    // A foreground body cannot stamp displaced copies into the light field.
+    foreground = true;
+    settings.localLighting = false;
+    CHECK(render());
+    auto bodyOff = Read(d);
+    settings.localLighting = true;
+    CHECK(render());
+    auto bodyOn = Read(d);
+    unsigned phantomPixels = 0, receiverPixels = 0;
+    for (UINT y = H / 2 + 3; y < H - 3; ++y)
+        for (UINT x = 3; x < W - 3; ++x) {
+            bool sameReceiver = true;
+            for (int dy = -2; dy <= 2; ++dy)
+                for (int dx = -2; dx <= 2; ++dx)
+                    sameReceiver &= bodyOff[(y + dy) * W + x + dx] == emitterOff[(y + dy) * W + x + dx];
+            if (sameReceiver) {
+                ++receiverPixels;
+                phantomPixels += std::abs(Luma(bodyOn[y * W + x]) - Luma(emitterOn[y * W + x])) > 6;
+            }
+        }
+    printf("Unchanged receiver pixels=%u, phantom light silhouettes=%u\n", receiverPixels, phantomPixels);
+    CHECK(receiverPixels > 50000 && phantomPixels * 1000 < receiverPixels);
+    CHECK(Save(bodyOn, L"build/scene-light-no-phantoms.bmp"));
+    foreground = false;
+    CHECK(render());
     float fullEmission = SceneFXFixture::lightMaximum(fx.sceneFX(), d);
     emitterFade = .25f;
     CHECK(render());
@@ -373,7 +490,9 @@ int main(int argc, char **) {
     settings.localLighting = true;
     settings.localStrength = 1;
     CHECK(render());
-    CHECK(SceneFXFixture::lightMaximum(fx.sceneFX(), d) == 0);
+    // The bulb being hidden from the camera must not switch off illumination everywhere.
+    // These are unshadowed lights; camera depth is not a substitute for light-space shadow maps.
+    CHECK(SceneFXFixture::lightMaximum(fx.sceneFX(), d) > 0);
     // A lamp must visibly light a dark night receiver, not just multiply its nearly black color.
     occluded = false;
     darkScene = true;
@@ -629,6 +748,70 @@ int main(int argc, char **) {
     auto dayLeaves = Read(d);
     CHECK(materialFrame(false, true, true));
     CHECK(dayLeaves == Read(d));
+    // The exact lens-flare material becomes a smooth halo while preserving native fade/state.
+    DWORD flareTag = 8;
+    emitter->SetPrivateData(EmitterTag, &flareTag, 4, 0);
+    auto flareFrame = [&](bool replace, float strength) {
+        d->SetTransform(D3DTS_WORLD, &id);
+        d->SetTransform(D3DTS_VIEW, &id);
+        d->SetTransform(D3DTS_PROJECTION, &projection);
+        d->SetVertexShader(nullptr);
+        d->SetPixelShader(nullptr);
+        d->SetFVF(0x142);
+        d->SetTexture(0, emitter);
+        d->SetRenderState(D3DRS_LIGHTING, FALSE);
+        d->SetRenderState(D3DRS_ZENABLE, FALSE);
+        d->SetRenderState(D3DRS_ZWRITEENABLE, FALSE);
+        d->SetRenderState(D3DRS_FOGENABLE, TRUE);
+        d->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+        d->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+        d->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+        d->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
+        d->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+        d->SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
+        d->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
+        d->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
+        d->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
+        d->Clear(0, nullptr, D3DCLEAR_TARGET, 0xff203040, 1, 0);
+        d->BeginScene();
+        Settings s;
+        s.sky = true;
+        s.sunHalo = strength;
+        if (replace)
+            fx.sceneFX().beginFlare(s);
+        Com<IDirect3DPixelShader9> activeFlare;
+        d->GetPixelShader(activeFlare.out());
+        struct V {
+            float x, y, z;
+            DWORD color;
+            float u, v;
+        };
+        V q[] = {{-1, -1, 2, 0xffffffff, 0, 1},
+                 {-1, 1, 2, 0xffffffff, 0, 0},
+                 {1, -1, 2, 0xffffffff, 1, 1},
+                 {1, 1, 2, 0xffffffff, 1, 0}};
+        HRESULT flareResult = d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, q, sizeof(V));
+        fx.sceneFX().endSky();
+        d->EndScene();
+        DWORD fogState = 0;
+        d->GetRenderState(D3DRS_FOGENABLE, &fogState);
+        return fogState == TRUE && SUCCEEDED(flareResult);
+    };
+    CHECK(flareFrame(true, 1));
+    auto softFlare = Read(d);
+    CHECK(Save(softFlare, L"build/scene-soft-sun-flare.bmp"));
+    CHECK(flareFrame(false, 1));
+    CHECK(Save(Read(d), L"build/scene-native-sun-flare.bmp"));
+    CHECK(Luma(softFlare[H / 2 * W + W / 2]) > Luma(0xff203040));
+    CHECK((softFlare[(H / 2 + 150) * W + 160] & 0xffffff) == 0x203040);
+    CHECK(flareFrame(true, 0));
+    CHECK((Read(d)[H / 2 * W + W / 2] & 0xffffff) == 0x203040);
+    DWORD unknownTag = 4;
+    emitter->SetPrivateData(EmitterTag, &unknownTag, 4, 0);
+    CHECK(flareFrame(true, 1));
+    auto unknownFlare = Read(d);
+    CHECK(flareFrame(false, 1));
+    CHECK(unknownFlare == Read(d));
     fx.invalidate();
     CHECK(fx.bytes() == 0);
     CHECK(SUCCEEDED(d->Reset(&pp)));

@@ -1,3 +1,4 @@
+sampler2D SceneReflection : register(s6);
 sampler2D OriginalWater : register(s0);
 sampler2D SceneColor : register(s1);
 samplerCUBE SkyEnvironment : register(s2);
@@ -35,47 +36,6 @@ float3 WorldPoint(float3 p) { return EyeTime.xyz+mul((float3x3)View,p); }
 float2 ProjectUV(float3 p) {
     return ((p.xy*Camera.xy/p.z)*float2(.5,-.5)+.5)*Viewport.zw+Viewport.xy;
 }
-float4 TraceReflection(float3 start,float3 direction,float3 planeNormal) {
-    float previousT=.06;
-    float previousDelta=-.01;
-    [loop] for(int i=0;i<24;++i) {
-        if(i>=Trace.x) break;
-        float u=(i+1)/Trace.x;
-        float t=.06+u*u*Trace.y;
-        float3 ray=start+direction*t;
-        if(ray.z<=.1) break;
-        float2 uv=ProjectUV(ray);
-        float2 localUV=(uv-Viewport.xy)/Viewport.zw;
-        if(any(localUV<=.002)||any(localUV>=.998)) break;
-        float sceneZ=DepthZ(uv);
-        float delta=ray.z-sceneZ;
-        if(delta>=0 && previousDelta<0) {
-            float lo=previousT,hi=t;
-            [loop] for(int j=0;j<12;++j) {
-                float mid=(lo+hi)*.5;
-                float3 q=start+direction*mid;
-                float z=DepthZ(ProjectUV(q));
-                if(q.z>z)hi=mid;else lo=mid;
-            }
-            float3 q=start+direction*((lo+hi)*.5);
-            float2 hitUV=ProjectUV(q);
-            float hitZ=DepthZ(hitUV);
-            float3 hit=ViewPoint(hitUV,hitZ);
-            // Reject silhouette jumps and loose depth matches instead of stretching a bank into water.
-            float tolerance=clamp(hitZ*hitZ*Trace.w,.03,.35);
-            float edgeZ=max(abs(DepthZ(hitUV+float2(Screen.x,0))-hitZ),abs(DepthZ(hitUV+float2(0,Screen.y))-hitZ));
-            float2 edge=min((hitUV-Viewport.xy)/Viewport.zw,1-(hitUV-Viewport.xy)/Viewport.zw);
-            float confidence=saturate(min(edge.x,edge.y)*14)*saturate(1-hi/Trace.y);
-            confidence*=abs(q.z-hitZ)<tolerance && dot(hit-start,planeNormal)>.01;
-            // Precision of the depth format is not a bound on a sloped bank's pixel gradient.
-            // Keep the silhouette rejection relative to view distance, independently of D16/D24.
-            confidence*=saturate(1-edgeZ/max(.1,hitZ*.015));
-            return float4(tex2Dlod(SceneColor,float4(hitUV,0,0)).rgb,confidence);
-        }
-        previousT=t;previousDelta=delta;
-    }
-    return 0;
-}
 float4 WaterPS(float2 uv:TEXCOORD0,float3 relative:TEXCOORD1,float3 normal:TEXCOORD2,float fogDepth:TEXCOORD3,float4 color:COLOR0,float2 pixel:VPOS):COLOR0 {
     float t=EyeTime.w*Sun.w;
     float3 world=relative+EyeTime.xyz;
@@ -89,13 +49,7 @@ float4 WaterPS(float2 uv:TEXCOORD0,float3 relative:TEXCOORD1,float3 normal:TEXCO
     if(geometric.y<0)geometric=-geometric;
     float surface=smoothstep(.45,.85,geometric.y);
     float3 planeNormal=mul(float4(geometric,0),View).xyz;
-    float3 traceNormal=geometric;
-    float3 traceReflected=reflect(-v,traceNormal);
-    float4 worldReflection=0;
-    if(Optics.x>.5 && Optics.w>0 && traceReflected.y>.005 && v.y>0 && surface>.01){
-        float3 direction=mul(float4(traceReflected,0),View).xyz;
-        worldReflection=TraceReflection(viewPosition+planeNormal*.05,direction,planeNormal);
-    }
+    float4 worldReflection=Optics.w>0?tex2Dlod(SceneReflection,float4((pixel+.5)*Screen.xy,0,0)):0;
     // Crossed, domain-warped wave bands break the old regular horizontal comb.
     float firstLOD=clamp(log2(max(1,footprint*128*.109)),0,7);
     float2 first=tex2Dlod(WaterNormals,float4(p*.065+t*float2(.011,.007),0,firstLOD)).rg*2-1;
@@ -130,7 +84,11 @@ float4 WaterPS(float2 uv:TEXCOORD0,float3 relative:TEXCOORD1,float3 normal:TEXCO
     if(Detail.w>.5) sky=texCUBE(SkyEnvironment,reflected).rgb;
     // No arbitrary screen-pixel warp after a ray hit: it moves unrelated scene pixels into the mirror.
     sky=lerp(sky,worldReflection.rgb,worldReflection.a*Optics.w);
-    float reflectionWeight=fresnel*max(Surface.w,worldReflection.a*Optics.w)*shore*surface;
+    // Resolve object radiance on the macro surface. Tiny ripple normals still shade water and sky,
+    // but must not repeatedly cut a high-contrast bridge into bright/dark Fresnel stripes.
+    float macroFacing=saturate(abs(dot(geometric,v)));
+    float objectFresnel=lerp(fresnel,.025+.975*pow(1-macroFacing,5),.85);
+    float reflectionWeight=lerp(fresnel*Surface.w,objectFresnel,worldReflection.a*Optics.w)*shore*surface;
     float3 base=body;
     float opacity=saturate(Surface.z+fresnel*(1-Surface.z)*Surface.w);
     if(Screen.z>.5){

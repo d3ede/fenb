@@ -135,7 +135,7 @@ void Effects::draw(IDirect3DSurface9 *backbuffer, const Settings &s) {
     device_->SetRenderState(D3DRS_FILLMODE, D3DFILL_SOLID);
     device_->SetRenderState(D3DRS_COLORWRITEENABLE, 15);
     device_->SetRenderState(D3DRS_SRGBWRITEENABLE, FALSE);
-    for (DWORD i = 0; i < 5; ++i) {
+    for (DWORD i = 0; i < 6; ++i) {
         device_->SetSamplerState(i, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
         device_->SetSamplerState(i, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
         device_->SetSamplerState(i, D3DSAMP_MIPFILTER, D3DTEXF_NONE);
@@ -145,7 +145,7 @@ void Effects::draw(IDirect3DSurface9 *backbuffer, const Settings &s) {
     }
     device_->SetSamplerState(1, D3DSAMP_MINFILTER, D3DTEXF_POINT);
     device_->SetSamplerState(1, D3DSAMP_MAGFILTER, D3DTEXF_POINT);
-    auto *processed = scene_.process(frame_, s, frameSurface_);
+    auto *processed = scene_.process(frame_, s);
     auto *exposure = scene_.exposure(processed, s);
     device_->SetSamplerState(1, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
     device_->SetSamplerState(1, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
@@ -178,7 +178,14 @@ void Effects::draw(IDirect3DSurface9 *backbuffer, const Settings &s) {
         device_->SetPixelShaderConstantF(4, step, 1);
         pass(bloomSurface_[0], bw_, bh_, blur_, bloom_[1]);
     }
-    pass(backbuffer, width_, height_, composite_, processed, bloom_[0]);
-    for (DWORD i = 0; i < 5; ++i)
+    if ((s.fxaa || s.smaa) && scene_.postSurface()) {
+        // Grade/bloom first. Reuse the full-resolution target that is no longer an input.
+        auto *graded = processed == frame_ ? scene_.postTexture() : frame_;
+        auto *gradedSurface = processed == frame_ ? scene_.postSurface() : frameSurface_;
+        pass(gradedSurface, width_, height_, composite_, processed, bloom_[0]);
+        scene_.antialias(graded, backbuffer, s);
+    } else
+        pass(backbuffer, width_, height_, composite_, processed, bloom_[0]);
+    for (DWORD i = 0; i < 6; ++i)
         device_->SetTexture(i, nullptr);
 }

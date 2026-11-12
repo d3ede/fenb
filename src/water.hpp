@@ -2,6 +2,7 @@
 #include "settings.hpp"
 #include "state_guard.hpp"
 #include "depth_copy.hpp"
+#include "draw_call.hpp"
 #include <bcrypt.h>
 #include "scene_tags.hpp"
 class SceneFX;
@@ -24,6 +25,10 @@ class WaterFX {
     IDirect3DDevice9 *device_;
     Com<IDirect3DVertexShader9> vs_;
     Com<IDirect3DPixelShader9> ps_;
+    Com<IDirect3DPixelShader9> reflectionPS_;
+    Com<IDirect3DTexture9> reflection_;
+    Com<IDirect3DSurface9> reflectionSurface_;
+    bool traceReady_ = false;
     Com<IDirect3DTexture9> normals_;
     size_t normalBytes_ = 0;
     bool normalFailed_ = false;
@@ -55,6 +60,7 @@ class WaterFX {
     explicit WaterFX(IDirect3DDevice9 *device) : device_(device), depth_(device) {}
     ~WaterFX();
     bool begin(const Settings &settings, UINT upStride = 0);
+    void reflect(DrawCall);
     DWORD materialTag(IDirect3DTexture9 *texture) {
         return classify(texture);
     }
@@ -76,12 +82,14 @@ class WaterFX {
             environmentReady_ = false;
         }
         if (!refraction) {
+            reflectionSurface_.out();
+            reflection_.out();
             sceneSurface_.out();
             scene_.out();
         }
     }
     size_t bytes() const {
-        return (scene_.p ? size_t(sceneWidth_) * sceneHeight_ * 4 : 0) +
+        return ((scene_.p ? 1 : 0) + (reflection_.p ? 1 : 0)) * size_t(sceneWidth_) * sceneHeight_ * 4 +
                (environment_.p ? 128 * 128 * 4 * 6 : 0) + depth_.bytes() + normalBytes_ +
                (caustics_.p ? size_t(causticWidth_) * causticHeight_ * 4 : 0);
     }

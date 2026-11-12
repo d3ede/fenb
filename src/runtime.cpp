@@ -214,7 +214,10 @@ void Runtime::resetFrame() {
     sawWorld_ = hudStarted_ = false;
     invalidateDrawState();
 }
-void Runtime::beforeWaterDraw(UINT upStride) {
+void Runtime::beforeWaterDraw(UINT upStride, DrawCall draw) {
+    if (!lost_ && settings.enabled && !compare && !vertexShaderActive_ && fvfKnown_ &&
+        drawFVF_ == 0x142 && sceneBackbuffer_ && drawTarget_ == sceneBackbuffer_)
+        effects_->sceneFX().beginFlare(settings);
     if (!lost_ && !hudStarted_ && settings.enabled && !compare && !vertexShaderActive_ && fvfKnown_ &&
         drawFVF_ == 0x112 && (settings.nightFoliage > 0 || settings.lightingBalance) && sceneBackbuffer_ &&
         drawTarget_ == sceneBackbuffer_)
@@ -222,8 +225,10 @@ void Runtime::beforeWaterDraw(UINT upStride) {
     if (lost_ || hudStarted_ || !settings.enabled || !settings.water || compare || vertexShaderActive_ ||
         !fvfKnown_ || drawFVF_ != 0x152 || !sceneBackbuffer_ || drawTarget_ != sceneBackbuffer_)
         return;
-    if (water_->begin(settings, upStride))
+    if (water_->begin(settings, upStride)) {
         ++waterDraws;
+        water_->reflect(draw);
+    }
 }
 void Runtime::environmentDraw(D3DPRIMITIVETYPE type, UINT start, UINT count) {
     if (lost_ || hudStarted_ || !settings.enabled ||
@@ -244,7 +249,7 @@ void Runtime::afterWaterDraw(bool up, bool indexed) {
     water_->end(up, indexed);
 }
 void Runtime::emitterDraw(DrawCall draw) {
-    if (lost_ || hudStarted_ || !settings.enabled || compare || vertexShaderActive_ ||
+    if (lost_ || !settings.enabled || compare || vertexShaderActive_ ||
         !settings.localLighting || !sceneBackbuffer_ || drawTarget_ != sceneBackbuffer_)
         return;
     effects_->sceneFX().captureEmitter(settings, draw);
