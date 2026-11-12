@@ -175,7 +175,7 @@ void Row(const char *label, const char *help, float &value, float low, float hig
     ImGui::Dummy({width, RowHeight});
     ImGui::PopID();
 }
-bool Section(const char *id, const char *title, bool &enabled, bool &reset) {
+bool Section(const char *id, const char *title, bool &enabled, bool &reset, bool showEnable = true) {
     reset = false;
     ImGui::PushID(id);
     auto p = ImGui::GetCursorScreenPos();
@@ -199,9 +199,11 @@ bool Section(const char *id, const char *title, bool &enabled, bool &reset) {
     reset = ImGui::InvisibleButton("reset-section", {22, 18}, ImGuiButtonFlags_EnableNav);
     ResetGlyph(d, ImGui::GetItemRectMin(), ImGui::IsItemHovered() ? Text : Muted);
     Tip("Сбросить параметры этой секции");
-    ImGui::SetCursorScreenPos({p.x + width - 22, p.y + 5});
-    SquareSwitch("enabled", enabled);
-    Tip(enabled ? "Выключить эффект" : "Включить эффект");
+    if (showEnable) {
+        ImGui::SetCursorScreenPos({p.x + width - 22, p.y + 5});
+        SquareSwitch("enabled", enabled);
+        Tip(enabled ? "Выключить эффект" : "Включить эффект");
+    }
     ImGui::SetCursorScreenPos(p);
     ImGui::Dummy({width, 28});
     ImGui::PopID();
@@ -527,7 +529,7 @@ void DrawPanel(Runtime &r) {
         ImGui::Dummy({280, 34});
         bool expanded = Section("waterMotion", "Поверхность", s.water, reset);
         if (reset)
-            s.resetWater();
+            s.resetWaterSurface();
         if (expanded) {
             ImGui::BeginDisabled(!s.water || !s.enabled);
             Row("Высота волн", "Небольшое смещение вершин воды. Крупная сетка ограничивает детализацию.",
@@ -542,15 +544,15 @@ void DrawPanel(Runtime &r) {
                 defaults.waterRippleScale, "%.2f", .05f);
             ImGui::Dummy({0, 8});
             Row("Непрозрачность",
-                "Меньше — лучше видно уже отрисованное дно. Толщина слоя воды по глубине не вычисляется.",
+                "Плотность воды. При доступной глубине поглощение усиливается с толщиной слоя.",
                 s.waterOpacity, .15f, 1, defaults.waterOpacity, "%.2f", .02f);
-            Row("Преломление", "Искажение сцены под водой. Ноль отключает копию кадра. Без глубины берега.",
+            Row("Преломление", "Искажение сцены под водой; при доступной глубине берег не затягивается в воду.",
                 s.waterRefraction, 0, 1, defaults.waterRefraction, "%.2f", .02f);
             Row("Исходная текстура", "Примесь старой текстуры: выше — заметнее её повторяющиеся полосы.",
                 s.waterTexture, 0, 1, defaults.waterTexture, "%.2f", .02f);
             Row("Бирюзовый тон", "От прохладного голубого к бирюзовому цвету воды.", s.waterTint, 0, 1,
                 defaults.waterTint, "%.2f", .02f);
-            Row("Отражение неба", "Небо и облака из cubemap клиента; для неизвестного неба — градиент. Без объектов мира.",
+            Row("Отражение неба", "Небо и облака клиента. Отражения объектов настраиваются ниже.",
                 s.waterSky, 0, 1, defaults.waterSky, "%.2f", .02f);
             Row("Солнечные блики", "Блики от направленного света игры. Ноль отключает блики.", s.waterGlints,
                 0, 2, defaults.waterGlints, "%.2f", .05f);
@@ -558,6 +560,29 @@ void DrawPanel(Runtime &r) {
                 "%.2f", .02f);
             ImGui::EndDisabled();
         }
+        ImGui::Dummy({0, 6});
+        bool sceneSection = true;
+        if (Section("waterScene", "Глубина и отражения", sceneSection, reset, false)) {
+            if (reset) s.resetWaterScene();
+            ImGui::BeginDisabled(!s.water || !s.enabled);
+            Row("Поглощение", "Изменение прозрачности по толщине воды. Ноль — равномерная прозрачность.",
+                s.waterDepth, 0, 2, defaults.waterDepth, "%.2f", .05f);
+            Row("Переход у берега", "Расстояние мягкого перехода у геометрии в единицах мира.",
+                s.waterShore, .05f, 3, defaults.waterShore, "%.2f", .05f);
+            Row("Отражения мира", "SSR: отражаются только уже видимые объекты. Ноль отключает трассировку.",
+                s.waterSSR, 0, 1, defaults.waterSSR, "%.2f", .05f);
+            auto p = ImGui::GetCursorScreenPos();
+            float width = ImGui::GetContentRegionAvail().x;
+            TextAt(ImGui::GetWindowDrawList(), {p.x, p.y + 5}, "Качество SSR");
+            ImGui::SetCursorScreenPos({p.x + 146, p.y + 2});
+            ImGui::SetNextItemWidth(width - 171);
+            const char *qualities[] = {"Экономное", "Подробное"};
+            ImGui::Combo("##waterSSRQuality", &s.waterSSRQuality, qualities, 2);
+            Tip("12 или 24 шага. Нужна читаемая глубина; при недоступности остаётся отражение неба.");
+            ImGui::SetCursorScreenPos(p);
+            ImGui::Dummy({width, RowHeight});
+            ImGui::EndDisabled();
+        } else if (reset) s.resetWaterScene();
     }
     ImGui::EndChild();
     float footer = size.y - 28;

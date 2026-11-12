@@ -1,6 +1,7 @@
 #pragma once
 #include "settings.hpp"
 #include "state_guard.hpp"
+#include "depth_copy.hpp"
 #include <bcrypt.h>
 // Texture-private metadata dies with the resource; no dangling pointer cache or retained game textures.
 inline constexpr GUID WaterTag = {
@@ -19,8 +20,12 @@ class WaterFX {
     IDirect3DDevice9 *device_;
     Com<IDirect3DVertexShader9> vs_;
     Com<IDirect3DPixelShader9> ps_;
+    Com<IDirect3DTexture9> normals_;
+    size_t normalBytes_ = 0;
+    bool normalFailed_ = false;
     Com<IDirect3DTexture9> scene_;
     Com<IDirect3DSurface9> sceneSurface_;
+    DepthCopy depth_;
     Com<IDirect3DCubeTexture9> environment_;
     bool skySeen_ = false, environmentReady_ = false, environmentUpdating_ = false;
     bool environmentFailed_ = false;
@@ -33,14 +38,16 @@ class WaterFX {
     bool failed_ = false;
     DWORD classify(IDirect3DTexture9 *texture);
     bool captureScene();
+    bool normalTexture();
 
   public:
-    explicit WaterFX(IDirect3DDevice9 *device) : device_(device) {}
+    explicit WaterFX(IDirect3DDevice9 *device) : device_(device), depth_(device) {}
     ~WaterFX();
     bool begin(const Settings &settings, UINT upStride = 0);
     void captureEnvironment(D3DPRIMITIVETYPE type, UINT start, UINT count);
-    void beginFrame(bool refraction = true, bool sky = true) {
+    void beginFrame(bool refraction = true, bool sky = true, bool depth = true) {
         sceneAttempted_ = sceneReady_ = false;
+        depth_.beginFrame(depth);
         skySeen_ = environmentUpdating_ = false;
         if (!sky) {
             environment_.out();
@@ -53,7 +60,7 @@ class WaterFX {
     }
     size_t bytes() const {
         return (scene_.p ? size_t(sceneWidth_) * sceneHeight_ * 4 : 0) +
-               (environment_.p ? 128 * 128 * 4 * 6 : 0);
+               (environment_.p ? 128 * 128 * 4 * 6 : 0) + depth_.bytes() + normalBytes_;
     }
     void end(bool up = false, bool indexed = false) {
         const bool replaced = state_ != nullptr;

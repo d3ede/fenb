@@ -147,8 +147,10 @@ void Runtime::afterPresent(HRESULT result) {
 void Runtime::resetFrame() {
     lastWaterDraws = waterDraws;
     waterDraws = 0;
-    water_->beginFrame(settings.enabled && settings.water && !compare && settings.waterRefraction > 0,
-                       settings.enabled && settings.water && !compare && settings.waterSky > 0);
+    bool waterEnabled = settings.enabled && settings.water && !compare;
+    water_->beginFrame(waterEnabled && (settings.waterRefraction > 0 || settings.waterDepth > 0 || settings.waterSSR > 0),
+                       waterEnabled && settings.waterSky > 0,
+                       waterEnabled && (settings.waterDepth > 0 || settings.waterSSR > 0));
     Drop(sceneBackbuffer_);
     drawTarget_ = nullptr;
     sawWorld_ = hudStarted_ = false;

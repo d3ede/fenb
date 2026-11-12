@@ -13,6 +13,10 @@ void WaterFX::invalidate() {
     end();
     vs_.out();
     ps_.out();
+    normals_.out();
+    normalBytes_ = 0;
+    normalFailed_ = false;
+    depth_.invalidate();
     sceneSurface_.out();
     scene_.out();
     sceneWidth_ = sceneHeight_ = 0;
@@ -51,6 +55,87 @@ bool WaterFX::captureScene() {
     // Never copy depth, read back to the CPU, or sample the live render target.
     sceneReady_ = SUCCEEDED(device_->StretchRect(source, nullptr, sceneSurface_, nullptr, D3DTEXF_NONE));
     return sceneReady_;
+}
+bool WaterFX::normalTexture() {
+    if (normals_.p)
+        return true;
+    if (normalFailed_)
+        return false;
+    constexpr UINT size = 128, levels = 8;
+    if (FAILED(device_->CreateTexture(size, size, levels, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, normals_.out(),
+                                      nullptr))) {
+        normalFailed_ = true;
+        return false;
+    }
+    // A periodic wave spectrum, generated once and sampled as two drifting, rotated layers.
+    struct Wave {
+        float x, y, phase, amplitude;
+    };
+    Wave waves[32]{};
+    DWORD seed = 0x71a934d5;
+    auto random = [&]() {
+        seed ^= seed << 13;
+        seed ^= seed >> 17;
+        seed ^= seed << 5;
+        return seed;
+    };
+    float energy = 0;
+    for (auto &wave : waves) {
+        do {
+            wave.x = float(int(random() % 33) - 16);
+            wave.y = float(int(random() % 33) - 16);
+        } while (wave.x * wave.x + wave.y * wave.y < 4);
+        float length = std::sqrt(wave.x * wave.x + wave.y * wave.y);
+        wave.amplitude = std::pow(length, -.7f);
+        wave.phase = float(random() & 65535) * (6.2831853f / 65536);
+        energy += wave.amplitude * wave.amplitude;
+    }
+    float scale = .6f / std::sqrt(energy * .5f);
+    auto encode = [](float value) { return DWORD(std::clamp(value * .5f + .5f, 0.f, 1.f) * 255 + .5f); };
+    std::vector<DWORD> pixels(size * size);
+    for (UINT y = 0; y < size; ++y)
+        for (UINT x = 0; x < size; ++x) {
+            float sx = 0, sy = 0;
+            for (const auto &wave : waves) {
+                float phase = 6.2831853f * (wave.x * x + wave.y * y) / size + wave.phase;
+                float derivative =
+                    std::cos(phase) * wave.amplitude / std::sqrt(wave.x * wave.x + wave.y * wave.y);
+                sx += wave.x * derivative;
+                sy += wave.y * derivative;
+            }
+            pixels[y * size + x] = 0xff000080 | (encode(sx * scale) << 16) | (encode(sy * scale) << 8);
+        }
+    normalBytes_ = 0;
+    for (UINT level = 0, width = size; level < levels; ++level, width /= 2) {
+        D3DLOCKED_RECT lock{};
+        if (FAILED(normals_->LockRect(level, &lock, nullptr, 0))) {
+            normals_.out();
+            normalBytes_ = 0;
+            normalFailed_ = true;
+            return false;
+        }
+        for (UINT y = 0; y < width; ++y)
+            memcpy((BYTE *)lock.pBits + y * lock.Pitch, pixels.data() + y * width, width * 4);
+        normals_->UnlockRect(level);
+        normalBytes_ += size_t(width) * width * 4;
+        if (width == 1)
+            break;
+        std::vector<DWORD> next(width * width / 4);
+        for (UINT y = 0; y < width / 2; ++y)
+            for (UINT x = 0; x < width / 2; ++x) {
+                DWORD packed = 0xff000080;
+                for (UINT shift : {8u, 16u}) {
+                    UINT sum = 0;
+                    for (UINT dy = 0; dy < 2; ++dy)
+                        for (UINT dx = 0; dx < 2; ++dx)
+                            sum += (pixels[(y * 2 + dy) * width + x * 2 + dx] >> shift) & 255;
+                    packed |= ((sum + 2) / 4) << shift;
+                }
+                next[y * (width / 2) + x] = packed;
+            }
+        pixels = std::move(next);
+    }
+    return true;
 }
 DWORD WaterFX::classify(IDirect3DTexture9 *texture) {
     DWORD tag = 0, size = sizeof(tag);
@@ -226,8 +311,9 @@ bool WaterFX::begin(const Settings &s, UINT upStride) {
     float waves[] = {s.waterWaves, s.waterLength, s.waterSpeed, rangeFog ? 1.f : 0.f};
     float surface[] = {s.waterRipples, s.waterRippleScale, s.waterOpacity, s.waterSky};
     float sun[] = {s.waterGlints, s.waterGloss, s.waterTint, s.waterSpeed};
-    bool refract = s.waterRefraction > 0 && captureScene();
-    if (s.waterRefraction == 0 && scene_.p) {
+    bool needScene = s.waterRefraction > 0 || s.waterDepth > 0 || s.waterSSR > 0;
+    bool refract = needScene && captureScene();
+    if (!needScene && scene_.p) {
         sceneSurface_.out();
         scene_.out();
         sceneReady_ = false;
@@ -236,12 +322,49 @@ bool WaterFX::begin(const Settings &s, UINT upStride) {
                       refract ? 1.f : 0.f, s.waterRefraction};
     bool environment = s.waterSky > 0 && skySeen_ && environmentReady_ && environment_.p;
     float detail[] = {s.waterTexture, s.waterWaves, s.waterLength, environment ? 1.f : 0.f};
+    const auto &projection = matrices[2];
+    bool perspective = std::abs(projection._34 - 1) < .001f && std::abs(projection._44) < .001f &&
+                       std::abs(projection._31) + std::abs(projection._32) < .001f && projection._11 > 0 &&
+                       projection._22 > 0;
+    bool depth = refract && perspective && (s.waterDepth > 0 || s.waterSSR > 0) &&
+                 depth_.capture(sceneWidth_, sceneHeight_);
+    float optics[] = {depth ? 1.f : 0.f, s.waterDepth, s.waterShore, s.waterSSR};
+    float camera[] = {projection._11, projection._22, projection._33, projection._43};
+    D3DVIEWPORT9 viewport{};
+    device_->GetViewport(&viewport);
+    float viewportUV[] = {viewport.X * screen[0], viewport.Y * screen[1], viewport.Width * screen[0],
+                          viewport.Height * screen[1]};
+    bool normalMap = normalTexture();
+    if (!normalMap)
+        return false;
+    float trace[] = {s.waterSSRQuality ? 24.f : 12.f, 80.f, normalMap ? 1.f : 0.f, 0};
     D3DLIGHT9 light{};
     BOOL on = FALSE;
     bool lit = SUCCEEDED(device_->GetLight(0, &light)) && SUCCEEDED(device_->GetLightEnable(0, &on)) && on &&
                light.Type == D3DLIGHT_DIRECTIONAL;
     float dir[] = {-light.Direction.x, -light.Direction.y, -light.Direction.z, lit ? 1.f : 0.f};
     float lightColor[] = {light.Diffuse.r, light.Diffuse.g, light.Diffuse.b, 1};
+    DWORD lighting = 0, ambientColor = 0;
+    device_->GetRenderState(D3DRS_LIGHTING, &lighting);
+    device_->GetRenderState(D3DRS_AMBIENT, &ambientColor);
+    D3DMATERIAL9 material{};
+    material.Ambient = material.Diffuse = {1, 1, 1, 1};
+    device_->GetMaterial(&material);
+    float ambient[] = {1, 1, 1, 0}, diffuse[] = {0, 0, 0, 0};
+    const float global[] = {float((ambientColor >> 16) & 255) / 255, float((ambientColor >> 8) & 255) / 255,
+                            float(ambientColor & 255) / 255};
+    auto channel = [](const D3DCOLORVALUE &value, int i) {
+        return i == 0 ? value.r : i == 1 ? value.g : value.b;
+    };
+    if (lighting) {
+        for (int i = 0; i < 3; ++i) {
+            ambient[i] = std::clamp(channel(material.Ambient, i) *
+                                            (global[i] + (lit ? channel(light.Ambient, i) : 0)) +
+                                        channel(material.Emissive, i),
+                                    0.f, 1.f);
+            diffuse[i] = lit ? channel(material.Diffuse, i) * lightColor[i] : 0;
+        }
+    }
     DWORD fogEnabled = 0, fogMode = 0, color = 0, start = 0, fogEnd = 0, density = 0;
     device_->GetRenderState(D3DRS_FOGENABLE, &fogEnabled);
     device_->GetRenderState(D3DRS_FOGVERTEXMODE, &fogMode);
@@ -276,8 +399,16 @@ bool WaterFX::begin(const Settings &s, UINT upStride) {
         FAILED(device_->SetPixelShaderConstantF(8, screen, 1)) ||
         FAILED(device_->SetPixelShaderConstantF(9, detail, 1)) ||
         FAILED(device_->SetPixelShaderConstantF(10, &matrices[1].m[0][0], 4)) ||
+        FAILED(device_->SetPixelShaderConstantF(14, optics, 1)) ||
+        FAILED(device_->SetPixelShaderConstantF(15, camera, 1)) ||
+        FAILED(device_->SetPixelShaderConstantF(16, viewportUV, 1)) ||
+        FAILED(device_->SetPixelShaderConstantF(17, trace, 1)) ||
+        FAILED(device_->SetPixelShaderConstantF(18, ambient, 1)) ||
+        FAILED(device_->SetPixelShaderConstantF(19, diffuse, 1)) ||
         FAILED(device_->SetTexture(1, refract ? scene_.p : nullptr)) ||
-        FAILED(device_->SetTexture(2, environment ? environment_.p : nullptr))) {
+        FAILED(device_->SetTexture(2, environment ? environment_.p : nullptr)) ||
+        FAILED(device_->SetTexture(3, depth ? depth_.texture() : nullptr)) ||
+        FAILED(device_->SetTexture(4, normalMap ? normals_.p : nullptr))) {
         end();
         return false;
     }
@@ -290,5 +421,16 @@ bool WaterFX::begin(const Settings &s, UINT upStride) {
         device_->SetSamplerState(sampler, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
         device_->SetSamplerState(sampler, D3DSAMP_SRGBTEXTURE, FALSE);
     }
+    for (auto key : {D3DSAMP_MINFILTER, D3DSAMP_MAGFILTER})
+        device_->SetSamplerState(3, key, D3DTEXF_POINT);
+    device_->SetSamplerState(3, D3DSAMP_MIPFILTER, D3DTEXF_NONE);
+    device_->SetSamplerState(3, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
+    device_->SetSamplerState(3, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
+    device_->SetSamplerState(3, D3DSAMP_SRGBTEXTURE, FALSE);
+    for (auto key : {D3DSAMP_MINFILTER, D3DSAMP_MAGFILTER, D3DSAMP_MIPFILTER})
+        device_->SetSamplerState(4, key, D3DTEXF_LINEAR);
+    device_->SetSamplerState(4, D3DSAMP_ADDRESSU, D3DTADDRESS_WRAP);
+    device_->SetSamplerState(4, D3DSAMP_ADDRESSV, D3DTADDRESS_WRAP);
+    device_->SetSamplerState(4, D3DSAMP_SRGBTEXTURE, FALSE);
     return true;
 }

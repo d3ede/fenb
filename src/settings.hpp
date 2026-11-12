@@ -14,6 +14,8 @@ struct Settings {
     float waterOpacity = .55f, waterSky = .25f, waterGlints = .65f, waterGloss = .65f;
     float waterTint = .25f;
     float waterRefraction = .35f, waterTexture = .05f;
+    float waterDepth = 1.f, waterShore = .6f, waterSSR = .65f;
+    int waterSSRQuality = 0;
     bool openOnStart = false;
     bool unlockFps = false; // Opt-in rendering unlock with a fixed 16 ms simulation step.
     int panelPage = 0;
@@ -25,4 +27,6 @@ struct Settings {
     void resetColor();
     void resetBloom();
     void resetWater();
+    void resetWaterSurface();
+    void resetWaterScene();
 };

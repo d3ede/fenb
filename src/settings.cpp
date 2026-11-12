@@ -23,6 +23,10 @@ void Settings::resetBloom() {
     bloomScale = d.bloomScale;
 }
 void Settings::resetWater() {
+    resetWaterSurface();
+    resetWaterScene();
+}
+void Settings::resetWaterSurface() {
     const Settings d;
     waterWaves = d.waterWaves;
     waterLength = d.waterLength;
@@ -36,6 +40,13 @@ void Settings::resetWater() {
     waterTint = d.waterTint;
     waterRefraction = d.waterRefraction;
     waterTexture = d.waterTexture;
+}
+void Settings::resetWaterScene() {
+    const Settings d;
+    waterDepth = d.waterDepth;
+    waterShore = d.waterShore;
+    waterSSR = d.waterSSR;
+    waterSSRQuality = d.waterSSRQuality;
 }
 
 void Settings::sanitize() {
@@ -68,6 +79,10 @@ void Settings::sanitize() {
     range(waterTint, 0, 1, .25f);
     range(waterRefraction, 0, 1, .35f);
     range(waterTexture, 0, 1, .05f);
+    range(waterDepth, 0, 2, 1);
+    range(waterShore, .05f, 3, .6f);
+    range(waterSSR, 0, 1, .65f);
+    waterSSRQuality = waterSSRQuality == 1 ? 1 : 0;
 }
 
 bool Settings::load(const std::wstring &path) {
@@ -113,6 +128,10 @@ bool Settings::load(const std::wstring &path) {
                                             READ_FLOAT("water_tint", waterTint)
         READ_FLOAT("water_refraction", waterRefraction)
         READ_FLOAT("water_texture", waterTexture)
+        READ_FLOAT("water_depth", waterDepth)
+        READ_FLOAT("water_shore", waterShore)
+        READ_FLOAT("water_ssr", waterSSR)
+        if (strcmp(key, "water_ssr_quality") == 0) next.waterSSRQuality = number == 1 ? 1 : 0;
 #undef READ_BOOL
 #undef READ_FLOAT
     }
@@ -139,11 +158,12 @@ bool Settings::save(const std::wstring &path) const {
         "6f\ngamma=%.6f\nshadows=%.6f\nhighlights=%.6f\n"
         "\n[WaterFX]\nwater=%d\nwater_waves=%.6f\nwater_length=%.6f\nwater_speed=%.6f\nwater_ripples=%."
         "6f\nwater_ripple_scale=%.6f\nwater_opacity=%.6f\nwater_sky=%.6f\nwater_glints=%.6f\nwater_gloss=%."
-        "6f\nwater_tint=%.6f\nwater_refraction=%.6f\nwater_texture=%.6f\n",
+        "6f\nwater_tint=%.6f\nwater_refraction=%.6f\nwater_texture=%.6f\nwater_depth=%.6f\n"
+        "water_shore=%.6f\nwater_ssr=%.6f\nwater_ssr_quality=%d\n",
         enabled, openOnStart, panelPage, unlockFps, bloom, bloomStrength, threshold, knee, radius, bloomScale,
         color, exposure, contrast, saturation, temperature, tint, gamma, shadows, highlights, water,
         waterWaves, waterLength, waterSpeed, waterRipples, waterRippleScale, waterOpacity, waterSky,
-        waterGlints, waterGloss, waterTint, waterRefraction, waterTexture);
+        waterGlints, waterGloss, waterTint, waterRefraction, waterTexture, waterDepth, waterShore, waterSSR, waterSSRQuality);
     bool ok = written > 0 && !ferror(file);
     if (fclose(file) != 0)
         ok = false;

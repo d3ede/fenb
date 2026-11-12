@@ -228,7 +228,8 @@ int main(int argc, char **) {
         };
         d->Clear(0, nullptr, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, 0xffc03020, 1, 0);
         CHECK(renderWater());
-        CHECK(water.bytes() == 320 * 240 * 4);
+        constexpr size_t normalBytes = 87380;
+        CHECK(water.bytes() == 320 * 240 * 4 + normalBytes);
         DWORD firstFrame = Pixel(d, bb);
         CHECK(renderWater() && Pixel(d, bb) == firstFrame);
         water.beginFrame();
@@ -257,7 +258,10 @@ int main(int argc, char **) {
         CHECK(renderWater() && Pixel(d, bb) != smallDistortion); // The normal moves the actual scene sample.
         settings.waterRipples = 0;
         settings.waterRefraction = 0;
-        CHECK(renderWater() && water.bytes() == 0); // Zero really releases the scene target.
+        settings.waterDepth = 0;
+        settings.waterSSR = 0;
+        CHECK(renderWater() &&
+              water.bytes() == normalBytes); // Frame target released; small normal map remains.
         Com<IDirect3DIndexBuffer9> ib;
         CHECK(SUCCEEDED(d->CreateIndexBuffer(12, 0, D3DFMT_INDEX16, D3DPOOL_MANAGED, ib.out(), nullptr)));
         WORD indices[] = {0, 1, 2, 2, 1, 3};
@@ -319,7 +323,7 @@ int main(int argc, char **) {
             water.captureEnvironment(D3DPT_TRIANGLELIST, 0, 2);
             d->EndScene();
             CHECK(Pixel(d, bb) == beforeCapture); // Repeated sky draws never touch the real scene.
-            CHECK(water.bytes() == 128 * 128 * 4 * 6);
+            CHECK(water.bytes() == 128 * 128 * 4 * 6 + normalBytes);
             Com<IDirect3DSurface9> restoredTarget, restoredDepth;
             d->GetRenderTarget(0, restoredTarget.out());
             d->GetDepthStencilSurface(restoredDepth.out());
@@ -363,8 +367,8 @@ int main(int argc, char **) {
             CHECK(details[3] == 0);
             water.end();
             d->EndScene();
-            water.beginFrame(false, false);
-            CHECK(water.bytes() == 0);
+            water.beginFrame(false, false, false);
+            CHECK(water.bytes() == normalBytes);
         }
         // Surface uploads must invalidate the owning texture's classification too.
         d->SetStreamSource(0, vb, 0, 36);

@@ -45,6 +45,12 @@ if ($Tests) {
     if($LASTEXITCODE){throw 'Water material tests failed'}
     & '.\build\water-test.exe' '--msaa'
     if($LASTEXITCODE){throw 'MSAA water material tests failed'}
+    & $cxx '-std=c++20' '-O2' '-static' '-Isrc' 'tests/water_scene_test.cpp' 'src/water.cpp' '-ld3d9' '-ldxguid' '-lbcrypt' '-o' 'build/water-scene-test.exe'
+    if($LASTEXITCODE){throw 'Water scene test build failed'}
+    & '.\build\water-scene-test.exe'
+    if($LASTEXITCODE){throw 'Water scene test failed'}
+    & '.\build\water-scene-test.exe' '--msaa'
+    if($LASTEXITCODE){throw 'MSAA water scene test failed'}
     & $cxx '-std=c++20' '-O2' '-static' '-Isrc' 'tests/dx9_test.cpp' 'src/settings.cpp' '-ld3d9' '-ldxguid' '-lgdi32' '-lgdiplus' '-lpsapi' '-o' "$outputDirectory/FENB-preview.exe"
     if ($LASTEXITCODE) { throw 'DX9 test build failed' }
     & $cxx '-std=c++20' '-O2' '-static' '-Isrc' 'tests/hud_test.cpp' 'src/settings.cpp' '-ld3d9' '-ldxguid' '-o' "$outputDirectory/hud-test.exe"

@@ -24,12 +24,16 @@ int main() {
     CHECK(s.unlockFps);
     s.water=false;s.waterWaves=.075f;s.waterGlints=1.4f;s.waterOpacity=.3f;
     s.waterRefraction=.72f;s.waterTexture=.18f;
+    s.waterDepth=.8f;s.waterShore=1.1f;s.waterSSR=.9f;s.waterSSRQuality=1;
     CHECK(s.save(path));
     Settings loaded; CHECK(loaded.load(path));
     CHECK(loaded.unlockFps);
     CHECK(!loaded.enabled && loaded.temperature==s.temperature && loaded.shadows==s.shadows);
     CHECK(!loaded.water&&loaded.waterWaves==s.waterWaves&&loaded.waterGlints==s.waterGlints&&loaded.waterOpacity==s.waterOpacity);
     CHECK(loaded.waterRefraction==s.waterRefraction&&loaded.waterTexture==s.waterTexture);
+    CHECK(loaded.waterDepth==s.waterDepth&&loaded.waterShore==s.waterShore&&loaded.waterSSR==s.waterSSR&&loaded.waterSSRQuality==1);
+    loaded.resetWaterSurface();CHECK(loaded.waterSSR==.9f&&loaded.waterDepth==.8f);
+    loaded.resetWaterScene();CHECK(loaded.waterSSR==Settings{}.waterSSR&&loaded.waterDepth==Settings{}.waterDepth);
     FILE* file=_wfopen(path.c_str(),L"wb"); CHECK(file);
     fputs("unlock_fps=1\nexposure=nan\ngamma=0\nbloom_scale=1e35\nsaturation=999\nunknown=3\nwater_length=0\nwater_waves=99\nwater_opacity=nan\n",file); fclose(file);
     CHECK(loaded.load(path));
