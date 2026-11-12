@@ -83,9 +83,12 @@ float4 SfxPS(float2 uv:TEXCOORD0,float fogDepth:TEXCOORD1,float4 color:COLOR0,fl
  // Screen composition retains gradients when many additive rings overlap in an LDR backbuffer.
  // Carry the original SRCALPHA contribution in RGB; native ONE contributions are already weighted.
  if(AlphaStage.w>.5){
-  float energy=max(result.r,max(result.g,result.b));
-  result.rgb*= (1-exp(-max(0,energy)))/max(.00001,energy);
   result.rgb*=lerp(1,original.a,AlphaStage.z);
+  float energy=max(result.r,max(result.g,result.b));
+  // Bright texture strokes deserve a hot core; applying fade after the shoulder made
+  // even those strokes look like translucent smoke. Dim outer glow keeps its old energy.
+  float coreGain=1+smoothstep(.3,.85,peak);
+  result.rgb*= (1-exp(-max(0,energy)*coreGain))/max(.00001,energy);
  }
  return result;
 }
