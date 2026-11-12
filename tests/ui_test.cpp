@@ -1,4 +1,5 @@
 #include "runtime.hpp"
+#include "ui_branding.hpp"
 #include "imgui.h"
 #include "imgui_internal.h"
 #include "backends/imgui_impl_dx9.h"
@@ -18,6 +19,30 @@ std::wstring ModuleDirectory() {
     return std::wstring(p) + L"\\build\\runtime-test-data\\";
 }
 void Log(const char *) {}
+bool HeaderTexture(IDirect3DDevice9 *device, const wchar_t *path, Com<IDirect3DTexture9> &texture,
+                   float &aspect) {
+    FILE *file = _wfopen(path, L"rb");
+    if (!file)
+        return false;
+    UINT dimensions[2]{};
+    bool valid = fread(dimensions, sizeof(UINT), 2, file) == 2 && dimensions[0] && dimensions[1] &&
+                 dimensions[0] <= 512 && dimensions[1] <= 256;
+    std::vector<unsigned char> pixels(valid ? size_t(dimensions[0]) * dimensions[1] * 4 : 0);
+    valid = valid && fread(pixels.data(), 1, pixels.size(), file) == pixels.size() && fgetc(file) == EOF;
+    fclose(file);
+    if (!valid || FAILED(device->CreateTexture(dimensions[0], dimensions[1], 1, 0, D3DFMT_A8R8G8B8,
+                                               D3DPOOL_MANAGED, texture.out(), nullptr)))
+        return false;
+    D3DLOCKED_RECT lock{};
+    if (FAILED(texture->LockRect(0, &lock, nullptr, 0)))
+        return false;
+    for (UINT y = 0; y < dimensions[1]; ++y)
+        memcpy(static_cast<unsigned char *>(lock.pBits) + size_t(y) * lock.Pitch,
+               pixels.data() + size_t(y) * dimensions[0] * 4, size_t(dimensions[0]) * 4);
+    texture->UnlockRect(0);
+    aspect = float(dimensions[0]) / dimensions[1];
+    return true;
+}
 bool Screenshot(IDirect3DDevice9 *d, const wchar_t *path) {
     Com<IDirect3DSurface9> bb, read, resolved;
     d->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, bb.out());
@@ -97,10 +122,14 @@ int main() {
     io.Fonts->AddFontFromMemoryTTF((void *)UI_FONT, sizeof(UI_FONT), 15, &font,
                                    io.Fonts->GetGlyphRangesCyrillic());
     CHECK(ImGui_ImplDX9_Init(d));
+    const PanelBranding *activeBranding = nullptr;
     auto frame = [&]() {
         ImGui_ImplDX9_NewFrame();
         ImGui::NewFrame();
-        DrawPanel(r);
+        if (activeBranding)
+            DrawPanel(r, *activeBranding);
+        else
+            DrawPanel(r);
         ImGui::Render();
         d->Clear(0, nullptr, D3DCLEAR_TARGET, 0xff272c36, 1, 0);
         d->BeginScene();
@@ -120,6 +149,44 @@ int main() {
     frame();
     auto *panel = ImGui::FindWindowByName("FENB");
     CHECK(panel && panel->Pos.x == 130 && panel->Pos.y == 40);
+    // Real native frames for three header proposals, in both supported languages.
+    Com<IDirect3DTexture9> symbolTexture, horizontalTexture;
+    PanelBranding branding;
+    CHECK(HeaderTexture(d, L"assets/branding/header-preview/symbol.bgra", symbolTexture,
+                        branding.symbolAspect));
+    CHECK(HeaderTexture(d, L"assets/branding/header-preview/horizontal.bgra", horizontalTexture,
+                        branding.horizontalAspect));
+    branding.symbol = symbolTexture;
+    branding.horizontal = horizontalTexture;
+    CreateDirectoryW(L"artifacts", nullptr);
+    CreateDirectoryW(L"artifacts/header-logo-options", nullptr);
+    const PanelBranding::Layout layouts[] = {PanelBranding::Layout::SymbolText,
+                                            PanelBranding::Layout::Horizontal,
+                                            PanelBranding::Layout::SymbolOnly};
+    const wchar_t *names[] = {L"01-symbol-text", L"02-horizontal", L"03-symbol-only"};
+    activeBranding = &branding;
+    for (int variant = 0; variant < 3; ++variant) {
+        branding.layout = layouts[variant];
+        for (int language = 0; language < 2; ++language) {
+            r.settings.language = language ? Language::Russian : Language::English;
+            for (bool narrow : {false, true}) {
+                io.DisplaySize = {narrow ? 334.f : 800.f, 600};
+                r.centerPanel = true;
+                frame();
+                frame();
+                auto path = std::wstring(L"artifacts/header-logo-options/") + names[variant] +
+                            (language ? L"-ru" : L"-en") + (narrow ? L"-narrow.png" : L".png");
+                CHECK(Screenshot(d, path.c_str()));
+                CHECK(r.settings.language == (language ? Language::Russian : Language::English));
+            }
+        }
+    }
+    activeBranding = nullptr;
+    io.DisplaySize = {800, 600};
+    r.settings.language = Language::English;
+    r.centerPanel = true;
+    frame();
+    frame();
     CHECK(r.settings.language == Language::English);
     CHECK(Screenshot(d, L"build/FENB-main-english.png"));
     click(290, 60); // Language tab immediately to the right of Image.

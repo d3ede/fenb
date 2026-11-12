@@ -1,6 +1,7 @@
 * text=auto eol=lf
 
 *.png binary
+*.bgra binary
 *.jpg binary
 *.jpeg binary
 *.ico binary

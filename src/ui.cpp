@@ -1,6 +1,7 @@
 #include "imgui.h"
 #include "runtime.hpp"
 #include "version.hpp"
+#include "ui_branding.hpp"
 #include <cstdio>
 
 namespace {
@@ -21,6 +22,33 @@ ImU32 Opacity(ImU32 color) {
 }
 void TextAt(ImDrawList *draw, ImVec2 p, const char *text, ImU32 color = Text, float size = 15) {
     draw->AddText(ImGui::GetFont(), size, {std::floor(p.x), std::floor(p.y)}, Opacity(color), text);
+}
+float HeaderBrand(ImDrawList *d, ImVec2 origin, float panelWidth, const PanelBranding &branding) {
+    auto layout = branding.layout;
+    if (layout == PanelBranding::Layout::TextOnly || !branding.symbol ||
+        (layout == PanelBranding::Layout::Horizontal && !branding.horizontal)) {
+        TextAt(d, {origin.x + 16, origin.y + 12}, "FENB");
+        return 68;
+    }
+    // Keep the language selector and actions usable in the existing narrow panel.
+    if (panelWidth < 430)
+        layout = PanelBranding::Layout::SymbolOnly;
+    float width = layout == PanelBranding::Layout::Horizontal ? 100 : 30;
+    float aspect = layout == PanelBranding::Layout::Horizontal ? branding.horizontalAspect
+                                                              : branding.symbolAspect;
+    auto *texture = layout == PanelBranding::Layout::Horizontal ? branding.horizontal : branding.symbol;
+    if (!std::isfinite(aspect) || aspect <= 0)
+        return 68;
+    float height = std::min(width / aspect, 30.f);
+    width = height * aspect;
+    const ImVec2 p{origin.x + 12, origin.y + std::floor((40 - height) / 2)};
+    d->AddImage(ImTextureRef(static_cast<ImTextureID>(reinterpret_cast<uintptr_t>(texture))), p,
+                {p.x + width, p.y + height}, {0, 0}, {1, 1}, Opacity(IM_COL32_WHITE));
+    if (layout == PanelBranding::Layout::SymbolText) {
+        TextAt(d, {origin.x + 49, origin.y + 12}, "FENB");
+        return 98;
+    }
+    return layout == PanelBranding::Layout::Horizontal ? 126.f : 56.f;
 }
 void Theme() {
     auto &s = ImGui::GetStyle();
@@ -618,7 +646,7 @@ void AntialiasControls(Runtime &r) {
         s.msaaSamples = 0;
 }
 } // namespace
-void DrawPanel(Runtime &r) {
+void DrawPanel(Runtime &r, const PanelBranding &branding) {
     Theme();
     auto &io = ImGui::GetIO();
     auto &s = r.settings;
@@ -635,8 +663,9 @@ void DrawPanel(Runtime &r) {
                      ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar);
     auto origin = ImGui::GetWindowPos();
     auto *d = ImGui::GetWindowDrawList();
-    TextAt(d, {origin.x + 16, origin.y + 12}, "FENB");
-    d->AddLine({origin.x + 68, origin.y + 12}, {origin.x + 68, origin.y + 27}, Line, 1);
+    float brandEnd = HeaderBrand(d, origin, size.x, branding);
+    float titleX = brandEnd + 12;
+    d->AddLine({origin.x + brandEnd, origin.y + 12}, {origin.x + brandEnd, origin.y + 27}, Line, 1);
     const char *pageTitle = r.editorPage == 1   ? "WaterFX"
                             : r.editorPage == 2 ? Tr(UiText::LightAtmosphere)
                             : r.editorPage == 3 ? Tr(UiText::Antialiasing)
@@ -645,10 +674,10 @@ void DrawPanel(Runtime &r) {
     float masterX = size.x - (showEffectsLabel ? 151 : 88);
     ImGui::PushFont(nullptr, 14);
     float languageWidth = ImGui::CalcTextSize(Tr(UiText::LanguageTab)).x + 16;
-    float languageX = std::min(80 + ImGui::CalcTextSize(pageTitle).x + 16, masterX - languageWidth - 12);
+    float languageX = std::min(titleX + ImGui::CalcTextSize(pageTitle).x + 16, masterX - languageWidth - 12);
     ImGui::PopFont();
-    ImVec4 titleClip{origin.x + 80, origin.y + 8, origin.x + languageX - 10, origin.y + 33};
-    d->AddText(ImGui::GetFont(), 14, {origin.x + 80, origin.y + 12}, Muted, pageTitle, nullptr, 0,
+    ImVec4 titleClip{origin.x + titleX, origin.y + 8, origin.x + languageX - 10, origin.y + 33};
+    d->AddText(ImGui::GetFont(), 14, {origin.x + titleX, origin.y + 12}, Muted, pageTitle, nullptr, 0,
                &titleClip);
     d->AddLine({origin.x + languageX - 6, origin.y + 12}, {origin.x + languageX - 6, origin.y + 27}, Line);
     ImGui::SetCursorPos({languageX, 8});
@@ -920,4 +949,8 @@ void DrawPanel(Runtime &r) {
     if (!r.visible && r.pendingSave())
         r.save();
     ImGui::End();
+}
+
+void DrawPanel(Runtime &runtime) {
+    DrawPanel(runtime, PanelBranding{});
 }
