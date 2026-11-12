@@ -17,6 +17,9 @@ void Log(const char *s) {
     puts(s);
 }
 struct SceneFXFixture {
+    static unsigned sourceCount(const SceneFX &fx) {
+        unsigned count=0;for(const auto &source:fx.sources_)count+=source.key!=0;return count;
+    }
     static bool hasSkyBackdrop(const SceneFX &fx) {
         return fx.skyBackdrop_.texture.p != nullptr;
     }
@@ -214,6 +217,8 @@ int main(int argc, char **) {
         }
     };
     bool darkScene = false, balanceScene = false;
+    unsigned farEmitters = 0;
+    float emitterJitter = 0;
     struct Vertex {
         float x, y, z;
         DWORD color;
@@ -342,6 +347,15 @@ int main(int argc, char **) {
             D3DMATERIAL9 mat{};
             mat.Diffuse = {1, 1, 1, 1};
             d->SetMaterial(&mat);
+            for (unsigned i=0;i<farEmitters;++i) {
+                auto distant=id;distant._41=200+i*10.f;
+                d->SetTransform(D3DTS_WORLD,&distant);
+                fx.sceneFX().captureEmitter(settings,[&]() {
+                    return d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP,2,quad,sizeof(E));
+                });
+            }
+            auto lamp=id;lamp._41=emitterJitter;
+            d->SetTransform(D3DTS_WORLD,&lamp);
             fx.sceneFX().captureEmitter(
                 settings, [&]() { return d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, quad, sizeof(E)); });
             d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, quad, sizeof(E));
@@ -479,6 +493,21 @@ int main(int argc, char **) {
     }
     cameraYaw = 0;
     CHECK(render());
+    for (int frame=0;frame<40;++frame) {
+        emitterJitter=(frame&1)?.0002f:-.0002f;
+        CHECK(render());
+        CHECK(SceneFXFixture::sourceCount(fx.sceneFX())==1);
+        CHECK(SceneFXFixture::lightMaximum(fx.sceneFX(),d)>0);
+    }
+    emitterJitter=0;
+    settings.localLighting=false;CHECK(render());
+    settings.localLighting=true;farEmitters=40;
+    CHECK(render());
+    CHECK(SceneFXFixture::sourceCount(fx.sceneFX())==32);
+    CHECK(SceneFXFixture::lightMaximum(fx.sceneFX(),d)>0);
+    farEmitters=0;
+    settings.localLighting=false;CHECK(render());
+    settings.localLighting=true;CHECK(render());
     // A foreground body cannot stamp displaced copies into the light field.
     foreground = true;
     settings.localLighting = false;

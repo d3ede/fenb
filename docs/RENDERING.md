@@ -1,4 +1,4 @@
-# FENB 0.2a
+# FENB 0.2b
 
 FENB is a graphics mod for Flyff, inspired by ENBSeries. It uses a Windows x86 Direct3D 9 proxy, C++20, precompiled shaders and a native Dear ImGui settings panel.
 
@@ -22,7 +22,7 @@ The built-in list contains exactly five looks: **Default / Основной**, *
 
 All five are compiled into the DLL; the default image settings come from `config/FENB.ini`, with named variations in `config/builtins.json`. `node tools/embed-presets.mjs` regenerates `src/generated/presets.hpp`, and both build paths keep it in sync. No shipped `.ini` is added under **My profiles**. The old saved copy of Основной can be archived when migrating to the identical built-in, without discarding user edits. Custom files remain independently supported. Image-profile changes preserve the master switch, language, hardware/FPS choices and local time/weather controls. Modified built-ins retain their translated name with an asterisk, and can be saved as a custom profile.
 
-The lower-left corner shows the public version, **0.2a**, followed by save status. Public versions use the form `digit.digitletter`.
+The lower-left corner shows the public version, **0.2b**, followed by save status. Public versions use the form `digit.digitletter`.
 
 ## When an effect is visible
 
@@ -52,6 +52,8 @@ Scene processing runs at the existing pre-HUD boundary. Camera matrices and the 
 
 **Local surface illumination** supports up to eight native point lights and 32 recognized emissive draws. Each emissive draw is replayed into its own 32x32 UV-space tile, then reduced to a source position and radiance. The atlas stores positions relative to a stable world origin rather than screen bins, so camera rotation and projected size do not move or duplicate a lamp. Recently observed sources persist for up to 0.5 seconds with a short fade when native culling stops submitting them. Native vertex color, texture factors and alpha fading are retained for supported simple texture stages. Unknown, programmable and complex passes remain unchanged.
 
+Emitter slots match material and nearby world anchors rather than transient vertex buffers or exact floating-point bits. Halo layers around one bulb share a slot. The cache retains up to 32 spatial sources, prioritizes nearer candidates with distance hysteresis, and permits at most 96 capture draws per frame so early distant halos cannot consume the entire discovery budget. This bounded cache cannot illuminate a source the client has never submitted; briefly missing sources retain the existing half-second fade.
+
 Receiver normals use neighboring samples on the same depth surface; the light field is upsampled from its actual texel centers with depth rejection. Bounded reflectance recovery lets a dark receiver brighten. The old sparse screen-space shadow march has been removed: its discrete blockers stamped shifted character silhouettes into the scene. These additional lights are **unshadowed** until a reliable light-space geometry pass is available, so walls can still leak light. This is not full albedo reconstruction, shadow mapping or global illumination. Emitters not previously submitted by the native renderer and hidden receiving surfaces remain unavailable. Capture and reduction stay on the GPU without production image readback or retained game geometry.
 
 Known native `lenzflare_001` through `008` material passes use a smooth analytic warm halo under SkyFX. Exact texture fingerprints and the captured depth/blend state restrict the replacement to the native flare path; ordinary particles, lamp glow and HUD materials retain their original rendering. Native quad placement and vertex fading remain in control. **Sun halo** controls its strength along with the directional sky halo.
@@ -66,7 +68,7 @@ The economical quality tier uses quarter-dimension spatial fields; detailed uses
 
 The **Skill effects** section in Light and atmosphere controls intensity, saturation, material-local glow, texture-edge softness and water-footstep strength. Supported native particles retain their geometry, timing, UV animation, vertex fading and depth visibility. Simple fixed-function RGB/alpha stages are reproduced before styling; complex stages, programmable materials, HUD quads, portraits and unknown textures are left unchanged. Extra enhancement fades toward the native result after 64 supported draws in a frame. Soft edges are texture filtering, not depth-based soft particles; this does not create new spell geometry or animation.
 
-Recognition uses exact first-mip upload hashes, cached on managed textures and invalidated with texture updates. `tools/sfx-materials.json` contains source identities and decoded ARGB8 fingerprints; `node tools/sfx-catalog.mjs <client directory>` verifies those assets and regenerates `src/generated/sfx_catalog.hpp`. The runtime contains identities only, not copied game textures, and performs no file loading or GPU image readback for styling.
+Recognition uses exact first-mip upload hashes, cached on managed textures and invalidated with texture updates. `tools/sfx-materials.json` contains source identities and decoded ARGB8 fingerprints; `node tools/sfx-catalog.mjs <client directory>` verifies those assets and regenerates `src/generated/sfx_catalog.hpp`. The runtime contains identities only, not copied game textures, and performs no file loading or GPU image readback for styling. Particle replacement saves only its shader constants and changed material states; it does not create a full-device state block or rebind render/depth targets per particle. Cached FVF checks reject ordinary world and HUD draws before the material path.
 
 The captured water-running material is also used by an archer skill. A separate horizontal-quad, texture-stage, blend-state and visible-water signature restricts its wake replacement. A clean world-color snapshot supplies local refraction with restrained highlights instead of the native additive white ring. The original expanding quad animation remains authoritative. Late particles cannot capture a source containing the HUD: the snapshot is refreshed at the pre-HUD boundary, or the replacement retains the native draw. A zero footstep strength restores native rings. This snapshot adds four bytes per viewport pixel when used (approximately 7.4 MiB at 1920x1009), releases on Reset/disable and does not require readable scene depth. No physical water simulation or interaction-driven mesh is added.
 

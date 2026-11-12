@@ -47,6 +47,7 @@ class SceneFX {
         uint64_t key = 0;
         ULONGLONG seen = 0;
         unsigned frame = 0;
+        float anchor[3]{};
     };
     SourceSlot sources_[32]{};
     unsigned sourceFrame_ = 0;

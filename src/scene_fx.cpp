@@ -615,7 +615,7 @@ void SceneFX::beginFoliage(const Settings &s) {
     foliageActive_ = true;
 }
 void SceneFX::captureEmitter(const Settings &s, DrawCall draw) {
-    if (!s.localLighting || !camera_ || emitterDraws_ >= 32)
+    if (!s.localLighting || !camera_ || emitterDraws_ >= 96)
         return;
     DWORD blend = 0, write = 1, source = 0, dest = 0, fvf = 0;
     device_->GetRenderState(D3DRS_ALPHABLENDENABLE, &blend);
@@ -690,6 +690,48 @@ void SceneFX::captureEmitter(const Settings &s, DrawCall draw) {
         {}};
     rgba(factor, stages[2]);
     rgba(constant, stages[3]);
+    D3DMATRIX world{};
+    if (FAILED(device_->GetTransform(D3DTS_WORLD, &world)))
+        return;
+    // Recover the world anchor before comparing billboard layers or prioritizing sources.
+    for (int axis = 0; axis < 3; ++axis)
+        world.m[3][axis] += (nativeView._41 - view_._41) * view_.m[axis][0] +
+                            (nativeView._42 - view_._42) * view_.m[axis][1] +
+                            (nativeView._43 - view_._43) * view_.m[axis][2];
+    const uint64_t key = reinterpret_cast<uintptr_t>(base.p);
+    const auto now = GetTickCount64();
+    unsigned slot = 32;
+    float nearest = .75f * .75f;
+    auto distanceSquared = [](const float *a, const float *b) {
+        float sum = 0;
+        for (int i = 0; i < 3; ++i) sum += (a[i]-b[i])*(a[i]-b[i]);
+        return sum;
+    };
+    // Transient vertex buffers and exact float bits are not stable light identities.
+    // Native glow layers move slightly around one bulb as the billboard faces the camera.
+    for (unsigned i = 0; i < 32; ++i) {
+        const float distance = distanceSquared(sources_[i].anchor, &world._41);
+        if (sources_[i].key == key && distance < nearest && now - sources_[i].seen < 500) {
+            slot = i; nearest = distance;
+        }
+    }
+    if (slot != 32 && sources_[slot].frame == sourceFrame_)
+        return; // One light per bulb/material, not one light per halo layer.
+    if (slot == 32)
+        for (unsigned i = 0; i < 32; ++i)
+            if (!sources_[i].key || now - sources_[i].seen >= 500) { slot = i; break; }
+    if (slot == 32) {
+        float farthest = 0;
+        unsigned replacement = 32;
+        for (unsigned i = 0; i < 32; ++i) {
+            const float distance = distanceSquared(sources_[i].anchor, eye_);
+            if (distance > farthest) {farthest = distance; replacement = i;}
+        }
+        // Hysteresis keeps equally distant lamps from trading slots on every camera move.
+        if (replacement == 32 || distanceSquared(&world._41, eye_) >= farthest * .9f)
+            return;
+        slot = replacement;
+    }
     D3DCAPS9 caps{};
     device_->GetDeviceCaps(&caps);
     if (caps.NumSimultaneousRTs < 2 || !(caps.PrimitiveMiscCaps & D3DPMISCCAPS_MRTPOSTPIXELSHADERBLENDING) ||
@@ -711,46 +753,6 @@ void SceneFX::captureEmitter(const Settings &s, DrawCall draw) {
         return;
     D3DVIEWPORT9 vp{(emitterDraws_ % 8) * 32, (emitterDraws_ / 8) * 32, 32, 32, 0, 1};
     device_->SetViewport(&vp);
-    D3DMATRIX world{};
-    device_->GetTransform(D3DTS_WORLD, &world);
-    // Some native glows use camera-relative world translation with the same camera orientation.
-    for (int axis = 0; axis < 3; ++axis)
-        world.m[3][axis] += (nativeView._41 - view_._41) * view_.m[axis][0] +
-                            (nativeView._42 - view_._42) * view_.m[axis][1] +
-                            (nativeView._43 - view_._43) * view_.m[axis][2];
-    // Keep source identity and positions independent of camera projection and screen bins.
-    uint64_t key = 14695981039346656037ull;
-    auto hash = [&](const void *data, size_t bytes) {
-        auto p = static_cast<const unsigned char *>(data);
-        for (size_t i = 0; i < bytes; ++i)
-            key = (key ^ p[i]) * 1099511628211ull;
-    };
-    Com<IDirect3DVertexBuffer9> vb;
-    Com<IDirect3DIndexBuffer9> ib;
-    UINT offset = 0, stride = 0;
-    device_->GetStreamSource(0, vb.out(), &offset, &stride);
-    device_->GetIndices(ib.out());
-    hash(&base.p, sizeof(base.p));
-    hash(&vb.p, sizeof(vb.p));
-    hash(&ib.p, sizeof(ib.p));
-    hash(&offset, sizeof(offset));
-    hash(&stride, sizeof(stride));
-    hash(&world._41, sizeof(float) * 3);
-    unsigned slot = 32;
-    const auto now = GetTickCount64();
-    for (unsigned i = 0; i < 32; ++i)
-        if (sources_[i].key == key && sources_[i].frame != sourceFrame_) {
-            slot = i;
-            break;
-        }
-    if (slot == 32)
-        for (unsigned i = 0; i < 32; ++i)
-            if (!sources_[i].key || now - sources_[i].seen >= 500) {
-                slot = i;
-                break;
-            }
-    if (slot == 32)
-        return;
     vp.X = (slot % 8) * 32;
     vp.Y = (slot / 8) * 32;
     device_->SetViewport(&vp);
@@ -792,6 +794,7 @@ void SceneFX::captureEmitter(const Settings &s, DrawCall draw) {
     if (SUCCEEDED(draw())) {
         emitters_ = true;
         sources_[slot] = {key, now, sourceFrame_};
+        for (int i = 0; i < 3; ++i) sources_[slot].anchor[i] = world.m[3][i] + sourceOrigin_[i];
         ++emitterDraws_;
     }
 }
