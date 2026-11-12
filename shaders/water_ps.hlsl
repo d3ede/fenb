@@ -29,12 +29,13 @@ float DepthZ(float2 uv) {
     return Camera.w/min(-.000001,z-Camera.z);
 }
 float3 ViewPoint(float2 uv,float z) {
-    float2 ndc=((uv-Viewport.xy)/Viewport.zw)*float2(2,-2)+float2(-1,1);
+    // DX9 raster centers are integer screen coordinates; texture centers are +0.5.
+    float2 ndc=((uv-Screen.xy*.5-Viewport.xy)/Viewport.zw)*float2(2,-2)+float2(-1,1);
     return float3(ndc/Camera.xy,1)*z;
 }
 float3 WorldPoint(float3 p) { return EyeTime.xyz+mul((float3x3)View,p); }
 float2 ProjectUV(float3 p) {
-    return ((p.xy*Camera.xy/p.z)*float2(.5,-.5)+.5)*Viewport.zw+Viewport.xy;
+    return ((p.xy*Camera.xy/p.z)*float2(.5,-.5)+.5)*Viewport.zw+Viewport.xy+Screen.xy*.5;
 }
 float4 WaterPS(float2 uv:TEXCOORD0,float3 relative:TEXCOORD1,float3 normal:TEXCOORD2,float fogDepth:TEXCOORD3,float4 color:COLOR0,float2 pixel:VPOS):COLOR0 {
     float t=EyeTime.w*Sun.w;

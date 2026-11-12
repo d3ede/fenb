@@ -183,6 +183,8 @@ int main(int argc, char **argv) {
     float sceneLight = -1;
     float wallSlope = 0;
     bool foldedWall = false;
+    bool wideWall = false;
+    bool rampWall = false;
     bool steppedMesh = false;
     bool foregroundBank = false;
     bool translatedScene = false;
@@ -224,6 +226,9 @@ int main(int argc, char **argv) {
         d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, floor, sizeof(Floor));
         Floor object[] = {{-2, 0, 18, 0xffd05028}, {2, 0, 18, 0xffd05028}, {-2, 8, 18+8*wallSlope, 0xffd05028},
                           {-2, 8, 18+8*wallSlope, 0xffd05028}, {2, 0, 18, 0xffd05028}, {2, 8, 18+8*wallSlope, 0xffd05028}};
+        if(wideWall)for(auto &vertex:object){vertex.x*=5;vertex.z+=vertex.x*.75f;}
+        if(rampWall)for(auto &vertex:object)vertex.color=0xff000020|
+            (DWORD(64+160*(vertex.x+2)/4)<<16)|(DWORD(64+160*vertex.y/8)<<8);
         if (wall && foldedWall) {
             const float crease=.013f;
             Floor fold[]={{-2,0,26,0xffd05028},{crease,0,18,0xffd05028},{-2,8,26,0xffd05028},{crease,8,18,0xffd05028},
@@ -234,7 +239,7 @@ int main(int argc, char **argv) {
             d->DrawPrimitiveUP(D3DPT_TRIANGLELIST, 2, object, sizeof(Floor));
         if (foregroundBank) {
             Floor bank[] = {
-                {1, 0, 5, 0xff406020}, {5, 0, 8, 0xff406020}, {1, 9, 5, 0xff406020}, {5, 9, 8, 0xff406020}};
+                  {1, 0, 5, 0xff20d020}, {5, 0, 8, 0xff20d020}, {1, 9, 5, 0xff20d020}, {5, 9, 8, 0xff20d020}};
             d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, bank, sizeof(Floor));
         }
         bool ok = true;
@@ -382,27 +387,36 @@ int main(int argc, char **argv) {
                 settings.waterSSR = 1;
                 CHECK(render(-2, true, true));
                 auto mirror = ReadFrame(d);
-                unsigned hits = 0, invalid = 0;
+                unsigned hits = 0, invalid = 0,nearHits=0,nearInvalid=0;
                 for (UINT y = 0; y < Height; ++y)
                     for (UINT x = 0; x < Width; ++x) {
                         auto i = y * Width + x;
                         int dr = int((mirror[i] >> 16) & 255) - int((noMirror[i] >> 16) & 255);
                         int dg = int((mirror[i] >> 8) & 255) - int((noMirror[i] >> 8) & 255);
                         int db = int(mirror[i] & 255) - int(noMirror[i] & 255);
-                        if (dr <= 6 || dr - dg <= 8 || dr - db <= 8)
-                            continue;
-                        ++hits;
                         float vx = (float(x) / Width * 2 - 1) / projection._11;
                         float vy = (1 - float(y) / Height * 2) / projection._22;
                         float rx = vx * xx + vy * yx + zx, ry = vy * yy + zy, rz = vx * xz + vy * yz + zz;
                         float t = -ey / ry;
                         float wx = ex + rx * t, wz = ez + rz * t;
+                        if(foregroundBank && dg>6 && dg-dr>8 && dg-db>8){
+                            ++nearHits;
+                            float bt=(4.25f+.75f*wx-wz)/(rz-.75f*rx);
+                            float bx=wx+rx*bt,by=-ry*bt;
+                            nearInvalid+=!(t>0 && bt>0 && bx>.8f && bx<5.2f && by>-.2f && by<9.2f);
+                        }
+                        if (dr <= 6 || dr - dg <= 8 || dr - db <= 8)continue;
+                        ++hits;
                         float reflectedT = (18 - wz) / (rz + slope * ry);
                         float hx = wx + rx * reflectedT, hy = -ry * reflectedT;
                         invalid +=
                             !(t > 0 && reflectedT > 0 && hx > -2.2f && hx < 2.2f && hy > -.2f && hy < 8.2f);
                     }
                 printf("SSR slope=%.1f camera yaw=%.2f: hits=%u outside analytic mirror=%u\n", slope, yaw, hits, invalid);
+                if(foregroundBank){
+                    printf("Foreground reflection: hits=%u outside analytic mirror=%u\n",nearHits,nearInvalid);
+                    CHECK(nearHits>100 && nearInvalid*100<nearHits);
+                }
                 CHECK(Save(mirror, yaw < 0   ? L"build/water-orbit-left.bmp"
                                    : yaw > 0 ? L"build/water-orbit-right.bmp"
                                              : L"build/water-orbit-center.bmp"));
@@ -430,6 +444,47 @@ int main(int argc, char **argv) {
             CHECK(creaseRows>50 && creaseNotches<10);
             CHECK(Save(folded,L"build/water-folded-reflection.bmp"));
             foldedWall=false;settings.waterRefraction=.4f;
+            wideWall=true;wallSlope=2;settings.waterRefraction=0;
+            // A diagonal slope exposes subpixel depth stair steps hidden by axis-aligned walls.
+            for(int quality:{0,1})for(bool translated:{false,true})for(float shift:{0.f,.007f,.019f}){
+                settings.waterSSRQuality=quality;translatedScene=translated;
+                view=savedView;view._41=shift;
+                CHECK(render(-2,true,true));
+                auto bank=WaterFXFixture::reflection(water,d);
+                unsigned holes=0,interior=0,jagged=0;
+                for(UINT y=Height/3+8;y<Height*3/4-8;++y)
+                    for(UINT x=Width/4;x<Width*3/4;++x){
+                        auto a=bank[y*Width+x]>>24;
+                        auto surround=std::min({bank[y*Width+x-4]>>24,bank[y*Width+x+4]>>24,
+                                                bank[(y-4)*Width+x]>>24,bank[(y+4)*Width+x]>>24});
+                        if(surround>30){++interior;holes+=a*2<surround;
+                            jagged+=std::abs(int(a)*2-int(bank[y*Width+x-1]>>24)-int(bank[y*Width+x+1]>>24))>6;}
+                    }
+                printf("Continuous sloping bank quality=%d translated=%d shift=%.3f: interior=%u holes=%u jagged=%u\n",
+                       quality,translated,shift,interior,holes,jagged);
+                CHECK(interior>6000 && holes<3 && jagged<8);
+                CHECK(Save(bank,L"build/water-sloping-reflection.bmp"));
+            }
+            wideWall=false;wallSlope=0;view=savedView;settings.waterRefraction=.4f;translatedScene=false;
+            rampWall=true;
+            CHECK(render(-2,true,true));
+            auto ramp=WaterFXFixture::reflection(water,d);
+            unsigned checked=0,bad=0;float error=0;
+            for(UINT y=0;y<Height;++y)for(UINT x=0;x<Width;++x){
+                auto color=ramp[y*Width+x];if((color>>24)<100)continue;
+                float vx=(float(x)/Width*2-1)/projection._11;
+                float vy=(1-float(y)/Height*2)/projection._22;
+                float rx=vx,ry=vy*savedView._22+savedView._23,rz=vy*savedView._32+savedView._33;
+                float t=-4/ry,wx=rx*t,wz=-8+rz*t,rt=(18-wz)/rz;
+                float hx=wx+rx*rt,hy=-ry*rt;
+                if(t<=0||rt<=0||hx< -1.8f||hx>1.8f||hy<.2f||hy>7.8f)continue;
+                float delta=std::max(std::abs(float((color>>16)&255)-(64+160*(hx+2)/4)),
+                                     std::abs(float((color>>8)&255)-(64+160*hy/8)));
+                ++checked;bad+=delta>3;error+=delta;
+            }
+            printf("Analytic reflected color: pixels=%u wrong=%u mean error=%.3f\n",checked,bad,error/std::max(1u,checked));
+            CHECK(checked>3000 && bad<5 && error/std::max(1u,checked)<.7f);
+            rampWall=false;
         }
         settings.waterSSR = 0;
         CHECK(render(-.02f, false, false));
