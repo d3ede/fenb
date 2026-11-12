@@ -17,7 +17,7 @@ A graphics mod inspired by ENBSeries, with adjustable effects and an in-game set
 [![DirectX 9](https://img.shields.io/badge/DirectX-9-7954B4?labelColor=17172D)](https://github.com/d3ede/fenb/releases)
 [![MIT License](https://img.shields.io/badge/license-MIT-7954B4?labelColor=17172D)](LICENSE)
 
-**[Releases](https://github.com/d3ede/fenb/releases)** · [Installation](#installation) · [Report an issue](https://github.com/d3ede/fenb/issues)
+**[Releases](https://github.com/d3ede/fenb/releases)** · [Comparisons](#in-game-comparisons) · [Installation](#installation) · [Report an issue](https://github.com/d3ede/fenb/issues)
 
 </div>
 
@@ -35,6 +35,31 @@ A graphics mod inspired by ENBSeries, with adjustable effects and an in-game set
 | **Antialiasing** | FXAA, SMAA and hardware MSAA where supported. |
 | **Profiles** | Five translated built-in looks: Default, Clear water, Golden light, Soft atmosphere and Night lights. Save your own profiles alongside them. Settings save automatically. |
 | **In-game controls** | Compact English/Russian panel with muted violet accents, animated switches and dropdown arrows, an optional compact cursor, individual effect switches and a master toggle. Unlock FPS stays visible in the footer on supported clients. Processing preserves the game HUD. |
+
+## In-game comparisons
+
+**Original above, FENB below.** Each pair uses the same crop, with the game interface removed. Captures were taken moments apart, so animated objects may differ.
+
+<details open>
+<summary><strong>01 — River</strong></summary>
+
+![River: original above, FENB below](assets/screenshots/01-riverbank-pair.png)
+
+</details>
+
+<details>
+<summary><strong>02 — Lake</strong></summary>
+
+![Lake: original above, FENB below](assets/screenshots/02-lake-pair.png)
+
+</details>
+
+<details>
+<summary><strong>03 — Town</strong></summary>
+
+![Town: original above, FENB below](assets/screenshots/03-town-pair.png)
+
+</details>
 
 ## Installation
 
