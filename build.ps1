@@ -1,10 +1,10 @@
-param([switch]$Tests,[switch]$Diagnostics)
+param([switch]$Tests,[switch]$Diagnostics,[string]$OutputDirectory)
 $ErrorActionPreference='Stop'
 Set-Location -LiteralPath $PSScriptRoot
 $toolchain=Get-ChildItem -LiteralPath '.tools' -Directory -Filter 'llvm-mingw-*-ucrt-x86_64' | Sort-Object Name -Descending | Select-Object -First 1
 if (-not $toolchain) { throw 'Portable LLVM-MinGW is missing from .tools. See BUILD.txt.' }
 $cxx=Join-Path $toolchain.FullName 'bin\i686-w64-mingw32-clang++.exe'
-$outputDirectory=if($Diagnostics){'dist-diagnostics'}else{'dist'}
+if(-not $OutputDirectory){$OutputDirectory=if($Diagnostics){'dist-diagnostics'}else{'dist'}}
 New-Item -ItemType Directory -Force -Path 'build',$outputDirectory,'src/generated' | Out-Null
 node tools/embed-cursor.mjs src/generated/ui_cursor.hpp
 if ($LASTEXITCODE) { throw 'Cursor embedding failed' }
@@ -48,11 +48,8 @@ if($Diagnostics){$options+='-DFENB_DIAGNOSTICS';$sources+='src/pipeline_probe.cp
 & $cxx @options @sources 'src/d3d9.def' '-Wl,--gc-sections,--kill-at,--exclude-all-symbols' '-s' '-ld3d9' '-ldxguid' '-lcomctl32' '-ldwmapi' '-lgdi32' '-limm32' '-lbcrypt' '-lwinmm' '-o' "$outputDirectory/d3d9.dll"
 if ($LASTEXITCODE) { throw 'FENB build failed' }
 Copy-Item -LiteralPath 'config/FENB.ini' -Destination "$outputDirectory/FENB.ini" -Force
-Copy-Item -LiteralPath 'README.md' -Destination "$outputDirectory/README.md" -Force
-New-Item -ItemType Directory -Force -Path "$outputDirectory/FENB-presets" | Out-Null
-Copy-Item -LiteralPath "$imgui/LICENSE.txt" -Destination "$outputDirectory/Dear-ImGui-LICENSE.txt" -Force
-Copy-Item -LiteralPath 'assets/fonts/OFL.txt' -Destination "$outputDirectory/Inter-OFL.txt" -Force
-Copy-Item -LiteralPath 'vendor/smaa/LICENSE.txt' -Destination "$outputDirectory/SMAA-LICENSE.txt" -Force
+node tools/prepare-distribution.mjs $outputDirectory
+if ($LASTEXITCODE) { throw 'Distribution documentation generation failed' }
 Get-Item -LiteralPath "$outputDirectory/d3d9.dll" | Select-Object FullName,Length
 if ($Tests) {
     & $cxx '-std=c++20' '-O2' '-static' '-Isrc' 'tests/settings_test.cpp' 'src/settings.cpp' '-o' 'build/settings-test.exe'
@@ -121,11 +118,11 @@ if ($Tests) {
     if($LASTEXITCODE){throw 'MSAA sky detail tests failed'}
     & $cxx '-std=c++20' '-O2' '-static' '-Isrc' 'tests/dx9_test.cpp' 'src/settings.cpp' '-ld3d9' '-ldxguid' '-lgdi32' '-lgdiplus' '-lpsapi' '-o' "$outputDirectory/FENB-preview.exe"
     if ($LASTEXITCODE) { throw 'DX9 test build failed' }
-    & ".\$outputDirectory\FENB-preview.exe" '--aa-test'
+    & (Join-Path $outputDirectory 'FENB-preview.exe') '--aa-test'
     if ($LASTEXITCODE) { throw 'Live MSAA recovery tests failed' }
     & $cxx '-std=c++20' '-O2' '-static' '-Isrc' 'tests/hud_test.cpp' 'src/settings.cpp' '-ld3d9' '-ldxguid' '-o' "$outputDirectory/hud-test.exe"
     if($LASTEXITCODE){throw 'HUD test build failed'}
-    & ".\$outputDirectory\hud-test.exe"
+    & (Join-Path $outputDirectory 'hud-test.exe')
     if($LASTEXITCODE){throw 'HUD preservation test failed'}
     if($Diagnostics){
         & $cxx '-std=c++20' '-O2' '-static' '-Isrc' '-DFENB_DIAGNOSTICS' 'tests/water_capture_test.cpp' 'src/pipeline_probe.cpp' 'src/water.cpp' 'src/scene_fx.cpp' '-ld3d9' '-ldxguid' '-lbcrypt' '-o' 'build/water-capture-test.exe'
@@ -134,7 +131,7 @@ if ($Tests) {
         if($LASTEXITCODE){throw 'Water replay capture test failed'}
         & $cxx '-std=c++20' '-O2' '-static' '-Isrc' 'tests/probe_test.cpp' '-ld3d9' '-ldxguid' '-o' "$outputDirectory/probe-test.exe"
         if($LASTEXITCODE){throw 'Probe test build failed'}
-        & ".\$outputDirectory\probe-test.exe"
+        & (Join-Path $outputDirectory 'probe-test.exe')
         if($LASTEXITCODE){throw 'Probe test failed'}
     }
     $runtimeOptions=@($options | Where-Object { $_ -ne '-shared' }) + @('-lwinmm')

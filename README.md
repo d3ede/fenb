@@ -29,7 +29,7 @@ A graphics mod inspired by ENBSeries, with adjustable effects and an in-game set
 | --- | --- |
 | **Color & bloom** | Adjust exposure, contrast, saturation, temperature and soft light bloom. |
 | **Light & atmosphere** | SSAO, sun rays, reconstructed sky/cloud textures and fine night stars, distance and height fog, depth of field, brightness adaptation and local lighting. |
-| **Time & weather** | Live time-of-day controls, freeze time and clear/rain/snow with adjustable intensity on the supported Homesickness client. Switch either override off to follow the game. |
+| **Time & weather** | Live time-of-day controls, freeze time and clear/rain/snow with adjustable intensity on the supported Homesickness client. Time works with image effects disabled. Switch either override off to follow the game. |
 | **WaterFX** | Animated wave shading, refraction, reflections, depth-based absorption, optional caustics and independent refractive footsteps. |
 | **Particle processing** | Adjustable color, intensity, soft edges and local glow for recognized world particles, with detailed texture reconstruction, native blending and enhanced recognized world-light curtains. |
 | **Antialiasing** | FXAA, SMAA and hardware MSAA where supported. |
@@ -41,12 +41,12 @@ A graphics mod inspired by ENBSeries, with adjustable effects and an in-game set
 **Requirements:** Windows and a compatible **32-bit DirectX 9 Flyff client** (`Neuz.exe`). No installer is needed.
 
 1. Close the game. Use a packaged FENB build from [Releases](https://github.com/d3ede/fenb/releases), when available, or the `dist/` output of a local build.
-2. Copy **`d3d9.dll`** and **`FENB.ini`** into the game folder, beside **`Neuz.exe`**. Copy **`FENB-presets/`** too if it is included with the build.
+2. Copy **`d3d9.dll`** and **`FENB.ini`** into the game folder, beside **`Neuz.exe`**, and keep **`LICENSES.txt`** with them. The archive's **`INSTALL.txt`** contains English instructions followed by Russian instructions. Built-in profiles are embedded in the DLL; `FENB-presets/` is created for your own profiles when needed.
 3. Launch the game normally and press **Shift + Enter** to open the panel.
    Press **Right Shift + F12** to switch all FENB effects off or on without opening the panel.
 4. Choose a profile or adjust the effects to your liking. Changes save automatically; **Ctrl + S** saves immediately.
 
-Keep the third-party license notices included with the build. If the game folder already contains another `d3d9.dll`, back it up first; loading multiple graphics proxies together is not currently supported.
+The combined `LICENSES.txt` preserves FENB and third-party license notices. If the game folder already contains another `d3d9.dll`, back it up first; loading multiple graphics proxies together is not currently supported.
 
 **Updating:** close the game before replacing the DLL. Keep your existing `FENB.ini` and `FENB-presets/` to retain your settings and profiles.
 

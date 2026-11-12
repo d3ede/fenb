@@ -163,7 +163,7 @@ environment_detail::Binding environment_detail::InspectImage(HMODULE image, cons
 environment_detail::FrameScope::FrameScope(const Binding &binding, FrameState &state, const Settings &s,
                                            ULONGLONG now)
     : b_(binding), state_(state) {
-    if (!b_ || !s.enabled)
+    if (!b_)
         return;
     if (s.timeOverride) {
         memcpy(clock_.data(), &b_.clock->fixed, sizeof(clock_));
@@ -175,7 +175,7 @@ environment_detail::FrameScope::FrameScope(const Binding &binding, FrameState &s
         time_ = true;
     } else
         state_.time.reset();
-    if (!s.weatherOverride || !*b_.player || !Field<void *>(b_.sky, 0xa0))
+    if (!s.enabled || !s.weatherOverride || !*b_.player || !Field<void *>(b_.sky, 0xa0))
         return;
     float center[3]{};
     SIZE_T read = 0;
@@ -264,8 +264,11 @@ void Environment::update(const Settings &settings, bool compare) {
         return;
     std::lock_guard lock(s.mutex);
     auto hook = std::bit_cast<environment_detail::Render>(&RenderHook);
-    if (settings.enabled && !compare && (settings.timeOverride || settings.weatherOverride)) {
-        s.owners[this] = settings;
+    // The world clock is independent of the image-effects master and comparison mode.
+    Settings effective = settings;
+    effective.weatherOverride = effective.weatherOverride && settings.enabled && !compare;
+    if (effective.timeOverride || effective.weatherOverride) {
+        s.owners[this] = effective;
         if (!s.installed) {
             fallback = s.binding.render;
             s.installed = Replace(s.binding, s.binding.render, hook);

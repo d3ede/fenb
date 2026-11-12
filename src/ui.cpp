@@ -711,7 +711,7 @@ void EnvironmentControls(Runtime &r) {
     bool open = Section("world-time", Tr(UiText::TimeOverride), s.timeOverride, reset);
     if (reset) { s.timeMinutes = 720; s.freezeTime = true; }
     if (open) {
-        ImGui::BeginDisabled(!s.timeOverride || !s.enabled);
+        ImGui::BeginDisabled(!s.timeOverride);
         float minutes = r.environmentMinutes(), previous = minutes;
         Row(UiText::TimeOfDay, Tr(UiText::TimeOfDayHelp), minutes, 0, 1439, 720, "%.0f", 1, true, "time-of-day");
         if (minutes != previous)

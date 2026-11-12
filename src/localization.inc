@@ -2,7 +2,7 @@
 UI_TEXT(LanguageTab, "Language", "Язык")
 UI_TEXT(LanguageShort, "EN", "RU")
 UI_TEXT(WorldTab, "World", "Мир")
-UI_TEXT(WorldHelp, "Local time and weather. Turn a section off to follow the game again.", "Локальное время и погода. Выключите секцию, чтобы снова использовать окружение игры.")
+UI_TEXT(WorldHelp, "Time works independently of Effects. Turn Time off to follow the game clock again.", "Время работает независимо от «Эффекты». Выключите секцию «Время», чтобы вернуть часы игры.")
 UI_TEXT(TimeOverride, "Time", "Время")
 UI_TEXT(TimeOfDay, "Time of day", "Время суток")
 UI_TEXT(TimeInputHelp, "Type a time as HH:MM, for example 18:30. Arrows change it by one minute.", "Введите время в формате ЧЧ:ММ, например 18:30. Стрелки меняют его на одну минуту.")

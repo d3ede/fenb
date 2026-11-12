@@ -7,7 +7,7 @@ FENB is a graphics mod for Flyff, inspired by ENBSeries. It uses a Windows x86 D
 - **Shift + Enter** opens and closes the panel without opening game chat. Each opening centers the panel and returns to the main image page. The open panel can still be moved.
 - **Effects** enables or disables all FENB rendering. Color correction, Bloom and WaterFX also have individual switches.
 - **Right Shift + F12** toggles the master effects switch immediately, with or without the panel. Repeated keydown messages do not toggle it repeatedly; the chord is not forwarded to the game. Left Shift + F12 and ordinary F12 retain their native behavior.
-- **World**, between the image page and **Language**, opens local time and weather controls. Each section has an independent enable switch: off follows the game. Drag the time slider in one-minute steps, type `HH:MM`, or use the arrows. **Freeze time** holds the selected hour; otherwise it advances at the native clock's pace. Weather offers **Clear**, **Rain** and **Snow**, with a live precipitation-intensity slider. Both overrides default to off and respect the master effects switch.
+- **World**, between the image page and **Language**, opens local time and weather controls. Each section has an independent enable switch: off follows the game. Drag the time slider in one-minute steps, type `HH:MM`, or use the arrows. **Freeze time** holds the selected hour; otherwise it advances at the native clock's pace. Time remains active and editable with image effects disabled, including comparison mode and **Right Shift + F12**. Weather offers **Clear**, **Rain** and **Snow**, with a live precipitation-intensity slider. Both overrides default to off; weather continues to respect the master effects switch.
 - **Language**, after **World**, switches between **English** (first and default) and **Русский** immediately. In narrow panels the selector reads **EN** or **RU**. The choice is saved as `language=en` or `language=ru` in `[General]` of `FENB.ini`; profiles and effect resets preserve it. Older configurations without this key use English. Custom profile names and filenames stay unchanged.
 - Drag a slider, double-click its track to reset it, or click the number to type. The small arrow buttons use a parameter-specific step. The reset icon is shown for changed values.
 - Edits save automatically to `FENB.ini`. **Ctrl + S** saves immediately.
@@ -134,4 +134,29 @@ Diagnostic schema 2 also records a replay bundle from the first captured water f
 
 The DLL belongs beside `Neuz.exe`. Keep an existing `FENB.ini` when updating. A running game keeps its already loaded DLL and must be restarted to load a replacement.
 
-Dear ImGui and Inter license notices ship with the build. No compatibility guarantee is made for other Flyff clients.
+### Local release packaging
+
+Run `./release.ps1` from the repository root. It runs a normal `./build.ps1 -Tests`
+build with an isolated `-OutputDirectory` under ignored `build/release-<id>/`,
+then runs `node tools/verify-binary.mjs <built-dll>` before creating
+`dist/FENB-<version>-win32.zip`, using the public version in `src/version.hpp`.
+It does not publish a GitHub release or install files into a game directory.
+For publication, run it from the source revision being released.
+
+The ZIP contains exactly four files at its root: `d3d9.dll`, the shipped
+`FENB.ini`, `INSTALL.txt` (English first, then Russian) and `LICENSES.txt`.
+The packager verifies each archived payload against its source with SHA-256.
+It never includes the rest of `dist/`, so preview/test executables, logs,
+captures, old DLLs and custom profiles cannot enter through a directory glob.
+All five built-in profiles are embedded; no presets folder is shipped. After
+tests finish, the packager recopies `config/FENB.ini` to avoid shipping settings
+temporarily saved by the native fixtures. Shared `dist/` output is not an input.
+
+`node tools/prepare-distribution.mjs` regenerates `dist/LICENSES.txt` from the
+original FENB, Dear ImGui, Inter and SMAA license files and copies
+`docs/INSTALL.txt` to `dist/INSTALL.txt`. The normal and diagnostic PowerShell
+builds also run this helper for their respective output directories. Original
+license files remain tracked in their existing locations. Older local output
+is preserved but excluded from the ZIP.
+
+No compatibility guarantee is made for other Flyff clients.

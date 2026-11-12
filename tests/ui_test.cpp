@@ -261,10 +261,14 @@ int main() {
         CHECK(Screenshot(d,language?L"build/ui-integrated/ru-narrow.png":L"build/ui-integrated/en-narrow.png"));
         io.DisplaySize={800,600};r.centerPanel=true;frame();frame();
     }
-    r.editorPage=4;r.settings.timeOverride=true;r.settings.timeMinutes=1110;frame();
+    r.editorPage=4;r.settings.enabled=false;r.settings.timeOverride=true;r.settings.timeMinutes=1110;frame();
     mouse(400,168,true);auto firstTime=r.settings.timeMinutes;
     mouse(480,168,true);CHECK(r.settings.timeMinutes!=firstTime);mouse(480,168,false);
     click(590,168);input("07:45");CHECK(r.settings.timeMinutes==465);
+    for(int language=0;language<2;++language){
+        r.settings.language=language?Language::Russian:Language::English;frame();frame();
+        CHECK(Screenshot(d,language?L"build/ui-integrated/ru-time-without-effects.png":L"build/ui-integrated/en-time-without-effects.png"));
+    }
     DeleteFileW((ModuleDirectory()+L"FENB-presets\\Тест воды.ini").c_str());
     ImGui_ImplDX9_Shutdown();ImGui::DestroyContext();DestroyWindow(window);DeleteFileW(r.configPath.c_str());
     puts("PASS: integrated UI gestures, numeric input, resets, profiles, language, appearance persistence, FPS guard and page captures.");

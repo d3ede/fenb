@@ -198,10 +198,19 @@ int main() {
     }
     CHECK(!memcmp(sky.get(), savedSky.get(), 0x2b03c));
     s.enabled = false;
+    s.timeOverride = true;s.timeMinutes = 90;s.freezeTime = true;
     {
         FrameScope scope(binding, frame, s, 2064);
-        CHECK(clock.hour == 21 && mode == 3 && count == 400 && !option);
+        CHECK(clock.hour == 1 && clock.minute == 30 && clock.fixed && mode == 3 && count == 400 && !option);
     }
+    CHECK(!memcmp(&clock,&savedClock,sizeof(clock)));
+    s.timeMinutes=120;
+    {
+        FrameScope scope(binding,frame,s,2080);
+        CHECK(clock.hour==2 && clock.minute==0 && mode==3 && !option);
+    }
+    s.timeOverride=false;
+    { FrameScope scope(binding,frame,s,2096);CHECK(!memcmp(&clock,&savedClock,sizeof(clock))); }
     frame.reset();
     CHECK(!frame.texture.p && !memcmp(sky.get(), savedSky.get(), 0x2b03c));
     Drop(texture);

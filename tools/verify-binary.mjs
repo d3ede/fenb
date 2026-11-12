@@ -10,7 +10,7 @@ function pe(path) {
  const imports=[];let p=rva(u32(dir+8));if(p)while(u32(p+12)){imports.push(str(rva(u32(p+12))));p+=20;}
  return{machine:u16(offset+4),bytes:b.length,exports,imports};
 }
-const binary=pe('dist/d3d9.dll'),system=pe('C:/Windows/SysWOW64/d3d9.dll');
+const binary=pe(process.argv[2] ?? 'dist/d3d9.dll'),system=pe('C:/Windows/SysWOW64/d3d9.dll');
 if(binary.machine!==0x14c)throw Error('DLL is not x86');
 if(JSON.stringify(binary.exports)!==JSON.stringify(system.exports))throw Error('Export names / ordinals differ from system d3d9.dll');
 if(binary.imports.some(x=>/libc\+\+|libwinpthread|libgcc|msvcp|vcruntime|d3dcompiler|mscoree/i.test(x)))throw Error('Unexpected runtime dependency');

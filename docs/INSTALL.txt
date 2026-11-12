@@ -1,0 +1,102 @@
+FENB - Installation / Установка
+
+ENGLISH
+=======
+
+FENB is a graphics mod for Flyff, inspired by ENBSeries.
+
+Requirements and compatibility
+------------------------------
+Windows and a compatible 32-bit DirectX 9 Flyff client (Neuz.exe) are
+required. FENB currently targets Homesickness Flyff; other clients have
+not been verified. Depth-based effects require a supported NVIDIA driver
+depth-copy path. Unsupported effects fall back or remain inactive.
+
+Installation
+------------
+1. Close the game and extract the ZIP archive.
+2. If the game folder already contains d3d9.dll, back it up first.
+   Loading multiple graphics proxies together is not currently supported.
+3. Copy d3d9.dll and FENB.ini beside Neuz.exe in the game folder.
+   Keep LICENSES.txt with the installed files; INSTALL.txt is this guide.
+4. Launch the game normally. Press Shift + Enter to open the FENB panel.
+5. Choose English or Русский in the language selector. English is the
+   default. Select a built-in profile or adjust the effects yourself.
+
+No installer, separate shaders or font files are needed. All five built-in
+profiles are included in the DLL. FENB-presets stores your custom profiles;
+it is not included in the archive and is created when needed.
+
+Controls
+--------
+Shift + Enter: open or close the panel.
+Right Shift + F12: toggle all FENB image effects.
+Changes save automatically; Ctrl + S saves immediately.
+
+Updating
+--------
+Close the game before replacing d3d9.dll. Keep your existing FENB.ini and
+FENB-presets folder to retain settings and custom profiles. Do not overwrite
+your configuration with the archive's default FENB.ini. Replace LICENSES.txt
+with the new copy. Restart the game to load the new DLL.
+
+Uninstalling
+------------
+Close the game and remove FENB's d3d9.dll. Restore the original DLL if you
+backed one up. You may keep FENB.ini and FENB-presets for later.
+
+Project and support: https://github.com/d3ede/fenb
+License texts and copyright notices: LICENSES.txt
+
+
+РУССКИЙ
+=======
+
+FENB — графический мод для Flyff, вдохновлённый ENBSeries.
+
+Требования и совместимость
+-------------------------
+Нужны Windows и совместимый 32-битный клиент Flyff на DirectX 9 (Neuz.exe).
+Сейчас FENB ориентирован на Homesickness Flyff; другие клиенты не проверены.
+Эффекты, использующие глубину сцены, требуют поддерживаемого механизма
+копирования глубины в драйвере NVIDIA. При отсутствии поддержки применяются
+упрощённые варианты эффектов либо эффекты остаются неактивными.
+
+Установка
+---------
+1. Закройте игру и распакуйте ZIP-архив.
+2. Если в папке игры уже есть d3d9.dll, сначала сделайте его резервную копию.
+   Одновременная загрузка нескольких графических прокси пока не поддерживается.
+3. Скопируйте d3d9.dll и FENB.ini в папку игры, рядом с Neuz.exe.
+   Сохраните LICENSES.txt рядом с установленными файлами; INSTALL.txt —
+   эта инструкция.
+4. Запустите игру обычным способом. Нажмите Shift + Enter, чтобы открыть
+   панель FENB.
+5. Выберите English или Русский в переключателе языка. По умолчанию выбран
+   английский. Выберите встроенный профиль или настройте эффекты вручную.
+
+Установщик, отдельные шейдеры и файлы шрифтов не нужны. Все пять встроенных
+профилей находятся в DLL. Папка FENB-presets хранит ваши собственные профили;
+она не входит в архив и создаётся при необходимости.
+
+Управление
+----------
+Shift + Enter: открыть или закрыть панель.
+Правый Shift + F12: включить или выключить все графические эффекты FENB.
+Изменения сохраняются автоматически; Ctrl + S сохраняет их сразу.
+
+Обновление
+----------
+Перед заменой d3d9.dll закройте игру. Сохраните существующие FENB.ini и папку
+FENB-presets, чтобы не потерять настройки и собственные профили. Не заменяйте
+ваш конфигурационный файл стандартным FENB.ini из архива. Обновите LICENSES.txt
+копией из нового архива. Перезапустите игру, чтобы загрузить новую DLL.
+
+Удаление
+--------
+Закройте игру и удалите d3d9.dll, установленный FENB. Если вы сохраняли
+исходную DLL, верните её на место. FENB.ini и FENB-presets можно оставить
+на будущее.
+
+Проект и поддержка: https://github.com/d3ede/fenb
+Тексты лицензий и сведения об авторских правах: LICENSES.txt
