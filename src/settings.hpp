@@ -1,5 +1,6 @@
 #pragma once
 #include "common.hpp"
+#include "localization.hpp"
 
 struct Settings {
     bool enabled = true, bloom = true, color = true;
@@ -32,6 +33,7 @@ struct Settings {
     int msaaSamples = 0;    // 0 retains the native choice, -1 disables, otherwise 2/4/8. Restart required.
     bool unlockFps = false; // Opt-in rendering unlock with a fixed 16 ms simulation step.
     int panelPage = 0;
+    Language language = Language::English;
     bool operator==(const Settings &) const = default;
     void sanitize();
     bool load(const std::wstring &path);

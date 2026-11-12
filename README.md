@@ -6,6 +6,7 @@ FENB is a graphics mod for Flyff, inspired by ENBSeries. It uses a Windows x86 D
 
 - **Shift + Enter** opens and closes the panel without opening game chat. Each opening centers the panel and returns to the main image page. The open panel can still be moved.
 - **Effects** enables or disables all FENB rendering. Color correction, Bloom and WaterFX also have individual switches.
+- **Language**, next to the page title, switches between **English** (first and default) and **Русский** immediately. The choice is saved as `language=en` or `language=ru` in `[General]` of `FENB.ini`; profiles and effect resets preserve it. Older configurations without this key use English. Custom profile names and filenames stay unchanged.
 - Drag a slider, double-click its track to reset it, or click the number to type. The small arrow buttons use a parameter-specific step. The reset icon is shown for changed values.
 - Edits save automatically to `FENB.ini`. **Ctrl + S** saves immediately.
 - **Create…** beside the profile selector, or **Create profile…** inside its dropdown, saves the current settings under a name. Type the name and press **Save**; the profile appears in the selector. For a loaded custom profile the toolbar offers **Save…**. Existing names require the explicit **Replace profile** button. Files live in `FENB-presets`; compatible `.ini` files can also be copied into that folder.

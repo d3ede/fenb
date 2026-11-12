@@ -131,7 +131,7 @@ int main() {
         runtime.settingsChanged();
         runtime.save();
         CHECK(runtime.pendingSave());
-        CHECK(runtime.message == "Ошибка записи FENB.ini");
+        CHECK(runtime.message == UiText::ConfigWriteFailed);
     }
     DestroyWindow(window);
     DeleteFileW(config.c_str());

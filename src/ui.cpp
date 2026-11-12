@@ -3,6 +3,13 @@
 #include <cstdio>
 
 namespace {
+thread_local Language uiLanguage = Language::English;
+const char *Tr(UiText text) {
+    return Translate(uiLanguage, text);
+}
+std::string Label(UiText text) {
+    return std::string(Tr(text)) + "###text-" + std::to_string(static_cast<int>(text));
+}
 constexpr ImU32 Background = IM_COL32(29, 30, 33, 255), Raised = IM_COL32(35, 36, 40, 255);
 constexpr ImU32 Line = IM_COL32(54, 56, 61, 255), Text = IM_COL32(221, 223, 227, 255);
 constexpr ImU32 Muted = IM_COL32(143, 147, 155, 255), Accent = IM_COL32(171, 157, 204, 255);
@@ -98,9 +105,9 @@ float Snap(float value, float low, float high, float neutral, float step) {
     value = std::clamp(std::round(value / step) * step, low, high);
     return std::abs(value - neutral) < step * .01f ? neutral : value;
 }
-void Row(const char *label, const char *help, float &value, float low, float high, float neutral,
+void Row(UiText label, const char *help, float &value, float low, float high, float neutral,
          const char *format = "%.2f", float step = .01f) {
-    ImGui::PushID(label);
+    ImGui::PushID(&value);
     auto p = ImGui::GetCursorScreenPos();
     float width = ImGui::GetContentRegionAvail().x;
     auto *d = ImGui::GetWindowDrawList();
@@ -108,7 +115,7 @@ void Row(const char *label, const char *help, float &value, float low, float hig
                 trackWidth = std::max(20.f, inputX - trackX - 10);
     ImGui::InvisibleButton("label", {trackX - 8, RowHeight});
     Tip(help);
-    TextAt(d, {p.x, p.y + 5}, label);
+    TextAt(d, {p.x, p.y + 5}, Tr(label));
     ImGui::SetCursorScreenPos({p.x + trackX, p.y});
     ImGui::InvisibleButton("track", {trackWidth, RowHeight}, ImGuiButtonFlags_EnableNav);
     bool hover = ImGui::IsItemHovered(), active = ImGui::IsItemActive();
@@ -171,7 +178,7 @@ void Row(const char *label, const char *help, float &value, float low, float hig
         if (std::abs(value - neutral) < step * .01f)
             value = neutral;
     }
-    Tip("Щелчок — ввести число. Стрелки рядом — изменить на один шаг.");
+    Tip(Tr(UiText::NumberInputHelp));
     if (stepArrow("more", inputX + 69, true))
         value = Snap(value + step, low, high, neutral, step);
     ImGui::PopStyleVar();
@@ -184,7 +191,7 @@ void Row(const char *label, const char *help, float &value, float low, float hig
         value = neutral;
     if (std::abs(value - neutral) > step * .01f) {
         ResetGlyph(d, ImGui::GetItemRectMin(), Opacity(ImGui::IsItemHovered() ? Text : Muted));
-        Tip("Сбросить значение");
+        Tip(Tr(UiText::ResetValue));
     }
     ImGui::EndDisabled();
     ImGui::SetCursorScreenPos(p);
@@ -215,11 +222,11 @@ bool Section(const char *id, const char *title, bool &enabled, bool &reset, bool
     ImGui::SetCursorScreenPos({p.x + width - 50, p.y + 5});
     reset = ImGui::InvisibleButton("reset-section", {22, 18}, ImGuiButtonFlags_EnableNav);
     ResetGlyph(d, ImGui::GetItemRectMin(), ImGui::IsItemHovered() ? Text : Muted);
-    Tip("Сбросить параметры этой секции");
+    Tip(Tr(UiText::ResetSection));
     if (showEnable) {
         ImGui::SetCursorScreenPos({p.x + width - 22, p.y + 5});
         SquareSwitch("enabled", enabled);
-        Tip(enabled ? "Выключить эффект" : "Включить эффект");
+        Tip(enabled ? Tr(UiText::DisableEffect) : Tr(UiText::EnableEffect));
     }
     ImGui::SetCursorScreenPos(p);
     ImGui::Dummy({width, 28});
@@ -233,6 +240,7 @@ int MatchingPreset(const Settings &s) {
         candidate.enabled = s.enabled;
         candidate.openOnStart = s.openOnStart;
         candidate.panelPage = s.panelPage;
+        candidate.language = s.language;
         candidate.unlockFps = s.unlockFps;
         candidate.preciseWaterDepth = s.preciseWaterDepth;
         candidate.msaaSamples = s.msaaSamples;
@@ -277,16 +285,17 @@ std::wstring ProfileName(const char *text) {
 void ProfilePicker(Runtime &r, float width) {
     auto &s = r.settings;
     ImGui::AlignTextToFramePadding();
-    ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(Muted), "Профиль");
+    ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(Muted), "%s", Tr(UiText::Profile));
     ImGui::SameLine(88);
     ImGui::SetNextItemWidth(width - 216);
-    const char *presets[] = {"Нейтральный", "Тёплый", "Холодный", "Мягкий свет"};
+    const UiText presets[] = {UiText::Neutral, UiText::Warm, UiText::Cool, UiText::SoftLight};
     bool createRequested = false;
     int matching = MatchingPreset(s);
     auto saved = r.selectedProfileSettings;
     saved.enabled = s.enabled;
     saved.openOnStart = s.openOnStart;
     saved.panelPage = s.panelPage;
+    saved.language = s.language;
     saved.unlockFps = s.unlockFps;
     saved.preciseWaterDepth = s.preciseWaterDepth;
     saved.msaaSamples = s.msaaSamples;
@@ -295,19 +304,21 @@ void ProfilePicker(Runtime &r, float width) {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10, 9));
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8, 6));
     if (ImGui::BeginCombo("##profile",
-                          !r.selectedProfile.empty() ? caption.c_str()
-                                                     : (matching < 0 ? "Свой" : presets[matching]),
+                          !r.selectedProfile.empty()
+                              ? caption.c_str()
+                              : (matching < 0 ? Tr(UiText::Custom) : Tr(presets[matching])),
                           ImGuiComboFlags_HeightLarge)) {
         ImGui::PushStyleVar(ImGuiStyleVar_SeparatorTextBorderSize, 1.f);
         ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, ImVec2(0, .5f));
         ImGui::PushStyleColor(ImGuiCol_Separator, ImVec4(.19f, .20f, .22f, 1));
-        ImGui::SeparatorText("Готовые профили");
+        ImGui::SeparatorText(Tr(UiText::BuiltInProfiles));
         for (int i = 0; i < 4; ++i)
-            if (ImGui::Selectable(presets[i], matching == i && r.selectedProfile.empty(), 0, {0, 24})) {
+            if (ImGui::Selectable(Label(presets[i]).c_str(), matching == i && r.selectedProfile.empty(), 0,
+                                  {0, 24})) {
                 s.preset(i);
                 r.selectedProfile.clear();
             }
-        ImGui::SeparatorText("Мои профили");
+        ImGui::SeparatorText(Tr(UiText::MyProfiles));
         WIN32_FIND_DATAW data{};
         auto dir = ProfileDirectory(r);
         HANDLE find = FindFirstFileW((dir + L"*.ini").c_str(), &data);
@@ -324,6 +335,7 @@ void ProfilePicker(Runtime &r, float width) {
                     if (next.load(dir + name)) {
                         next.openOnStart = s.openOnStart;
                         next.panelPage = s.panelPage;
+                        next.language = s.language;
                         next.enabled = s.enabled;
                         next.unlockFps = s.unlockFps;
                         next.preciseWaterDepth = s.preciseWaterDepth;
@@ -331,20 +343,20 @@ void ProfilePicker(Runtime &r, float width) {
                         s = next;
                         r.selectedProfile = label;
                         r.selectedProfileSettings = s;
-                        r.profileError.clear();
+                        r.profileError = UiText::None;
                     } else
-                        r.message = "Не удалось прочитать профиль";
+                        r.message = UiText::ProfileReadFailed;
                 }
             } while (FindNextFileW(find, &data));
             FindClose(find);
         }
         if (!any) {
             ImGui::PushFont(nullptr, 13);
-            ImGui::TextDisabled("Сохрани текущие настройки под своим именем");
+            ImGui::TextDisabled("%s", Tr(UiText::CreateProfileHelp));
             ImGui::PopFont();
         }
         ImGui::Separator();
-        if (ImGui::Selectable("Создать профиль…", false, 0, {0, 24}))
+        if (ImGui::Selectable(Label(UiText::CreateProfile).c_str(), false, 0, {0, 24}))
             createRequested = true;
         ImGui::PopStyleColor();
         ImGui::PopStyleVar(2);
@@ -352,10 +364,11 @@ void ProfilePicker(Runtime &r, float width) {
     }
     ImGui::PopStyleVar(2);
     ImGui::PopStyleColor();
-    Tip("Свои .ini можно положить в папку FENB-presets рядом с DLL.");
+    Tip(Tr(UiText::ProfileFolderHelp));
     ImGui::SameLine(width - 112);
-    if (ImGui::Button(r.selectedProfile.empty() ? "Создать…" : "Сохранить…", {96, 23}) || createRequested) {
-        r.profileError.clear();
+    if (ImGui::Button(Label(r.selectedProfile.empty() ? UiText::Create : UiText::SaveAs).c_str(), {96, 23}) ||
+        createRequested) {
+        r.profileError = UiText::None;
         if (createRequested)
             r.profileName[0] = 0;
         else if (!r.selectedProfile.empty())
@@ -366,34 +379,34 @@ void ProfilePicker(Runtime &r, float width) {
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8, 10));
     ImGui::SetNextWindowSize({330, 0});
     if (ImGui::BeginPopup("saveProfile")) {
-        ImGui::TextUnformatted("Сохранить профиль");
+        ImGui::TextUnformatted(Tr(UiText::SaveProfile));
         ImGui::SetNextItemWidth(298);
         if (ImGui::IsWindowAppearing())
             ImGui::SetKeyboardFocusHere();
-        bool enter = ImGui::InputTextWithHint("##name", "Например: Моя вода", r.profileName,
+        bool enter = ImGui::InputTextWithHint("##name", Tr(UiText::ProfileNameHint), r.profileName,
                                               sizeof(r.profileName), ImGuiInputTextFlags_EnterReturnsTrue);
         auto name = ProfileName(r.profileName), path = ProfileDirectory(r) + name + L".ini";
         bool exists = !name.empty() && GetFileAttributesW(path.c_str()) != INVALID_FILE_ATTRIBUTES;
         ImGui::BeginDisabled(name.empty());
-        if (ImGui::Button(exists ? "Заменить профиль" : "Сохранить", {182, 26}) ||
+        if (ImGui::Button(Label(exists ? UiText::ReplaceProfile : UiText::Save).c_str(), {182, 26}) ||
             (!name.empty() && enter && !exists)) {
             CreateDirectoryW(ProfileDirectory(r).c_str(), nullptr);
             if (s.save(path)) {
-                r.message = "Профиль сохранён";
+                r.message = UiText::ProfileSaved;
                 r.selectedProfile = UTF8(name);
                 r.selectedProfileSettings = s;
                 ImGui::CloseCurrentPopup();
             } else
-                r.profileError = "Не удалось записать файл";
+                r.profileError = UiText::FileWriteFailed;
         }
         ImGui::EndDisabled();
         ImGui::SameLine();
-        if (ImGui::Button("Отмена", {108, 26}))
+        if (ImGui::Button(Label(UiText::Cancel).c_str(), {108, 26}))
             ImGui::CloseCurrentPopup();
-        if (!r.profileError.empty())
-            ImGui::TextWrapped("%s", r.profileError.c_str());
+        if (r.profileError != UiText::None)
+            ImGui::TextWrapped("%s", Tr(r.profileError));
         ImGui::PushFont(nullptr, 12);
-        ImGui::TextDisabled("Профиль появится в списке после сохранения.");
+        ImGui::TextDisabled("%s", Tr(UiText::ProfileSavedHelp));
         ImGui::PopFont();
         ImGui::EndPopup();
     }
@@ -410,102 +423,94 @@ void SceneControls(Settings &s) {
     };
     if (section("ssao", "SSAO", s.ssao, 0)) {
         ImGui::BeginDisabled(!s.ssao || !s.enabled);
-        Row("Интенсивность", "Контактное затенение по глубине. Не заменяет динамические тени.", s.aoStrength,
-            0, 2, defaults.aoStrength, "%.2f", .05f);
-        Row("Радиус", "Размер области затенения в единицах мира.", s.aoRadius, .1f, 5, defaults.aoRadius,
-            "%.2f", .1f);
-        Row("Смещение", "Убирает самозатенение плоских поверхностей.", s.aoBias, .005f, .3f, defaults.aoBias,
-            "%.3f", .005f);
-        Row("Дальность", "Расстояние плавного отключения SSAO.", s.aoDistance, 10, 500, defaults.aoDistance,
-            "%.0f", 10);
+        Row(UiText::Strength, Tr(UiText::AOStrengthHelp), s.aoStrength, 0, 2, defaults.aoStrength, "%.2f",
+            .05f);
+        Row(UiText::Radius, Tr(UiText::AORadiusHelp), s.aoRadius, .1f, 5, defaults.aoRadius, "%.2f", .1f);
+        Row(UiText::Bias, Tr(UiText::AOBiasHelp), s.aoBias, .005f, .3f, defaults.aoBias, "%.3f", .005f);
+        Row(UiText::Distance, Tr(UiText::AODistanceHelp), s.aoDistance, 10, 500, defaults.aoDistance, "%.0f",
+            10);
         ImGui::EndDisabled();
     }
-    if (section("rays", "Sun Rays", s.sunRays, 1)) {
+    if (section("rays", Tr(UiText::SunRays), s.sunRays, 1)) {
         ImGui::BeginDisabled(!s.sunRays || !s.enabled);
-        Row("Интенсивность", "Лучи от направления солнца, с перекрытием геометрией видимого кадра.",
-            s.rayStrength, 0, 2, defaults.rayStrength, "%.2f", .05f);
-        Row("Длина", "Протяжённость лучей от солнца.", s.rayLength, .1f, 1.5f, defaults.rayLength, "%.2f",
+        Row(UiText::Strength, Tr(UiText::RayStrengthHelp), s.rayStrength, 0, 2, defaults.rayStrength, "%.2f",
             .05f);
-        Row("Затухание", "Выше — лучи длиннее и заметнее.", s.rayDecay, .8f, .99f, defaults.rayDecay, "%.2f",
-            .01f);
+        Row(UiText::Length, Tr(UiText::RayLengthHelp), s.rayLength, .1f, 1.5f, defaults.rayLength, "%.2f",
+            .05f);
+        Row(UiText::Decay, Tr(UiText::RayDecayHelp), s.rayDecay, .8f, .99f, defaults.rayDecay, "%.2f", .01f);
         ImGui::EndDisabled();
     }
     if (section("sky", "SkyFX", s.sky, 2)) {
         ImGui::BeginDisabled(!s.sky || !s.enabled);
-        Row("Атмосфера", "Плавный цветовой переход неба. Ночная яркость зависит от света игры.",
-            s.skyStrength, 0, 1, defaults.skyStrength, "%.2f", .05f);
-        Row("Горизонт", "Ширина светлой полосы у горизонта.", s.skyHorizon, .1f, 1, defaults.skyHorizon,
+        Row(UiText::Atmosphere, Tr(UiText::SkyStrengthHelp), s.skyStrength, 0, 1, defaults.skyStrength,
             "%.2f", .05f);
-        Row("Облака", "Контраст исходных облаков, с сохранением их прозрачности.", s.cloudContrast, .5f, 2,
-            defaults.cloudContrast, "%.2f", .05f);
-        Row("Ореол солнца", "Мягкое свечение в направлении солнца.", s.sunHalo, 0, 2, defaults.sunHalo,
-            "%.2f", .05f);
+        Row(UiText::Horizon, Tr(UiText::HorizonHelp), s.skyHorizon, .1f, 1, defaults.skyHorizon, "%.2f",
+            .05f);
+        Row(UiText::Clouds, Tr(UiText::CloudsHelp), s.cloudContrast, .5f, 2, defaults.cloudContrast, "%.2f",
+            .05f);
+        Row(UiText::SunHalo, Tr(UiText::SunHaloHelp), s.sunHalo, 0, 2, defaults.sunHalo, "%.2f", .05f);
         ImGui::EndDisabled();
     }
-    if (section("fog", "Туман", s.fog, 3)) {
+    if (section("fog", Tr(UiText::Fog), s.fog, 3)) {
         ImGui::BeginDisabled(!s.fog || !s.enabled);
-        Row("Плотность", "Дополнительная воздушная перспектива по расстоянию и высоте.", s.fogDensity, 0,
-            .03f, defaults.fogDensity, "%.4f", .0005f);
-        Row("Начало", "Ближняя дистанция без дополнительного тумана.", s.fogStart, 0, 250, defaults.fogStart,
-            "%.0f", 5);
-        Row("Высота", "Высота плотного слоя в координатах мира.", s.fogHeight, -500, 500, defaults.fogHeight,
-            "%.0f", 5);
-        Row("Спад по высоте", "Выше — быстрее разрежается над заданной высотой.", s.fogFalloff, 0, .2f,
-            defaults.fogFalloff, "%.3f", .005f);
+        Row(UiText::Density, Tr(UiText::FogDensityHelp), s.fogDensity, 0, .03f, defaults.fogDensity, "%.4f",
+            .0005f);
+        Row(UiText::Start, Tr(UiText::FogStartHelp), s.fogStart, 0, 250, defaults.fogStart, "%.0f", 5);
+        Row(UiText::Height, Tr(UiText::FogHeightHelp), s.fogHeight, -500, 500, defaults.fogHeight, "%.0f", 5);
+        Row(UiText::HeightFalloff, Tr(UiText::FogFalloffHelp), s.fogFalloff, 0, .2f, defaults.fogFalloff,
+            "%.3f", .005f);
         float tint[] = {s.fogR, s.fogG, s.fogB};
         ImGui::SetNextItemWidth(230);
-        if (ImGui::ColorEdit3("Цвет тумана", tint, ImGuiColorEditFlags_NoInputs)) {
+        if (ImGui::ColorEdit3(Label(UiText::FogColor).c_str(), tint,
+                              ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoOptions |
+                                  ImGuiColorEditFlags_NoSidePreview)) {
             s.fogR = tint[0];
             s.fogG = tint[1];
             s.fogB = tint[2];
         }
         ImGui::EndDisabled();
     }
-    if (section("dof", "Depth of Field", s.dof, 4)) {
+    if (section("dof", Tr(UiText::DepthOfField), s.dof, 4)) {
         ImGui::BeginDisabled(!s.dof || !s.enabled);
-        Row("Фокус", "Расстояние до резкого плана в единицах мира.", s.focusDistance, 1, 500,
-            defaults.focusDistance, "%.0f", 1);
-        Row("Резкая область", "Ширина области резкости вокруг фокуса.", s.focusRange, 1, 200,
-            defaults.focusRange, "%.0f", 1);
-        Row("Размытие", "Максимальный радиус в пикселях.", s.dofRadius, 0, 12, defaults.dofRadius, "%.1f",
-            .5f);
-        Row("Ближний план", "Сила размытия перед фокусом. Ноль сохраняет передний план резким.", s.dofNear, 0,
-            1, defaults.dofNear, "%.2f", .05f);
+        Row(UiText::Focus, Tr(UiText::FocusHelp), s.focusDistance, 1, 500, defaults.focusDistance, "%.0f", 1);
+        Row(UiText::FocusRange, Tr(UiText::FocusRangeHelp), s.focusRange, 1, 200, defaults.focusRange, "%.0f",
+            1);
+        Row(UiText::Blur, Tr(UiText::BlurHelp), s.dofRadius, 0, 12, defaults.dofRadius, "%.1f", .5f);
+        Row(UiText::NearBlur, Tr(UiText::NearBlurHelp), s.dofNear, 0, 1, defaults.dofNear, "%.2f", .05f);
         ImGui::EndDisabled();
     }
-    if (section("adaptation", "Адаптация яркости", s.adaptation, 5)) {
+    if (section("adaptation", Tr(UiText::Adaptation), s.adaptation, 5)) {
         ImGui::BeginDisabled(!s.adaptation || !s.enabled);
-        Row("Средняя яркость", "Целевая средняя яркость сцены, без учёта интерфейса.", s.adaptationKey, .04f,
-            .5f, defaults.adaptationKey, "%.2f", .01f);
-        Row("Минимум EV", "Предел автоматического затемнения.", s.minEV, -4, 0, defaults.minEV, "%+.2f", .1f);
-        Row("Максимум EV", "Предел автоматического осветления.", s.maxEV, 0, 4, defaults.maxEV, "%+.2f", .1f);
-        Row("К яркому свету", "Скорость привыкания к яркой сцене.", s.adaptBright, .1f, 5,
-            defaults.adaptBright, "%.1f", .1f);
-        Row("К темноте", "Скорость привыкания к тёмной сцене.", s.adaptDark, .1f, 5, defaults.adaptDark,
+        Row(UiText::AverageBrightness, Tr(UiText::AverageBrightnessHelp), s.adaptationKey, .04f, .5f,
+            defaults.adaptationKey, "%.2f", .01f);
+        Row(UiText::MinEV, Tr(UiText::MinEVHelp), s.minEV, -4, 0, defaults.minEV, "%+.2f", .1f);
+        Row(UiText::MaxEV, Tr(UiText::MaxEVHelp), s.maxEV, 0, 4, defaults.maxEV, "%+.2f", .1f);
+        Row(UiText::AdaptBright, Tr(UiText::AdaptBrightHelp), s.adaptBright, .1f, 5, defaults.adaptBright,
             "%.1f", .1f);
+        Row(UiText::AdaptDark, Tr(UiText::AdaptDarkHelp), s.adaptDark, .1f, 5, defaults.adaptDark, "%.1f",
+            .1f);
         ImGui::EndDisabled();
     }
     bool vegetation = true;
-    if (Section("foliage", "Растительность", vegetation, reset, false, false)) {
+    if (Section("foliage", Tr(UiText::Vegetation), vegetation, reset, false, false)) {
         if (reset)
             s.resetSceneSection(9);
-        Row("Ночная яркость",
-            "Мягкий заполняющий свет только на распознанных материалах деревьев. Днём не действует.",
-            s.nightFoliage, 0, 1, defaults.nightFoliage, "%.2f", .05f);
+        Row(UiText::NightBrightness, Tr(UiText::NightBrightnessHelp), s.nightFoliage, 0, 1,
+            defaults.nightFoliage, "%.2f", .05f);
     } else if (reset)
         s.resetSceneSection(9);
-    if (section("lighting", "Локальное освещение", s.localLighting, 6)) {
+    if (section("lighting", Tr(UiText::LocalLighting), s.localLighting, 6)) {
         ImGui::BeginDisabled(!s.localLighting || !s.enabled);
-        Row("Интенсивность", "Свет от определённых источников на видимой геометрии. Без карт теней.",
-            s.localStrength, 0, 3, defaults.localStrength, "%.2f", .05f);
-        Row("Дальность", "Множитель радиуса источников.", s.localRange, .25f, 3, defaults.localRange, "%.2f",
+        Row(UiText::Strength, Tr(UiText::LocalStrengthHelp), s.localStrength, 0, 3, defaults.localStrength,
+            "%.2f", .05f);
+        Row(UiText::Distance, Tr(UiText::LocalRangeHelp), s.localRange, .25f, 3, defaults.localRange, "%.2f",
             .05f);
         ImGui::EndDisabled();
     }
     ImGui::Spacing();
     auto qualityPos = ImGui::GetCursorScreenPos();
     float qualityWidth = ImGui::GetContentRegionAvail().x;
-    TextAt(ImGui::GetWindowDrawList(), {qualityPos.x, qualityPos.y + 5}, "Подробное качество эффектов");
+    TextAt(ImGui::GetWindowDrawList(), {qualityPos.x, qualityPos.y + 5}, Tr(UiText::SceneQuality));
     ImGui::SetCursorScreenPos({qualityPos.x + qualityWidth - 22, qualityPos.y + 4});
     SquareSwitch("sceneQuality", s.sceneQuality);
     ImGui::SetCursorScreenPos(qualityPos);
@@ -519,11 +524,10 @@ void AntialiasControls(Runtime &r) {
         if (reset)
             s.resetSceneSection(8);
         ImGui::BeginDisabled(!s.fxaa || !s.enabled);
-        Row("Интенсивность",
-            "Сглаживает контрастные границы, включая листву. Интерфейс игры не затрагивается.",
-            s.fxaaStrength, 0, 1, defaults.fxaaStrength, "%.2f", .05f);
-        Row("Порог контраста", "Ниже — обрабатываются более мелкие детали, выше — меньше размытия.",
-            s.fxaaThreshold, .04f, .3f, defaults.fxaaThreshold, "%.3f", .005f);
+        Row(UiText::Strength, Tr(UiText::FXAAStrengthHelp), s.fxaaStrength, 0, 1, defaults.fxaaStrength,
+            "%.2f", .05f);
+        Row(UiText::ContrastThreshold, Tr(UiText::FXAAThresholdHelp), s.fxaaThreshold, .04f, .3f,
+            defaults.fxaaThreshold, "%.3f", .005f);
         ImGui::EndDisabled();
     } else if (reset)
         s.resetSceneSection(8);
@@ -534,25 +538,25 @@ void AntialiasControls(Runtime &r) {
             s.msaaSamples = 0;
         auto p = ImGui::GetCursorScreenPos();
         float width = ImGui::GetContentRegionAvail().x;
-        TextAt(ImGui::GetWindowDrawList(), {p.x, p.y + 5}, "Число выборок");
+        TextAt(ImGui::GetWindowDrawList(), {p.x, p.y + 5}, Tr(UiText::SampleCount));
         ImGui::SetCursorScreenPos({p.x + 146, p.y + 2});
         ImGui::SetNextItemWidth(width - 171);
         int modes[] = {0, -1, 2, 4, 8}, choice = 0;
         for (int i = 0; i < 5; ++i)
             if (s.msaaSamples == modes[i])
                 choice = i;
-        const char *labels[] = {"Как в игре", "Выключено", "×2", "×4", "×8"};
+        const char *labels[] = {Tr(UiText::GameDefault), Tr(UiText::Off), "×2", "×4", "×8"};
         if (ImGui::Combo("##msaa", &choice, labels, 5))
             s.msaaSamples = modes[choice];
-        Tip("Применяется после перезапуска. Поддержка формата и видеокарты проверяется перед включением.");
+        Tip(Tr(UiText::MSAAHelp));
         ImGui::SetCursorScreenPos(p);
         ImGui::Dummy({width, RowHeight});
-        ImGui::TextDisabled("После перезапуска клиента");
+        ImGui::TextDisabled("%s", Tr(UiText::RestartRequired));
         unsigned active = r.activeMSAA();
         if (active > 1)
-            ImGui::TextDisabled("Сейчас: MSAA ×%u", active);
+            ImGui::TextDisabled(Tr(UiText::MSAAActive), active);
         else
-            ImGui::TextDisabled(active == 1 ? "Сейчас: MSAA авто" : "Сейчас: MSAA выключено");
+            ImGui::TextDisabled("%s", active == 1 ? Tr(UiText::MSAAAuto) : Tr(UiText::MSAAOff));
     } else if (reset)
         s.msaaSamples = 0;
 }
@@ -562,6 +566,7 @@ void DrawPanel(Runtime &r) {
     auto &io = ImGui::GetIO();
     auto &s = r.settings;
     const Settings before = s;
+    uiLanguage = s.language;
     ImVec2 size{std::max(310.f, std::min(540.f, io.DisplaySize.x - 24)),
                 std::max(250.f, std::min(520.f, io.DisplaySize.y - 24))};
     ImGui::SetNextWindowSize(size, ImGuiCond_Always);
@@ -576,53 +581,84 @@ void DrawPanel(Runtime &r) {
     TextAt(d, {origin.x + 16, origin.y + 12}, "FENB");
     d->AddLine({origin.x + 68, origin.y + 12}, {origin.x + 68, origin.y + 27}, Line, 1);
     const char *pageTitle = r.editorPage == 1   ? "WaterFX"
-                            : r.editorPage == 2 ? "Свет и атмосфера"
-                            : r.editorPage == 3 ? "Сглаживание"
-                                                : "Изображение";
-    TextAt(d, {origin.x + 80, origin.y + 12}, pageTitle, Muted, 14);
-    ImGui::SetCursorPos({size.x - 151, 8});
+                            : r.editorPage == 2 ? Tr(UiText::LightAtmosphere)
+                            : r.editorPage == 3 ? Tr(UiText::Antialiasing)
+                                                : Tr(UiText::Image);
+    bool showEffectsLabel = size.x >= 480;
+    float masterX = size.x - (showEffectsLabel ? 151 : 88);
+    ImGui::PushFont(nullptr, 14);
+    float languageWidth = ImGui::CalcTextSize(Tr(UiText::LanguageTab)).x + 16;
+    float languageX = std::min(80 + ImGui::CalcTextSize(pageTitle).x + 16, masterX - languageWidth - 12);
+    ImGui::PopFont();
+    ImVec4 titleClip{origin.x + 80, origin.y + 8, origin.x + languageX - 10, origin.y + 33};
+    d->AddText(ImGui::GetFont(), 14, {origin.x + 80, origin.y + 12}, Muted, pageTitle, nullptr, 0,
+               &titleClip);
+    d->AddLine({origin.x + languageX - 6, origin.y + 12}, {origin.x + languageX - 6, origin.y + 27}, Line);
+    ImGui::SetCursorPos({languageX, 8});
+    if (ImGui::InvisibleButton("language", {languageWidth, 24}, ImGuiButtonFlags_EnableNav))
+        ImGui::OpenPopup("languages");
+    bool languageHovered = ImGui::IsItemHovered();
+    if (languageHovered || ImGui::IsPopupOpen("languages"))
+        d->AddRectFilled(ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), Raised, 2);
+    TextAt(d, {origin.x + languageX + 8, origin.y + 12}, Tr(UiText::LanguageTab),
+           languageHovered || ImGui::IsPopupOpen("languages") ? Text : Muted, 14);
+    ImGui::SetNextWindowPos({origin.x + languageX, origin.y + 36}, ImGuiCond_Appearing);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10, 8));
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8, 5));
+    if (ImGui::BeginPopup("languages")) {
+        if (ImGui::Selectable("English", s.language == Language::English, 0, {140, 24}))
+            s.language = Language::English;
+        if (ImGui::Selectable("Русский", s.language == Language::Russian, 0, {140, 24}))
+            s.language = Language::Russian;
+        ImGui::EndPopup();
+    }
+    ImGui::PopStyleVar(2);
+    uiLanguage = s.language;
+    ImGui::SetCursorPos({masterX, 8});
     SquareSwitch("master", s.enabled, {20, 24});
-    Tip("Включить или выключить все эффекты FENB");
-    TextAt(d, {origin.x + size.x - 125, origin.y + 13}, "Эффекты", s.enabled ? Text : Muted, 13);
+    Tip(Tr(UiText::MasterHelp));
+    if (showEffectsLabel)
+        TextAt(d, {origin.x + size.x - 125, origin.y + 13}, Tr(UiText::Effects), s.enabled ? Text : Muted,
+               13);
     ImGui::SetCursorPos({size.x - 57, 8});
     if (ImGui::InvisibleButton("menu", {24, 24}, ImGuiButtonFlags_EnableNav))
         ImGui::OpenPopup("actions");
     auto mp = ImGui::GetItemRectMin();
     for (int i = 0; i < 3; ++i)
         d->AddCircleFilled({mp.x + 6 + i * 5.f, mp.y + 12}, 1, Muted, 8);
-    Tip("Действия");
+    Tip(Tr(UiText::Actions));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10, 8));
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(10, 7));
     if (ImGui::BeginPopup("actions")) {
         bool fpsSupported = r.fpsUnlockSupported();
-        ImGui::MenuItem("Снять лимит FPS", nullptr, &s.unlockFps, fpsSupported || s.unlockFps);
-        Tip(fpsSupported ? "Рендер без штатного лимита. Логика игры обновляется с прежним шагом 16 мс."
-                         : "Эта версия клиента не поддерживается. Игра остаётся без изменений.",
+        ImGui::MenuItem(Label(UiText::UnlockFPS).c_str(), nullptr, &s.unlockFps, fpsSupported || s.unlockFps);
+        Tip(fpsSupported ? Tr(UiText::UnlockFPSHelp) : Tr(UiText::UnsupportedClient),
             ImGuiHoveredFlags_AllowWhenDisabled);
         ImGui::Separator();
 #ifdef FENB_DIAGNOSTICS
-        if (ImGui::MenuItem("Записать 3 кадра DX9 (через 3 с)"))
+        if (ImGui::MenuItem(Label(UiText::CaptureFrames).c_str()))
             r.requestCapture();
         ImGui::Separator();
 #endif
-        ImGui::MenuItem("Глубина воды 24 бита", nullptr, &s.preciseWaterDepth);
-        Tip("После перезапуска клиента. Уменьшает полосы глубины. При 1920×1080 и 8× MSAA — около 32 МБ "
-            "видеопамяти.");
+        ImGui::MenuItem(Label(UiText::WaterDepth24).c_str(), nullptr, &s.preciseWaterDepth);
+        Tip(Tr(UiText::WaterDepth24Help));
         ImGui::Separator();
-        if (ImGui::MenuItem("Сохранить настройки", "Ctrl+S"))
+        if (ImGui::MenuItem(Label(UiText::SaveSettings).c_str(), "Ctrl+S"))
             r.save();
-        if (ImGui::MenuItem("Перечитать FENB.ini"))
+        if (ImGui::MenuItem(Label(UiText::ReloadSettings).c_str()))
             r.reload();
         ImGui::Separator();
-        if (ImGui::MenuItem("Сбросить всё")) {
+        if (ImGui::MenuItem(Label(UiText::ResetAll).c_str())) {
             bool open = s.openOnStart;
             bool unlock = s.unlockFps, precise = s.preciseWaterDepth;
             int msaa = s.msaaSamples;
+            auto language = s.language;
             s = Settings{};
             s.openOnStart = open;
             s.unlockFps = unlock;
             s.preciseWaterDepth = precise;
             s.msaaSamples = msaa;
+            s.language = language;
         }
         ImGui::EndPopup();
     }
@@ -643,23 +679,21 @@ void DrawPanel(Runtime &r) {
     const Settings defaults;
     bool reset = false;
     if (r.editorPage == 0) {
-        bool expanded = Section("grade", "Цветокоррекция", s.color, reset);
+        bool expanded = Section("grade", Tr(UiText::ColorCorrection), s.color, reset);
         if (reset)
             s.resetColor();
         if (expanded) {
             ImGui::BeginDisabled(!s.color || !s.enabled);
-            Row("Экспозиция", "Изменение яркости в ступенях экспозиции (EV).", s.exposure, -2, 2,
-                defaults.exposure, "%+.2f");
-            Row("Контраст", "Разница между светлыми и тёмными участками.", s.contrast, .5f, 1.5f,
-                defaults.contrast);
-            Row("Света", "Настройка ярких участков.", s.highlights, -.5f, .5f, defaults.highlights, "%+.2f");
-            Row("Тени", "Настройка тёмных участков.", s.shadows, -.5f, .5f, defaults.shadows, "%+.2f");
-            Row("Температура", "От холодных оттенков к тёплым.", s.temperature, -1, 1, defaults.temperature,
+            Row(UiText::Exposure, Tr(UiText::ExposureHelp), s.exposure, -2, 2, defaults.exposure, "%+.2f");
+            Row(UiText::Contrast, Tr(UiText::ContrastHelp), s.contrast, .5f, 1.5f, defaults.contrast);
+            Row(UiText::Highlights, Tr(UiText::HighlightsHelp), s.highlights, -.5f, .5f, defaults.highlights,
                 "%+.2f");
-            Row("Оттенок", "Баланс зелёного и пурпурного.", s.tint, -1, 1, defaults.tint, "%+.2f");
-            Row("Насыщенность", "Интенсивность цвета. Ноль — чёрно-белое изображение.", s.saturation, 0, 2,
-                defaults.saturation);
-            Row("Гамма", "Яркость средних тонов.", s.gamma, .5f, 2, defaults.gamma);
+            Row(UiText::Shadows, Tr(UiText::ShadowsHelp), s.shadows, -.5f, .5f, defaults.shadows, "%+.2f");
+            Row(UiText::Temperature, Tr(UiText::TemperatureHelp), s.temperature, -1, 1, defaults.temperature,
+                "%+.2f");
+            Row(UiText::Tint, Tr(UiText::TintHelp), s.tint, -1, 1, defaults.tint, "%+.2f");
+            Row(UiText::Saturation, Tr(UiText::SaturationHelp), s.saturation, 0, 2, defaults.saturation);
+            Row(UiText::Gamma, Tr(UiText::GammaHelp), s.gamma, .5f, 2, defaults.gamma);
             ImGui::EndDisabled();
         }
         ImGui::Dummy({0, 4});
@@ -668,25 +702,25 @@ void DrawPanel(Runtime &r) {
             s.resetBloom();
         if (expanded) {
             ImGui::BeginDisabled(!s.bloom || !s.enabled);
-            Row("Интенсивность", "Сила свечения ярких деталей.", s.bloomStrength, 0, 2,
+            Row(UiText::Strength, Tr(UiText::BloomStrengthHelp), s.bloomStrength, 0, 2,
                 defaults.bloomStrength);
-            Row("Порог яркости", "Минимальная яркость, при которой появляется свечение.", s.threshold, 0, 1,
+            Row(UiText::BrightnessThreshold, Tr(UiText::BrightnessThresholdHelp), s.threshold, 0, 1,
                 defaults.threshold);
-            Row("Мягкость порога", "Плавность появления свечения около порога.", s.knee, .001f, .5f,
+            Row(UiText::ThresholdSoftness, Tr(UiText::ThresholdSoftnessHelp), s.knee, .001f, .5f,
                 defaults.knee);
-            Row("Радиус", "Размер ореола вокруг ярких деталей.", s.radius, .5f, 4, defaults.radius);
+            Row(UiText::Radius, Tr(UiText::BloomRadiusHelp), s.radius, .5f, 4, defaults.radius);
             auto p = ImGui::GetCursorScreenPos();
             float width = ImGui::GetContentRegionAvail().x;
-            TextAt(ImGui::GetWindowDrawList(), {p.x, p.y + 5}, "Качество");
+            TextAt(ImGui::GetWindowDrawList(), {p.x, p.y + 5}, Tr(UiText::Quality));
             ImGui::SetCursorScreenPos({p.x + 146, p.y + 2});
             ImGui::SetNextItemWidth(width - 146 - 25);
             ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(.14f, .15f, .17f, 1));
             int quality = s.bloomScale == 4 ? 0 : 1;
-            const char *options[] = {"Экономное", "Высокое"};
+            const char *options[] = {Tr(UiText::Economical), Tr(UiText::High)};
             if (ImGui::Combo("##quality", &quality, options, 2))
                 s.bloomScale = quality ? 2 : 4;
             ImGui::PopStyleColor();
-            Tip("Экономное: текстуры в четверть ширины и высоты кадра. Высокое: в половину.");
+            Tip(Tr(UiText::BloomQualityHelp));
             ImGui::SetCursorScreenPos(p);
             ImGui::Dummy({width, RowHeight});
             ImGui::EndDisabled();
@@ -712,88 +746,84 @@ void DrawPanel(Runtime &r) {
         navDraw->AddLine(p, {p.x + waterWidth, p.y}, Line);
         if (ImGui::InvisibleButton("scene-settings", {waterWidth, 30}, ImGuiButtonFlags_EnableNav))
             r.editorPage = 2;
-        TextAt(navDraw, {p.x + 17, p.y + 7}, "Свет и атмосфера", Text);
+        TextAt(navDraw, {p.x + 17, p.y + 7}, Tr(UiText::LightAtmosphere), Text);
         TextAt(navDraw, {p.x + waterWidth - 44, p.y + 7}, "→", Muted);
         p = ImGui::GetCursorScreenPos();
         navDraw->AddLine(p, {p.x + waterWidth, p.y}, Line);
         if (ImGui::InvisibleButton("aa-settings", {waterWidth, 30}, ImGuiButtonFlags_EnableNav))
             r.editorPage = 3;
-        TextAt(navDraw, {p.x + 17, p.y + 7}, "Сглаживание", Text);
+        TextAt(navDraw, {p.x + 17, p.y + 7}, Tr(UiText::Antialiasing), Text);
         TextAt(navDraw, {p.x + waterWidth - 44, p.y + 7}, "→", Muted);
     } else if (r.editorPage == 1) {
         auto back = ImGui::GetCursorScreenPos();
         auto *draw = ImGui::GetWindowDrawList();
         if (ImGui::InvisibleButton("back", {86, 26}, ImGuiButtonFlags_EnableNav))
             r.editorPage = 0;
-        TextAt(draw, {back.x + 20, back.y + 6}, "Назад", ImGui::IsItemHovered() ? Text : Muted, 14);
+        TextAt(draw, {back.x + 20, back.y + 6}, Tr(UiText::Back), ImGui::IsItemHovered() ? Text : Muted, 14);
         draw->AddLine({back.x + 10, back.y + 9}, {back.x + 6, back.y + 13}, Muted);
         draw->AddLine({back.x + 6, back.y + 13}, {back.x + 10, back.y + 17}, Muted);
-        TextAt(draw, {back.x + 98, back.y + 6}, "Волны и освещение", Muted, 14);
+        TextAt(draw, {back.x + 98, back.y + 6}, Tr(UiText::WavesLighting), Muted, 14);
         ImGui::SetCursorScreenPos(back);
         ImGui::Dummy({280, 34});
-        bool expanded = Section("waterMotion", "Поверхность", s.water, reset);
+        bool expanded = Section("waterMotion", Tr(UiText::Surface), s.water, reset);
         if (reset)
             s.resetWaterSurface();
         if (expanded) {
             ImGui::BeginDisabled(!s.water || !s.enabled);
-            Row("Высота волн",
-                "Наклон поверхности в освещении. Исходная сетка сохраняется, чтобы не разрывать стыки.",
-                s.waterWaves, 0, .15f, defaults.waterWaves, "%.3f", .005f);
-            Row("Длина волн", "Расстояние между гребнями волн в координатах мира.", s.waterLength, 1, 15,
-                defaults.waterLength, "%.2f", .25f);
-            Row("Скорость", "Скорость волн и ряби FENB. Ноль останавливает их движение.", s.waterSpeed, 0, 3,
-                defaults.waterSpeed, "%.2f", .05f);
-            Row("Рябь", "Мелкие волны в нормалях поверхности. Ноль отключает рябь.", s.waterRipples, 0, 1,
-                defaults.waterRipples, "%.2f", .02f);
-            Row("Частота ряби", "Количество мелких волн на поверхности.", s.waterRippleScale, .25f, 6,
+            Row(UiText::WaveHeight, Tr(UiText::WaveHeightHelp), s.waterWaves, 0, .15f, defaults.waterWaves,
+                "%.3f", .005f);
+            Row(UiText::Wavelength, Tr(UiText::WavelengthHelp), s.waterLength, 1, 15, defaults.waterLength,
+                "%.2f", .25f);
+            Row(UiText::Speed, Tr(UiText::SpeedHelp), s.waterSpeed, 0, 3, defaults.waterSpeed, "%.2f", .05f);
+            Row(UiText::Ripples, Tr(UiText::RipplesHelp), s.waterRipples, 0, 1, defaults.waterRipples, "%.2f",
+                .02f);
+            Row(UiText::RippleFrequency, Tr(UiText::RippleFrequencyHelp), s.waterRippleScale, .25f, 6,
                 defaults.waterRippleScale, "%.2f", .05f);
             ImGui::Dummy({0, 8});
-            Row("Непрозрачность",
-                "Плотность воды. При доступной глубине поглощение усиливается с толщиной слоя.",
-                s.waterOpacity, .15f, 1, defaults.waterOpacity, "%.2f", .02f);
-            Row("Преломление",
-                "Искажение сцены под водой; при доступной глубине берег не затягивается в воду.",
-                s.waterRefraction, 0, 1, defaults.waterRefraction, "%.2f", .02f);
-            Row("Исходная текстура", "Примесь старой текстуры: выше — заметнее её повторяющиеся полосы.",
-                s.waterTexture, 0, 1, defaults.waterTexture, "%.2f", .02f);
-            Row("Бирюзовый тон", "От прохладного голубого к бирюзовому цвету воды.", s.waterTint, 0, 1,
-                defaults.waterTint, "%.2f", .02f);
-            Row("Отражение неба", "Небо и облака клиента. Отражения объектов настраиваются ниже.", s.waterSky,
-                0, 1, defaults.waterSky, "%.2f", .02f);
-            Row("Солнечные блики", "Блики от направленного света игры. Ноль отключает блики.", s.waterGlints,
-                0, 2, defaults.waterGlints, "%.2f", .05f);
-            Row("Гладкость", "Выше — уже и резче солнечный блик.", s.waterGloss, 0, 1, defaults.waterGloss,
+            Row(UiText::Opacity, Tr(UiText::OpacityHelp), s.waterOpacity, .15f, 1, defaults.waterOpacity,
+                "%.2f", .02f);
+            Row(UiText::Refraction, Tr(UiText::RefractionHelp), s.waterRefraction, 0, 1,
+                defaults.waterRefraction, "%.2f", .02f);
+            Row(UiText::OriginalTexture, Tr(UiText::OriginalTextureHelp), s.waterTexture, 0, 1,
+                defaults.waterTexture, "%.2f", .02f);
+            Row(UiText::TurquoiseTint, Tr(UiText::TurquoiseTintHelp), s.waterTint, 0, 1, defaults.waterTint,
+                "%.2f", .02f);
+            Row(UiText::SkyReflection, Tr(UiText::SkyReflectionHelp), s.waterSky, 0, 1, defaults.waterSky,
+                "%.2f", .02f);
+            Row(UiText::SunGlints, Tr(UiText::SunGlintsHelp), s.waterGlints, 0, 2, defaults.waterGlints,
+                "%.2f", .05f);
+            Row(UiText::Smoothness, Tr(UiText::SmoothnessHelp), s.waterGloss, 0, 1, defaults.waterGloss,
                 "%.2f", .02f);
             ImGui::EndDisabled();
         }
         ImGui::Dummy({0, 6});
         bool sceneSection = true;
-        if (Section("waterScene", "Глубина и отражения", sceneSection, reset, false)) {
+        if (Section("waterScene", Tr(UiText::DepthReflections), sceneSection, reset, false)) {
             if (reset)
                 s.resetWaterScene();
             ImGui::BeginDisabled(!s.water || !s.enabled);
-            Row("Поглощение", "Изменение прозрачности по толщине воды. Ноль — равномерная прозрачность.",
-                s.waterDepth, 0, 2, defaults.waterDepth, "%.2f", .05f);
-            Row("Переход у берега", "Расстояние мягкого перехода у геометрии в единицах мира.", s.waterShore,
-                .05f, 3, defaults.waterShore, "%.2f", .05f);
-            Row("Отражения мира", "SSR: отражаются только уже видимые объекты. Ноль отключает трассировку.",
-                s.waterSSR, 0, 1, defaults.waterSSR, "%.2f", .05f);
+            Row(UiText::Absorption, Tr(UiText::AbsorptionHelp), s.waterDepth, 0, 2, defaults.waterDepth,
+                "%.2f", .05f);
+            Row(UiText::ShoreTransition, Tr(UiText::ShoreTransitionHelp), s.waterShore, .05f, 3,
+                defaults.waterShore, "%.2f", .05f);
+            Row(UiText::WorldReflections, Tr(UiText::WorldReflectionsHelp), s.waterSSR, 0, 1,
+                defaults.waterSSR, "%.2f", .05f);
             auto p = ImGui::GetCursorScreenPos();
             float width = ImGui::GetContentRegionAvail().x;
-            TextAt(ImGui::GetWindowDrawList(), {p.x, p.y + 5}, "Качество SSR");
+            TextAt(ImGui::GetWindowDrawList(), {p.x, p.y + 5}, Tr(UiText::SSRQuality));
             ImGui::SetCursorScreenPos({p.x + 146, p.y + 2});
             ImGui::SetNextItemWidth(width - 171);
-            const char *qualities[] = {"Экономное", "Подробное"};
+            const char *qualities[] = {Tr(UiText::Economical), Tr(UiText::Detailed)};
             ImGui::Combo("##waterSSRQuality", &s.waterSSRQuality, qualities, 2);
-            Tip("12 или 24 шага. Нужна читаемая глубина; при недоступности остаётся отражение неба.");
+            Tip(Tr(UiText::SSRQualityHelp));
             ImGui::SetCursorScreenPos(p);
             ImGui::Dummy({width, RowHeight});
-            Row("Каустика", "Подвижное освещение дна преломлённым светом. Нужна читаемая глубина.",
-                s.waterCaustics, 0, 2, defaults.waterCaustics, "%.2f", .05f);
-            Row("Дисперсия", "Слабое разделение цвета по краям каустики, без искажения всего экрана.",
-                s.waterDispersion, 0, 1, defaults.waterDispersion, "%.2f", .05f);
+            Row(UiText::Caustics, Tr(UiText::CausticsHelp), s.waterCaustics, 0, 2, defaults.waterCaustics,
+                "%.2f", .05f);
+            Row(UiText::Dispersion, Tr(UiText::DispersionHelp), s.waterDispersion, 0, 1,
+                defaults.waterDispersion, "%.2f", .05f);
             p = ImGui::GetCursorScreenPos();
-            TextAt(ImGui::GetWindowDrawList(), {p.x, p.y + 5}, "Качество каустики");
+            TextAt(ImGui::GetWindowDrawList(), {p.x, p.y + 5}, Tr(UiText::CausticQuality));
             ImGui::SetCursorScreenPos({p.x + 146, p.y + 2});
             ImGui::SetNextItemWidth(width - 171);
             int causticQuality = s.waterCausticScale == 2 ? 1 : 0;
@@ -806,13 +836,13 @@ void DrawPanel(Runtime &r) {
             s.resetWaterScene();
     }
     if (r.editorPage == 2) {
-        if (ImGui::Button("<  Назад"))
+        if (ImGui::Button(Label(UiText::BackButton).c_str()))
             r.editorPage = 0;
         ImGui::Dummy({0, 8});
         SceneControls(s);
     }
     if (r.editorPage == 3) {
-        if (ImGui::Button("<  Назад"))
+        if (ImGui::Button(Label(UiText::BackButton).c_str()))
             r.editorPage = 0;
         ImGui::Dummy({0, 8});
         AntialiasControls(r);
@@ -820,9 +850,9 @@ void DrawPanel(Runtime &r) {
     ImGui::EndChild();
     float footer = size.y - 28;
     d->AddLine({origin.x + 1, origin.y + footer}, {origin.x + size.x - 1, origin.y + footer}, Line, 1);
-    const char *status = !r.message.empty() ? r.message.c_str()
-                         : r.pendingSave()  ? "Сохраняется…"
-                                            : "Автосохранение";
+    const char *status = r.message != UiText::None ? Tr(r.message)
+                         : r.pendingSave()         ? Tr(UiText::Saving)
+                                                   : Tr(UiText::Autosave);
     TextAt(d, {origin.x + 16, origin.y + footer + 7}, status, Muted, 12);
     TextAt(d, {origin.x + size.x - 113, origin.y + footer + 7}, "Shift + Enter", Muted, 12);
     s.sanitize();

@@ -30,10 +30,10 @@ class Runtime {
     unsigned waterDraws = 0, lastWaterDraws = 0;
     int editorPage = 0;
     char profileName[128]{};
-    std::string profileError;
+    UiText profileError = UiText::None;
     std::string selectedProfile;
     Settings selectedProfileSettings;
-    std::string message;
+    UiText message = UiText::None;
     std::wstring configPath;
     double gpuBytes() const;
     unsigned activeMSAA() const;

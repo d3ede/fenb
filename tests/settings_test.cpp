@@ -32,6 +32,15 @@ int main() {
         CHECK(section.exposure == 0 && !section.color && !section.enabled && section.unlockFps);
     }
     Settings s;
+    CHECK(s.language == Language::English);
+    for (int i = 1; i < static_cast<int>(UiText::Count); ++i) {
+        auto text = static_cast<UiText>(i);
+        auto en = Translate(Language::English, text), ru = Translate(Language::Russian, text);
+        CHECK(*en && *ru);
+        CHECK(MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, en, -1, nullptr, 0) > 0);
+        CHECK(MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, ru, -1, nullptr, 0) > 0);
+    }
+    s.language = Language::Russian;
     CHECK(!s.unlockFps);
     s.unlockFps = true;
     s.bloomScale = 3;
@@ -43,6 +52,7 @@ int main() {
     CHECK(s.bloomScale == 4 && s.exposure == 0 && s.gamma == .5f && s.threshold == 1);
     auto path = std::wstring(L"build\\settings-roundtrip.ini");
     s.preset(2);
+    CHECK(s.language == Language::Russian);
     s.enabled = false;
     s.shadows = -.25f;
     CHECK(s.unlockFps);
@@ -82,6 +92,7 @@ int main() {
     CHECK(s.save(path));
     Settings loaded;
     CHECK(loaded.load(path));
+    CHECK(loaded.language == Language::Russian);
     CHECK(loaded.unlockFps);
     CHECK(!loaded.preciseWaterDepth);
     CHECK(loaded.msaaSamples == 4 && loaded.fxaa && loaded.fxaaStrength == .8f &&
@@ -112,7 +123,8 @@ int main() {
           file);
     fclose(file);
     CHECK(loaded.load(path));
-    CHECK(loaded.unlockFps); // Explicit opt-in uses the simulation-aware unlock.
+    CHECK(loaded.language == Language::English); // Existing configs without a language use English.
+    CHECK(loaded.unlockFps);                     // Explicit opt-in uses the simulation-aware unlock.
     CHECK(loaded.waterRefraction == Settings{}.waterRefraction &&
           loaded.waterTexture == Settings{}.waterTexture);
     CHECK(loaded.exposure == 0 && loaded.gamma == .5f && loaded.bloomScale == 4 && loaded.saturation == 2);
@@ -138,6 +150,19 @@ int main() {
     CHECK(s.unlockFps);
     CHECK(!s.preciseWaterDepth);
     CHECK(s.msaaSamples == 4);
+    CHECK(s.language == Language::Russian);
+    file = _wfopen(path.c_str(), L"wb");
+    CHECK(file);
+    fputs("[General]\nlanguage=unsupported\nexposure=0.5\n", file);
+    fclose(file);
+    CHECK(loaded.load(path));
+    CHECK(loaded.language == Language::English && loaded.exposure == .5f);
+    loaded.language = static_cast<Language>(42);
+    loaded.sanitize();
+    CHECK(loaded.language == Language::English);
+    CHECK(loaded.save(path));
+    s.language = Language::Russian;
+    CHECK(s.load(path) && s.language == Language::English);
     DeleteFileW(path.c_str());
     puts("PASS: config round-trip, sanitization, corrupt values, failed IO.");
 }

@@ -356,7 +356,7 @@ unsigned Runtime::activeMSAA() const {
 #ifdef FENB_DIAGNOSTICS
 void Runtime::requestCapture() {
     captureDeadline_ = GetTickCount64() + 3000;
-    message = "Захват через 3 с — закройте панель";
+    message = UiText::CapturePending;
 }
 void Runtime::captureDraw(const char *api, UINT type, UINT primitives, UINT vertices, UINT stride,
                           const void *up) {
@@ -370,7 +370,7 @@ void Runtime::save() {
     saveFailed_ = !saved;
     if (saved)
         dirty_ = false;
-    message = saved ? "Сохранено" : "Ошибка записи FENB.ini";
+    message = saved ? UiText::Saved : UiText::ConfigWriteFailed;
     configTime_ = FileTime(configPath);
 }
 void Runtime::reload() {
@@ -378,14 +378,14 @@ void Runtime::reload() {
     fpsLimiter_.update(settings.unlockFps);
     if (loaded)
         dirty_ = false;
-    message = loaded ? "Настройки загружены" : "Файл настроек не найден";
+    message = loaded ? UiText::SettingsLoaded : UiText::ConfigNotFound;
     configTime_ = FileTime(configPath);
 }
 void Runtime::settingsChanged() {
     fpsLimiter_.update(settings.unlockFps);
     dirty_ = true;
     lastEdit_ = GetTickCount();
-    message.clear();
+    message = UiText::None;
 }
 LRESULT CALLBACK Runtime::WindowProc(HWND hwnd, UINT msg, WPARAM w, LPARAM l, UINT_PTR id, DWORD_PTR data) {
     auto *self = reinterpret_cast<Runtime *>(data);

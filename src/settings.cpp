@@ -62,6 +62,8 @@ void Settings::sanitize() {
     range(radius, .5f, 4, 1.6f);
     bloomScale = bloomScale == 2 ? 2 : 4;
     panelPage = std::clamp(panelPage, 0, 3);
+    if (language != Language::Russian)
+        language = Language::English;
     range(exposure, -2, 2, 0);
     range(contrast, .5f, 1.5f, 1);
     range(saturation, 0, 2, 1);
@@ -117,6 +119,10 @@ bool Settings::load(const std::wstring &path) {
         char key[80], value[80];
         if (sscanf(line, " %79[^= \t] = %79s", key, value) != 2)
             continue;
+        if (!strcmp(key, "language")) {
+            next.language = !strcmp(value, "ru") ? Language::Russian : Language::English;
+            continue;
+        }
         char *end = nullptr;
         float number = strtof(value, &end);
         if (end == value || *end || !std::isfinite(number))
@@ -188,7 +194,8 @@ bool Settings::save(const std::wstring &path) const {
     int written = fprintf(
         file,
         "; FENB / Shift + Enter opens the "
-        "panel\n[General]\nenabled=%d\nopen_on_start=%d\npanel_page=%d\nunlock_fps=%d\nprecise_water_depth=%"
+        "panel\n[General]\nenabled=%d\nopen_on_start=%d\npanel_page=%d\nlanguage=%s\nunlock_fps=%d\nprecise_"
+        "water_depth=%"
         "d\n"
         "\n[Bloom]\nbloom=%d\nbloom_strength=%.6f\nthreshold=%.6f\nknee=%.6f\nradius=%.6f\nbloom_scale=%d\n"
         "\n[Color]\ncolor=%d\nexposure=%.6f\ncontrast=%.6f\nsaturation=%.6f\ntemperature=%.6f\ntint=%."
@@ -198,11 +205,12 @@ bool Settings::save(const std::wstring &path) const {
         "6f\nwater_tint=%.6f\nwater_refraction=%.6f\nwater_texture=%.6f\nwater_depth=%.6f\n"
         "water_shore=%.6f\nwater_ssr=%.6f\nwater_ssr_quality=%d\nwater_caustics=%.6f\nwater_dispersion=%."
         "6f\nwater_caustic_scale=%d\n",
-        enabled, openOnStart, panelPage, unlockFps, preciseWaterDepth, bloom, bloomStrength, threshold, knee,
-        radius, bloomScale, color, exposure, contrast, saturation, temperature, tint, gamma, shadows,
-        highlights, water, waterWaves, waterLength, waterSpeed, waterRipples, waterRippleScale, waterOpacity,
-        waterSky, waterGlints, waterGloss, waterTint, waterRefraction, waterTexture, waterDepth, waterShore,
-        waterSSR, waterSSRQuality, waterCaustics, waterDispersion, waterCausticScale);
+        enabled, openOnStart, panelPage, language == Language::Russian ? "ru" : "en", unlockFps,
+        preciseWaterDepth, bloom, bloomStrength, threshold, knee, radius, bloomScale, color, exposure,
+        contrast, saturation, temperature, tint, gamma, shadows, highlights, water, waterWaves, waterLength,
+        waterSpeed, waterRipples, waterRippleScale, waterOpacity, waterSky, waterGlints, waterGloss,
+        waterTint, waterRefraction, waterTexture, waterDepth, waterShore, waterSSR, waterSSRQuality,
+        waterCaustics, waterDispersion, waterCausticScale);
     bool ok = written > 0 && !ferror(file);
     if (fprintf(file, "\n[SceneFX]\nmsaa_samples=%d\n", msaaSamples) < 0)
         ok = false;
@@ -234,12 +242,14 @@ void Settings::preset(int index) {
     bool precise = preciseWaterDepth;
     int msaa = msaaSamples;
     int page = panelPage;
+    auto selectedLanguage = language;
     *this = Settings{};
     openOnStart = open;
     unlockFps = unlock;
     preciseWaterDepth = precise;
     msaaSamples = msaa;
     panelPage = page;
+    language = selectedLanguage;
     if (index == 1) {
         bloomStrength = .32f;
         temperature = .12f;
