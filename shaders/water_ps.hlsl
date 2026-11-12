@@ -51,7 +51,7 @@ float4 TraceReflection(float3 start,float3 direction,float3 planeNormal) {
         float delta=ray.z-sceneZ;
         if(delta>=0 && previousDelta<0) {
             float lo=previousT,hi=t;
-            [loop] for(int j=0;j<7;++j) {
+            [loop] for(int j=0;j<12;++j) {
                 float mid=(lo+hi)*.5;
                 float3 q=start+direction*mid;
                 float z=DepthZ(ProjectUV(q));
@@ -67,7 +67,9 @@ float4 TraceReflection(float3 start,float3 direction,float3 planeNormal) {
             float2 edge=min((hitUV-Viewport.xy)/Viewport.zw,1-(hitUV-Viewport.xy)/Viewport.zw);
             float confidence=saturate(min(edge.x,edge.y)*14)*saturate(1-hi/Trace.y);
             confidence*=abs(q.z-hitZ)<tolerance && dot(hit-start,planeNormal)>.01;
-            confidence*=saturate(1-edgeZ/max(.05,tolerance*2));
+            // Precision of the depth format is not a bound on a sloped bank's pixel gradient.
+            // Keep the silhouette rejection relative to view distance, independently of D16/D24.
+            confidence*=saturate(1-edgeZ/max(.1,hitZ*.015));
             return float4(tex2Dlod(SceneColor,float4(hitUV,0,0)).rgb,confidence);
         }
         previousT=t;previousDelta=delta;

@@ -6,15 +6,80 @@
 // https://docs.nvidia.com/nvapi/group__dx.html
 // No NVAPI redistributable, executable patch, CPU depth readback or replacement game depth surface.
 class DepthCopy {
-    IDirect3DDevice9 *device_;
-    HMODULE module_ = nullptr;
     using Resource = int(__cdecl *)(IDirect3DResource9 *);
     using Copy = int(__cdecl *)(IDirect3DDevice9 *, IDirect3DResource9 *, const RECT *, IDirect3DResource9 *,
                                 const RECT *, D3DTEXTUREFILTERTYPE);
-    Resource register_ = nullptr, unregister_ = nullptr;
-    Copy copy_ = nullptr;
-    int(__cdecl *unload_)() = nullptr;
-    bool initialized_ = false, tried_ = false, attempted_ = false, ready_ = false;
+    // RegisterResource is not reference-counted by the driver. Two independent snapshots may
+    // share the same game depth surface, so registration and API lifetime need shared ownership.
+    struct Backend {
+        HMODULE module = nullptr;
+        Resource registerResource = nullptr, unregisterResource = nullptr;
+        Copy copy = nullptr;
+        int(__cdecl *unload)() = nullptr;
+        bool initialized = false;
+        std::mutex mutex;
+        std::unordered_map<IDirect3DResource9 *, unsigned> references;
+        bool initialize() {
+            module = LoadLibraryExW(L"nvapi.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+            if (!module)
+                return false;
+            auto query =
+                reinterpret_cast<void *(__cdecl *)(unsigned)>(GetProcAddress(module, "nvapi_QueryInterface"));
+            if (!query)
+                return false;
+            auto init = reinterpret_cast<int(__cdecl *)()>(query(0x0150e828));
+            unload = reinterpret_cast<int(__cdecl *)()>(query(0xd22bdd7e));
+            registerResource = reinterpret_cast<Resource>(query(0xa064bdfc));
+            unregisterResource = reinterpret_cast<Resource>(query(0xbb2b17aa));
+            copy = reinterpret_cast<Copy>(query(0x22de03aa));
+            initialized = init && unload && registerResource && unregisterResource && copy && init() == 0;
+            return initialized;
+        }
+        bool acquire(IDirect3DResource9 *resource) {
+            std::lock_guard lock(mutex);
+            auto it = references.find(resource);
+            if (it != references.end()) {
+                ++it->second;
+                return true;
+            }
+            if (registerResource(resource) != 0)
+                return false;
+            references.emplace(resource, 1);
+            return true;
+        }
+        void release(IDirect3DResource9 *resource) {
+            std::lock_guard lock(mutex);
+            auto it = references.find(resource);
+            if (it == references.end())
+                return;
+            if (--it->second == 0) {
+                unregisterResource(resource);
+                references.erase(it);
+            }
+        }
+        ~Backend() {
+            if (initialized)
+                unload();
+            if (module)
+                FreeLibrary(module);
+        }
+        static std::shared_ptr<Backend> get() {
+            static std::mutex gate;
+            static std::weak_ptr<Backend> shared;
+            std::lock_guard lock(gate);
+            auto backend = shared.lock();
+            if (!backend) {
+                backend = std::make_shared<Backend>();
+                if (!backend->initialize())
+                    return {};
+                shared = backend;
+            }
+            return backend;
+        }
+    };
+    IDirect3DDevice9 *device_;
+    std::shared_ptr<Backend> backend_;
+    bool tried_ = false, attempted_ = false, ready_ = false;
     bool sourceRegistered_ = false, destinationRegistered_ = false;
     bool disabled_ = false;
     Com<IDirect3DSurface9> source_;
@@ -22,40 +87,24 @@ class DepthCopy {
     UINT width_ = 0, height_ = 0;
     unsigned bits_ = 16;
     bool driver() {
-        if (tried_)
-            return initialized_;
-        tried_ = true;
-        module_ = LoadLibraryExW(L"nvapi.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
-        if (!module_)
-            return false;
-        auto query =
-            reinterpret_cast<void *(__cdecl *)(unsigned)>(GetProcAddress(module_, "nvapi_QueryInterface"));
-        if (!query)
-            return false;
-        auto initialize = reinterpret_cast<int(__cdecl *)()>(query(0x0150e828));
-        unload_ = reinterpret_cast<int(__cdecl *)()>(query(0xd22bdd7e));
-        register_ = reinterpret_cast<Resource>(query(0xa064bdfc));
-        unregister_ = reinterpret_cast<Resource>(query(0xbb2b17aa));
-        copy_ = reinterpret_cast<Copy>(query(0x22de03aa));
-        initialized_ = initialize && unload_ && register_ && unregister_ && copy_ && initialize() == 0;
-        return initialized_;
+        if (!tried_) {
+            tried_ = true;
+            backend_ = Backend::get();
+        }
+        return backend_ != nullptr;
     }
 
   public:
     explicit DepthCopy(IDirect3DDevice9 *device) : device_(device) {}
     ~DepthCopy() {
         invalidate();
-        if (initialized_)
-            unload_();
-        if (module_)
-            FreeLibrary(module_);
     }
     void invalidate() {
         disabled_ = false;
         if (sourceRegistered_)
-            unregister_(source_);
+            backend_->release(source_);
         if (destinationRegistered_)
-            unregister_(texture_);
+            backend_->release(texture_);
         sourceRegistered_ = destinationRegistered_ = false;
         source_.out();
         texture_.out();
@@ -92,8 +141,8 @@ class DepthCopy {
             }
             source_.p = source.p;
             source_->AddRef();
-            sourceRegistered_ = register_(source_) == 0;
-            destinationRegistered_ = register_(texture_) == 0;
+            sourceRegistered_ = backend_->acquire(source_);
+            destinationRegistered_ = backend_->acquire(texture_);
             if (!sourceRegistered_ || !destinationRegistered_) {
                 invalidate();
                 attempted_ = true;
@@ -110,7 +159,7 @@ class DepthCopy {
         StateGuard state(device_);
         if (!state.valid())
             return false;
-        ready_ = copy_(device_, source_, nullptr, texture_, nullptr, D3DTEXF_NONE) == 0;
+        ready_ = backend_->copy(device_, source_, nullptr, texture_, nullptr, D3DTEXF_NONE) == 0;
         return ready_;
     }
     IDirect3DTexture9 *texture() const {
