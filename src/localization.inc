@@ -9,8 +9,6 @@ UI_TEXT(TimeInputHelp, "Type a time as HH:MM, for example 18:30. Arrows change i
 UI_TEXT(TimeOfDayHelp, "Drag to change the sky and lighting immediately, in one-minute steps. The clock uses the game's pace unless frozen.", "Перетаскивайте для мгновенной смены неба и света с шагом в минуту. Без остановки часы идут в темпе игры.")
 UI_TEXT(FreezeTime, "Freeze time", "Остановить время")
 UI_TEXT(FreezeTimeHelp, "Hold the selected time of day. Movement, animations and gameplay continue normally.", "Зафиксировать выбранное время суток. Движение, анимации и игровой процесс продолжаются как обычно.")
-UI_TEXT(GameTime, "Time follows the game", "Время как в игре")
-UI_TEXT(GameWeather, "Weather follows the game", "Погода как в игре")
 UI_TEXT(WeatherOverride, "Weather", "Погода")
 UI_TEXT(WeatherClear, "Clear", "Ясно")
 UI_TEXT(WeatherRain, "Rain", "Дождь")

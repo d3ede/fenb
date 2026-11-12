@@ -672,10 +672,6 @@ void AntialiasControls(Runtime &r) {
 }
 void EnvironmentControls(Runtime &r) {
     auto &s = r.settings;
-    ImGui::PushTextWrapPos(0);
-    ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(Muted), "%s", Tr(UiText::WorldHelp));
-    ImGui::PopTextWrapPos();
-    ImGui::Dummy({0, 12});
     bool reset = false;
     bool open = Section("world-time", Tr(UiText::TimeOverride), s.timeOverride, reset);
     if (reset) { s.timeMinutes = 720; s.freezeTime = true; }
@@ -690,8 +686,6 @@ void EnvironmentControls(Runtime &r) {
         Tip(Tr(UiText::FreezeTimeHelp));
         TextAt(ImGui::GetWindowDrawList(), {p.x + 25, p.y + 5}, Tr(UiText::FreezeTime));
         ImGui::EndDisabled();
-        if (!s.timeOverride)
-            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(Muted), "%s", Tr(UiText::GameTime));
     }
     ImGui::Dummy({0, 14});
     open = Section("world-weather", Tr(UiText::WeatherOverride), s.weatherOverride, reset);
@@ -711,14 +705,6 @@ void EnvironmentControls(Runtime &r) {
             100, "%.0f%%", 1);
         ImGui::EndDisabled();
         ImGui::EndDisabled();
-        if (!s.weatherOverride)
-            ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(Muted), "%s", Tr(UiText::GameWeather));
-    }
-    if (!r.environmentSupported()) {
-        ImGui::Dummy({0, 14});
-        ImGui::PushTextWrapPos(0);
-        ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(Muted), "%s", Tr(UiText::EnvironmentUnavailable));
-        ImGui::PopTextWrapPos();
     }
 }
 } // namespace
@@ -763,6 +749,7 @@ void DrawPanel(Runtime &r, const PanelBranding &branding) {
     if (ImGui::InvisibleButton("world-tab", {worldWidth, 24}, ImGuiButtonFlags_EnableNav))
         r.editorPage = 4;
     bool worldHovered = ImGui::IsItemHovered();
+    Tip(Tr(r.environmentSupported() ? UiText::WorldHelp : UiText::EnvironmentUnavailable));
     d->AddLine({origin.x + worldX - 6, origin.y + 12}, {origin.x + worldX - 6, origin.y + 27}, Line);
     TextAt(d, {origin.x + worldX + 8, origin.y + 12}, Tr(UiText::WorldTab),
            r.editorPage == 4 ? IM_COL32(217, 199, 245, 255) : worldHovered ? Text : Muted, 14);

@@ -233,12 +233,12 @@ int main() {
     r.centerPanel = true;
     frame(); frame();
     // Holding the track applies every movement before mouse release.
-    mouse(360, 188, true);
+    mouse(360, 161, true);
     auto firstTime = r.settings.timeMinutes;
-    mouse(480, 188, true);
+    mouse(480, 161, true);
     CHECK(r.settings.timeMinutes != firstTime && r.settings.timeMinutes != 1110);
-    mouse(480, 188, false);
-    click(582, 188);
+    mouse(480, 161, false);
+    click(582, 161);
     io.AddKeyEvent(ImGuiMod_Ctrl, true);
     io.AddKeyEvent(ImGuiKey_A, true);
     frame();
@@ -252,23 +252,23 @@ int main() {
     frame();
     io.AddKeyEvent(ImGuiKey_Enter, false);
     frame();
-    click(155, 214);
+    click(155, 187);
     CHECK(!r.settings.freezeTime);
-    click(155, 214);
+    click(155, 187);
     CHECK(r.settings.freezeTime);
-    click(330, 280);
+    click(330, 253);
     CHECK(r.settings.weatherType == 2);
-    mouse(430, 316, true);
+    mouse(430, 289, true);
     auto firstIntensity = r.settings.weatherIntensity;
-    mouse(475, 316, true);
+    mouse(475, 289, true);
     CHECK(r.settings.weatherIntensity != firstIntensity);
-    mouse(475, 316, false);
+    mouse(475, 289, false);
     float retainedIntensity = r.settings.weatherIntensity;
-    click(641, 255);
+    click(641, 228);
     CHECK(!r.settings.weatherOverride && r.settings.timeOverride &&
           r.settings.weatherIntensity == retainedIntensity);
     auto retainedTime = r.settings.timeMinutes;
-    click(641, 161);
+    click(641, 134);
     CHECK(!r.settings.timeOverride && !r.settings.weatherOverride && r.settings.timeMinutes == retainedTime);
     frame();
     CHECK(Screenshot(d, L"artifacts/environment/world-game-en.png"));
