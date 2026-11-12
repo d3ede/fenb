@@ -12,9 +12,10 @@
 
 A graphics mod inspired by ENBSeries, with adjustable effects and an in-game settings panel.
 
-![Windows](https://img.shields.io/badge/Windows-x86%20client-9370DB)
-![DirectX 9](https://img.shields.io/badge/DirectX-9-7864B3)
-![Status](https://img.shields.io/badge/status-in%20development-A397BE)
+[![Release](https://img.shields.io/badge/release-unreleased-7954B4?labelColor=17172D)](https://github.com/d3ede/fenb/releases)
+[![Windows](https://img.shields.io/badge/Windows-x86%20client-7954B4?labelColor=17172D)](https://github.com/d3ede/fenb/releases)
+[![DirectX 9](https://img.shields.io/badge/DirectX-9-7954B4?labelColor=17172D)](https://github.com/d3ede/fenb/releases)
+[![MIT License](https://img.shields.io/badge/license-MIT-7954B4?labelColor=17172D)](LICENSE)
 
 **[Releases](https://github.com/d3ede/fenb/releases)** · [Installation](#installation) · [Report an issue](https://github.com/d3ede/fenb/issues)
 
