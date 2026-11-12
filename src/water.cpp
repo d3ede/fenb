@@ -420,7 +420,8 @@ bool WaterFX::begin(const Settings &s, UINT upStride) {
                        projection._22 > 0;
     bool depth = refract && perspective && (s.waterDepth > 0 || s.waterSSR > 0 || s.waterCaustics > 0) &&
                  depth_.capture(sceneWidth_, sceneHeight_);
-    float optics[] = {depth ? 1.f : 0.f, s.waterDepth, s.waterShore, s.waterSSR};
+    // Shore softness describes the thin contact edge, not a multi-unit band without a surface.
+    float optics[] = {depth ? 1.f : 0.f, s.waterDepth, s.waterShore * .1f, s.waterSSR};
     float camera[] = {projection._11, projection._22, projection._33, projection._43};
     D3DVIEWPORT9 viewport{};
     device_->GetViewport(&viewport);
@@ -438,7 +439,8 @@ bool WaterFX::begin(const Settings &s, UINT upStride) {
     float dir[] = {-light.Direction.x, -light.Direction.y, -light.Direction.z, lit ? 1.f : 0.f};
     float lightColor[] = {light.Diffuse.r, light.Diffuse.g, light.Diffuse.b, 1};
     bool caustics = depth && prepareCaustics(s, v, eye, camera, viewportUV, dir, lightColor);
-    float subsurface[] = {caustics ? 1.f : 0.f, 0, 0, 0};
+    float absorption = -std::log(std::max(.001f, 1 - s.waterOpacity)) * .14f * s.waterDepth;
+    float subsurface[] = {caustics ? 1.f : 0.f, absorption, absorption * .35f, 0};
     DWORD lighting = 0, ambientColor = 0;
     device_->GetRenderState(D3DRS_LIGHTING, &lighting);
     device_->GetRenderState(D3DRS_AMBIENT, &ambientColor);
@@ -479,10 +481,20 @@ bool WaterFX::begin(const Settings &s, UINT upStride) {
     if (!state->valid())
         return false;
     state_ = std::move(state);
+    auto multiply = [](const D3DMATRIX &a, const D3DMATRIX &b) {
+        D3DMATRIX result{};
+        for (int row = 0; row < 4; ++row)
+            for (int column = 0; column < 4; ++column)
+                for (int k = 0; k < 4; ++k)
+                    result.m[row][column] += a.m[row][k] * b.m[k][column];
+        return result;
+    };
+    auto clip = multiply(multiply(matrices[0], matrices[1]), matrices[2]);
     if (FAILED(device_->SetVertexShader(vs_)) || FAILED(device_->SetPixelShader(ps_)) ||
         FAILED(device_->SetVertexShaderConstantF(0, &matrices[0].m[0][0], 12)) ||
         FAILED(device_->SetVertexShaderConstantF(12, eye, 1)) ||
         FAILED(device_->SetVertexShaderConstantF(13, waves, 1)) ||
+        FAILED(device_->SetVertexShaderConstantF(14, &clip.m[0][0], 4)) ||
         FAILED(device_->SetPixelShaderConstantF(0, eye, 1)) ||
         FAILED(device_->SetPixelShaderConstantF(1, surface, 1)) ||
         FAILED(device_->SetPixelShaderConstantF(2, sun, 1)) ||

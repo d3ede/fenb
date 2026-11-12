@@ -3,6 +3,7 @@ row_major float4x4 View : register(c4);
 row_major float4x4 Projection : register(c8);
 float4 EyeTime : register(c12);
 float4 Waves : register(c13); // amplitude, wavelength, speed, range fog
+row_major float4x4 WorldViewProjection : register(c14);
 struct Input {float3 pos:POSITION;float3 normal:NORMAL;float4 color:COLOR0;float2 uv:TEXCOORD0;};
 struct Output {float4 pos:POSITION;float2 uv:TEXCOORD0;float3 world:TEXCOORD1;float3 normal:TEXCOORD2;float fogDepth:TEXCOORD3;float4 color:COLOR0;};
 Output WaterVS(Input v){
@@ -19,6 +20,6 @@ Output WaterVS(Input v){
     // Interpolate camera-relative positions to keep derivatives stable at Neuz world coordinates.
     o.world=w-EyeTime.xyz;o.uv=v.uv;o.color=v.color;
     float4 view=mul(float4(w,1),View);
-    o.fogDepth=lerp(abs(view.z),length(view.xyz),Waves.w);o.pos=mul(view,Projection);
+    o.fogDepth=lerp(abs(view.z),length(view.xyz),Waves.w);o.pos=mul(float4(v.pos,1),WorldViewProjection);
     return o;
 }

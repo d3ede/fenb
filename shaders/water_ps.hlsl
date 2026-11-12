@@ -111,7 +111,7 @@ float4 WaterPS(float2 uv:TEXCOORD0,float3 relative:TEXCOORD1,float3 normal:TEXCO
     if(Optics.x>.5){
         float floorZ=DepthZ(screenUV);
         path=clamp((floorZ-viewPosition.z)*length(viewPosition)/max(.1,viewPosition.z),0,80);
-        shore=smoothstep(0,max(Optics.z,fwidth(path)*2),path);
+        shore=.2+.8*smoothstep(0,max(Optics.z,fwidth(path)*2),path);
         n=normalize(lerp(float3(0,1,0),n,shore));
     }
     if(v.y<0)n=-n;
@@ -148,8 +148,10 @@ float4 WaterPS(float2 uv:TEXCOORD0,float3 relative:TEXCOORD1,float3 normal:TEXCO
             through*=max(0,1+focused*(saturate(path*4)/(1+path*.1))*shore*surface);
         }
         if(Optics.x>.5 && Optics.y>0){
-            float density=-log(max(.001,1-Surface.z))*.14*Optics.y;
-            float3 transmission=exp(-float3(1.5,.48,.27)*path*density);
+            // The original mesh/cutout defines coverage, even on almost coplanar sand flats.
+            // Minimum optical presence belongs to the surface, not to reconstructed floor depth.
+            float opticalDepth=max(path*Subsurface.y,surface*Subsurface.z);
+            float3 transmission=exp(-float3(1.5,.48,.27)*opticalDepth);
             base=through*transmission+body*(1-transmission);
         } else {
             through*=lerp(float3(1,1,1),float3(.78,.96,.98),Surface.z*Sun.z);

@@ -301,7 +301,34 @@ int main(int argc, char **argv) {
         int nearDifference = Difference(bare[sample], shallow[sample]);
         int deepDifference = Difference(bare[sample], deep[sample]);
         printf("Depth absorption: shallow=%d deep=%d\n", nearDifference, deepDifference);
-        CHECK(nearDifference < 8 && deepDifference > nearDifference + 20);
+        CHECK(nearDifference < 20 && deepDifference > nearDifference + 20);
+        // Shallow and coplanar flats keep a visible layer on the original water mesh.
+        // Original geometry/depth testing keeps it off the dry background outside that mesh.
+        auto originalSettings = settings;
+        settings.waterOpacity = .74f;
+        settings.waterDepth = 2;
+        settings.waterShore = 2.35f;
+        settings.waterRipples = .8f;
+        settings.waterSky = .74f;
+        CHECK(render(-.08f, false, false));
+        auto shallowBare = ReadFrame(d);
+        CHECK(render(-.08f, false, true));
+        auto shallowLayer = ReadFrame(d);
+        int layerDifference = Difference(shallowBare[sample], shallowLayer[sample]);
+        CHECK(layerDifference > 10);
+        CHECK(render(0, false, false));
+        auto edgeBare = ReadFrame(d);
+        CHECK(render(0, false, true));
+        auto contact = ReadFrame(d);
+        int contactDifference = Difference(edgeBare[sample], contact[sample]);
+        printf("Shallow layer: %d, zero-depth contact: %d\n", layerDifference, contactDifference);
+        CHECK(contactDifference > 10);
+        CHECK(contact[20 * Width + 20] == edgeBare[20 * Width + 20]);
+        if (reset == 0) {
+            CHECK(Save(shallowBare, L"build/water-shallow-bare.bmp"));
+            CHECK(Save(shallowLayer, L"build/water-shallow-layer.bmp"));
+        }
+        settings = originalSettings;
         // Wave amplitude must not relocate the reflected object across the water.
         settings.waterSky = 0;
         settings.waterRefraction = 0;
