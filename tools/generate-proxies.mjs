@@ -38,6 +38,7 @@ for (const [,type,parent,body] of definitions) {
         const stride = up?names.at(-1):'0';
         const data = up?names[name==='DrawPrimitiveUP'?2:6]:'nullptr';
         before+=`if (${count}) runtime_->beforeDraw(); `;
+        if(name==='DrawPrimitive') before+=`if (${count}) runtime_->environmentDraw(${names[0]},${names[1]},${count});`;
         before+=`\n#ifdef FENB_DIAGNOSTICS\n        runtime_->captureDraw("${name}",${names[0]},${count},${vertices},${stride},${data});\n#endif\n        `;
         before+=`if (${count}) runtime_->beforeWaterDraw(${stride}); `;
         after+=`runtime_->afterWaterDraw(${up},${up&&indexed}); `;

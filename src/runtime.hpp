@@ -40,6 +40,7 @@ class Runtime {
     void settingsChanged();
     bool fpsUnlockSupported() { return fpsLimiter_.supported(); }
     void beforeDraw();
+    void environmentDraw(D3DPRIMITIVETYPE type, UINT start, UINT count);
     void beforeWaterDraw(UINT upStride = 0);
     void afterWaterDraw(bool up = false, bool indexed = false);
     void drawFVF(DWORD value) {

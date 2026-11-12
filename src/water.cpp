@@ -13,26 +13,66 @@ void WaterFX::invalidate() {
     end();
     vs_.out();
     ps_.out();
+    sceneSurface_.out();
+    scene_.out();
+    sceneWidth_ = sceneHeight_ = 0;
+    sceneFormat_ = D3DFMT_UNKNOWN;
+    environment_.out();
+    environmentReady_ = false;
+    environmentFailed_ = false;
+    environmentTime_ = 0;
+    beginFrame();
     failed_ = false;
 }
-bool WaterFX::matches(IDirect3DTexture9 *texture) {
+bool WaterFX::captureScene() {
+    if (sceneAttempted_)
+        return sceneReady_;
+    sceneAttempted_ = true;
+    Com<IDirect3DSurface9> source;
+    D3DSURFACE_DESC desc{};
+    if (FAILED(device_->GetRenderTarget(0, source.out())) || FAILED(source->GetDesc(&desc)) ||
+        (desc.Format != D3DFMT_X8R8G8B8 && desc.Format != D3DFMT_A8R8G8B8))
+        return false;
+    if (!scene_.p || desc.Width != sceneWidth_ || desc.Height != sceneHeight_ ||
+        desc.Format != sceneFormat_) {
+        sceneSurface_.out();
+        scene_.out();
+        if (FAILED(device_->CreateTexture(desc.Width, desc.Height, 1, D3DUSAGE_RENDERTARGET, desc.Format,
+                                          D3DPOOL_DEFAULT, scene_.out(), nullptr)) ||
+            FAILED(scene_->GetSurfaceLevel(0, sceneSurface_.out()))) {
+            scene_.out();
+            return false;
+        }
+        sceneWidth_ = desc.Width;
+        sceneHeight_ = desc.Height;
+        sceneFormat_ = desc.Format;
+    }
+    // Color-only resolve before the first matched water draw, including MSAA sources.
+    // Never copy depth, read back to the CPU, or sample the live render target.
+    sceneReady_ = SUCCEEDED(device_->StretchRect(source, nullptr, sceneSurface_, nullptr, D3DTEXF_NONE));
+    return sceneReady_;
+}
+DWORD WaterFX::classify(IDirect3DTexture9 *texture) {
     DWORD tag = 0, size = sizeof(tag);
     if (SUCCEEDED(texture->GetPrivateData(WaterTag, &tag, &size)) && size == sizeof(tag))
-        return tag == 1;
+        return tag;
     D3DSURFACE_DESC desc{};
     if (FAILED(texture->GetLevelDesc(0, &desc)))
         return false;
     tag = 2;
-    if (desc.Width == 128 && desc.Height == 128 && desc.Pool == D3DPOOL_MANAGED && !desc.Usage &&
-        (desc.Format == D3DFMT_A1R5G5B5 || desc.Format == D3DFMT_DXT1)) {
+    bool waterSize = desc.Width == 128 && desc.Height == 128;
+    bool skySize = (desc.Width == 2048 && desc.Height == 512) || (desc.Width == 512 && desc.Height == 512) ||
+                   (desc.Width == 256 && desc.Height == 256);
+    if ((waterSize || skySize) && desc.Pool == D3DPOOL_MANAGED && !desc.Usage &&
+        ((waterSize && desc.Format == D3DFMT_A1R5G5B5) || desc.Format == D3DFMT_DXT1)) {
         if (!hash_)
             BCryptOpenAlgorithmProvider(&hash_, BCRYPT_SHA256_ALGORITHM, nullptr, 0);
         D3DLOCKED_RECT lock{};
         if (hash_ && SUCCEEDED(texture->LockRect(0, &lock, nullptr, D3DLOCK_READONLY))) {
             BCRYPT_HASH_HANDLE hash = nullptr;
             if (BCryptCreateHash(hash_, &hash, nullptr, 0, nullptr, 0, 0) >= 0) {
-                UINT rows = desc.Format == D3DFMT_DXT1 ? 32 : 128,
-                     bytes = desc.Format == D3DFMT_DXT1 ? 256 : 256;
+                UINT rows = desc.Format == D3DFMT_DXT1 ? (desc.Height + 3) / 4 : desc.Height,
+                     bytes = desc.Format == D3DFMT_DXT1 ? ((desc.Width + 3) / 4) * 8 : desc.Width * 2;
                 bool ok = true;
                 for (UINT y = 0; y < rows; ++y)
                     if (BCryptHashData(hash, (PUCHAR)lock.pBits + size_t(y) * lock.Pitch, bytes, 0) < 0) {
@@ -40,12 +80,17 @@ bool WaterFX::matches(IDirect3DTexture9 *texture) {
                         break;
                     }
                 unsigned char digest[32]{};
-                if (ok && BCryptFinishHash(hash, digest, 32, 0) >= 0)
+                if (ok && BCryptFinishHash(hash, digest, 32, 0) >= 0) {
                     for (auto &known : WaterHashes)
-                        if (!memcmp(digest, known, 32)) {
+                        if (!memcmp(digest, known, 32))
                             tag = 1;
-                            break;
-                        }
+                    for (auto &known : SkyHashes)
+                        if (!memcmp(digest, known, 32))
+                            tag = 3;
+                    for (auto &known : CloudHashes)
+                        if (!memcmp(digest, known, 32))
+                            tag = 4;
+                }
                 BCryptDestroyHash(hash);
             }
             texture->UnlockRect(0);
@@ -53,7 +98,85 @@ bool WaterFX::matches(IDirect3DTexture9 *texture) {
             return false; // transient lock failure: do not permanently blacklist the resource
     }
     texture->SetPrivateData(WaterTag, &tag, sizeof(tag), 0);
-    return tag == 1;
+    return tag;
+}
+void WaterFX::captureEnvironment(D3DPRIMITIVETYPE type, UINT start, UINT count) {
+    if (state_ || environmentFailed_)
+        return;
+    Com<IDirect3DPixelShader9> ps;
+    Com<IDirect3DBaseTexture9> texture;
+    DWORD z = 1, write = 1;
+    device_->GetRenderState(D3DRS_ZENABLE, &z);
+    device_->GetRenderState(D3DRS_ZWRITEENABLE, &write);
+    if (z || write || FAILED(device_->GetPixelShader(ps.out())) || ps.p ||
+        FAILED(device_->GetTexture(0, texture.out())) || !texture.p || texture->GetType() != D3DRTYPE_TEXTURE)
+        return;
+    DWORD tag = classify(static_cast<IDirect3DTexture9 *>(texture.p));
+    if (tag != 3 && tag != 4)
+        return;
+    D3DMATRIX view{}, projection{};
+    if (FAILED(device_->GetTransform(D3DTS_VIEW, &view)) ||
+        FAILED(device_->GetTransform(D3DTS_PROJECTION, &projection)) ||
+        std::abs(view._41) + std::abs(view._42) + std::abs(view._43) > .001f ||
+        std::abs(projection._34 - 1) > .001f)
+        return;
+    if (tag == 3) {
+        skySeen_ = true;
+        environmentUpdating_ =
+            !environment_.p || !environmentReady_ || GetTickCount() - environmentTime_ >= 250;
+        if (environmentUpdating_)
+            environmentReady_ = false;
+    }
+    if (!skySeen_ || !environmentUpdating_)
+        return;
+    if (!environment_.p && FAILED(device_->CreateCubeTexture(128, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8,
+                                                             D3DPOOL_DEFAULT, environment_.out(), nullptr))) {
+        environmentFailed_ = true;
+        return;
+    }
+    StateGuard state(device_);
+    if (!state.valid())
+        return;
+    state.isolateTargets();
+    device_->SetTexture(2, nullptr);
+    device_->SetRenderState(D3DRS_SCISSORTESTENABLE, FALSE);
+    device_->SetRenderState(D3DRS_STENCILENABLE, FALSE);
+    device_->SetRenderState(D3DRS_CLIPPLANEENABLE, 0);
+    D3DMATRIX cubeProjection{};
+    cubeProjection._11 = cubeProjection._22 = 1;
+    cubeProjection._33 = projection._33;
+    cubeProjection._34 = 1;
+    cubeProjection._43 = projection._43;
+    device_->SetTransform(D3DTS_PROJECTION, &cubeProjection);
+    constexpr float directions[6][3] = {{1, 0, 0}, {-1, 0, 0}, {0, 1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}};
+    constexpr float ups[6][3] = {{0, 1, 0}, {0, 1, 0}, {0, 0, -1}, {0, 0, 1}, {0, 1, 0}, {0, 1, 0}};
+    DWORD fog = 0;
+    device_->GetRenderState(D3DRS_FOGCOLOR, &fog);
+    bool ok = true;
+    for (UINT face = 0; face < 6; ++face) {
+        Com<IDirect3DSurface9> target;
+        const auto &f = directions[face], &u = ups[face];
+        float right[] = {u[1] * f[2] - u[2] * f[1], u[2] * f[0] - u[0] * f[2], u[0] * f[1] - u[1] * f[0]};
+        D3DMATRIX m{};
+        for (int axis = 0; axis < 3; ++axis) {
+            m.m[axis][0] = right[axis];
+            m.m[axis][1] = u[axis];
+            m.m[axis][2] = f[axis];
+        }
+        m._44 = 1;
+        D3DVIEWPORT9 vp{0, 0, 128, 128, 0, 1};
+        if (FAILED(environment_->GetCubeMapSurface(D3DCUBEMAP_FACES(face), 0, target.out())) ||
+            FAILED(device_->SetRenderTarget(0, target)) || FAILED(device_->SetViewport(&vp)) ||
+            FAILED(device_->SetTransform(D3DTS_VIEW, &m)) ||
+            (tag == 3 && FAILED(device_->Clear(0, nullptr, D3DCLEAR_TARGET, fog | 0xff000000, 1, 0))) ||
+            FAILED(device_->DrawPrimitive(type, start, count))) {
+            ok = false;
+            break;
+        }
+    }
+    environmentReady_ = ok;
+    if (ok)
+        environmentTime_ = GetTickCount();
 }
 bool WaterFX::begin(const Settings &s, UINT upStride) {
     if (failed_ || state_)
@@ -80,7 +203,7 @@ bool WaterFX::begin(const Settings &s, UINT upStride) {
     Com<IDirect3DBaseTexture9> base;
     if (FAILED(device_->GetTexture(0, base.out())) || !base.p || base->GetType() != D3DRTYPE_TEXTURE)
         return false;
-    if (!matches(static_cast<IDirect3DTexture9 *>(base.p)))
+    if (classify(static_cast<IDirect3DTexture9 *>(base.p)) != 1)
         return false;
     D3DMATRIX matrices[3]{};
     if (FAILED(device_->GetTransform(D3DTS_WORLD, &matrices[0])) ||
@@ -103,6 +226,16 @@ bool WaterFX::begin(const Settings &s, UINT upStride) {
     float waves[] = {s.waterWaves, s.waterLength, s.waterSpeed, rangeFog ? 1.f : 0.f};
     float surface[] = {s.waterRipples, s.waterRippleScale, s.waterOpacity, s.waterSky};
     float sun[] = {s.waterGlints, s.waterGloss, s.waterTint, s.waterSpeed};
+    bool refract = s.waterRefraction > 0 && captureScene();
+    if (s.waterRefraction == 0 && scene_.p) {
+        sceneSurface_.out();
+        scene_.out();
+        sceneReady_ = false;
+    }
+    float screen[] = {sceneWidth_ ? 1.f / sceneWidth_ : 0, sceneHeight_ ? 1.f / sceneHeight_ : 0,
+                      refract ? 1.f : 0.f, s.waterRefraction};
+    bool environment = s.waterSky > 0 && skySeen_ && environmentReady_ && environment_.p;
+    float detail[] = {s.waterTexture, s.waterWaves, s.waterLength, environment ? 1.f : 0.f};
     D3DLIGHT9 light{};
     BOOL on = FALSE;
     bool lit = SUCCEEDED(device_->GetLight(0, &light)) && SUCCEEDED(device_->GetLightEnable(0, &on)) && on &&
@@ -139,10 +272,23 @@ bool WaterFX::begin(const Settings &s, UINT upStride) {
         FAILED(device_->SetPixelShaderConstantF(4, lightColor, 1)) ||
         FAILED(device_->SetPixelShaderConstantF(5, fogColor, 1)) ||
         FAILED(device_->SetPixelShaderConstantF(6, fog, 1)) ||
-        FAILED(device_->SetPixelShaderConstantF(7, extra, 1))) {
+        FAILED(device_->SetPixelShaderConstantF(7, extra, 1)) ||
+        FAILED(device_->SetPixelShaderConstantF(8, screen, 1)) ||
+        FAILED(device_->SetPixelShaderConstantF(9, detail, 1)) ||
+        FAILED(device_->SetPixelShaderConstantF(10, &matrices[1].m[0][0], 4)) ||
+        FAILED(device_->SetTexture(1, refract ? scene_.p : nullptr)) ||
+        FAILED(device_->SetTexture(2, environment ? environment_.p : nullptr))) {
         end();
         return false;
     }
     device_->SetRenderState(D3DRS_FOGENABLE, FALSE); // PS performs the original fog exactly once
+    for (DWORD sampler : {1u, 2u}) {
+        for (auto key : {D3DSAMP_MINFILTER, D3DSAMP_MAGFILTER})
+            device_->SetSamplerState(sampler, key, D3DTEXF_LINEAR);
+        device_->SetSamplerState(sampler, D3DSAMP_MIPFILTER, D3DTEXF_NONE);
+        device_->SetSamplerState(sampler, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
+        device_->SetSamplerState(sampler, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
+        device_->SetSamplerState(sampler, D3DSAMP_SRGBTEXTURE, FALSE);
+    }
     return true;
 }

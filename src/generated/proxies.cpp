@@ -389,7 +389,7 @@ public:
     WINBOOL STDMETHODCALLTYPE GetSoftwareVertexProcessing() noexcept override { return real_->GetSoftwareVertexProcessing(); }
     HRESULT STDMETHODCALLTYPE SetNPatchMode(float nSegments) noexcept override { auto hr = real_->SetNPatchMode(nSegments); return hr; }
     float STDMETHODCALLTYPE GetNPatchMode() noexcept override { return real_->GetNPatchMode(); }
-    HRESULT STDMETHODCALLTYPE DrawPrimitive(D3DPRIMITIVETYPE PrimitiveType, UINT StartVertex, UINT PrimitiveCount) noexcept override { if (PrimitiveCount) runtime_->beforeDraw(); 
+    HRESULT STDMETHODCALLTYPE DrawPrimitive(D3DPRIMITIVETYPE PrimitiveType, UINT StartVertex, UINT PrimitiveCount) noexcept override { if (PrimitiveCount) runtime_->beforeDraw(); if (PrimitiveCount) runtime_->environmentDraw(PrimitiveType,StartVertex,PrimitiveCount);
 #ifdef FENB_DIAGNOSTICS
         runtime_->captureDraw("DrawPrimitive",PrimitiveType,PrimitiveCount,0,0,nullptr);
 #endif
@@ -577,7 +577,7 @@ public:
     WINBOOL STDMETHODCALLTYPE GetSoftwareVertexProcessing() noexcept override { return real_->GetSoftwareVertexProcessing(); }
     HRESULT STDMETHODCALLTYPE SetNPatchMode(float segment_count) noexcept override { auto hr = real_->SetNPatchMode(segment_count); return hr; }
     float STDMETHODCALLTYPE GetNPatchMode() noexcept override { return real_->GetNPatchMode(); }
-    HRESULT STDMETHODCALLTYPE DrawPrimitive(D3DPRIMITIVETYPE primitive_type, UINT start_vertex, UINT primitive_count) noexcept override { if (primitive_count) runtime_->beforeDraw(); 
+    HRESULT STDMETHODCALLTYPE DrawPrimitive(D3DPRIMITIVETYPE primitive_type, UINT start_vertex, UINT primitive_count) noexcept override { if (primitive_count) runtime_->beforeDraw(); if (primitive_count) runtime_->environmentDraw(primitive_type,start_vertex,primitive_count);
 #ifdef FENB_DIAGNOSTICS
         runtime_->captureDraw("DrawPrimitive",primitive_type,primitive_count,0,0,nullptr);
 #endif

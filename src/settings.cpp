@@ -34,6 +34,8 @@ void Settings::resetWater() {
     waterGlints = d.waterGlints;
     waterGloss = d.waterGloss;
     waterTint = d.waterTint;
+    waterRefraction = d.waterRefraction;
+    waterTexture = d.waterTexture;
 }
 
 void Settings::sanitize() {
@@ -64,6 +66,8 @@ void Settings::sanitize() {
     range(waterGlints, 0, 2, .65f);
     range(waterGloss, 0, 1, .65f);
     range(waterTint, 0, 1, .25f);
+    range(waterRefraction, 0, 1, .35f);
+    range(waterTexture, 0, 1, .05f);
 }
 
 bool Settings::load(const std::wstring &path) {
@@ -107,6 +111,8 @@ bool Settings::load(const std::wstring &path) {
                                     READ_FLOAT("water_glints", waterGlints)
                                         READ_FLOAT("water_gloss", waterGloss)
                                             READ_FLOAT("water_tint", waterTint)
+        READ_FLOAT("water_refraction", waterRefraction)
+        READ_FLOAT("water_texture", waterTexture)
 #undef READ_BOOL
 #undef READ_FLOAT
     }
@@ -133,11 +139,11 @@ bool Settings::save(const std::wstring &path) const {
         "6f\ngamma=%.6f\nshadows=%.6f\nhighlights=%.6f\n"
         "\n[WaterFX]\nwater=%d\nwater_waves=%.6f\nwater_length=%.6f\nwater_speed=%.6f\nwater_ripples=%."
         "6f\nwater_ripple_scale=%.6f\nwater_opacity=%.6f\nwater_sky=%.6f\nwater_glints=%.6f\nwater_gloss=%."
-        "6f\nwater_tint=%.6f\n",
+        "6f\nwater_tint=%.6f\nwater_refraction=%.6f\nwater_texture=%.6f\n",
         enabled, openOnStart, panelPage, unlockFps, bloom, bloomStrength, threshold, knee, radius, bloomScale,
         color, exposure, contrast, saturation, temperature, tint, gamma, shadows, highlights, water,
         waterWaves, waterLength, waterSpeed, waterRipples, waterRippleScale, waterOpacity, waterSky,
-        waterGlints, waterGloss, waterTint);
+        waterGlints, waterGloss, waterTint, waterRefraction, waterTexture);
     bool ok = written > 0 && !ferror(file);
     if (fclose(file) != 0)
         ok = false;

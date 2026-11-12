@@ -5,9 +5,10 @@
 int main() {
     {
         Settings section;section.enabled=false;section.unlockFps=true;section.color=false;section.bloom=false;
-        section.waterOpacity=.9f;section.exposure=1;section.bloomScale=2;
+        section.waterOpacity=.9f;section.waterRefraction=.9f;section.waterTexture=.9f;section.exposure=1;section.bloomScale=2;
         section.resetBloom();CHECK(section.bloomScale==4&&section.exposure==1&&section.waterOpacity==.9f&&!section.bloom);
         section.resetWater();CHECK(section.waterOpacity==Settings{}.waterOpacity&&section.exposure==1);
+        CHECK(section.waterRefraction==Settings{}.waterRefraction&&section.waterTexture==Settings{}.waterTexture);
         section.resetColor();CHECK(section.exposure==0&&!section.color&&!section.enabled&&section.unlockFps);
     }
     Settings s;
@@ -20,15 +21,18 @@ int main() {
     s.preset(2); s.enabled=false; s.shadows=-.25f;
     CHECK(s.unlockFps); // Visual presets preserve the independent performance setting.
     s.water=false;s.waterWaves=.075f;s.waterGlints=1.4f;s.waterOpacity=.3f;
+    s.waterRefraction=.72f;s.waterTexture=.18f;
     CHECK(s.save(path));
     Settings loaded; CHECK(loaded.load(path));
     CHECK(loaded.unlockFps);
     CHECK(!loaded.enabled && loaded.temperature==s.temperature && loaded.shadows==s.shadows);
     CHECK(!loaded.water&&loaded.waterWaves==s.waterWaves&&loaded.waterGlints==s.waterGlints&&loaded.waterOpacity==s.waterOpacity);
+    CHECK(loaded.waterRefraction==s.waterRefraction&&loaded.waterTexture==s.waterTexture);
     FILE* file=_wfopen(path.c_str(),L"wb"); CHECK(file);
     fputs("exposure=nan\ngamma=0\nbloom_scale=1e35\nsaturation=999\nunknown=3\nwater_length=0\nwater_waves=99\nwater_opacity=nan\n",file); fclose(file);
     CHECK(loaded.load(path));
     CHECK(!loaded.unlockFps); // Old INIs opt out rather than silently changing game pacing.
+    CHECK(loaded.waterRefraction==Settings{}.waterRefraction&&loaded.waterTexture==Settings{}.waterTexture);
     CHECK(loaded.exposure==0 && loaded.gamma==.5f && loaded.bloomScale==4 && loaded.saturation==2);
     CHECK(loaded.waterLength==1&&loaded.waterWaves==.15f&&loaded.waterOpacity==.55f);
     CHECK(!loaded.save(L"build\\missing-directory\\config.ini"));

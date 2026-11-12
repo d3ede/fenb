@@ -147,6 +147,8 @@ void Runtime::afterPresent(HRESULT result) {
 void Runtime::resetFrame() {
     lastWaterDraws = waterDraws;
     waterDraws = 0;
+    water_->beginFrame(settings.enabled && settings.water && !compare && settings.waterRefraction > 0,
+                       settings.enabled && settings.water && !compare && settings.waterSky > 0);
     Drop(sceneBackbuffer_);
     drawTarget_ = nullptr;
     sawWorld_ = hudStarted_ = false;
@@ -158,6 +160,12 @@ void Runtime::beforeWaterDraw(UINT upStride) {
         return;
     if (water_->begin(settings, upStride))
         ++waterDraws;
+}
+void Runtime::environmentDraw(D3DPRIMITIVETYPE type, UINT start, UINT count) {
+    if (lost_ || hudStarted_ || !settings.enabled || !settings.water || settings.waterSky <= 0 || compare ||
+        vertexShaderActive_ || !fvfKnown_ || drawFVF_ != 0x142 || !sceneBackbuffer_ || drawTarget_ != sceneBackbuffer_)
+        return;
+    water_->captureEnvironment(type, start, count);
 }
 void Runtime::afterWaterDraw(bool up, bool indexed) {
     water_->end(up, indexed);
@@ -305,7 +313,7 @@ void Runtime::beforePresent(IDirect3DSwapChain9 *provided, DWORD flags, HWND win
     device_->EndScene();
 }
 double Runtime::gpuBytes() const {
-    return double(effects_->bytes());
+    return double(effects_->bytes() + water_->bytes());
 }
 #ifdef FENB_DIAGNOSTICS
 void Runtime::requestCapture() {

@@ -15,6 +15,16 @@ void Log(const char *s) {
     puts(s);
 }
 DWORD Pixel(IDirect3DDevice9 *d, IDirect3DSurface9 *bb) {
+    D3DSURFACE_DESC desc{};
+    bb->GetDesc(&desc);
+    Com<IDirect3DSurface9> resolved;
+    if (desc.MultiSampleType != D3DMULTISAMPLE_NONE) {
+        if (FAILED(d->CreateRenderTarget(320, 240, desc.Format, D3DMULTISAMPLE_NONE, 0, FALSE, resolved.out(),
+                                         nullptr)) ||
+            FAILED(d->StretchRect(bb, nullptr, resolved, nullptr, D3DTEXF_NONE)))
+            return 0;
+        bb = resolved;
+    }
     Com<IDirect3DSurface9> read;
     if (FAILED(d->CreateOffscreenPlainSurface(320, 240, D3DFMT_X8R8G8B8, D3DPOOL_SYSTEMMEM, read.out(),
                                               nullptr)))
@@ -28,7 +38,7 @@ DWORD Pixel(IDirect3DDevice9 *d, IDirect3DSurface9 *bb) {
     read->UnlockRect();
     return pixel & 0xffffff;
 }
-int main() {
+int main(int argc, char **) {
     FILE *file = _wfopen(L"X:\\Games\\Homesickness\\World\\Texture\\water_HarAni0041.dds", L"rb");
     if (!file) {
         puts("SKIP: optional installed water DDS fixture is absent");
@@ -58,6 +68,15 @@ int main() {
     pp.hDeviceWindow = window;
     pp.EnableAutoDepthStencil = TRUE;
     pp.AutoDepthStencilFormat = D3DFMT_D16;
+    if (argc > 1) {
+        if (FAILED(root->CheckDeviceMultiSampleType(0, D3DDEVTYPE_HAL, pp.BackBufferFormat, TRUE,
+                                                    D3DMULTISAMPLE_8_SAMPLES, nullptr))) {
+            puts("SKIP: 8x MSAA water fixture is not supported");
+            return 0;
+        }
+        pp.MultiSampleType = D3DMULTISAMPLE_8_SAMPLES;
+        pp.SwapEffect = D3DSWAPEFFECT_DISCARD;
+    }
     Com<IDirect3DDevice9> d;
     CHECK(SUCCEEDED(
         root->CreateDevice(0, D3DDEVTYPE_HAL, window, D3DCREATE_HARDWARE_VERTEXPROCESSING, &pp, d.out())));
@@ -71,6 +90,20 @@ int main() {
     for (int y = 0; y < 128; ++y)
         memcpy((BYTE *)lock.pBits + y * lock.Pitch, pixels.data() + y * 256, 256);
     texture->UnlockRect(0);
+    Com<IDirect3DTexture9> skyTexture;
+    FILE *skyFile = _wfopen(L"X:\\Games\\Homesickness\\Weather\\skybox01.dds", L"rb");
+    CHECK(skyFile);
+    unsigned char skyHeader[128]{};
+    CHECK(fread(skyHeader, 1, 128, skyFile) == 128);
+    std::vector<unsigned char> skyPixels(2048 * 512 / 2);
+    CHECK(fread(skyPixels.data(), 1, skyPixels.size(), skyFile) == skyPixels.size());
+    fclose(skyFile);
+    CHECK(SUCCEEDED(
+        d->CreateTexture(2048, 512, 1, 0, D3DFMT_DXT1, D3DPOOL_MANAGED, skyTexture.out(), nullptr)));
+    CHECK(SUCCEEDED(skyTexture->LockRect(0, &lock, nullptr, 0)));
+    for (int y = 0; y < 128; ++y)
+        memcpy((BYTE *)lock.pBits + y * lock.Pitch, skyPixels.data() + y * 4096, 4096);
+    skyTexture->UnlockRect(0);
     CHECK(SUCCEEDED(other->LockRect(0, &lock, nullptr, 0)));
     for (int y = 0; y < 128; ++y)
         memset((BYTE *)lock.pBits + y * lock.Pitch, 0xff, 256);
@@ -130,6 +163,7 @@ int main() {
         texture->FreePrivateData(WaterTag);
         DWORD previousPixel = 0;
         for (float opacity : {.2f, .9f}) {
+            water.beginFrame();
             settings.waterOpacity = opacity;
             d->Clear(0, nullptr, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, 0xff204060, 1, 0);
             CHECK(SUCCEEDED(d->BeginScene()));
@@ -161,6 +195,7 @@ int main() {
         CHECK(SUCCEEDED(d->LightEnable(0, TRUE)));
         DWORD unlit = 0;
         for (float strength : {0.f, 1.f}) {
+            water.beginFrame();
             settings.waterGlints = strength;
             d->Clear(0, nullptr, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, 0xff204060, 1, 0);
             d->BeginScene();
@@ -175,6 +210,54 @@ int main() {
                 CHECK((result & 255) > (unlit & 255) + 20);
         }
         d->LightEnable(0, FALSE);
+        // Copy exactly once per frame, never recursively refract the previous water draw.
+        settings.waterGlints = 0;
+        settings.waterRefraction = .5f;
+        settings.waterTexture = 0;
+        settings.waterRipples = 0;
+        settings.waterOpacity = .35f;
+        water.beginFrame();
+        auto renderWater = [&]() {
+            d->BeginScene();
+            bool ok = water.begin(settings);
+            if (ok)
+                d->DrawPrimitive(D3DPT_TRIANGLESTRIP, 0, 2);
+            water.end();
+            d->EndScene();
+            return ok;
+        };
+        d->Clear(0, nullptr, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, 0xffc03020, 1, 0);
+        CHECK(renderWater());
+        CHECK(water.bytes() == 320 * 240 * 4);
+        DWORD firstFrame = Pixel(d, bb);
+        CHECK(renderWater() && Pixel(d, bb) == firstFrame);
+        water.beginFrame();
+        d->Clear(0, nullptr, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, 0xff2040d0, 1, 0);
+        CHECK(renderWater() && Pixel(d, bb) != firstFrame); // Fresh scene, not stale color.
+        // Scene sampler state belongs to the game after the replacement returns.
+        d->SetTexture(1, other);
+        d->SetSamplerState(1, D3DSAMP_MINFILTER, D3DTEXF_POINT);
+        CHECK(renderWater());
+        Com<IDirect3DBaseTexture9> restoredTexture;
+        DWORD restoredFilter = 0;
+        d->GetTexture(1, restoredTexture.out());
+        d->GetSamplerState(1, D3DSAMP_MINFILTER, &restoredFilter);
+        CHECK(restoredTexture.p == other.p && restoredFilter == D3DTEXF_POINT);
+        water.beginFrame();
+        settings.waterRipples = .8f;
+        settings.waterSpeed = 0;
+        for (LONG x = 0; x < 320; ++x) {
+            RECT stripe{x, 0, x + 1, 240};
+            CHECK(SUCCEEDED(d->ColorFill(bb, &stripe, (x & 1) ? 0xffffffff : 0xff101010)));
+        }
+        settings.waterRefraction = .05f;
+        CHECK(renderWater());
+        DWORD smallDistortion = Pixel(d, bb);
+        settings.waterRefraction = 1;
+        CHECK(renderWater() && Pixel(d, bb) != smallDistortion); // The normal moves the actual scene sample.
+        settings.waterRipples = 0;
+        settings.waterRefraction = 0;
+        CHECK(renderWater() && water.bytes() == 0); // Zero really releases the scene target.
         Com<IDirect3DIndexBuffer9> ib;
         CHECK(SUCCEEDED(d->CreateIndexBuffer(12, 0, D3DFMT_INDEX16, D3DPOOL_MANAGED, ib.out(), nullptr)));
         WORD indices[] = {0, 1, 2, 2, 1, 3};
@@ -197,6 +280,92 @@ int main() {
             CHECK(SUCCEEDED(d->GetIndices(bound.out())));
             CHECK(indexed ? !bound.p : bound.p == ib.p);
         }
+        {
+            struct SkyVertex {
+                float x, y, z;
+                DWORD color;
+                float u, v;
+            };
+            SkyVertex skyVertices[] = {{-10, 10, -10, 0xffffffff, 0, 0}, {10, 10, -10, 0xffffffff, 1, 0},
+                                       {-10, 10, 10, 0xffffffff, 0, 1},  {-10, 10, 10, 0xffffffff, 0, 1},
+                                       {10, 10, -10, 0xffffffff, 1, 0},  {10, 10, 10, 0xffffffff, 1, 1}};
+            Com<IDirect3DVertexBuffer9> skyVB;
+            CHECK(SUCCEEDED(d->CreateVertexBuffer(sizeof(skyVertices), D3DUSAGE_WRITEONLY, 0x142,
+                                                  D3DPOOL_MANAGED, skyVB.out(), nullptr)));
+            void *skyData = nullptr;
+            CHECK(SUCCEEDED(skyVB->Lock(0, 0, &skyData, 0)));
+            memcpy(skyData, skyVertices, sizeof(skyVertices));
+            skyVB->Unlock();
+            D3DMATRIX skyProjection{};
+            skyProjection._11 = skyProjection._22 = 1;
+            skyProjection._33 = 100.f / 99.9f;
+            skyProjection._34 = 1;
+            skyProjection._43 = -.1f * 100 / 99.9f;
+            d->SetFVF(0x142);
+            d->SetStreamSource(0, skyVB, 0, sizeof(SkyVertex));
+            d->SetTexture(0, skyTexture);
+            d->SetTransform(D3DTS_VIEW, &id);
+            d->SetTransform(D3DTS_PROJECTION, &skyProjection);
+            d->SetRenderState(D3DRS_ZENABLE, FALSE);
+            d->SetRenderState(D3DRS_ZWRITEENABLE, FALSE);
+            d->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
+            d->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
+            d->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+            d->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
+            d->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
+            DWORD beforeCapture = Pixel(d, bb);
+            water.beginFrame();
+            d->BeginScene();
+            water.captureEnvironment(D3DPT_TRIANGLELIST, 0, 2);
+            d->EndScene();
+            CHECK(Pixel(d, bb) == beforeCapture); // Repeated sky draws never touch the real scene.
+            CHECK(water.bytes() == 128 * 128 * 4 * 6);
+            Com<IDirect3DSurface9> restoredTarget, restoredDepth;
+            d->GetRenderTarget(0, restoredTarget.out());
+            d->GetDepthStencilSurface(restoredDepth.out());
+            CHECK(restoredTarget.p == bb.p && restoredDepth.p);
+            D3DVIEWPORT9 restoredViewport{};
+            d->GetViewport(&restoredViewport);
+            CHECK(restoredViewport.Width == 320 && restoredViewport.Height == 240);
+            d->SetFVF(0x152);
+            d->SetStreamSource(0, vb, 0, 36);
+            d->SetTexture(0, texture);
+            d->SetTransform(D3DTS_VIEW, &view);
+            d->SetTransform(D3DTS_PROJECTION, &projection);
+            d->SetRenderState(D3DRS_ZENABLE, TRUE);
+            d->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+            d->BeginScene();
+            CHECK(water.begin(settings));
+            float details[4]{};
+            d->GetPixelShaderConstantF(9, details, 1);
+            CHECK(details[3] == 1); // The actual sky capture, not the analytic fallback, is selected.
+            Com<IDirect3DBaseTexture9> capturedSky;
+            d->GetTexture(2, capturedSky.out());
+            CHECK(capturedSky.p && capturedSky->GetType() == D3DRTYPE_CUBETEXTURE);
+            d->DrawPrimitive(D3DPT_TRIANGLESTRIP, 0, 2);
+            water.end();
+            d->EndScene();
+            Com<IDirect3DSurface9> skyFace, skyRead;
+            auto *cube = static_cast<IDirect3DCubeTexture9 *>(capturedSky.p);
+            CHECK(SUCCEEDED(cube->GetCubeMapSurface(D3DCUBEMAP_FACE_POSITIVE_Y, 0, skyFace.out())));
+            CHECK(SUCCEEDED(d->CreateOffscreenPlainSurface(128, 128, D3DFMT_A8R8G8B8, D3DPOOL_SYSTEMMEM,
+                                                           skyRead.out(), nullptr)));
+            CHECK(SUCCEEDED(d->GetRenderTargetData(skyFace, skyRead)));
+            D3DLOCKED_RECT skyLock{};
+            CHECK(SUCCEEDED(skyRead->LockRect(&skyLock, nullptr, D3DLOCK_READONLY)));
+            DWORD cubePixel = *(DWORD *)((BYTE *)skyLock.pBits + 64 * skyLock.Pitch + 64 * 4);
+            skyRead->UnlockRect();
+            CHECK((cubePixel & 0xffffff) != 0);
+            water.beginFrame(); // A different/unknown sky next frame must not display stale reflections.
+            d->BeginScene();
+            CHECK(water.begin(settings));
+            d->GetPixelShaderConstantF(9, details, 1);
+            CHECK(details[3] == 0);
+            water.end();
+            d->EndScene();
+            water.beginFrame(false, false);
+            CHECK(water.bytes() == 0);
+        }
         // Surface uploads must invalidate the owning texture's classification too.
         d->SetStreamSource(0, vb, 0, 36);
         Com<IDirect3DSurface9> level;
@@ -217,6 +386,8 @@ int main() {
         CHECK(SUCCEEDED(d->Reset(&pp)));
     }
     DestroyWindow(window);
+    printf("Water scene-copy fixture: MSAA=%d\n", int(pp.MultiSampleType));
     puts("PASS: exact water texture selection, unrelated material skipped, WRITEONLY VB, shader state "
-         "restored, transparency, reset/recreation.");
+         "restored, transparency, single scene capture, fresh frames, zero-cost refraction off, "
+         "reset/recreation.");
 }

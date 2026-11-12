@@ -13,6 +13,7 @@ struct Settings {
     float waterRipples = .35f, waterRippleScale = 2.f;
     float waterOpacity = .55f, waterSky = .25f, waterGlints = .65f, waterGloss = .65f;
     float waterTint = .25f;
+    float waterRefraction = .35f, waterTexture = .05f;
     bool openOnStart = false;
     bool unlockFps = false;
     int panelPage = 0;

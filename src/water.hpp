@@ -19,15 +19,42 @@ class WaterFX {
     IDirect3DDevice9 *device_;
     Com<IDirect3DVertexShader9> vs_;
     Com<IDirect3DPixelShader9> ps_;
+    Com<IDirect3DTexture9> scene_;
+    Com<IDirect3DSurface9> sceneSurface_;
+    Com<IDirect3DCubeTexture9> environment_;
+    bool skySeen_ = false, environmentReady_ = false, environmentUpdating_ = false;
+    bool environmentFailed_ = false;
+    DWORD environmentTime_ = 0;
+    UINT sceneWidth_ = 0, sceneHeight_ = 0;
+    D3DFORMAT sceneFormat_ = D3DFMT_UNKNOWN;
+    bool sceneAttempted_ = false, sceneReady_ = false;
     std::unique_ptr<StateGuard> state_;
     BCRYPT_ALG_HANDLE hash_ = nullptr;
     bool failed_ = false;
-    bool matches(IDirect3DTexture9 *texture);
+    DWORD classify(IDirect3DTexture9 *texture);
+    bool captureScene();
 
   public:
     explicit WaterFX(IDirect3DDevice9 *device) : device_(device) {}
     ~WaterFX();
     bool begin(const Settings &settings, UINT upStride = 0);
+    void captureEnvironment(D3DPRIMITIVETYPE type, UINT start, UINT count);
+    void beginFrame(bool refraction = true, bool sky = true) {
+        sceneAttempted_ = sceneReady_ = false;
+        skySeen_ = environmentUpdating_ = false;
+        if (!sky) {
+            environment_.out();
+            environmentReady_ = false;
+        }
+        if (!refraction) {
+            sceneSurface_.out();
+            scene_.out();
+        }
+    }
+    size_t bytes() const {
+        return (scene_.p ? size_t(sceneWidth_) * sceneHeight_ * 4 : 0) +
+               (environment_.p ? 128 * 128 * 4 * 6 : 0);
+    }
     void end(bool up = false, bool indexed = false) {
         const bool replaced = state_ != nullptr;
         state_.reset();
