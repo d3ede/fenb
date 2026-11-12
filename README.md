@@ -42,6 +42,7 @@ A graphics mod inspired by ENBSeries, with adjustable effects and an in-game set
 1. Close the game. Use a packaged FENB build from [Releases](https://github.com/d3ede/fenb/releases), when available, or the `dist/` output of a local build.
 2. Copy **`d3d9.dll`** and **`FENB.ini`** into the game folder, beside **`Neuz.exe`**. Copy **`FENB-presets/`** too if it is included with the build.
 3. Launch the game normally and press **Shift + Enter** to open the panel.
+   Press **Right Shift + F12** to switch all FENB effects off or on without opening the panel.
 4. Choose a profile or adjust the effects to your liking. Changes save automatically; **Ctrl + S** saves immediately.
 
 Keep the third-party license notices included with the build. If the game folder already contains another `d3d9.dll`, back it up first; loading multiple graphics proxies together is not currently supported.

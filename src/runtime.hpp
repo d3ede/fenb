@@ -127,6 +127,7 @@ class Runtime {
     std::recursive_mutex mutex_;
     bool forwardedKeys_[256]{};
     bool hotkeyHeld_ = false;
+    bool effectsHotkeyHeld_ = false;
     bool suppressEnterChar_ = false;
     DWORD lastConfigCheck_ = 0;
     FILETIME configTime_{};

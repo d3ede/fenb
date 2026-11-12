@@ -9,6 +9,7 @@ void Log(const char *) {}
 namespace {
 int cursorMessages = 0, mouseMessages = 0;
 int enterDown = 0, enterUp = 0, enterChars = 0;
+int f12Down = 0, f12Up = 0;
 HCURSOR clientCursor = nullptr;
 LRESULT CALLBACK ClientProc(HWND window, UINT message, WPARAM w, LPARAM l) {
     if (message == WM_SETCURSOR) {
@@ -22,6 +23,10 @@ LRESULT CALLBACK ClientProc(HWND window, UINT message, WPARAM w, LPARAM l) {
         ++enterDown;
     if ((message == WM_KEYUP || message == WM_SYSKEYUP) && w == VK_RETURN)
         ++enterUp;
+    if (message == WM_KEYDOWN && w == VK_F12)
+        ++f12Down;
+    if (message == WM_KEYUP && w == VK_F12)
+        ++f12Up;
     if ((message == WM_CHAR || message == WM_SYSCHAR) && (w == '\r' || w == '\n'))
         ++enterChars;
     return DefWindowProcW(window, message, w, l);
@@ -132,6 +137,35 @@ int main() {
         CHECK(enterDown == 1 && enterUp == 1 && enterChars == 1); // normal chat Enter is preserved
         SendMessageW(window, WM_KEYDOWN, VK_F9, 1);
         CHECK(!runtime.visible); // old shortcut is gone
+        for (bool panel : {false, true}) {
+            runtime.visible = panel;
+            const bool initial = runtime.settings.enabled;
+            memset(chord, 0, sizeof(chord));
+            chord[VK_RSHIFT] = chord[VK_SHIFT] = 0x80;
+            SetKeyboardState(chord);
+            SendMessageW(window, WM_KEYDOWN, VK_F12, 1);
+            CHECK(runtime.settings.enabled != initial && runtime.visible == panel);
+            SendMessageW(window, WM_KEYDOWN, VK_F12, static_cast<LPARAM>(0x40000001u));
+            CHECK(runtime.settings.enabled != initial);
+            memset(chord, 0, sizeof(chord));
+            SetKeyboardState(chord);
+            SendMessageW(window, WM_KEYUP, VK_F12, static_cast<LPARAM>(0xC0000001u));
+        }
+        CHECK(f12Down == 0 && f12Up == 0);
+        runtime.visible = false;
+        const bool initial = runtime.settings.enabled;
+        for (int modifier : {0, VK_LSHIFT, VK_CONTROL, VK_MENU}) {
+            memset(chord, 0, sizeof(chord));
+            if (modifier)
+                chord[modifier] = 0x80;
+            if (modifier == VK_CONTROL || modifier == VK_MENU)
+                chord[VK_RSHIFT] = 0x80;
+            SetKeyboardState(chord);
+            SendMessageW(window, WM_KEYDOWN, VK_F12, 1);
+            SendMessageW(window, WM_KEYUP, VK_F12, static_cast<LPARAM>(0xC0000001u));
+            CHECK(runtime.settings.enabled == initial);
+        }
+        CHECK(f12Down == 4 && f12Up == 4);
         SetKeyboardState(originalKeys);
         runtime.visible = true;
         runtime.settingsChanged();

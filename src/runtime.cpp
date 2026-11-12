@@ -503,6 +503,20 @@ LRESULT CALLBACK Runtime::WindowProc(HWND hwnd, UINT msg, WPARAM w, LPARAM l, UI
     }
     const bool keyDown = msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN;
     const bool keyUp = msg == WM_KEYUP || msg == WM_SYSKEYUP;
+    if (w == VK_F12 && self->effectsHotkeyHeld_ && (keyDown || keyUp)) {
+        if (keyUp)
+            self->effectsHotkeyHeld_ = false;
+        return 0;
+    }
+    if (msg == WM_KEYDOWN && w == VK_F12 && (GetKeyState(VK_RSHIFT) & 0x8000) &&
+        !(GetKeyState(VK_CONTROL) & 0x8000) && !(GetKeyState(VK_MENU) & 0x8000) &&
+        !(l & (1LL << 30))) {
+        self->effectsHotkeyHeld_ = true;
+        self->settings.enabled = !self->settings.enabled;
+        self->compare = false;
+        self->settingsChanged();
+        return 0;
+    }
     if ((msg == WM_CHAR || msg == WM_SYSCHAR || msg == WM_UNICHAR) && (w == '\r' || w == '\n') &&
         self->suppressEnterChar_)
         return 0;
@@ -544,6 +558,7 @@ LRESULT CALLBACK Runtime::WindowProc(HWND hwnd, UINT msg, WPARAM w, LPARAM l, UI
         self->compare = false;
         self->hotkeyHeld_ = false;
         self->suppressEnterChar_ = false;
+        self->effectsHotkeyHeld_ = false;
         memset(self->forwardedKeys_, 0, sizeof(self->forwardedKeys_));
     }
     if (self->visible) {
