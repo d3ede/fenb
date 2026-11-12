@@ -48,6 +48,7 @@ bool SceneFX::programs() {
         return false;
     PROGRAM(aoPS_, SceneAO)
     PROGRAM(rayPS_, SceneRays)
+    PROGRAM(raySourcePS_, SceneRaySource)
     PROGRAM(compositePS_, SceneComposite)
     PROGRAM(lumaPS_, Luminance)
     PROGRAM(reducePS_, Reduce)
@@ -83,6 +84,7 @@ void SceneFX::invalidate() {
     skyMeanPS_.out();
     ao_.clear();
     rays_.clear();
+    raySource_.clear();
     for (auto &t : luma_)
         t.clear();
     for (auto &t : exposure_)
@@ -101,6 +103,7 @@ void SceneFX::invalidate() {
     sourceOriginValid_ = false;
     aoPS_.out();
     rayPS_.out();
+    raySourcePS_.out();
     compositePS_.out();
     lumaPS_.out();
     reducePS_.out();
@@ -123,6 +126,7 @@ void SceneFX::releasePost() {
     for (auto &t : skyMean_) t.clear();
     ao_.clear();
     rays_.clear();
+    raySource_.clear();
     for (auto &t : luma_)
         t.clear();
     for (auto &t : exposure_)
@@ -142,7 +146,8 @@ void SceneFX::releasePost() {
 }
 size_t SceneFX::bytes() const {
     size_t n =
-        depth_.bytes() + output_.bytes() + ao_.bytes() + rays_.bytes() + smaa_.bytes() + skyBackdrop_.bytes();
+        depth_.bytes() + output_.bytes() + ao_.bytes() + rays_.bytes() + raySource_.bytes() +
+        smaa_.bytes() + skyBackdrop_.bytes();
     for (auto &t : luma_)
         n += t.bytes();
     for (auto &t : skyMean_) n += t.bytes();
@@ -270,6 +275,7 @@ bool SceneFX::prepare(UINT width, UINT height, const Settings &s) {
     if (!depthReady_) {
         ao_.clear();
         rays_.clear();
+        raySource_.clear();
     }
     if (!depthReady_ && !s.fxaa && !s.smaa) {
         output_.clear();
@@ -289,9 +295,11 @@ bool SceneFX::prepare(UINT width, UINT height, const Settings &s) {
         ao_.clear();
     else if (!ao_.make(device_, w, h))
         return false;
-    if (!s.sunRays)
+    if (!s.sunRays) {
         rays_.clear();
-    else if (!rays_.make(device_, w, h))
+        raySource_.clear();
+    } else if (!rays_.make(device_, w, h, D3DFMT_A16B16G16R16F) ||
+               !raySource_.make(device_, w, h, D3DFMT_A16B16G16R16F))
         return false;
     if (s.localLighting && (emitters_ || lights_) && !localField_.make(device_, w, h, D3DFMT_A16B16G16R16F))
         return false;
@@ -389,6 +397,8 @@ IDirect3DTexture9 *SceneFX::process(IDirect3DTexture9 *input, const Settings &s)
     c[8][3] = s.rayStrength;
     c[9][0] = s.rayLength;
     c[9][1] = s.rayDecay;
+    c[9][3] = s.sceneQuality ? 64.f : 48.f;
+    c[9][2] = std::pow(s.rayDecay, 24.f / c[9][3]);
     if (sunValid_)
         memcpy(c[10], &sun_.Diffuse, 16);
     memcpy(c[11], eye_, 16);
@@ -448,8 +458,15 @@ IDirect3DTexture9 *SceneFX::process(IDirect3DTexture9 *input, const Settings &s)
     }
     if (s.ssao && !pass(ao_, aoPS_, input, depth_.texture()))
         return input;
-    if (s.sunRays && !pass(rays_, rayPS_, input, depth_.texture()))
-        return input;
+    if (s.sunRays) {
+        for (DWORD sampler : {0u, 3u}) {
+            device_->SetSamplerState(sampler, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
+            device_->SetSamplerState(sampler, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
+        }
+        if (!pass(raySource_, raySourcePS_, input, depth_.texture()) ||
+            !pass(rays_, rayPS_, raySource_.texture))
+            return input;
+    }
     for (DWORD i = 0; i < 5; ++i)
         device_->SetTexture(i, nullptr);
     D3DVIEWPORT9 vp{0, 0, output_.width, output_.height, 0, 1};

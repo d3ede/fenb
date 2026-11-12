@@ -452,9 +452,23 @@ int main(int argc, char **) {
     auto rays = Read(d);
     CHECK(Difference(original, rays) > 100);
     CHECK(Save(rays, L"build/scene-rays.bmp"));
+    // A strong directional game light over a dark sky must not synthesize a giant disc.
+    solidColor = 0xff202030;
+    settings.sunRays = false;
+    CHECK(render(true));
+    auto darkSkyWithoutRays = Read(d);
+    settings.sunRays = true;
+    CHECK(render(true));
+    CHECK(Difference(darkSkyWithoutRays, Read(d)) == 0);
+    solidColor = 0xff303030;
     darkScene = true;
+    settings.sunRays = false;
+    CHECK(render());
+    auto nightWithoutRays = Read(d);
+    settings.sunRays = true;
     CHECK(render());
     CHECK(!fx.sceneFX().sunOnScreen()); // A bright blue channel does not make a night light the sun.
+    CHECK(Difference(nightWithoutRays, Read(d)) == 0);
     darkScene = false;
     disableEffect(1);
     settings.localLighting = true;

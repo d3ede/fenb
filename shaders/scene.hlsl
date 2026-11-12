@@ -71,18 +71,34 @@ float4 SceneAO(float2 uv:TEXCOORD0):COLOR0 {
     float fade=saturate(1-z/Occlusion.w)*(raw<.999999);
     return float4((1-saturate(occlusion*(4*Occlusion.x/Quality.x)*fade)).xxx,1);
 }
-float4 SceneRays(float2 uv:TEXCOORD0):COLOR0 {
-    float2 delta=(SunPosition.xy-uv)*RayParameters.x/24;
-    float sum=0,weight=1;
-    [loop]for(int i=0;i<24;++i){
-        float2 q=uv+delta*i;
+float4 SceneRaySource(float2 uv:TEXCOORD0):COLOR0 {
+    // Area-filter the sky classification before radial integration. A single binary depth
+    // tap replicated along a ray turns leaf holes into large moving rectangular stamps.
+    float sum=0;
+    [unroll]for(int y=0;y<4;++y)[unroll]for(int x=0;x<4;++x){
+        float2 q=uv+(float2(x,y)-1.5)*Quality.zw*.25;
         float2 fromSun=(q-SunPosition.xy)*float2(Texel.y/Texel.x,1);
-        float source=exp(-dot(fromSun,fromSun)*160);
+        float brightness=dot(tex2Dlod(Image,float4(q,0,0)).rgb,float3(.2126,.7152,.0722));
+        float brightSky=saturate((brightness-.45)/.55);
         float valid=all(q>=Viewport.xy)&&all(q<=Viewport.xy+Viewport.zw);
-        sum+=source*(RawDepth(q)>.999999)*weight*valid;
-        weight*=RayParameters.y;
+        sum+=brightSky*(RawDepth(q)>.999999)*exp(-dot(fromSun,fromSun)*800)*valid;
     }
-    return float4(SunColor.rgb*sum*(SunPosition.w*.12*SunPosition.z),1);
+    // A directional game light also exists at night: it is not evidence of a visible sun.
+    // No bright sky source means no invented luminous disc in front of the camera.
+    return float4((sum*(SunPosition.z/16)).xxx,1);
+}
+float4 SceneRays(float2 uv:TEXCOORD0):COLOR0 {
+    float samples=RayParameters.w;
+    float2 delta=(SunPosition.xy-uv)*RayParameters.x/samples;
+    float sum=0,weight=1;
+    [loop]for(int i=0;i<64;++i){
+        if(i>=samples)break;
+        float2 q=uv+delta*(i+.5);
+        float valid=all(q>=Viewport.xy)&&all(q<=Viewport.xy+Viewport.zw);
+        sum+=tex2Dlod(Image,float4(q,0,0)).r*weight*valid;
+        weight*=RayParameters.z;
+    }
+    return float4(SunColor.rgb*sum*(SunPosition.w*.12*24/samples),1);
 }
 float BilateralAO(float2 uv,float z) {
     float sum=0,weights=0;

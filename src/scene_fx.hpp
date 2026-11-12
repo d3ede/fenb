@@ -27,7 +27,7 @@ class SceneFX {
     IDirect3DDevice9 *device_;
     DepthCopy depth_;
     Smaa smaa_;
-    Target output_, ao_, rays_, luma_[4], exposure_[2], balance_[2];
+    Target output_, ao_, rays_, raySource_, luma_[4], exposure_[2], balance_[2];
     Target skyBackdrop_;
     Target skyMean_[3];
     Com<IDirect3DPixelShader9> skyMeanPS_;
@@ -35,7 +35,7 @@ class SceneFX {
     float nativeFog_[4]{}; // enabled, start, end, range-based
     float nativeFogColor_[4]{};
     Target emitterColor_[4], emitterPosition_[4], localField_;
-    Com<IDirect3DPixelShader9> aoPS_, rayPS_, compositePS_, lumaPS_, reducePS_, adaptPS_, skyPS_;
+    Com<IDirect3DPixelShader9> aoPS_, rayPS_, raySourcePS_, compositePS_, lumaPS_, reducePS_, adaptPS_, skyPS_;
     Com<IDirect3DVertexShader9> skyVS_;
     Com<IDirect3DPixelShader9> flarePS_;
     Com<IDirect3DVertexShader9> emitterVS_;

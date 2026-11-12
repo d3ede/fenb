@@ -96,9 +96,10 @@ int main(int argc, char **) {
             p[3] = 1;
         }
     light->UnlockRect(0);
-    Com<IDirect3DPixelShader9> scenePS, postPS;
+    Com<IDirect3DPixelShader9> scenePS, postPS, raySourcePS;
     CHECK(SUCCEEDED(d->CreatePixelShader(ShaderSceneComposite, scenePS.out())));
     CHECK(SUCCEEDED(d->CreatePixelShader(ShaderComposite, postPS.out())));
+    CHECK(SUCCEEDED(d->CreatePixelShader(ShaderSceneRaySource, raySourcePS.out())));
     float constants[56][4]{};
     auto sceneConstants = [&] {
         memset(constants, 0, sizeof(constants));
@@ -133,7 +134,7 @@ int main(int argc, char **) {
             d->SetSamplerState(i, D3DSAMP_SRGBTEXTURE, FALSE);
         }
         d->SetTexture(0, image);
-        d->SetTexture(1, ps == scenePS.p ? depth.p : light.p);
+        d->SetTexture(1, ps == scenePS.p || ps == raySourcePS.p ? depth.p : light.p);
         d->SetTexture(4, light);
         d->SetPixelShaderConstantF(0, constants[0], 56);
         struct V {
@@ -183,6 +184,37 @@ int main(int argc, char **) {
     CHECK(bloom.size() == W * H);
     CHECK((bloom[Y * W + X] & 255) < 0x20 + 12 && ((bloom[Y * W + X] >> 8) & 255) < 0x80 + 12);
     CHECK((bloom[(Y + 8) * W + X] & 255) > 0x30 + 20);
+    // Subpixel leaf gaps contribute fractional coverage, not binary stamps repeated down a ray.
+    auto raySource = [&](bool striped, DWORD skyColor) {
+        D3DLOCKED_RECT data{};
+        image->LockRect(0, &data, nullptr, 0);
+        for (UINT y = 0; y < H; ++y)
+            for (UINT x = 0; x < W; ++x)
+                ((DWORD *)((BYTE *)data.pBits + y * data.Pitch))[x] = skyColor;
+        image->UnlockRect(0);
+        depth->LockRect(0, &data, nullptr, 0);
+        for (UINT y = 0; y < H; ++y)
+            for (UINT x = 0; x < W; ++x)
+                ((float *)((BYTE *)data.pBits + y * data.Pitch))[x] = striped && (x & 1) ? .5f : 1.f;
+        depth->UnlockRect(0);
+        sceneConstants();
+        constants[8][0] = (X + .5f) / W;
+        constants[8][1] = (Y + .5f) / H;
+        constants[8][2] = 1;
+        constants[18][2] = 4.f / W;
+        constants[18][3] = 4.f / H;
+        return draw(raySourcePS);
+    };
+    CHECK(raySource(false, 0xffffffff));
+    auto clearSun = Read(d);
+    CHECK(raySource(true, 0xffffffff));
+    auto leaves = Read(d);
+    const unsigned clear = clearSun[Y * W + X] & 255, partial = leaves[Y * W + X] & 255;
+    CHECK(clear > 180 && partial > clear * .3f && partial < clear * .7f);
+    CHECK(raySource(false, 0xff202030));
+    for (DWORD pixel : Read(d))
+        CHECK((pixel & 0xffffff) == 0); // No source from an artificial nighttime light spot.
+    printf("Filtered sun coverage: clear=%u leaves=%u\n", clear, partial);
     puts("PASS: weak-depth light rejection, sharp emissive DoF cores and colored bloom headroom");
     return 0;
 }
