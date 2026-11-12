@@ -182,6 +182,7 @@ int main(int argc, char **argv) {
     settings.waterRefraction = .4f;
     float sceneLight = -1;
     float wallSlope = 0;
+    bool foldedWall = false;
     bool steppedMesh = false;
     bool foregroundBank = false;
     bool translatedScene = false;
@@ -223,7 +224,13 @@ int main(int argc, char **argv) {
         d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, floor, sizeof(Floor));
         Floor object[] = {{-2, 0, 18, 0xffd05028}, {2, 0, 18, 0xffd05028}, {-2, 8, 18+8*wallSlope, 0xffd05028},
                           {-2, 8, 18+8*wallSlope, 0xffd05028}, {2, 0, 18, 0xffd05028}, {2, 8, 18+8*wallSlope, 0xffd05028}};
-        if (wall)
+        if (wall && foldedWall) {
+            const float crease=.013f;
+            Floor fold[]={{-2,0,26,0xffd05028},{crease,0,18,0xffd05028},{-2,8,26,0xffd05028},{crease,8,18,0xffd05028},
+                          {crease,0,18,0xffd05028},{2,0,26,0xffd05028},{crease,8,18,0xffd05028},{2,8,26,0xffd05028}};
+            d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP,2,fold,sizeof(Floor));
+            d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP,2,fold+4,sizeof(Floor));
+        } else if (wall)
             d->DrawPrimitiveUP(D3DPT_TRIANGLELIST, 2, object, sizeof(Floor));
         if (foregroundBank) {
             Floor bank[] = {
@@ -406,6 +413,23 @@ int main(int argc, char **argv) {
             foregroundBank = false;
             view = savedView;
             settings.waterRefraction = .4f;
+            foldedWall=true;
+            settings.waterRefraction=0;
+            CHECK(render(-2,true,true));
+            auto folded=WaterFXFixture::reflection(water,d);
+            unsigned creaseNotches=0,creaseRows=0;
+            for(UINT y=Height/3;y<Height*3/4;++y) {
+                const UINT center=Width/2;
+                if((folded[y*Width+center-5]>>24)>40 && (folded[y*Width+center+5]>>24)>40) {
+                    ++creaseRows;
+                    for(UINT x=center-2;x<=center+2;++x)
+                        creaseNotches+=(folded[y*Width+x]>>24)+24<std::min(folded[y*Width+x-3]>>24,folded[y*Width+x+3]>>24);
+                }
+            }
+            printf("Continuous folded bank: rows=%u reflection notches=%u\n",creaseRows,creaseNotches);
+            CHECK(creaseRows>50 && creaseNotches<10);
+            CHECK(Save(folded,L"build/water-folded-reflection.bmp"));
+            foldedWall=false;settings.waterRefraction=.4f;
         }
         settings.waterSSR = 0;
         CHECK(render(-.02f, false, false));

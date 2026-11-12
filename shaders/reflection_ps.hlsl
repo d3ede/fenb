@@ -48,12 +48,18 @@ float4 TraceReflection(float3 start,float3 direction,float3 planeNormal) {
             // A camera-visible surface is usable only if the reflected ray hits its front face.
             // Thin bank silhouettes and grazing/backface intersections must fall back to the sky.
             confidence*=smoothstep(.005,.05,-dot(hitNormal,direction));
-            // Perspective depth is affine across a planar triangle. A large first derivative
-            // is a valid sloping bank; reject depth curvature/silhouette jumps, not that slope.
-            float curvature=max(abs(neighbors.x+neighbors.y-2*hitRaw),abs(neighbors.z+neighbors.w-2*hitRaw));
-            float gradient=max(abs(neighbors.x-neighbors.y),abs(neighbors.z-neighbors.w));
+            // A continuous low-poly bank may change slope at every triangle edge.
+            // Test each side's extrapolation independently instead of turning that crease
+            // into a missing-reflection wire. One stable side per axis is sufficient:
+            // the other side can belong to the adjacent face or an occluded surface.
+            float4 outer=float4(tex2Dlod(SceneDepth,float4(hitUV-2*dx,0,0)).r,
+                                tex2Dlod(SceneDepth,float4(hitUV+2*dx,0,0)).r,
+                                tex2Dlod(SceneDepth,float4(hitUV-2*dy,0,0)).r,
+                                tex2Dlod(SceneDepth,float4(hitUV+2*dy,0,0)).r);
             float quantum=max(.0000001,Trace.w*abs(Camera.w)*2);
-            confidence*=saturate(1-max(0,curvature-quantum)/max(quantum,gradient*.5));
+            float4 allowance=abs(neighbors-outer)*1.25+quantum*3;
+            float4 continuity=saturate(1-max(0,abs(2*neighbors-outer-hitRaw)-allowance)/allowance);
+            confidence*=min(max(continuity.x,continuity.y),max(continuity.z,continuity.w));
             return float4(tex2Dlod(SceneColor,float4(hitUV,0,0)).rgb,confidence);
         }
         previousT=t;previousDelta=delta;
