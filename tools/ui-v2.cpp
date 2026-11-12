@@ -15,10 +15,13 @@
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND, UINT, WPARAM, LPARAM);
 
 namespace {
-constexpr int Width = 800, Height = 640;
+int Width = 800, Height = 640;
 constexpr float PanelWidth = 560, PanelHeight = 540;
 constexpr ImU32 Ink = IM_COL32(223, 224, 229, 255), Muted = IM_COL32(143, 146, 155, 255);
-constexpr ImU32 Violet = IM_COL32(174, 148, 210, 255), Line = IM_COL32(51, 53, 59, 255);
+constexpr ImU32 Line = IM_COL32(51, 53, 59, 255);
+ImU32 Violet = IM_COL32(174, 148, 210, 255);
+constexpr ImU32 Purple = IM_COL32(143, 83, 239, 255), Lavender = IM_COL32(199, 166, 255, 255);
+bool studio = false, vivid = false;
 constexpr ImU32 Surface = IM_COL32(32, 33, 37, 255);
 Language language = Language::English;
 bool motion = true, customCursor = true, running = true, captureFrames = false;
@@ -104,8 +107,8 @@ void ResetIcon(float x, float y, ImU32 color) {
 bool IconButton(const char *id, float x, float y, int icon, UiText tip, bool emphasized = true) {
     bool pressed = Hit(id, x, y, 24, 24);
     bool hover = ImGui::IsItemHovered();
-    if (hover) Rect(x, y, 24, 24, IM_COL32(48, 50, 56, 255), 3);
-    ImU32 color = hover ? Ink : emphasized ? Muted : IM_COL32(85, 88, 98, 255);
+    if (hover) Rect(x, y, 24, 24, vivid ? IM_COL32(62, 43, 91, 255) : IM_COL32(48, 50, 56, 255), 3);
+    ImU32 color = hover ? (vivid ? Lavender : Ink) : emphasized ? Muted : IM_COL32(85, 88, 98, 255);
     if (icon == 2) ResetIcon(x + 12, y + 12, color);
     else Chevron(x + 12, y + 12, icon, color);
     Tip(tip);
@@ -116,7 +119,7 @@ void Switch(const char *id, float x, float y, bool &value) {
     if (Hit("switch", x - 4, y - 6, 42, 30) ||
         (ImGui::IsItemFocused() && ImGui::IsKeyPressed(ImGuiKey_Enter))) value = !value;
     const float t = Animate("position", value ? 1.f : 0.f);
-    Rect(x, y, 28, 15, Mix(IM_COL32(56, 58, 64, 255), IM_COL32(86, 89, 98, 255), t), 8);
+    Rect(x, y, 28, 15, Mix(IM_COL32(56, 58, 64, 255), vivid ? Purple : IM_COL32(86, 89, 98, 255), t), 8);
     draw->AddCircleFilled(P(x + 7.5f + 13 * t, y + 7.5f), 4.5f,
         Mix(Muted, IM_COL32(224, 225, 231, 255), t), 20);
     Tip(value ? UiText::V2On : UiText::V2Off);
@@ -141,9 +144,14 @@ void Slider(float y, UiText label, Parameter parameter, bool clock = false) {
     float neutral = 207 + 192 * defaults[parameter];
     float knob = std::floor(207 + 192 * value);
     draw->AddLine(P(neutral, y + 10), P(neutral, y + 16), IM_COL32(93, 96, 106, 255), 1);
-    draw->AddLine(P(207, y + 13), P(knob, y + 13),
-        Mix(IM_COL32(130, 133, 143, 255), Violet, t), 2);
-    Rect(knob - 2, y + 8, 4, 10, active ? Violet : Ink, 1);
+    if (vivid) {
+        Rect(207, y + 11, std::max(0.f, knob - 207), 4, Mix(Purple, Lavender, t * .45f), 2);
+        draw->AddCircleFilled(P(knob, y + 13), 4, active ? Lavender : IM_COL32(220, 199, 255, 255), 20);
+        draw->AddCircle(P(knob, y + 13), 4, Purple, 20, 1);
+    } else {
+        draw->AddLine(P(207, y + 13), P(knob, y + 13), Mix(IM_COL32(130, 133, 143, 255), Violet, t), 2);
+        Rect(knob - 2, y + 8, 4, 10, active ? Violet : Ink, 1);
+    }
 
     ImGui::PushItemFlag(ImGuiItemFlags_ButtonRepeat, true);
     if (IconButton("less", 414, y + 1, -1, clock ? UiText::TimeInputHelp : UiText::NumberInputHelp))
@@ -184,12 +192,12 @@ bool Section(const char *id, float y, UiText title, int toggle = -1, bool *reset
     auto *state = ImGui::GetStateStorage();
     auto key = ImGui::GetID("expanded");
     bool expanded = state->GetBool(key, true);
-    Rect(16, y, 528, 30, IM_COL32(36, 38, 43, 255), 4);
+    Rect(16, y, 528, 30, studio ? IM_COL32(40, 36, 49, 255) : IM_COL32(36, 38, 43, 255), studio ? 7 : 4);
     if (Hit("heading", 16, y, reset ? 452 : 528, 30) && reset) {
         expanded = !expanded;
         state->SetBool(key, expanded);
     }
-    if (ImGui::IsItemHovered() && reset) Rect(16, y, 452, 30, IM_COL32(42, 44, 50, 255), 4);
+    if (ImGui::IsItemHovered() && reset) Rect(16, y, 452, 30, vivid ? IM_COL32(48, 39, 64, 255) : IM_COL32(42, 44, 50, 255), 4);
     if (reset) Chevron(28, y + 15, expanded ? 0 : 1);
     Text(reset ? 42 : 28, y + 8, title, 13);
     if (reset) *reset = IconButton("reset-section", 470, y + 3, 2, UiText::ResetSection);
@@ -208,16 +216,17 @@ void Group(const char *id, float &y, UiText title, int toggle, std::initializer_
     y += 34;
     if (expanded) {
         const float firstRow = y;
+        if (studio) Rect(16, y - 5, 528, float(rows.size()) * 32 + 10, IM_COL32(33, 32, 40, 255), 7);
         ImGui::BeginDisabled(toggle >= 0 && !switches[toggle]);
         for (const auto &row : rows) {
             Slider(y, row.label, row.parameter, row.clock);
-            y += 28;
+            y += studio ? 32 : 28;
         }
         ImGui::EndDisabled();
         if (toggle >= 0 && !switches[toggle])
             Rect(17, firstRow, 526, y - firstRow, IM_COL32(29, 30, 34, 140), 0);
     }
-    y += 10;
+    y += studio ? 16 : 10;
 }
 void ChangePage(int next, int section = 0) {
     page = next; subpage = section; pageStart = ImGui::GetTime();
@@ -254,8 +263,23 @@ void Effects() {
         }
         return;
     }
-    NavRow("atmosphere", 91, UiText::LightAtmosphere, 1);
-    NavRow("water", 123, UiText::V2Water, 2);
+    if (studio) {
+        const UiText labels[] = {UiText::LightAtmosphere, UiText::V2Water};
+        for (int i = 0; i < 2; ++i) {
+            ImGui::PushID(i);
+            float x = 16 + i * 272.f;
+            if (Hit("effect-card", x, 91, 256, 54)) ChangePage(0, i + 1);
+            bool hovered = ImGui::IsItemHovered();
+            Rect(x, 91, 256, 54, hovered ? IM_COL32(52, 40, 72, 255) : IM_COL32(38, 34, 48, 255), 8);
+            draw->AddRect(P(x, 91), P(x + 256, 145), hovered ? Violet : IM_COL32(58, 48, 74, 255), 8);
+            Text(x + 16, 111, labels[i], 13);
+            Chevron(x + 236, 118, 1, Lavender);
+            ImGui::PopID();
+        }
+    } else {
+        NavRow("atmosphere", 91, UiText::LightAtmosphere, 1);
+        NavRow("water", 123, UiText::V2Water, 2);
+    }
     float y = 168;
     Group("grade", y, UiText::ColorCorrection, GradeOn,
         {{UiText::Exposure, Exposure}, {UiText::Contrast, Contrast}, {UiText::Saturation, Saturation}, {UiText::Temperature, Temperature}});
@@ -291,8 +315,8 @@ void World() {
         float x = 28 + i * 168.f;
         ImGui::BeginDisabled(!switches[WeatherOn]);
         if (Hit("weather", x, y, 152, 28)) weather = i;
-        Rect(x, y, 152, 28, weather == i ? IM_COL32(55, 57, 64, 255) : IM_COL32(37, 38, 43, 255), 3);
-        CenterText(x, y + 8, 152, Tr(labels[i]), 12, weather == i ? Ink : Muted);
+        Rect(x, y, 152, 28, weather == i ? (vivid ? IM_COL32(81, 49, 125, 255) : IM_COL32(55, 57, 64, 255)) : IM_COL32(37, 38, 43, 255), 3);
+        CenterText(x, y + 8, 152, Tr(labels[i]), 12, weather == i ? (vivid ? Lavender : Ink) : Muted);
         ImGui::EndDisabled();
         ImGui::PopID();
     }
@@ -300,22 +324,22 @@ void World() {
     Group("sky", y, UiText::V2Sky, WorldSkyOn, {{UiText::V2Fog, WorldHaze}, {UiText::Clouds, Clouds}});
 }
 void Profiles() {
-    Text(20, 105, UiText::V2Profiles, 16);
+    if (!studio) Text(20, 105, UiText::V2Profiles, 16);
     const UiText titles[] = {UiText::V2Natural, UiText::V2Golden, UiText::V2Moonlit};
     const UiText notes[] = {UiText::V2NaturalNote, UiText::V2GoldenNote, UiText::V2MoonlitNote};
     for (int i = 0; i < 3; ++i) {
         ImGui::PushID(i);
-        float y = 146 + i * 91.f;
+        float y = (studio ? 100 : 146) + i * 91.f;
         if (Hit("profile", 16, y, 528, 76)) profile = i;
         Rect(16, y, 528, 76, ImGui::IsItemHovered() ? IM_COL32(40, 41, 47, 255) : Surface, 4);
-        draw->AddRect(P(16, y), P(544, y + 76), profile == i ? IM_COL32(90, 91, 104, 255) : Line, 4);
+        draw->AddRect(P(16, y), P(544, y + 76), profile == i ? (vivid ? Violet : IM_COL32(90, 91, 104, 255)) : Line, 4);
         Text(30, y + 16, titles[i], 14);
         Text(30, y + 42, notes[i], 12, Muted);
         draw->AddCircle(P(515, y + 37), 6, profile == i ? Violet : Muted, 24);
         if (profile == i) draw->AddCircleFilled(P(515, y + 37), 3, Violet, 16);
         ImGui::PopID();
     }
-    Text(28, 452, UiText::V2ProfileHint, 12, Muted);
+    if (!studio) Text(28, 452, UiText::V2ProfileHint, 12, Muted);
 }
 void DrawPointer(ImDrawList *d, ImVec2 tip, float scale = 1) {
     ImVec2 polygon[4];
@@ -326,7 +350,8 @@ void DrawPointer(ImDrawList *d, ImVec2 tip, float scale = 1) {
     d->AddPolyline(polygon, 4, CursorEdge, CursorWeight * scale, ImDrawFlags_Closed);
 }
 void Appearance() {
-    Section("appearance", 100, UiText::V2Appearance);
+    if (studio) origin.y -= 40;
+    else Section("appearance", 100, UiText::V2Appearance);
     Text(28, 151, UiText::V2Cursor, 14);
     Text(28, 176, UiText::V2CursorNote, 11, Muted);
     Switch("custom-cursor", 504, 152, customCursor);
@@ -341,6 +366,7 @@ void Appearance() {
     DrawPointer(draw, P(45, 409));
     Text(70, 410, "12 × 12 px", 11, Muted);
     DrawPointer(draw, P(442, 391), 4);
+    if (studio) origin.y += 40;
 }
 void Cursor() {
     auto p = ImGui::GetIO().MousePos;
@@ -355,7 +381,7 @@ void Panel() {
     origin = {(display.x - PanelWidth) / 2, (display.y - PanelHeight) / 2};
     draw = ImGui::GetBackgroundDrawList();
     draw->AddRectFilled({0, 0}, display, IM_COL32(26, 28, 33, 255));
-    Text(0, -23, UiText::V2CompactStudy, 10, Muted);
+    Text(0, -23, vivid ? UiText::V2VioletStudy : UiText::V2CompactStudy, 10, Muted);
     for (int i = 10; i > 0; --i)
         draw->AddRect(P(-float(i), -float(i)), P(PanelWidth + i, PanelHeight + i), IM_COL32(0, 0, 0, 8), 5.f + i);
     ImGui::SetNextWindowPos(origin);
@@ -379,8 +405,11 @@ void Panel() {
         if (Hit("tab", tabX, 7, width, 32)) ChangePage(i);
         bool selected = page == i;
         const float hover = Animate("hover", ImGui::IsItemHovered() ? 1.f : 0.f);
-        Rect(tabX, 7, width, 32, Mix(IM_COL32(29, 30, 34, 255), IM_COL32(40, 42, 48, 255), hover), 4);
-        Text(tabX + 10, 15, tabs[i], 13, selected ? Ink : Muted);
+        const float selection = Animate("selected", selected ? 1.f : 0.f);
+        ImU32 tabColor = Mix(IM_COL32(29, 30, 34, 255), IM_COL32(40, 42, 48, 255), hover);
+        if (vivid) tabColor = Mix(tabColor, IM_COL32(56, 37, 80, 255), selection);
+        Rect(tabX, 7, width, 32, tabColor, 4);
+        Text(tabX + 10, 15, tabs[i], 13, selected ? (vivid ? Lavender : Ink) : Muted);
         if (selected) Rect(tabX + 10, 37, textWidth, 2, Violet, 1);
         tabX += width + 8;
         ImGui::PopID();
@@ -433,6 +462,118 @@ void Panel() {
     Cursor();
 }
 
+void SidebarIcon(int index, float x, float y, ImU32 color) {
+    if (index == 0 || index == 3) {
+        for (int i = 0; i < 3; ++i) {
+            float yy = y + i * 5;
+            draw->AddLine(P(x, yy), P(x + 14, yy), color, 1.2f);
+            Rect(x + (i == 1 ? 8 : 3), yy - 2, 3, 4, color, 1);
+        }
+    } else if (index == 1) {
+        draw->AddCircle(P(x + 7, y + 5), 6, color, 24, 1.2f);
+        draw->AddLine(P(x + 1, y + 5), P(x + 13, y + 5), color, 1);
+        draw->AddEllipse(P(x + 7, y + 5), {3, 6}, color, 0, 24, 1);
+    } else {
+        draw->AddRect(P(x, y - 1), P(x + 14, y + 11), color, 2, 0, 1.2f);
+        draw->AddLine(P(x + 4, y - 1), P(x + 4, y + 11), color, 1);
+    }
+}
+void StudioPanel() {
+    constexpr float w = 832, h = 640;
+    const auto display = ImGui::GetIO().DisplaySize;
+    origin = {(display.x - w) / 2, (display.y - h) / 2};
+    const ImVec2 rootOrigin = origin;
+    draw = ImGui::GetBackgroundDrawList();
+    draw->AddRectFilled({0, 0}, display, IM_COL32(21, 20, 27, 255));
+    Text(0, -23, UiText::V2StudioStudy, 10, Muted);
+    for (int i = 14; i > 0; --i)
+        draw->AddRect(P(-float(i), -float(i)), P(w + i, h + i), IM_COL32(0, 0, 0, 9), 12.f + i);
+    ImGui::SetNextWindowPos(origin);
+    ImGui::SetNextWindowSize({w, h});
+    ImGui::Begin("FENB-v2-studio", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
+        ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoScrollbar);
+    draw = ImGui::GetWindowDrawList();
+    Rect(0, 0, w, h, IM_COL32(28, 27, 34, 255), 12);
+    Rect(0, 0, 224, h, IM_COL32(33, 28, 44, 255), 12);
+    draw->AddLine(P(224, 0), P(224, h), IM_COL32(58, 46, 75, 255));
+    draw->AddRect(P(0, 0), P(w, h), IM_COL32(61, 51, 77, 255), 12);
+    if (logo) {
+        const float lh = 46.f * UI_LOGO_HEIGHT / UI_LOGO_WIDTH;
+        draw->AddImage(ImTextureRef(static_cast<ImTextureID>(reinterpret_cast<uintptr_t>(logo))),
+            P(24, 48 - lh / 2), P(70, 48 + lh / 2));
+    }
+    Text(84, 33, "FENB", 23);
+    Text(85, 61, UiText::V2VisualStudio, 11, Lavender);
+    Text(24, 112, UiText::V2Workspace, 10, Muted);
+    const UiText labels[] = {UiText::Image, UiText::WorldTab, UiText::V2Profiles, UiText::V2Appearance};
+    const UiText notes[] = {UiText::V2ImageNote, UiText::V2WorldNote, UiText::V2ProfileHint, UiText::V2MotionNote};
+    for (int i = 0; i < 4; ++i) {
+        ImGui::PushID(i + 100);
+        const float y = 140 + i * 52.f;
+        if (Hit("sidebar", 16, y, 192, 44)) ChangePage(i);
+        float hover = Animate("hover", ImGui::IsItemHovered() ? 1.f : 0.f);
+        float selected = Animate("selected", page == i ? 1.f : 0.f);
+        ImU32 bg = Mix(IM_COL32(33, 28, 44, 255), IM_COL32(47, 38, 63, 255), hover);
+        Rect(16, y, 192, 44, Mix(bg, IM_COL32(71, 43, 106, 255), selected), 7);
+        if (page == i) Rect(16, y + 12, 3, 20, Violet, 1);
+        SidebarIcon(i, 32, y + 16, page == i ? Lavender : Muted);
+        Text(60, y + 14, labels[i], 14, page == i ? Ink : Muted);
+        ImGui::PopID();
+    }
+    Rect(16, 448, 192, 100, IM_COL32(44, 34, 59, 255), 9);
+    Text(30, 464, UiText::Profile, 11, Lavender);
+    const UiText profiles[] = {UiText::V2Natural, UiText::V2Golden, UiText::V2Moonlit};
+    Text(30, 488, profiles[profile], 15);
+    Text(30, 517, UiText::V2PreviewMode, 10, Muted);
+    if (Hit("sidebar-profile", 16, 448, 192, 100)) ChangePage(2);
+    Chevron(189, 496, 1, Lavender);
+    Text(24, 577, UiText::Effects, 13);
+    Switch("master", 172, 577, switches[MasterOn]);
+    Text(24, 618, FENBVersion, 11, Muted);
+    Text(149, 618, "UI v2 / A", 10, Lavender);
+
+    origin = {rootOrigin.x + 248, rootOrigin.y + 52};
+    Text(16, -25, labels[page], 23);
+    Text(16, 10, notes[page], 11, Muted);
+    for (int i = 0; i < 2; ++i) {
+        ImGui::PushID(i + 110);
+        bool selected = int(language == Language::Russian) == i;
+        const float x = 442 + i * 30.f;
+        if (Hit("language", x, -25, 28, 26)) language = i ? Language::Russian : Language::English;
+        if (selected) Rect(x, -25, 28, 26, IM_COL32(58, 42, 79, 255), 4);
+        CenterText(x, -18, 28, Tr(i ? UiText::V2Russian : UiText::V2English), 11, selected ? Lavender : Muted);
+        ImGui::PopID();
+    }
+    if (Hit("close", 520, -25, 24, 26)) running = false;
+    draw->AddLine(P(528, -17), P(536, -9), Muted, 1.2f);
+    draw->AddLine(P(536, -17), P(528, -9), Muted, 1.2f);
+    Tip(UiText::V2CloseHelp);
+    if (Hit("profile", 16, 48, 374, 28)) ChangePage(2);
+    Rect(16, 48, 374, 28, IM_COL32(39, 35, 48, 255), 5);
+    Text(28, 56, UiText::Profile, 12, Muted);
+    Text(108, 56, profiles[profile], 12);
+    Chevron(374, 62, 0, Lavender);
+    if (Hit("reset-all", 406, 48, 138, 28)) ResetDemo();
+    if (ImGui::IsItemHovered()) Rect(406, 48, 138, 28, IM_COL32(54, 39, 75, 255), 5);
+    ResetIcon(422, 62, Lavender);
+    Text(438, 56, UiText::ResetAll, 12, Muted);
+
+    float enter = motion && !captureFrames ? std::clamp(float(ImGui::GetTime() - pageStart) / .18f, 0.f, 1.f) : 1;
+    float shift = std::floor(5 * (1 - enter) * (1 - enter));
+    origin.y += shift;
+    ImGui::PushID(page);
+    if (page == 0) Effects();
+    if (page == 1) World();
+    if (page == 2) Profiles();
+    if (page == 3) Appearance();
+    ImGui::PopID();
+    origin.y -= shift;
+    draw->AddLine(P(16, 550), P(544, 550), Line);
+    Text(16, 566, UiText::V2Sandbox, 10, Muted);
+    ImGui::End();
+    Cursor();
+}
+
 LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM w, LPARAM l) {
     if (ImGui_ImplWin32_WndProcHandler(window, message, w, l)) return 1;
     if (message == WM_DESTROY) { PostQuitMessage(0); return 0; }
@@ -464,6 +605,13 @@ bool Capture(IDirect3DDevice9 *device, const std::filesystem::path &path) {
 } // namespace
 
 int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR command, int) {
+    wchar_t exePath[32768]{};
+    GetModuleFileNameW(nullptr, exePath, 32768);
+    const std::wstring executable = std::filesystem::path(exePath).stem().wstring();
+    studio = executable.find(L"-studio") != std::wstring::npos || std::string(command).find("--studio") != std::string::npos;
+    vivid = studio || executable.find(L"-violet") != std::wstring::npos || std::string(command).find("--violet") != std::string::npos;
+    if (studio) { Width = 960; Height = 740; }
+    if (vivid) Violet = Purple;
     ResetDemo();
     bool capture = std::string(command).find("--capture") != std::string::npos;
     captureFrames = capture;
@@ -530,13 +678,20 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR command, int) {
     theme.Colors[ImGuiCol_Header] = ImColor(48, 50, 57);
     theme.Colors[ImGuiCol_HeaderHovered] = ImColor(58, 59, 68);
     theme.Colors[ImGuiCol_HeaderActive] = ImColor(63, 61, 73);
+    if (vivid) {
+        theme.Colors[ImGuiCol_FrameBgActive] = ImColor(64, 43, 89);
+        theme.Colors[ImGuiCol_TextSelectedBg] = ImColor(143, 83, 239, 150);
+        theme.Colors[ImGuiCol_Header] = ImColor(72, 43, 109);
+        theme.Colors[ImGuiCol_HeaderHovered] = ImColor(91, 49, 145);
+        theme.Colors[ImGuiCol_HeaderActive] = ImColor(111, 57, 183);
+    }
     if (!ImGui_ImplWin32_Init(window) || !ImGui_ImplDX9_Init(device)) return 7;
     Gdiplus::GdiplusStartupInput startup;
     ULONG_PTR gdiplus = 0;
     if (Gdiplus::GdiplusStartup(&gdiplus, &startup, nullptr) != Gdiplus::Ok) return 8;
-    wchar_t exePath[32768]{};
-    GetModuleFileNameW(nullptr, exePath, 32768);
-    const auto output = std::filesystem::path(exePath).parent_path();
+    auto output = std::filesystem::path(exePath).parent_path();
+    if (vivid) output /= studio ? L"studio" : L"violet";
+    if (capture) std::filesystem::create_directories(output);
     if (!capture) ShowWindow(window, SW_SHOWDEFAULT);
     int frame = 0, result = 0;
     while (running) {
@@ -566,13 +721,14 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR command, int) {
         if (capture) {
             // Render actual hovered widget states, including the compact cursor.
             const int view = (frame / 4) % 8;
-            io.AddMousePosEvent(view >= 6 ? (Width - PanelWidth) / 2 + 125 : -FLT_MAX,
-                view >= 6 ? (Height - PanelHeight) / 2 + 22 : -FLT_MAX);
+            const float hoverX = studio ? (Width - 832) / 2.f + 95 : (Width - PanelWidth) / 2 + 125;
+            const float hoverY = studio ? (Height - 640) / 2.f + 162 : (Height - PanelHeight) / 2 + 22;
+            io.AddMousePosEvent(view >= 6 ? hoverX : -FLT_MAX, view >= 6 ? hoverY : -FLT_MAX);
         }
         ImGui::NewFrame();
         if (ImGui::IsKeyPressed(ImGuiKey_Escape)) running = false;
-        Panel();
-        const char *utf8Title = Tr(UiText::V2Window);
+        if (studio) StudioPanel(); else Panel();
+        const char *utf8Title = Tr(studio ? UiText::V2StudioStudy : vivid ? UiText::V2VioletStudy : UiText::V2Window);
         int titleLength = MultiByteToWideChar(CP_UTF8, 0, utf8Title, -1, nullptr, 0);
         std::wstring title(titleLength, L'\0');
         MultiByteToWideChar(CP_UTF8, 0, utf8Title, -1, title.data(), titleLength);
