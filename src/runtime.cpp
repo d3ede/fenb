@@ -6,6 +6,7 @@
 #include "imgui.h"
 #include "state_guard.hpp"
 #include "water.hpp"
+#include "sfx.hpp"
 #include <commctrl.h>
 #ifdef FENB_DIAGNOSTICS
 #include "pipeline_probe.hpp"
@@ -30,7 +31,7 @@ FILETIME FileTime(const std::wstring &path) {
 } // namespace
 Runtime::Runtime(IDirect3DDevice9 *device)
     : device_(device), effects_(std::make_unique<Effects>(device)),
-      water_(std::make_unique<WaterFX>(device)) {
+      water_(std::make_unique<WaterFX>(device)), sfx_(std::make_unique<SfxFX>(device)) {
     configPath = ModuleDirectory() + L"FENB.ini";
     settings.load(configPath);
     recognizeProfile();
@@ -155,6 +156,7 @@ void Runtime::invalidate() {
     Drop(panelLogo_.p);
     effects_->invalidate();
     water_->invalidate();
+    sfx_->invalidate();
     if (context_) {
         ContextScope scope(context_);
         ImGui_ImplDX9_InvalidateDeviceObjects();
@@ -196,6 +198,7 @@ void Runtime::afterPresent(HRESULT result) {
     }
 }
 void Runtime::resetFrame() {
+    sfx_->beginFrame(settings.enabled && settings.sfx && !compare);
     effects_->sceneFX().beginFrame();
     lastWaterDraws = waterDraws;
     waterDraws = 0;
@@ -212,6 +215,9 @@ void Runtime::resetFrame() {
     invalidateDrawState();
 }
 void Runtime::beforeWaterDraw(UINT upStride, DrawCall draw) {
+    if (!lost_ && settings.enabled && settings.sfx && !compare && !vertexShaderActive_ &&
+        sceneBackbuffer_ && drawTarget_ == sceneBackbuffer_)
+        sfx_->begin(settings, waterDraws > 0, !hudStarted_);
     if (!lost_ && settings.enabled && !compare && !vertexShaderActive_ && fvfKnown_ &&
         drawFVF_ == 0x142 && sceneBackbuffer_ && drawTarget_ == sceneBackbuffer_)
         effects_->sceneFX().beginFlare(settings);
@@ -241,6 +247,7 @@ void Runtime::environmentDraw(D3DPRIMITIVETYPE type, UINT start, UINT count) {
                                      water_->materialTag(static_cast<IDirect3DTexture9 *>(texture.p)));
 }
 void Runtime::afterWaterDraw(bool up, bool indexed) {
+    sfx_->end(up,indexed);
     effects_->sceneFX().endSky();
     effects_->sceneFX().endFoliage();
     water_->end(up, indexed);
@@ -280,6 +287,8 @@ void Runtime::beforeDraw() {
     }
     const bool screenSpace = !vertexShaderActive_ && (drawFVF_ & D3DFVF_POSITION_MASK) == D3DFVF_XYZRHW;
     if (!screenSpace) {
+        if (settings.enabled && settings.sfx && !compare && !vertexShaderActive_)
+            sfx_->observe();
         if (settings.enabled && !compare && !vertexShaderActive_)
             effects_->sceneFX().observe(settings);
         DWORD position = drawFVF_ & D3DFVF_POSITION_MASK;
@@ -291,8 +300,12 @@ void Runtime::beforeDraw() {
     // Neuz switches from world geometry to RHW HUD/nameplates. Process once BEFORE
     // the first HUD draw. Any later 3D UI previews must remain unprocessed as well.
     hudStarted_ = true;
-    if (!sawWorld_ || !settings.enabled || compare || !settings.postEnabled())
+    if (!sawWorld_ || !settings.enabled || compare)
         return;
+    if (!settings.postEnabled()) {
+        if(settings.sfx && settings.sfxWake>0 && waterDraws>0)sfx_->snapshotWorld();
+        return;
+    }
     StateGuard state(device_);
     if (!state.valid())
         return;
@@ -307,6 +320,7 @@ void Runtime::beforeDraw() {
     effects_->draw(sceneBackbuffer_, settings);
     if (ownScene)
         device_->EndScene();
+    if(settings.sfx && settings.sfxWake>0 && waterDraws>0)sfx_->snapshotWorld(true);
 }
 void Runtime::beforePresent(IDirect3DSwapChain9 *provided, DWORD flags, HWND windowOverride) {
     std::lock_guard lock(mutex_);
@@ -401,7 +415,7 @@ void Runtime::beforePresent(IDirect3DSwapChain9 *provided, DWORD flags, HWND win
     device_->EndScene();
 }
 double Runtime::gpuBytes() const {
-    return double(effects_->bytes() + water_->bytes());
+    return double(effects_->bytes() + water_->bytes() + sfx_->bytes());
 }
 unsigned Runtime::activeMSAA() const {
     Com<IDirect3DSwapChain9> chain;

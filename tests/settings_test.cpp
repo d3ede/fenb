@@ -33,6 +33,24 @@ int main() {
     }
     Settings s;
     {
+        Settings particles;
+        particles.sfx = false;
+        particles.sfxIntensity = 8;
+        particles.sfxWake = -1;
+        particles.sfxGlow = std::numeric_limits<float>::quiet_NaN();
+        particles.sanitize();
+        CHECK(particles.sfxIntensity == 2 && particles.sfxWake == 0 &&
+              particles.sfxGlow == Settings{}.sfxGlow);
+        particles.language = Language::Russian;
+        particles.resetSceneSection(11);
+        CHECK(!particles.sfx && particles.sfxIntensity == Settings{}.sfxIntensity &&
+              particles.sfxWake == Settings{}.sfxWake && particles.language == Language::Russian);
+        CHECK(particles.save(L"build/sfx-settings.ini"));
+        Settings restored;
+        CHECK(restored.load(L"build/sfx-settings.ini") && restored == particles);
+        DeleteFileW(L"build/sfx-settings.ini");
+    }
+    {
         Settings environment;
         CHECK(!environment.timeOverride && !environment.weatherOverride && environment.freezeTime);
         environment.timeOverride = true;

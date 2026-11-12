@@ -9,6 +9,7 @@ struct ImGuiContext;
 struct PanelBranding;
 class Effects;
 class WaterFX;
+class SfxFX;
 #ifdef FENB_DIAGNOSTICS
 class PipelineProbe;
 #endif
@@ -114,6 +115,7 @@ class Runtime {
     IDirect3DDevice9 *device_; // borrowed: owner destroys Runtime before releasing the real device
     std::unique_ptr<Effects> effects_;
     std::unique_ptr<WaterFX> water_;
+    std::unique_ptr<SfxFX> sfx_;
     FpsLimiter fpsLimiter_;
     Environment environment_;
     PresentationReload presentation_;

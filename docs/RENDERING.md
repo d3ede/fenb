@@ -1,4 +1,4 @@
-# FENB 0.1i
+# FENB 0.2a
 
 FENB is a graphics mod for Flyff, inspired by ENBSeries. It uses a Windows x86 Direct3D 9 proxy, C++20, precompiled shaders and a native Dear ImGui settings panel.
 
@@ -22,7 +22,7 @@ The built-in list contains exactly five looks: **Default / Основной**, *
 
 All five are compiled into the DLL; the default image settings come from `config/FENB.ini`, with named variations in `config/builtins.json`. `node tools/embed-presets.mjs` regenerates `src/generated/presets.hpp`, and both build paths keep it in sync. No shipped `.ini` is added under **My profiles**. The old saved copy of Основной can be archived when migrating to the identical built-in, without discarding user edits. Custom files remain independently supported. Image-profile changes preserve the master switch, language, hardware/FPS choices and local time/weather controls. Modified built-ins retain their translated name with an asterisk, and can be saved as a custom profile.
 
-The lower-left corner shows the public version, **0.1i**, followed by save status. Public versions use the form `digit.digitletter`.
+The lower-left corner shows the public version, **0.2a**, followed by save status. Public versions use the form `digit.digitletter`.
 
 ## When an effect is visible
 
@@ -61,6 +61,16 @@ The antialiasing page has two compact selectors: **Off / FXAA / SMAA**, followed
 MSAA changes request the host's Lost Device recovery after a completed main-chain Present. The proxy reports DEVICELOST, then DEVICENOTRESET when the real device is ready; the client releases its own resources and calls Reset. FENB never resets the device behind the client's back. Reset uses the current in-memory choice, so it does not wait for autosave. The section reset restores the game's original sample type/quality; `msaa_samples=0` remains supported for existing configurations. Color/depth sample support, the existing DISCARD swap effect and the pinned client guard are checked; the bundled preview also supports this path. Unsupported or failed overrides retain the game's fallback parameters, and real device-loss errors propagate unchanged. Native preview fixtures verify live mode changes; live Flyff recovery still needs validation. MSAA covers geometry and does not by itself remove every alpha-test or shader alias. TAA is not implemented.
 
 The economical quality tier uses quarter-dimension spatial fields; detailed uses half dimensions and more AO samples. FXAA reuses the existing color target when combined with spatial effects. Memory depends on the enabled paths and quality tier. The optional reflection and sky-backdrop targets together add about 14.8 MiB at 1920x1009 when both SSR and fog are active, excluding game MSAA targets, driver allocations, fonts and UI. GPU/FPS cost in the live client is not yet measured. Native fixtures cover individual rendered effects, camera-orbit source stability, fading, absence of displaced light silhouettes, day/night vegetation, state restoration, HUD isolation and Reset with zero and 8x MSAA; they are not live visual acceptance.
+
+## World particles and water footsteps
+
+The **Skill effects** section in Light and atmosphere controls intensity, saturation, material-local glow, texture-edge softness and water-footstep strength. Supported native particles retain their geometry, timing, UV animation, vertex fading and depth visibility. Simple fixed-function RGB/alpha stages are reproduced before styling; complex stages, programmable materials, HUD quads, portraits and unknown textures are left unchanged. Extra enhancement fades toward the native result after 64 supported draws in a frame. Soft edges are texture filtering, not depth-based soft particles; this does not create new spell geometry or animation.
+
+Recognition uses exact first-mip upload hashes, cached on managed textures and invalidated with texture updates. `tools/sfx-materials.json` contains source identities and decoded ARGB8 fingerprints; `node tools/sfx-catalog.mjs <client directory>` verifies those assets and regenerates `src/generated/sfx_catalog.hpp`. The runtime contains identities only, not copied game textures, and performs no file loading or GPU image readback for styling.
+
+The captured water-running material is also used by an archer skill. A separate horizontal-quad, texture-stage, blend-state and visible-water signature restricts its wake replacement. A clean world-color snapshot supplies local refraction with restrained highlights instead of the native additive white ring. The original expanding quad animation remains authoritative. Late particles cannot capture a source containing the HUD: the snapshot is refreshed at the pre-HUD boundary, or the replacement retains the native draw. A zero footstep strength restores native rings. This snapshot adds four bytes per viewport pixel when used (approximately 7.4 MiB at 1920x1009), releases on Reset/disable and does not require readable scene depth. No physical water simulation or interaction-driven mesh is added.
+
+Native fixtures check neutral fixed-function parity, styling, alpha fade, HUD/camera guards, depth occlusion, real water DDS recognition, refractive wake rendering and resource release with zero and 8x MSAA. Live gameplay appearance and FPS remain to be validated.
 
 ## Native client frame pacing
 

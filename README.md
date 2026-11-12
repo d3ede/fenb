@@ -31,6 +31,7 @@ A graphics mod inspired by ENBSeries, with adjustable effects and an in-game set
 | **Light & atmosphere** | SSAO, sun rays, sky and cloud adjustments, distance and height fog, depth of field, brightness adaptation and local lighting. |
 | **Time & weather** | Live time-of-day controls, freeze time and clear/rain/snow with adjustable intensity on the supported Homesickness client. Switch either override off to follow the game. |
 | **WaterFX** | Animated wave shading, refraction, reflections, depth-based absorption and optional caustics. |
+| **Skill effects** | Adjustable color, intensity, soft edges and local glow for recognized world particles; refractive water footsteps replace supported white running rings. |
 | **Antialiasing** | FXAA, SMAA and hardware MSAA where supported. |
 | **Profiles** | Five translated built-in looks: Default, Clear water, Golden light, Soft atmosphere and Night lights. Save your own profiles alongside them. Settings save automatically. |
 | **In-game controls** | English and Russian interface, individual effect switches and a master effects toggle. Processing preserves the game HUD. |

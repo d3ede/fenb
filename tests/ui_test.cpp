@@ -529,6 +529,26 @@ int main() {
         frame();
         CHECK(Screenshot(d, L"build/FENB-antialias-native8-russian.png"));
     }
+    // Render the new material controls through the real panel in both languages.
+    r.editorPage = 2;
+    r.settings.enabled = r.settings.sfx = true;
+    frame();
+    ImGuiWindow *adjustments = nullptr;
+    for (auto *candidate : ImGui::GetCurrentContext()->Windows)
+        if (candidate->ParentWindow == panel && strstr(candidate->Name, "adjustments"))
+            adjustments = candidate;
+    CHECK(adjustments);
+    for (const char *id : {"ssao", "rays", "sky", "fog", "dof", "adaptation", "lighting-balance", "foliage", "lighting"})
+        adjustments->StateStorage.SetBool(ImHashStr("expanded", 0, adjustments->GetID(id)), false);
+    adjustments->StateStorage.SetBool(ImHashStr("expanded", 0, adjustments->GetID("sfx")), true);
+    for (int language = 0; language < 2; ++language) {
+        r.settings.language = language ? Language::Russian : Language::English;
+        frame();
+        ImGui::SetScrollY(adjustments, adjustments->ScrollMax.y);
+        frame();
+        frame();
+        CHECK(Screenshot(d, language ? L"build/FENB-sfx-russian.png" : L"build/FENB-sfx-english.png"));
+    }
     DeleteFileW((ModuleDirectory() + L"FENB-presets\\Тест воды.ini").c_str());
     ImGui_ImplDX9_Shutdown();
     ImGui::DestroyContext();

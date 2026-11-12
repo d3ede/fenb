@@ -26,6 +26,8 @@ if ($LASTEXITCODE) { throw 'Water reflection compilation failed' }
 if ($LASTEXITCODE) { throw 'Caustics compilation failed' }
 & '.\build\shaderc.exe' 'shaders/scene.hlsl' 'src/generated/scene_shaders.hpp' 'scene'
 if ($LASTEXITCODE) { throw 'Scene FX shader compilation failed' }
+& '.\build\shaderc.exe' 'shaders/sfx.hlsl' 'src/generated/sfx_shaders.hpp' 'sfx'
+if ($LASTEXITCODE) { throw 'SFX shader compilation failed' }
 & '.\build\shaderc.exe' 'shaders/smaa.hlsl' 'src/generated/smaa_shaders.hpp' 'smaa'
 if ($LASTEXITCODE) { throw 'SMAA shader compilation failed' }
 $imgui='vendor/imgui-1.92.9b'
@@ -85,6 +87,12 @@ if ($Tests) {
     if($LASTEXITCODE){throw 'Scene FX tests failed'}
     & '.\build\scene-fx-test.exe' '--msaa'
     if($LASTEXITCODE){throw 'MSAA scene FX tests failed'}
+    & $cxx '-std=c++20' '-O2' '-static' '-Isrc' 'tests/sfx_test.cpp' '-ld3d9' '-ldxguid' '-lbcrypt' '-o' 'build/sfx-test.exe'
+    if($LASTEXITCODE){throw 'SFX test build failed'}
+    & '.\build\sfx-test.exe'
+    if($LASTEXITCODE){throw 'SFX tests failed'}
+    & '.\build\sfx-test.exe' '--msaa'
+    if($LASTEXITCODE){throw 'MSAA SFX tests failed'}
     & $cxx '-std=c++20' '-O2' '-static' '-Isrc' 'tests/dx9_test.cpp' 'src/settings.cpp' '-ld3d9' '-ldxguid' '-lgdi32' '-lgdiplus' '-lpsapi' '-o' "$outputDirectory/FENB-preview.exe"
     if ($LASTEXITCODE) { throw 'DX9 test build failed' }
     & ".\$outputDirectory\FENB-preview.exe" '--aa-test'

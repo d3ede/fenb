@@ -81,6 +81,12 @@ inline void ApplyBuiltInVisuals(Settings &s, int index) {
     s.nightFoliage = 0.750000f;
     s.lightingBalance = true;
     s.lightingBalanceStrength = 0.600000f;
+    s.sfx = true;
+    s.sfxIntensity = 1.200000f;
+    s.sfxGlow = 0.350000f;
+    s.sfxSaturation = 1.120000f;
+    s.sfxSoftness = 0.350000f;
+    s.sfxWake = 0.700000f;
     switch(index) {
     case 1: // Clear water
     s.bloomStrength = 0.100000f;

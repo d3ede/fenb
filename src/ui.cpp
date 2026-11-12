@@ -572,6 +572,15 @@ void SceneControls(Runtime &runtime) {
                 notice(UiText::LightNotDetected);
         }
     }
+    if (section("sfx", Tr(UiText::SpellEffects), s.sfx, 11)) {
+        ImGui::BeginDisabled(!s.sfx || !s.enabled);
+        Row(UiText::Strength, Tr(UiText::SfxIntensityHelp), s.sfxIntensity, .5f, 2, defaults.sfxIntensity,"%.2f",.05f);
+        Row(UiText::SfxGlow, Tr(UiText::SfxGlowHelp), s.sfxGlow, 0, 1, defaults.sfxGlow,"%.2f",.05f);
+        Row(UiText::Saturation, Tr(UiText::SaturationHelp), s.sfxSaturation, .5f, 1.5f, defaults.sfxSaturation,"%.2f",.05f);
+        Row(UiText::SfxSoftness, Tr(UiText::SfxSoftnessHelp), s.sfxSoftness, 0, 1, defaults.sfxSoftness,"%.2f",.05f);
+        Row(UiText::WaterWake, Tr(UiText::WaterWakeHelp), s.sfxWake, 0, 1.5f, defaults.sfxWake,"%.2f",.05f);
+        ImGui::EndDisabled();
+    }
     ImGui::Spacing();
     auto qualityPos = ImGui::GetCursorScreenPos();
     float qualityWidth = ImGui::GetContentRegionAvail().x;
