@@ -183,6 +183,8 @@ int main(int argc, char **) {
     emitter->SetPrivateData(EmitterTag, &tag, 4, 0); // Synthetic recognized source.
     bool emit = false, nativePoint = true, occluded = false, foreground = false;
     float cameraYaw = 0;
+    bool planeOnly = false, moonBackdrop = false;
+    int moonShift = 0;
     float emitterFade = 1;
     DWORD solidColor = 0xff303030;
     auto disableEffect = [&](int group) {
@@ -282,6 +284,10 @@ int main(int argc, char **) {
         d->LightEnable(1, nativePoint);
         d->Clear(0, nullptr, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER,
                  solid ? solidColor : (balanceScene ? 0xff101827 : 0xff8faec4), 1, 0);
+        if(moonBackdrop) {
+            D3DRECT moon{LONG(W/2-30+moonShift),50,LONG(W/2+30+moonShift),110};
+            d->Clear(1,&moon,D3DCLEAR_TARGET,0xffd0e8ff,1,0);
+        }
         fx.sceneFX().observe(settings);
         if (FAILED(d->BeginScene()))
             return false;
@@ -290,6 +296,7 @@ int main(int argc, char **) {
             for (int z = -5; z < 100; ++z)
                 for (int x = -15; x < 15; ++x) {
                     DWORD c = darkScene ? 0xff25211c : ((x + z) & 1 ? 0xff7c725a : 0xffb2a581);
+                    if(planeOnly)c=0xff808080;
                     for (auto v : std::initializer_list<Vertex>{{float(x), 0, float(z), c},
                                                                 {float(x), 0, float(z + 1), c},
                                                                 {float(x + 1), 0, float(z), c},
@@ -306,7 +313,7 @@ int main(int argc, char **) {
             if (balanceScene)
                 for (auto &v : wall)
                     v.color = 0xffc0c0c0;
-            d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, wall, sizeof(Vertex));
+            if(!planeOnly)d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, wall, sizeof(Vertex));
             if (foreground) {
                 Vertex character[] = {{-.35f, 0, 3, 0xff506070},
                                       {.35f, 0, 3, 0xff506070},
@@ -380,6 +387,15 @@ int main(int argc, char **) {
     CHECK(std::abs(Luma(horizon[120 * W + W / 2]) - Luma(original[50 * W + 20])) <= 3);
     CHECK(horizon[50 * W + 20] == original[50 * W + 20]);
     CHECK(Save(horizon, L"build/scene-fog-horizon.bmp"));
+    moonBackdrop=true;moonShift=-45;
+    CHECK(render()); auto moonLeft=Read(d);
+    moonShift=45;CHECK(render());auto moonRight=Read(d);
+    unsigned leakedMoon=0;
+    for(UINT y=60;y<120;++y)for(UINT x=W/2-20;x<W/2+20;++x)
+        leakedMoon += std::abs(Luma(moonLeft[y*W+x])-Luma(moonRight[y*W+x]))>3;
+    CHECK(leakedMoon==0);
+    CHECK(Save(moonRight,L"build/scene-fog-no-moon-through-wall.bmp"));
+    moonBackdrop=false;
     CHECK(SceneFXFixture::hasSkyBackdrop(fx.sceneFX()));
     disableEffect(3);
     settings.nightFoliage = 0;
@@ -394,6 +410,17 @@ int main(int argc, char **) {
     auto ao = Read(d);
     CHECK(Difference(original, ao) > 100);
     CHECK(Save(ao, L"build/scene-ssao.bmp"));
+    planeOnly=true;
+    for(float yaw : {-.4f,0.f,.4f}) {
+        cameraYaw=yaw;settings.ssao=false;CHECK(render());auto plain=Read(d);
+        settings.ssao=true;CHECK(render());auto shaded=Read(d);
+        unsigned banded=0;
+        for(UINT y=H/2+30;y<H-5;++y)for(UINT x=W/4;x<W*3/4;++x)
+            banded += std::abs(Luma(plain[y*W+x])-Luma(shaded[y*W+x]))>3;
+        printf("Unoccluded slope AO band pixels: %u, yaw=%.2f\n",banded,yaw);
+        CHECK(banded==0);
+    }
+    planeOnly=false;cameraYaw=0;
     disableEffect(0);
     settings.dof = true;
     settings.focusDistance = 8;

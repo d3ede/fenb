@@ -135,7 +135,7 @@ void Effects::draw(IDirect3DSurface9 *backbuffer, const Settings &s) {
     device_->SetRenderState(D3DRS_FILLMODE, D3DFILL_SOLID);
     device_->SetRenderState(D3DRS_COLORWRITEENABLE, 15);
     device_->SetRenderState(D3DRS_SRGBWRITEENABLE, FALSE);
-    for (DWORD i = 0; i < 6; ++i) {
+    for (DWORD i = 0; i < 7; ++i) {
         device_->SetSamplerState(i, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
         device_->SetSamplerState(i, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
         device_->SetSamplerState(i, D3DSAMP_MIPFILTER, D3DTEXF_NONE);
@@ -186,6 +186,6 @@ void Effects::draw(IDirect3DSurface9 *backbuffer, const Settings &s) {
         scene_.antialias(graded, backbuffer, s);
     } else
         pass(backbuffer, width_, height_, composite_, processed, bloom_[0]);
-    for (DWORD i = 0; i < 6; ++i)
+    for (DWORD i = 0; i < 7; ++i)
         device_->SetTexture(i, nullptr);
 }

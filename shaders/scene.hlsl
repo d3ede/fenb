@@ -4,6 +4,7 @@ sampler2D AO : register(s2);
 sampler2D Rays : register(s3);
 sampler2D LocalField : register(s4);
 sampler2D SkyBackdrop : register(s5);
+sampler2D MeanSky : register(s6);
 float4 Camera : register(c0);
 float4 Viewport : register(c1);
 float4 Texel : register(c2);
@@ -25,24 +26,28 @@ float4 SourceLife[8] : register(c44);
 float4 SourceToEye : register(c52);
 float4 FogBackdrop : register(c53);
 float4 NativeFog : register(c54);
+float4 NativeFogColor : register(c55);
 float4 LightPositions[8] : register(c20);
 float4 LightColors[8] : register(c28);
 float4 LightAttenuation[8] : register(c36);
 
-float RawDepth(float2 uv) {return tex2Dlod(Depth,float4(uv,0,0)).r;}
+float2 DepthUV(float2 uv) {return (floor(uv/Texel.xy)+.5)*Texel.xy;}
+float RawDepth(float2 uv) {return tex2Dlod(Depth,float4(DepthUV(uv),0,0)).r;}
 float Z(float2 uv) {return min(10000,Camera.w/min(-.000001,RawDepth(uv)-Camera.z));}
 float3 Point(float2 uv,float z) {
+    uv=DepthUV(uv)-Texel.xy*.5;
     float2 ndc=(uv-Viewport.xy)/Viewport.zw*float2(2,-2)+float2(-1,1);
     return float3(ndc/Camera.xy,1)*z;
 }
 float3 SurfaceNormal(float2 uv,float3 p) {
     // Pick the same surface on each axis; derivatives across silhouettes invent slanted receivers.
-    float2 dx=float2(Texel.x,0),dy=float2(0,Texel.y);
+    float2 dx=float2(max(Texel.x,Quality.z),0),dy=float2(0,max(Texel.y,Quality.w));
     float3 l=Point(uv-dx,Z(uv-dx)),r=Point(uv+dx,Z(uv+dx));
     float3 u=Point(uv-dy,Z(uv-dy)),d=Point(uv+dy,Z(uv+dy));
     float3 x=abs(l.z-p.z)<abs(r.z-p.z)?p-l:r-p;
     float3 y=abs(u.z-p.z)<abs(d.z-p.z)?p-u:d-p;
-    float3 n=normalize(cross(x,y)+float3(0,0,.000001));
+    float3 n=cross(x,y);
+    n*=rsqrt(max(1e-20,dot(n,n)));
     return dot(n,-p)>0?n:-n;
 }
 float2 Kernel(int i) {
@@ -51,7 +56,7 @@ float2 Kernel(int i) {
 }
 float4 SceneAO(float2 uv:TEXCOORD0):COLOR0 {
     float raw=RawDepth(uv),z=Z(uv);
-    float3 p=Point(uv,z);
+    float3 p=Point(uv,z),n=SurfaceNormal(uv,Point(uv,z));
     float occlusion=0;
     float2 radius=min(.12,Occlusion.y*Camera.xy/max(.1,z)*.5)*Viewport.zw;
     [loop]for(int i=0;i<16;++i){
@@ -59,7 +64,7 @@ float4 SceneAO(float2 uv:TEXCOORD0):COLOR0 {
         float2 q=uv+Kernel(i)*radius*(.2+.8*(i+.5)/Quality.x);
         float3 delta=Point(q,Z(q))-p;
         float distance=length(delta);
-        float horizon=max(0,dot(SurfaceNormal(uv,p),delta)-Occlusion.z)/max(.01,distance);
+        float horizon=max(0,dot(n,delta)-Occlusion.z)/max(.01,distance);
         float valid=all(q>=Viewport.xy)&&all(q<=Viewport.xy+Viewport.zw)&&RawDepth(q)<.999999;
         occlusion+=horizon*saturate(1-distance/Occlusion.y)*valid;
     }
@@ -81,12 +86,15 @@ float4 SceneRays(float2 uv:TEXCOORD0):COLOR0 {
 }
 float BilateralAO(float2 uv,float z) {
     float sum=0,weights=0;
+    float2 cell=uv/Resolution.xy-.5,base=floor(cell),f=frac(cell);
     [unroll]for(int i=0;i<4;++i){
-        float2 q=uv+float2(frac(i*.5)*2-.5,floor(i*.5)-.5)*Resolution.xy;
-        float w=rcp(1+abs(Z(q)-z)*4);
+        float2 corner=float2(fmod(i,2),floor(i*.5));
+        float2 q=(base+corner+.5)*Resolution.xy;
+        float2 bilinear=lerp(1-f,f,corner);
+        float w=bilinear.x*bilinear.y*exp(-abs(Z(q)-z)/max(.1,z*.01));
         sum+=tex2Dlod(AO,float4(q,0,0)).r*w;weights+=w;
     }
-    return sum/max(.001,weights);
+    return weights>1e-8?sum/weights:1;
 }
 float3 BilateralLight(float2 uv,float z){
     float3 sum=0;float weights=0;
@@ -95,10 +103,10 @@ float3 BilateralLight(float2 uv,float z){
         float2 corner=float2(fmod(i,2),floor(i*.5));
         float2 q=(base+corner+.5)*Resolution.zw;
         float2 bilinear=lerp(1-f,f,corner);
-        float w=bilinear.x*bilinear.y*exp(-abs(Z(q)-z)*8);
+        float w=bilinear.x*bilinear.y*exp(-abs(Z(q)-z)/max(.1,z*.01));
         sum+=tex2Dlod(LocalField,float4(q,0,0)).rgb*w;weights+=w;
     }
-    return sum/max(.001,weights);
+    return weights>1e-8?sum/weights:0;
 }
 float4 SceneComposite(float2 uv:TEXCOORD0):COLOR0 {
     float4 source=tex2D(Image,uv);
@@ -124,14 +132,14 @@ float4 SceneComposite(float2 uv:TEXCOORD0):COLOR0 {
     }
     if(Enabled.x>.5 && raw<.999999)rgb*=BilateralAO(uv,z);
     if(Local.w>.5 && raw<.999999)rgb+=reflectance*BilateralLight(uv,z);
-    if(Enabled.y>.5 && raw<.999999){
+    float3 air=FogBackdrop.x>.5?tex2Dlod(MeanSky,float4(.5,.5,0,0)).rgb:pow(max(0,FogTint.rgb),2.2)*Illumination.rgb;
+    if(Enabled.y>.5 && raw<1){
         float3 worldDelta=mul((float3x3)View,p);
         float density=FogParameters.x*exp(clamp(-(Eye.y+worldDelta.y*.5-FogParameters.z)*FogParameters.w,-8,8));
         float fog=1-exp(-max(0,length(p)-FogParameters.y)*density);
-        float3 inscatter=pow(max(0,FogTint.rgb),2.2)*Illumination.rgb;
+        float3 inscatter=air;
         if(FogBackdrop.x>.5){
-            // Converge to the actual sky behind this pixel, not a differently colored flat wall.
-            inscatter=pow(max(0,tex2D(SkyBackdrop,uv).rgb),2.2);
+            // Atmospheric light is diffuse. Never project moon/cloud detail through an opaque object.
             // Fade the engine's already-flat native fog silhouettes into that same backdrop.
             if(FogBackdrop.y>.5 && FogBackdrop.w>FogBackdrop.z)
                 fog=max(fog,smoothstep(FogBackdrop.z,FogBackdrop.w,NativeFog.w>.5?length(p):p.z));
@@ -139,8 +147,32 @@ float4 SceneComposite(float2 uv:TEXCOORD0):COLOR0 {
         }
         rgb=lerp(rgb,inscatter,saturate(fog));
     }
+    if(Enabled.y>.5 && FogBackdrop.x>.5 && NativeFog.x>.5 &&
+       (raw>=1 || (NativeFog.w>.5?length(p):p.z)>=NativeFog.z*.995)) {
+        // At the far clip, one MSAA depth sample can be sky even though color contains fogged terrain.
+        // Recover only coverage consistent with the known native fog/sky mixture, preserving the sky.
+        float3 sky=tex2D(SkyBackdrop,uv).rgb;
+        float3 difference=NativeFogColor.rgb-sky;
+        float denominator=dot(difference,difference);
+        float coverage=saturate(dot(source.rgb-sky,difference)/max(.00001,denominator));
+        float error=length(source.rgb-lerp(sky,NativeFogColor.rgb,coverage));
+        if(denominator>.0001 && error<.025)
+            rgb=lerp(pow(max(0,sky),2.2),air,coverage);
+    }
     if(Enabled.w>.5)rgb+=tex2D(Rays,uv).rgb;
     return float4(pow(saturate(rgb),1/2.2),source.a);
+}
+float4 SkyMean(float2 uv:TEXCOORD0):COLOR0 {
+    float3 sum=0;
+    [unroll]for(int y=0;y<4;++y)[unroll]for(int x=0;x<4;++x) {
+        float3 rgb=tex2D(Image,uv+float2(x-1.5,y-1.5)*Camera.xy).rgb;
+        if(Camera.z>.5) {
+            rgb=pow(max(0,rgb),2.2);
+            rgb/=max(1,dot(rgb,float3(.2126,.7152,.0722))/.65);
+        }
+        sum+=rgb;
+    }
+    return float4(sum/16,1);
 }
 // Exposure reduction stores mean log2 luminance, mapped from [-12,0] to [0,1].
 float4 Luminance(float2 uv:TEXCOORD0):COLOR0 {

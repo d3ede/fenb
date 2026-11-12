@@ -54,6 +54,7 @@ bool SceneFX::programs() {
     PROGRAM(adaptPS_, Adapt)
     PROGRAM(skyPS_, SkyPS)
     PROGRAM(flarePS_, FlarePS)
+    PROGRAM(skyMeanPS_, SkyMean)
     PROGRAM(emitterPS_, EmitterPS)
     PROGRAM(sumPS_, EmitterSum)
     PROGRAM(localPS_, EmitterLighting)
@@ -78,6 +79,8 @@ void SceneFX::invalidate() {
     depth_.invalidate();
     output_.clear();
     skyBackdrop_.clear();
+    for (auto &t : skyMean_) t.clear();
+    skyMeanPS_.out();
     ao_.clear();
     rays_.clear();
     for (auto &t : luma_)
@@ -117,6 +120,7 @@ void SceneFX::releasePost() {
     depth_.invalidate();
     output_.clear();
     skyBackdrop_.clear();
+    for (auto &t : skyMean_) t.clear();
     ao_.clear();
     rays_.clear();
     for (auto &t : luma_)
@@ -141,6 +145,7 @@ size_t SceneFX::bytes() const {
         depth_.bytes() + output_.bytes() + ao_.bytes() + rays_.bytes() + smaa_.bytes() + skyBackdrop_.bytes();
     for (auto &t : luma_)
         n += t.bytes();
+    for (auto &t : skyMean_) n += t.bytes();
     for (auto &t : exposure_)
         n += t.bytes();
     for (auto &t : balance_)
@@ -193,6 +198,9 @@ void SceneFX::observe(const Settings &s) {
         device_->GetRenderState(D3DRS_FOGSTART, &start);
         device_->GetRenderState(D3DRS_FOGEND, &end);
         device_->GetRenderState(D3DRS_RANGEFOGENABLE, &range);
+        DWORD packedFog=0;
+        device_->GetRenderState(D3DRS_FOGCOLOR,&packedFog);
+        for(int i=0;i<3;++i)nativeFogColor_[i]=float((packedFog>>(16-i*8))&255)/255;
         nativeFog_[0] = enabled && mode == D3DFOG_LINEAR ? 1.f : 0.f;
         memcpy(&nativeFog_[1], &start, 4);
         memcpy(&nativeFog_[2], &end, 4);
@@ -231,6 +239,7 @@ void SceneFX::observe(const Settings &s) {
 bool SceneFX::prepare(UINT width, UINT height, const Settings &s) {
     if (!s.fog) {
         skyBackdrop_.clear();
+        for (auto &t : skyMean_) t.clear();
         skyBackdropReady_ = false;
     }
     if (!s.smaa)
@@ -272,6 +281,9 @@ bool SceneFX::prepare(UINT width, UINT height, const Settings &s) {
     }
     if (!depthReady_)
         return true;
+    if (s.fog && skyBackdropReady_)
+        for (UINT i=0,size=16;i<3;++i,size/=4)
+            if(!skyMean_[i].make(device_,size,size,D3DFMT_A16B16G16R16F)) skyBackdropReady_=false;
     UINT scale = s.sceneQuality ? 2 : 4, w = std::max(1u, width / scale), h = std::max(1u, height / scale);
     if (!s.ssao)
         ao_.clear();
@@ -286,7 +298,7 @@ bool SceneFX::prepare(UINT width, UINT height, const Settings &s) {
     return true;
 }
 bool SceneFX::pass(Target &t, IDirect3DPixelShader9 *ps, IDirect3DTexture9 *image, IDirect3DTexture9 *depth) {
-    for (DWORD i = 0; i < 6; ++i)
+    for (DWORD i = 0; i < 7; ++i)
         device_->SetTexture(i, nullptr);
     D3DVIEWPORT9 vp{0, 0, t.width, t.height, 0, 1};
     if (FAILED(device_->SetRenderTarget(0, t.surface)) || FAILED(device_->SetViewport(&vp)) ||
@@ -319,8 +331,18 @@ bool SceneFX::antialias(IDirect3DTexture9 *input, IDirect3DSurface9 *target, con
 }
 IDirect3DTexture9 *SceneFX::process(IDirect3DTexture9 *input, const Settings &s) {
     PointSampler localSampler(device_, 4);
+    PointSampler aoSampler(device_, 2);
     if (!depthReady_ || !output_.texture.p)
         return input;
+    if(s.fog && skyBackdropReady_) {
+        auto *source=skyBackdrop_.texture.p;
+        for(UINT i=0;i<3;++i) {
+            float step[]={1.f/(skyMean_[i].width*4),1.f/(skyMean_[i].height*4),i==0?1.f:0.f,0};
+            device_->SetPixelShaderConstantF(0,step,1);
+            if(!pass(skyMean_[i],skyMeanPS_,source)){skyBackdropReady_=false;break;}
+            source=skyMean_[i].texture.p;
+        }
+    }
     const float w = float(output_.width), h = float(output_.height);
     float c[20][4]{};
     c[0][0] = projection_._11;
@@ -380,10 +402,13 @@ IDirect3DTexture9 *SceneFX::process(IDirect3DTexture9 *input, const Settings &s)
     float fogBackdrop[] = {skyBackdropReady_ ? 1.f : 0.f, nativeFog_[0], nativeFog_[1], nativeFog_[2]};
     device_->SetPixelShaderConstantF(53, fogBackdrop, 1);
     device_->SetPixelShaderConstantF(54, nativeFog_, 1);
+    device_->SetPixelShaderConstantF(55, nativeFogColor_, 1);
     c[17][0] = ao_.width ? 1.f / ao_.width : 0;
     c[17][1] = ao_.height ? 1.f / ao_.height : 0;
     c[18][0] = s.sceneQuality ? 16 : 8;
     c[18][1] = emitters_ ? 1.f : 0.f;
+    c[18][2] = (s.sceneQuality?2.f:4.f)/w;
+    c[18][3] = (s.sceneQuality?2.f:4.f)/h;
     c[17][2] = localField_.width ? 1.f / localField_.width : 0;
     c[17][3] = localField_.height ? 1.f / localField_.height : 0;
     c[19][0] = s.localLighting ? float(lights_) : 0;
@@ -437,6 +462,7 @@ IDirect3DTexture9 *SceneFX::process(IDirect3DTexture9 *input, const Settings &s)
     device_->SetTexture(3, rays_.texture);
     device_->SetTexture(4, c[19][3] > .5f ? localField_.texture.p : nullptr);
     device_->SetTexture(5, skyBackdropReady_ ? skyBackdrop_.texture.p : nullptr);
+    device_->SetTexture(6, skyBackdropReady_ ? skyMean_[2].texture.p : nullptr);
     struct V {
         float x, y, z, w, u, v;
     };
