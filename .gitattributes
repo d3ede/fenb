@@ -9,3 +9,8 @@
 *.woff binary
 *.woff2 binary
 *.zip binary
+
+# Keep upstream SMAA sources and lookup tables unchanged, including trailing spaces.
+vendor/smaa/SMAA.hlsl whitespace=-blank-at-eol
+vendor/smaa/AreaTex.h whitespace=-blank-at-eol
+vendor/smaa/SearchTex.h whitespace=-blank-at-eol

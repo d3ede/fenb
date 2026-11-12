@@ -26,12 +26,12 @@ struct Settings {
 #undef SCENE_FLOAT
     bool postEnabled() const {
         return bloom || color || ssao || sunRays || fog || dof || adaptation || localLighting || fxaa ||
-               lightingBalance;
+               smaa || lightingBalance;
     }
     void resetSceneSection(int group);
     bool openOnStart = false;
     bool preciseWaterDepth = true;
-    int msaaSamples = 0;    // 0 retains the native choice, -1 disables, otherwise 2/4/8. Restart required.
+    int msaaSamples = 0;    // 0 retains the native choice, -1 disables, otherwise 2/4/8.
     bool unlockFps = false; // Opt-in rendering unlock with a fixed 16 ms simulation step.
     int panelPage = 0;
     Language language = Language::English;

@@ -82,9 +82,10 @@ void Scene(IDirect3DDevice9* dev,IDirect3DSurface9* surface,UINT width,UINT heig
 }
 int main(int argc,char** argv) {
     bool interactive=argc>1 && strcmp(argv[1],"--preview")==0;
+    bool aaTest=argc>1 && strcmp(argv[1],"--aa-test")==0;
     auto dir=Directory(); auto config=dir+L"FENB.ini";
     Settings saved;saved.load(config);
-    Settings test; test.openOnStart=true;test.exposure=.12f;test.save(config);
+    Settings test; test.openOnStart=!aaTest;test.exposure=.12f;test.save(config);
     HMODULE dll=LoadLibraryW((dir+L"d3d9.dll").c_str());
     if(!Check(dll!=nullptr,"load local proxy"))return 2;
     // Invoke a tail-jump forwarding export BEFORE creating a device (lazy loader / stdcall ABI).
@@ -102,7 +103,7 @@ int main(int argc,char** argv) {
     WNDCLASSW wc{};wc.lpfnWndProc=Wnd;wc.hInstance=instance;wc.lpszClassName=L"FENBPreview";wc.hCursor=LoadCursorW(nullptr,MAKEINTRESOURCEW(32512));RegisterClassW(&wc);
     HWND window=CreateWindowW(wc.lpszClassName,L"FENB — DX9 preview",WS_OVERLAPPEDWINDOW,80,70,1180,850,nullptr,nullptr,instance,nullptr);
     if(interactive)ShowWindow(window,SW_SHOWNORMAL);
-    D3DPRESENT_PARAMETERS pp{};pp.Windowed=TRUE;pp.SwapEffect=D3DSWAPEFFECT_COPY;pp.hDeviceWindow=window;
+    D3DPRESENT_PARAMETERS pp{};pp.Windowed=TRUE;pp.SwapEffect=(interactive||aaTest)?D3DSWAPEFFECT_DISCARD:D3DSWAPEFFECT_COPY;pp.hDeviceWindow=window;
     pp.BackBufferFormat=D3DFMT_X8R8G8B8;pp.BackBufferWidth=1160;pp.BackBufferHeight=800;pp.BackBufferCount=1;
     pp.PresentationInterval=D3DPRESENT_INTERVAL_IMMEDIATE;
     Com<IDirect3DDevice9> dev;
@@ -120,10 +121,44 @@ int main(int argc,char** argv) {
     Com<IDirect3DSurface9> bb;dev->GetBackBuffer(0,0,D3DBACKBUFFER_TYPE_MONO,bb.out());
     Com<IDirect3DSwapChain9> chain;dev->GetSwapChain(0,chain.out());
     Com<IDirect3DDevice9> chainDevice;chain->GetDevice(chainDevice.out());Check(chainDevice.p==dev.p,"swap-chain device identity");Drop(chainDevice.p);
+    auto recover=[&](){
+        Drop(bb.p);Drop(chain.p);
+        HRESULT cooperative=dev->TestCooperativeLevel();
+        if(cooperative!=D3DERR_DEVICENOTRESET)return false;
+        auto reset=pp;
+        if(FAILED(dev->Reset(&reset)))return false;
+        return SUCCEEDED(dev->GetBackBuffer(0,0,D3DBACKBUFFER_TYPE_MONO,bb.out())) &&
+               SUCCEEDED(dev->GetSwapChain(0,chain.out()));
+    };
+    if(aaTest){
+        unsigned resets=0;
+        for(int samples:{2,4,8,-1,0}){
+            DWORD quality=0;
+            if(samples>0 && FAILED(d3d->CheckDeviceMultiSampleType(0,D3DDEVTYPE_HAL,pp.BackBufferFormat,
+                                                   TRUE,D3DMULTISAMPLE_TYPE(samples),&quality)))continue;
+            test.msaaSamples=samples;test.save(config);
+            Sleep(550);
+            Scene(dev,bb,1160,800);
+            HRESULT result=dev->Present(nullptr,nullptr,nullptr,nullptr);
+            Check(result==D3DERR_DEVICELOST,"MSAA requests host recovery after Present");
+            if(result==D3DERR_DEVICELOST){Check(recover(),"host releases resources and resets MSAA");++resets;}
+            D3DPRESENT_PARAMETERS actual{};if(chain.p)chain->GetPresentParameters(&actual);
+            Check(actual.MultiSampleType==(samples>0?D3DMULTISAMPLE_TYPE(samples):D3DMULTISAMPLE_NONE),
+                  "MSAA active samples match selected mode");
+            Scene(dev,bb,1160,800);
+            Check(SUCCEEDED(dev->Present(nullptr,nullptr,nullptr,nullptr)),"MSAA does not request repeated resets");
+        }
+        Check(resets>=3,"multiple live MSAA changes exercised");
+        Drop(bb.p);Drop(chain.p);Drop(texture.p);Drop(dev.p);saved.save(config);
+        return failures?1:0;
+    }
     if(interactive){
         while(IsWindow(window)){
-            Pump();Scene(dev,bb,pp.BackBufferWidth,pp.BackBufferHeight);
-            dev->Present(nullptr,nullptr,nullptr,nullptr);Sleep(8);
+            Pump();
+            if(!bb.p){recover();Sleep(8);continue;}
+            Scene(dev,bb,1160,800);
+            if(dev->Present(nullptr,nullptr,nullptr,nullptr)==D3DERR_DEVICELOST)recover();
+            Sleep(8);
         }
         Drop(bb.p);Drop(chain.p);Drop(texture.p);Drop(dev.p);saved.save(config);return 0;
     }

@@ -49,6 +49,9 @@ inline bool SupportedPresentationHost() {
     static const bool known = [] {
         wchar_t path[32768]{};
         GetModuleFileNameW(nullptr, path, 32768);
+        const auto *name = wcsrchr(path, L'\\');
+        if (!_wcsicmp(name ? name + 1 : path, L"FENB-preview.exe"))
+            return true;
         return fps_detail::KnownClientFile(path);
     }();
     return known;
@@ -115,4 +118,19 @@ HRESULT WithConfiguredDepth(IDirect3DDevice9 *device, D3DPRESENT_PARAMETERS *p, 
         return call(p);
     return WithConfiguredDepth(root, creation.AdapterOrdinal, creation.DeviceType, p,
                                std::forward<Call>(call));
+}
+
+template <class Call>
+HRESULT WithPresentationSettings(IDirect3DDevice9 *device, D3DPRESENT_PARAMETERS *p,
+                                 const Settings &settings, Call &&call) {
+    if (!SupportedPresentationHost()) return call(p);
+    Com<IDirect3D9> root;
+    D3DDEVICE_CREATION_PARAMETERS creation{};
+    if (FAILED(device->GetDirect3D(root.out())) || FAILED(device->GetCreationParameters(&creation)))
+        return call(p);
+    return WithMultisample(root, creation.AdapterOrdinal, creation.DeviceType, p, settings.msaaSamples,
+                          [&](auto *adjusted) {
+        return WithDepthFormat(root, creation.AdapterOrdinal, creation.DeviceType, adjusted,
+                               settings.preciseWaterDepth, call);
+    });
 }

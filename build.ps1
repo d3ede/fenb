@@ -20,6 +20,8 @@ if ($LASTEXITCODE) { throw 'Water PS compilation failed' }
 if ($LASTEXITCODE) { throw 'Caustics compilation failed' }
 & '.\build\shaderc.exe' 'shaders/scene.hlsl' 'src/generated/scene_shaders.hpp' 'scene'
 if ($LASTEXITCODE) { throw 'Scene FX shader compilation failed' }
+& '.\build\shaderc.exe' 'shaders/smaa.hlsl' 'src/generated/smaa_shaders.hpp' 'smaa'
+if ($LASTEXITCODE) { throw 'SMAA shader compilation failed' }
 $imgui='vendor/imgui-1.92.9b'
 $sources=@('src/exports.cpp','src/generated/exports.cpp','src/proxy.cpp','src/generated/proxies.cpp','src/settings.cpp','src/runtime.cpp','src/effects.cpp','src/water.cpp','src/scene_fx.cpp','src/fps_limiter.cpp','src/ui.cpp',
     "$imgui/imgui.cpp","$imgui/imgui_draw.cpp","$imgui/imgui_tables.cpp","$imgui/imgui_widgets.cpp","$imgui/backends/imgui_impl_win32.cpp","$imgui/backends/imgui_impl_dx9.cpp")
@@ -33,6 +35,7 @@ New-Item -ItemType Directory -Force -Path "$outputDirectory/FENB-presets" | Out-
 Get-ChildItem -LiteralPath 'config/presets' -Filter '*.ini' -File | Copy-Item -Destination "$outputDirectory/FENB-presets" -Force
 Copy-Item -LiteralPath "$imgui/LICENSE.txt" -Destination "$outputDirectory/Dear-ImGui-LICENSE.txt" -Force
 Copy-Item -LiteralPath 'assets/fonts/OFL.txt' -Destination "$outputDirectory/Inter-OFL.txt" -Force
+Copy-Item -LiteralPath 'vendor/smaa/LICENSE.txt' -Destination "$outputDirectory/SMAA-LICENSE.txt" -Force
 Get-Item -LiteralPath "$outputDirectory/d3d9.dll" | Select-Object FullName,Length
 if ($Tests) {
     & $cxx '-std=c++20' '-O2' '-static' '-Isrc' 'tests/settings_test.cpp' 'src/settings.cpp' '-o' 'build/settings-test.exe'
@@ -75,6 +78,8 @@ if ($Tests) {
     if($LASTEXITCODE){throw 'MSAA scene FX tests failed'}
     & $cxx '-std=c++20' '-O2' '-static' '-Isrc' 'tests/dx9_test.cpp' 'src/settings.cpp' '-ld3d9' '-ldxguid' '-lgdi32' '-lgdiplus' '-lpsapi' '-o' "$outputDirectory/FENB-preview.exe"
     if ($LASTEXITCODE) { throw 'DX9 test build failed' }
+    & ".\$outputDirectory\FENB-preview.exe" '--aa-test'
+    if ($LASTEXITCODE) { throw 'Live MSAA recovery tests failed' }
     & $cxx '-std=c++20' '-O2' '-static' '-Isrc' 'tests/hud_test.cpp' 'src/settings.cpp' '-ld3d9' '-ldxguid' '-o' "$outputDirectory/hud-test.exe"
     if($LASTEXITCODE){throw 'HUD test build failed'}
     & ".\$outputDirectory\hud-test.exe"

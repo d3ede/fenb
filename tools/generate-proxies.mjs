@@ -30,7 +30,8 @@ for (const [,type,parent,body] of definitions) {
       const ppIndex=root?4:0;
       const adjustedArgs=[...callArgs];adjustedArgs[ppIndex]='fenbDepthParameters';
       const owner=root?`real_,${names[0]},${names[1]}`:'real_';
-      call=`WithConfiguredDepth(${owner},${names[ppIndex]},[&](D3DPRESENT_PARAMETERS* fenbDepthParameters){return real_->${name}(${adjustedArgs.join(', ')});})`;
+      call=device?`runtime_->resetPresentation(${names[ppIndex]},[&](D3DPRESENT_PARAMETERS* fenbDepthParameters){return real_->${name}(${adjustedArgs.join(', ')});})`:`WithConfiguredDepth(${owner},${names[ppIndex]},[&](D3DPRESENT_PARAMETERS* fenbDepthParameters){return real_->${name}(${adjustedArgs.join(', ')});})`;
+      if(root) before+=`const auto fenbNative = ${names[ppIndex]} ? *${names[ppIndex]} : D3DPRESENT_PARAMETERS{}; `;
     }
     let code;
     if (name === 'QueryInterface') code = `return query(${names.join(', ')});`;
@@ -63,8 +64,9 @@ for (const [,type,parent,body] of definitions) {
       if ((device || swap) && (name === 'Present' || name === 'PresentEx')) {
         const runtime = device ? 'runtime_.get()' : 'RuntimeFor(owner_)';
         before += `auto* rt = ${runtime}; if (rt) rt->beforePresent(${swap ? 'real_' : 'nullptr'}, ${swap || name === 'PresentEx' ? names.at(-1) : '0'}, ${names[2]}); `;
-        after += 'if (rt) rt->afterPresent(hr); ';
+        after += `if (rt) { rt->afterPresent(hr); hr = rt->presentationResult(hr, ${swap?'real_':'nullptr'}, ${swap || name === 'PresentEx' ? names.at(-1) : '0'}); } `;
       }
+      if (device && name === 'TestCooperativeLevel') after += 'hr = runtime_->cooperativeResult(hr); ';
       if (device && name === 'BeginScene') after += 'if (SUCCEEDED(hr)) runtime_->scene(true); ';
       if (device && name === 'EndScene') after += 'if (SUCCEEDED(hr)) runtime_->scene(false); ';
       if (ret === 'HRESULT') {
@@ -73,6 +75,7 @@ for (const [,type,parent,body] of definitions) {
             after += `if (SUCCEEDED(hr)) Adopt(${names[i]}, ${device || root ? 'self_' : 'owner_'}); `;
         }
         if (name === 'GetContainer') after += `if (SUCCEEDED(hr) && ${names[1]}) WrapObject(${names[0]}, ${names[1]}, owner_); `;
+        if(root && (name==='CreateDevice'||name==='CreateDeviceEx')) after+=`if (SUCCEEDED(hr) && ${names.at(-1)} && *${names.at(-1)}) { auto* rt=RuntimeFor(*${names.at(-1)}); if(rt) rt->nativePresentation(fenbNative); } `;
         code = `${before}auto hr = ${call}; ${after}return hr;`;
       } else code = before + `return ${call};`;
     }

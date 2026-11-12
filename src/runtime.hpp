@@ -2,6 +2,8 @@
 #include "settings.hpp"
 #include "fps_limiter.hpp"
 #include "draw_call.hpp"
+#include "depth_policy.hpp"
+#include "presentation_reload.hpp"
 struct ImGuiContext;
 class Effects;
 class WaterFX;
@@ -41,6 +43,24 @@ class Runtime {
     std::wstring configPath;
     double gpuBytes() const;
     unsigned activeMSAA() const;
+    bool msaaAvailable(int samples) const;
+    void nativePresentation(const D3DPRESENT_PARAMETERS &p) {
+        presentation_.initialize(p, settings.msaaSamples);
+    }
+    HRESULT presentationResult(HRESULT result, IDirect3DSwapChain9 *chain = nullptr, DWORD flags = 0);
+    HRESULT cooperativeResult(HRESULT result) const {
+        return presentation_.cooperative(result);
+    }
+    template <class Call> HRESULT resetPresentation(D3DPRESENT_PARAMETERS *p, Call &&call) {
+        if (!p || !SupportedPresentationHost())
+            return call(p);
+        auto adjusted = *p;
+        presentation_.parameters(adjusted, settings.msaaSamples);
+        auto result = WithPresentationSettings(device_, &adjusted, settings, std::forward<Call>(call));
+        if (SUCCEEDED(result))
+            *p = adjusted;
+        return result;
+    }
     void save();
     void reload();
     void settingsChanged();
@@ -89,6 +109,7 @@ class Runtime {
     std::unique_ptr<Effects> effects_;
     std::unique_ptr<WaterFX> water_;
     FpsLimiter fpsLimiter_;
+    PresentationReload presentation_;
 #ifdef FENB_DIAGNOSTICS
     std::unique_ptr<PipelineProbe> probe_;
     ULONGLONG captureDeadline_ = 0;

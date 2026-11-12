@@ -199,6 +199,23 @@ int main() {
     CHECK(r.editorPage == 3);
     frame();
     CHECK(Screenshot(d, L"build/FENB-antialias-panel.png"));
+    // The spatial methods are ordered Off, FXAA, SMAA; selection never touches MSAA or FXAA tuning.
+    float oldStrength = r.settings.fxaaStrength;
+    r.settings.language = Language::English;
+    frame();
+    CHECK(Screenshot(d, L"build/FENB-antialias-english.png"));
+    click(400, 196);
+    frame();
+    CHECK(!ImGui::GetCurrentContext()->OpenPopupStack.empty());
+    auto aaPopup = ImGui::GetCurrentContext()->OpenPopupStack.back().Window->Pos;
+    click(aaPopup.x + 40, aaPopup.y + 8 + 2 * ImGui::GetTextLineHeightWithSpacing());
+    frame();
+    CHECK(r.settings.smaa && !r.settings.fxaa && r.settings.msaaSamples == 0);
+    CHECK(r.settings.fxaaStrength == oldStrength);
+    CHECK(Screenshot(d, L"build/FENB-antialias-smaa-english.png"));
+    r.settings.language = Language::Russian;
+    frame();
+    CHECK(Screenshot(d, L"build/FENB-antialias-smaa-russian.png"));
     click(170, 131);
     CHECK(r.editorPage == 0);
     frame();

@@ -24,10 +24,11 @@ add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/generated/caustics.hpp"
   COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/generated"
   COMMAND shaderc "${CMAKE_CURRENT_SOURCE_DIR}/shaders/caustics.hlsl" "${CMAKE_CURRENT_BINARY_DIR}/generated/caustics.hpp" CausticFieldPS ps_3_0
   DEPENDS shaderc shaders/caustics.hlsl)
-add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/generated/scene_shaders.hpp"
+add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/generated/scene_shaders.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/smaa_shaders.hpp"
   COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/generated"
   COMMAND shaderc "${CMAKE_CURRENT_SOURCE_DIR}/shaders/scene.hlsl" "${CMAKE_CURRENT_BINARY_DIR}/generated/scene_shaders.hpp" scene
-  DEPENDS shaderc shaders/scene.hlsl)
+  COMMAND shaderc "${CMAKE_CURRENT_SOURCE_DIR}/shaders/smaa.hlsl" "${CMAKE_CURRENT_BINARY_DIR}/generated/smaa_shaders.hpp" smaa
+  DEPENDS shaderc shaders/scene.hlsl shaders/smaa.hlsl vendor/smaa/SMAA.hlsl)
 add_library(d3d9 SHARED src/exports.cpp src/generated/exports.cpp src/proxy.cpp src/generated/proxies.cpp
   src/settings.cpp src/runtime.cpp src/effects.cpp src/water.cpp src/scene_fx.cpp src/fps_limiter.cpp src/ui.cpp
   "${CMAKE_CURRENT_BINARY_DIR}/generated/shaders.hpp"
@@ -113,6 +114,7 @@ if(BUILD_TESTING)
   add_executable(FENB-preview tests/dx9_test.cpp src/settings.cpp)
   target_include_directories(FENB-preview PRIVATE src)
   target_link_libraries(FENB-preview PRIVATE d3d9 dxguid gdi32 gdiplus psapi)
+  add_test(NAME msaa-live-recovery COMMAND FENB-preview --aa-test)
   add_executable(hud-test tests/hud_test.cpp src/settings.cpp)
   target_include_directories(hud-test PRIVATE src)
   target_link_libraries(hud-test PRIVATE d3d9 dxguid)

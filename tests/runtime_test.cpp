@@ -35,6 +35,24 @@ LRESULT CALLBACK ClientProc(HWND window, UINT message, WPARAM w, LPARAM l) {
         }                                                                                                    \
     } while (0)
 int main() {
+    PresentationReload reload;
+    D3DPRESENT_PARAMETERS native{};
+    native.MultiSampleType = D3DMULTISAMPLE_8_SAMPLES;
+    native.MultiSampleQuality = 2;
+    reload.initialize(native, 4);
+    CHECK(!reload.changed(4) && reload.changed(0));
+    CHECK(reload.cooperative(D3D_OK) == D3D_OK);
+    reload.request(0);
+    CHECK(reload.pending() && reload.cooperative(D3D_OK) == D3DERR_DEVICENOTRESET);
+    CHECK(reload.cooperative(D3DERR_DEVICELOST) == D3DERR_DEVICELOST);
+    CHECK(reload.cooperative(D3DERR_DRIVERINTERNALERROR) == D3DERR_DRIVERINTERNALERROR);
+    D3DPRESENT_PARAMETERS restored{};
+    reload.parameters(restored, 0);
+    CHECK(restored.MultiSampleType == native.MultiSampleType && restored.MultiSampleQuality == 2);
+    reload.complete(D3DERR_DEVICELOST);
+    CHECK(reload.pending());
+    reload.complete(D3D_OK);
+    CHECK(!reload.pending() && reload.cooperative(D3D_OK) == D3D_OK);
     CreateDirectoryW(ModuleDirectory().c_str(), nullptr);
     auto config = ModuleDirectory() + L"FENB.ini";
     DeleteFileW(config.c_str());

@@ -4,6 +4,7 @@
 #include "draw_call.hpp"
 #include <bcrypt.h>
 #include "scene_tags.hpp"
+#include "smaa.hpp"
 
 // GPU-only depth optics. All targets and camera samples are scoped to one device/main frame.
 class SceneFX {
@@ -25,6 +26,7 @@ class SceneFX {
     };
     IDirect3DDevice9 *device_;
     DepthCopy depth_;
+    Smaa smaa_;
     Target output_, ao_, rays_, luma_[4], exposure_[2], balance_[2];
     Target emitterColor_[4], emitterPosition_[4], localField_, visibleEmitters_;
     Com<IDirect3DPixelShader9> aoPS_, rayPS_, compositePS_, lumaPS_, reducePS_, adaptPS_, skyPS_;
@@ -53,7 +55,7 @@ class SceneFX {
     bool pass(Target &, IDirect3DPixelShader9 *, IDirect3DTexture9 *, IDirect3DTexture9 * = nullptr);
 
   public:
-    explicit SceneFX(IDirect3DDevice9 *d) : device_(d), depth_(d) {}
+    explicit SceneFX(IDirect3DDevice9 *d) : device_(d), depth_(d), smaa_(d) {}
     ~SceneFX() {
         invalidate();
         if (hash_)

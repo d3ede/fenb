@@ -410,6 +410,18 @@ int main(int argc, char **) {
     CHECK(Save(Read(d), L"build/scene-fog-fxaa.bmp"));
     disableEffect(3);
     disableEffect(8);
+    settings.smaa = true;
+    CHECK(render());
+    auto morphological = Read(d);
+    CHECK(Difference(original, morphological) > 100);
+    CHECK(morphological[12 * W + 12] == original[12 * W + 12]);
+    CHECK(morphological[50 * W + 20] == original[50 * W + 20]);
+    CHECK(Save(morphological, L"build/scene-smaa.bmp"));
+    settings.fog = true;
+    CHECK(render());
+    CHECK(Save(Read(d), L"build/scene-fog-smaa.bmp"));
+    disableEffect(3);
+    settings.smaa = false;
     disableEffect(6);
     settings.adaptation = true;
     settings.adaptDark = 5;

@@ -43,7 +43,7 @@ bool Frame(IDirect3DDevice9* device,bool world,bool swapchain,bool readAfter){
     return true;
 }
 int main(){
-    auto path=Directory()+L"FENB.ini";Settings saved;saved.load(path);Settings s;s.openOnStart=false;s.exposure=2;s.bloomStrength=1;s.save(path);
+    auto path=Directory()+L"FENB.ini";Settings saved;saved.load(path);Settings s;s.openOnStart=false;s.exposure=2;s.bloomStrength=1;s.smaa=true;s.save(path);
     struct Restore{Settings settings;std::wstring path;~Restore(){settings.save(path);}}restore{saved,path};
     WNDCLASSW wc{};wc.lpfnWndProc=DefWindowProcW;wc.hInstance=GetModuleHandleW(nullptr);wc.lpszClassName=L"FENBHudTest";RegisterClassW(&wc);
     HWND window=CreateWindowW(wc.lpszClassName,L"HUD test",WS_OVERLAPPEDWINDOW,0,0,320,240,nullptr,nullptr,wc.hInstance,nullptr);

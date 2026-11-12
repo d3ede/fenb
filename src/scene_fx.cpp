@@ -67,6 +67,7 @@ void SceneFX::beginFrame() {
     depth_.beginFrame(true);
 }
 void SceneFX::invalidate() {
+    smaa_.invalidate();
     endSky();
     endFoliage();
     depth_.invalidate();
@@ -105,6 +106,7 @@ void SceneFX::invalidate() {
     beginFrame();
 }
 void SceneFX::releasePost() {
+    smaa_.invalidate();
     depth_.invalidate();
     output_.clear();
     ao_.clear();
@@ -126,7 +128,7 @@ void SceneFX::releasePost() {
     emitters_ = depthReady_ = false;
 }
 size_t SceneFX::bytes() const {
-    size_t n = depth_.bytes() + output_.bytes() + ao_.bytes() + rays_.bytes();
+    size_t n = depth_.bytes() + output_.bytes() + ao_.bytes() + rays_.bytes() + smaa_.bytes();
     for (auto &t : luma_)
         n += t.bytes();
     for (auto &t : exposure_)
@@ -194,6 +196,8 @@ void SceneFX::observe(const Settings &s) {
         }
 }
 bool SceneFX::prepare(UINT width, UINT height, const Settings &s) {
+    if (!s.smaa)
+        smaa_.invalidate();
     const bool geometry = s.ssao || s.sunRays || s.fog || s.dof || s.localLighting;
     if (!s.localLighting) {
         for (auto &t : emitterColor_)
@@ -210,7 +214,7 @@ bool SceneFX::prepare(UINT width, UINT height, const Settings &s) {
         ao_.clear();
         rays_.clear();
     }
-    if (!depthReady_ && !s.fxaa) {
+    if (!depthReady_ && !s.fxaa && !s.smaa) {
         output_.clear();
         return false;
     }
@@ -254,7 +258,7 @@ IDirect3DTexture9 *SceneFX::process(IDirect3DTexture9 *input, const Settings &s,
                                     IDirect3DSurface9 *reusable) {
     PointSampler localSampler(device_, 4);
     auto finish = [&](IDirect3DTexture9 *source) {
-        if (!s.fxaa || !output_.texture.p)
+        if ((!s.fxaa && !s.smaa) || !output_.texture.p)
             return source;
         Target borrowed;
         Target *destination = &output_;
@@ -269,6 +273,10 @@ IDirect3DTexture9 *SceneFX::process(IDirect3DTexture9 *input, const Settings &s,
             borrowed.height = output_.height;
             destination = &borrowed;
         }
+        if (s.smaa)
+            return smaa_.apply(source, destination->surface, output_.width, output_.height)
+                       ? destination->texture.p
+                       : source;
         float step[] = {1.f / output_.width, 1.f / output_.height, 0, 0},
               control[] = {s.fxaaStrength, s.fxaaThreshold, 0, 0};
         device_->SetPixelShaderConstantF(0, step, 1);

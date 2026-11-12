@@ -551,45 +551,58 @@ void SceneControls(Runtime &runtime) {
 }
 void AntialiasControls(Runtime &r) {
     auto &s = r.settings;
-    const Settings defaults;
     bool reset = false;
-    if (Section("fxaa", "FXAA", s.fxaa, reset)) {
-        if (reset)
-            s.resetSceneSection(8);
-        ImGui::BeginDisabled(!s.fxaa || !s.enabled);
-        Row(UiText::Strength, Tr(UiText::FXAAStrengthHelp), s.fxaaStrength, 0, 1, defaults.fxaaStrength,
-            "%.2f", .05f);
-        Row(UiText::ContrastThreshold, Tr(UiText::FXAAThresholdHelp), s.fxaaThreshold, .04f, .3f,
-            defaults.fxaaThreshold, "%.3f", .005f);
-        ImGui::EndDisabled();
-    } else if (reset)
-        s.resetSceneSection(8);
-    ImGui::Dummy({0, 8});
     bool hardware = true;
+    if (Section("post-aa", Tr(UiText::PostAntialiasing), hardware, reset, false)) {
+        if (reset) {
+            s.resetSceneSection(8);
+            s.fxaa = s.smaa = false;
+        }
+        ImGui::BeginDisabled(!s.enabled);
+        int method = s.smaa ? 2 : s.fxaa ? 1 : 0;
+        const char *methods[] = {Tr(UiText::Off), Tr(UiText::FXAAMethod), Tr(UiText::SMAAMethod)};
+        ImGui::SetNextItemWidth(-1);
+        if (ImGui::BeginCombo("##post-aa", methods[method])) {
+            for (int i = 0; i < 3; ++i) {
+                ImGui::PushID(i);
+                if (ImGui::Selectable((std::string(methods[i]) + "###method").c_str(), method == i)) {
+                    s.fxaa = i == 1;
+                    s.smaa = i == 2;
+                }
+                ImGui::PopID();
+            }
+            ImGui::EndCombo();
+        }
+        ImGui::EndDisabled();
+    } else if (reset) {
+        s.resetSceneSection(8);
+        s.fxaa = s.smaa = false;
+    }
+    ImGui::Dummy({0, 8});
     if (Section("msaa", "MSAA", hardware, reset, false)) {
         if (reset)
             s.msaaSamples = 0;
-        auto p = ImGui::GetCursorScreenPos();
-        float width = ImGui::GetContentRegionAvail().x;
-        TextAt(ImGui::GetWindowDrawList(), {p.x, p.y + 5}, Tr(UiText::SampleCount));
-        ImGui::SetCursorScreenPos({p.x + 146, p.y + 2});
-        ImGui::SetNextItemWidth(width - 171);
         int modes[] = {0, -1, 2, 4, 8}, choice = 0;
         for (int i = 0; i < 5; ++i)
             if (s.msaaSamples == modes[i])
                 choice = i;
-        const char *labels[] = {Tr(UiText::GameDefault), Tr(UiText::Off), "×2", "×4", "×8"};
-        if (ImGui::Combo("##msaa", &choice, labels, 5))
-            s.msaaSamples = modes[choice];
-        Tip(Tr(UiText::MSAAHelp));
-        ImGui::SetCursorScreenPos(p);
-        ImGui::Dummy({width, RowHeight});
-        ImGui::TextDisabled("%s", Tr(UiText::RestartRequired));
-        unsigned active = r.activeMSAA();
-        if (active > 1)
-            ImGui::TextDisabled(Tr(UiText::MSAAActive), active);
-        else
-            ImGui::TextDisabled("%s", active == 1 ? Tr(UiText::MSAAAuto) : Tr(UiText::MSAAOff));
+        const char *labels[] = {Tr(UiText::GameDefault), Tr(UiText::Off), Tr(UiText::MSAATwo),
+                                Tr(UiText::MSAAFour), Tr(UiText::MSAAEight)};
+        ImGui::SetNextItemWidth(-1);
+        if (ImGui::BeginCombo("##msaa", labels[choice])) {
+            for (int i = 0; i < 5; ++i) {
+                bool available = r.msaaAvailable(modes[i]);
+                ImGui::PushID(i);
+                ImGui::BeginDisabled(!available);
+                if (ImGui::Selectable((std::string(labels[i]) + "###samples").c_str(), choice == i))
+                    s.msaaSamples = modes[i];
+                ImGui::EndDisabled();
+                if (!available && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                    ImGui::SetTooltip("%s", Tr(UiText::MSAAUnavailable));
+                ImGui::PopID();
+            }
+            ImGui::EndCombo();
+        }
     } else if (reset)
         s.msaaSamples = 0;
 }

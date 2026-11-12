@@ -34,6 +34,11 @@ Runtime::Runtime(IDirect3DDevice9 *device)
     configPath = ModuleDirectory() + L"FENB.ini";
     settings.load(configPath);
     recognizeProfile();
+    Com<IDirect3DSwapChain9> chain;
+    D3DPRESENT_PARAMETERS presentation{};
+    if (SUCCEEDED(device_->GetSwapChain(0, chain.out())) &&
+        SUCCEEDED(chain->GetPresentParameters(&presentation)))
+        presentation_.initialize(presentation, settings.msaaSamples);
     fpsLimiter_.update(settings.unlockFps);
     visible = settings.openOnStart;
     configTime_ = FileTime(configPath);
@@ -171,6 +176,10 @@ void Runtime::beforeReset() {
 void Runtime::afterReset(HRESULT result) {
     std::lock_guard lock(mutex_);
     lost_ = FAILED(result);
+    if (SUCCEEDED(result) && presentation_.pending() &&
+        activeMSAA() != unsigned(presentation_.expected(settings.msaaSamples)))
+        message = UiText::MSAAUnavailable;
+    presentation_.complete(result);
     Log(SUCCEEDED(result) ? "Reset: successful; resources will be recreated lazily."
                           : "Reset: failed; renderer remains suspended.");
 }
@@ -393,6 +402,52 @@ unsigned Runtime::activeMSAA() const {
     if (FAILED(device_->GetSwapChain(0, chain.out())) || FAILED(chain->GetPresentParameters(&p)))
         return 0;
     return unsigned(p.MultiSampleType);
+}
+bool Runtime::msaaAvailable(int samples) const {
+    if (!SupportedPresentationHost())
+        return false;
+    if (samples <= 0)
+        return true;
+    Com<IDirect3DSwapChain9> chain;
+    Com<IDirect3D9> root;
+    D3DPRESENT_PARAMETERS p{};
+    D3DDEVICE_CREATION_PARAMETERS creation{};
+    if (FAILED(device_->GetSwapChain(0, chain.out())) || FAILED(chain->GetPresentParameters(&p)) ||
+        p.SwapEffect != D3DSWAPEFFECT_DISCARD || FAILED(device_->GetDirect3D(root.out())) ||
+        FAILED(device_->GetCreationParameters(&creation)))
+        return false;
+    for (auto format :
+         {p.BackBufferFormat, p.EnableAutoDepthStencil ? p.AutoDepthStencilFormat : p.BackBufferFormat}) {
+        DWORD quality = 0;
+        if (FAILED(root->CheckDeviceMultiSampleType(creation.AdapterOrdinal, creation.DeviceType, format,
+                                                    p.Windowed, D3DMULTISAMPLE_TYPE(samples), &quality)) ||
+            !quality)
+            return false;
+    }
+    return true;
+}
+HRESULT Runtime::presentationResult(HRESULT result, IDirect3DSwapChain9 *chain, DWORD flags) {
+    std::lock_guard lock(mutex_);
+    if (FAILED(result) || (flags & D3DPRESENT_DONOTWAIT) || inScene_ || !SupportedPresentationHost())
+        return result;
+    if (chain) {
+        Com<IDirect3DSwapChain9> main;
+        if (FAILED(device_->GetSwapChain(0, main.out())) || main.p != chain)
+            return result;
+    }
+    if (presentation_.pending())
+        return D3DERR_DEVICELOST;
+    if (!presentation_.changed(settings.msaaSamples))
+        return result;
+    presentation_.observe(settings.msaaSamples);
+    if (!msaaAvailable(settings.msaaSamples)) {
+        message = UiText::MSAAUnavailable;
+        return result;
+    }
+    presentation_.request(settings.msaaSamples);
+    beforeReset();
+    Log("Presentation: requesting host Lost Device recovery for MSAA change.");
+    return D3DERR_DEVICELOST;
 }
 #ifdef FENB_DIAGNOSTICS
 void Runtime::requestCapture() {

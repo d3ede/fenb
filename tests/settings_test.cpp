@@ -87,6 +87,7 @@ int main() {
     s.focusDistance = 48;
     s.maxEV = .7f;
     s.fxaa = true;
+    s.smaa = true;
     s.fxaaStrength = .8f;
     s.nightFoliage = .55f;
     CHECK(s.save(path));
@@ -95,7 +96,7 @@ int main() {
     CHECK(loaded.language == Language::Russian);
     CHECK(loaded.unlockFps);
     CHECK(!loaded.preciseWaterDepth);
-    CHECK(loaded.msaaSamples == 4 && loaded.fxaa && loaded.fxaaStrength == .8f &&
+    CHECK(loaded.msaaSamples == 4 && loaded.fxaa && loaded.smaa && loaded.fxaaStrength == .8f &&
           loaded.nightFoliage == .55f);
     CHECK(loaded.ssao && loaded.sunRays && loaded.sky && loaded.fog && loaded.dof && loaded.adaptation &&
           loaded.localLighting);
