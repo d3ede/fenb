@@ -795,7 +795,7 @@ int main(int argc, char **) {
     CHECK(materialFrame(true, true, false, false, false, false, false, 5));
     auto fixedNightStars = Read(d);
     CHECK(materialFrame(true, true, false, false, false, true, false, 5));
-    CHECK(Difference(fixedNightStars, Read(d)) == 0); // Star artwork must not drift with cloud UVs.
+    CHECK(Difference(fixedNightStars, Read(d)) > 1000); // Keep the owner's intended native sky motion.
     CHECK(materialFrame(true, false, false, false, false, true, true, 5));
     auto nativeNightStars = Read(d);
     CHECK(materialFrame(true, true, false, false, false, true, true, 5));

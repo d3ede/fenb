@@ -924,10 +924,6 @@ bool SceneFX::beginSky(const Settings &s, DWORD tag) {
     D3DMATRIX uv{};
     if (FAILED(device_->GetTransform(D3DTS_TEXTURE0, &uv)))
         return false;
-    // cloud03 is a star field scrolled by the native cloud animation. Its UVs already
-    // belong to world-space geometry; retain scale/rotation but remove cloud drift.
-    if (tag == 5 && s.skyDetail > 0)
-        uv._31 = uv._32 = uv._41 = uv._42 = 0;
     DWORD operations[6]{};
     D3DTEXTURESTAGESTATETYPE keys[] = {D3DTSS_COLOROP, D3DTSS_COLORARG1, D3DTSS_COLORARG2,
                                        D3DTSS_ALPHAOP, D3DTSS_ALPHAARG1, D3DTSS_ALPHAARG2};
