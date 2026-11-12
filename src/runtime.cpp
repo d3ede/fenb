@@ -109,10 +109,20 @@ void Runtime::updateCursor(bool custom) {
     if (custom) {
         if (!cursorHidden_)
             nativeCursor_ = GetCursor();
+        // Neuz also calls SetCursor from its frame loop, outside WM_SETCURSOR.
+        // A balanced negative display count keeps those late calls invisible.
+        CURSORINFO info{}; info.cbSize = sizeof(info);
+        if (!cursorHidden_ || (GetCursorInfo(&info) && (info.flags & CURSOR_SHOWING))) {
+            for (unsigned i = 0; i < 32; ++i) {
+                ++cursorHideCalls_;
+                if (ShowCursor(FALSE) < 0) break;
+            }
+        }
         SetCursor(nullptr);
         cursorHidden_ = true;
     } else if (cursorHidden_) {
         SetCursor(nativeCursor_);
+        while (cursorHideCalls_) { ShowCursor(TRUE); --cursorHideCalls_; }
         nativeCursor_ = nullptr;
         cursorHidden_ = false;
     }

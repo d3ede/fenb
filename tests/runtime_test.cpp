@@ -93,14 +93,23 @@ int main() {
         CHECK(GetFileAttributesW(config.c_str()) == INVALID_FILE_ATTRIBUTES);
         int cursorBefore = cursorMessages;
         int mouseBefore = mouseMessages;
+        const int initialCursorCount = ShowCursor(TRUE) - 1;
+        ShowCursor(FALSE);
         SetCursor(clientCursor);
         for (int i = 0; i < 12; ++i) {
             SendMessageW(window, WM_SETCURSOR, reinterpret_cast<WPARAM>(window),
                          MAKELPARAM(HTCLIENT, WM_MOUSEMOVE));
             CHECK(GetCursor() == nullptr);
+            // Neuz may reinstate its cursor directly from its frame loop, with no window message.
+            SetCursor(clientCursor);
+            // This fixture is hidden, so CURSORINFO can describe another application's
+            // foreground queue. Check this input thread's actual visibility count.
+            CHECK(ShowCursor(TRUE) - 1 < 0);
+            ShowCursor(FALSE);
             SendMessageW(window, WM_MOUSEMOVE, 0, MAKELPARAM(30 + i, 30));
             runtime.beforePresent(nullptr);
-            CHECK(GetCursor() == nullptr);
+            CHECK(ShowCursor(TRUE) - 1 < 0);
+            ShowCursor(FALSE);
         }
         CHECK(cursorMessages == cursorBefore); // client cannot reinstate its cursor over the custom pointer
         CHECK(mouseMessages == mouseBefore); // game input stays blocked while the panel is open
@@ -122,6 +131,8 @@ int main() {
         CHECK(GetCursor() == nullptr);
         SendMessageW(window, WM_KEYDOWN, VK_ESCAPE, 1);
         CHECK(!runtime.visible && GetCursor() == clientCursor);
+        CHECK(ShowCursor(TRUE) - 1 == initialCursorCount);
+        ShowCursor(FALSE); // The panel restores exactly the visibility count it acquired.
         runtime.visible = false;
         SendMessageW(window, WM_MOUSEMOVE, 0, MAKELPARAM(50, 50));
         CHECK(mouseMessages == mouseBefore + 1);

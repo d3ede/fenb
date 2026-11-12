@@ -130,6 +130,7 @@ class Runtime {
     HWND window_ = nullptr;
     HCURSOR nativeCursor_ = nullptr; // borrowed; the client owns its cursor resource
     bool cursorHidden_ = false;
+    unsigned cursorHideCalls_ = 0;
     bool lost_ = false, inScene_ = false, subclassed_ = false;
     std::recursive_mutex mutex_;
     bool forwardedKeys_[256]{};
