@@ -33,6 +33,7 @@ Runtime::Runtime(IDirect3DDevice9 *device)
       water_(std::make_unique<WaterFX>(device)) {
     configPath = ModuleDirectory() + L"FENB.ini";
     settings.load(configPath);
+    recognizeProfile();
     fpsLimiter_.update(settings.unlockFps);
     visible = settings.openOnStart;
     configTime_ = FileTime(configPath);
@@ -59,6 +60,45 @@ Runtime::~Runtime() {
         ImGui::SetCurrentContext(previous == context_ ? nullptr : previous);
     }
     effects_.reset();
+}
+Runtime::SceneStatus Runtime::sceneStatus() const {
+    auto &fx = effects_->sceneFX();
+    return {fx.depthReady(), fx.skyApplied(), fx.sunOnScreen(), fx.hasLightSource()};
+}
+void Runtime::recognizeProfile() {
+    selectedProfile.clear();
+    auto directory = configPath.substr(0, configPath.find_last_of(L"\\/") + 1) + L"FENB-presets\\";
+    WIN32_FIND_DATAW data{};
+    HANDLE find = FindFirstFileW((directory + L"*.ini").c_str(), &data);
+    if (find == INVALID_HANDLE_VALUE)
+        return;
+    unsigned count = 0;
+    do {
+        if (data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+            continue;
+        Settings candidate;
+        if (!candidate.load(directory + data.cFileName))
+            continue;
+        candidate.enabled = settings.enabled;
+        candidate.openOnStart = settings.openOnStart;
+        candidate.panelPage = settings.panelPage;
+        candidate.unlockFps = settings.unlockFps;
+        candidate.preciseWaterDepth = settings.preciseWaterDepth;
+        candidate.msaaSamples = settings.msaaSamples;
+        candidate.language = settings.language;
+        if (candidate == settings) {
+            std::wstring name = data.cFileName;
+            name.resize(name.size() - 4);
+            int bytes =
+                WideCharToMultiByte(CP_UTF8, 0, name.data(), int(name.size()), nullptr, 0, nullptr, nullptr);
+            selectedProfile.resize(bytes);
+            WideCharToMultiByte(CP_UTF8, 0, name.data(), int(name.size()), selectedProfile.data(), bytes,
+                                nullptr, nullptr);
+            selectedProfileSettings = settings;
+            break;
+        }
+    } while (++count < 128 && FindNextFileW(find, &data));
+    FindClose(find);
 }
 bool Runtime::attachWindow(HWND window) {
     if (!window || !IsWindow(window))
@@ -298,6 +338,7 @@ void Runtime::beforePresent(IDirect3DSwapChain9 *provided, DWORD flags, HWND win
         auto modified = FileTime(configPath);
         if (CompareFileTime(&modified, &configTime_) != 0) {
             settings.load(configPath);
+            recognizeProfile();
             configTime_ = modified;
         }
     }
@@ -375,6 +416,8 @@ void Runtime::save() {
 }
 void Runtime::reload() {
     bool loaded = settings.load(configPath);
+    if (loaded)
+        recognizeProfile();
     fpsLimiter_.update(settings.unlockFps);
     if (loaded)
         dirty_ = false;

@@ -25,7 +25,8 @@ struct Settings {
 #undef SCENE_BOOL
 #undef SCENE_FLOAT
     bool postEnabled() const {
-        return bloom || color || ssao || sunRays || fog || dof || adaptation || localLighting || fxaa;
+        return bloom || color || ssao || sunRays || fog || dof || adaptation || localLighting || fxaa ||
+               lightingBalance;
     }
     void resetSceneSection(int group);
     bool openOnStart = false;

@@ -103,6 +103,10 @@ float4 SceneComposite(float2 uv:TEXCOORD0):COLOR0 {
     float3 p=Point(uv,z),n=SurfaceNormal(p);
     if(any(uv<Viewport.xy)||any(uv>Viewport.xy+Viewport.zw))return source;
     float3 rgb=pow(max(0,source.rgb),2.2);
+    // Input already includes the game's night lighting. Bounded reflectance recovery lets an
+    // additional lamp illuminate a dark receiver without adding an unmasked screen-space glow.
+    float ambientLevel=max(.12,dot(Illumination.rgb,float3(.2126,.7152,.0722)));
+    float3 reflectance=min(.8,rgb/ambientLevel);
     if(Enabled.z>.5){
         float coc=saturate((abs(z-Lens.x)-Lens.y)/max(1,Lens.y))*(z<Lens.x?Lens.w:1);
         float3 sum=rgb;float weights=1;
@@ -126,9 +130,9 @@ float4 SceneComposite(float2 uv:TEXCOORD0):COLOR0 {
             float attenuation=max(.1,dot(LightAttenuation[i].xyz,float3(1,d,d*d)));
             light+=LightColors[i].rgb*(saturate(dot(n,delta/max(.001,d)))*falloff/attenuation)*SegmentVisibility(p,LightPositions[i].xyz);
         }
-        rgb+=rgb*light*Local.y;
+        rgb+=reflectance*light*Local.y;
     }
-    if(Local.w>.5 && raw<.999999)rgb+=rgb*BilateralLight(uv,z);
+    if(Local.w>.5 && raw<.999999)rgb+=reflectance*BilateralLight(uv,z);
     if(Enabled.y>.5 && raw<.999999){
         float3 worldDelta=mul((float3x3)View,p);
         float density=FogParameters.x*exp(clamp(-(Eye.y+worldDelta.y*.5-FogParameters.z)*FogParameters.w,-8,8));
@@ -155,9 +159,10 @@ float4 Reduce(float2 uv:TEXCOORD0):COLOR0 {
     return float4((sum/16).xxx,1);
 }
 float4 Adapt(float2 uv:TEXCOORD0):COLOR0 {
-    if(Camera.w<0)return float4(0,0,0,1);
     float average=tex2D(Image,float2(.5,.5)).r*12-12;
     float target=clamp(log2(Camera.x)-average,Camera.y,Camera.z);
+    if(Camera.w<-1.5)return float4(target,0,0,1);
+    if(Camera.w<0)return float4(0,0,0,1);
     float previous=tex2D(Depth,float2(.5,.5)).r;
     float speed=target<previous?Viewport.x:Viewport.y;
     float ev=lerp(previous,target,1-exp(-Camera.w*speed));
@@ -166,23 +171,51 @@ float4 Adapt(float2 uv:TEXCOORD0):COLOR0 {
 row_major float4x4 SkyWorld : register(c0);
 row_major float4x4 SkyView : register(c4);
 row_major float4x4 SkyProjection : register(c8);
+row_major float4x4 SkyUV : register(c12);
+float4 SkyLayout : register(c16);
 struct SkyInput{float3 position:POSITION;float4 color:COLOR0;float2 uv:TEXCOORD0;};
 struct SkyOutput{float4 position:POSITION;float4 color:COLOR0;float2 uv:TEXCOORD0;float3 direction:TEXCOORD1;};
 SkyOutput SkyVS(SkyInput input){
     SkyOutput o;float4 w=mul(float4(input.position,1),SkyWorld);
     o.position=mul(mul(w,SkyView),SkyProjection);o.direction=w.xyz;
-    o.color=input.color;o.uv=input.uv;return o;
+    o.color=input.color;o.uv=SkyLayout.x>.5?mul(float4(input.uv,1,0),SkyUV).xy:input.uv;return o;
+}
+float4 SkyColorStage:register(c20);
+float4 SkyAlphaStage:register(c21);
+float4 SkyFactor:register(c22);
+float4 SkyConstant:register(c23);
+float4 SkyArgument(float argument,float4 textureValue,float4 diffuse){
+    float base=fmod(argument,16);
+    float4 value=base==2?textureValue:base==3?SkyFactor:base==6?SkyConstant:diffuse;
+    if(argument>=32)value=value.aaaa;
+    if(fmod(floor(argument/16),2)>0)value=1-value;
+    return value;
+}
+float4 SkyOperation(float op,float4 a,float4 b){
+    if(op<2.5)return a;
+    if(op<3.5)return b;
+    if(op>6.5)return a+b;
+    return a*b*(op>5.5?4:op>4.5?2:1);
 }
 float4 SkyPS(float2 uv:TEXCOORD0,float3 direction:TEXCOORD1,float4 color:COLOR0):COLOR0 {
-    float4 source=tex2D(Image,uv)*color;
+    float4 texel=tex2D(Image,uv);
+    float3 nativeRGB=SkyOperation(SkyColorStage.x,SkyArgument(SkyColorStage.y,texel,color),SkyArgument(SkyColorStage.z,texel,color)).rgb;
+    float nativeAlpha=SkyColorStage.w<1.5?color.a:SkyOperation(SkyColorStage.w,SkyArgument(SkyAlphaStage.x,texel,color),SkyArgument(SkyAlphaStage.y,texel,color)).a;
+    float4 source=float4(nativeRGB,nativeAlpha);
     float3 d=normalize(direction);
     if(Viewport.x>.5){
-        source.rgb=pow(max(.001,source.rgb),Camera.z);
+        source.rgb=saturate((source.rgb-.5)*Camera.z+.5);
         return source;
     }
     float height=pow(saturate(d.y),Camera.y);
-    float3 gradient=lerp(float3(.65,.72,.78),float3(.19,.38,.67),height)*Illumination.rgb;
-    float3 rgb=lerp(source.rgb,gradient,Camera.x);
+    // Preserve native clouds/stars and luminance. Object diffuse lighting is not sky radiance.
+    float3 weights=float3(.2126,.7152,.0722);
+    float luminance=dot(source.rgb,weights);
+    float blue=smoothstep(.015,.18,source.b-min(source.r,source.g));
+    float3 gradient=lerp(float3(.72,.82,.95),float3(.28,.50,.88),height);
+    gradient*=luminance/max(.01,dot(gradient,weights));
+    float3 rgb=lerp(source.rgb,gradient,Camera.x*.65*blue);
+    rgb=lerp(rgb,luminance.xxx,pow(1-height,4)*Camera.x*.08*blue);
     float halo=pow(saturate(dot(d,normalize(Eye.xyz+float3(0,.000001,0)))),128)*Camera.w*Eye.w;
     rgb+=SunColor.rgb*halo;
     return float4(saturate(rgb),source.a);

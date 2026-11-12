@@ -25,7 +25,7 @@ class SceneFX {
     };
     IDirect3DDevice9 *device_;
     DepthCopy depth_;
-    Target output_, ao_, rays_, luma_[4], exposure_[2];
+    Target output_, ao_, rays_, luma_[4], exposure_[2], balance_[2];
     Target emitterColor_[4], emitterPosition_[4], localField_, visibleEmitters_;
     Com<IDirect3DPixelShader9> aoPS_, rayPS_, compositePS_, lumaPS_, reducePS_, adaptPS_, skyPS_;
     Com<IDirect3DVertexShader9> skyVS_;
@@ -43,9 +43,10 @@ class SceneFX {
     D3DLIGHT9 sun_{};
     float eye_[4]{}, illumination_[4]{1, 1, 1, 0};
     float positions_[8][4]{}, colors_[8][4]{}, attenuation_[8][4]{};
-    unsigned lights_ = 0, exposureIndex_ = 0;
-    ULONGLONG exposureTime_ = 0;
+    unsigned lights_ = 0, exposureIndex_ = 0, balanceIndex_ = 0;
+    ULONGLONG exposureTime_ = 0, balanceTime_ = 0;
     bool camera_ = false, sunValid_ = false, depthReady_ = false;
+    bool skyApplied_ = false, sunOnScreen_ = false;
     bool programs();
     bool emissive(IDirect3DTexture9 *);
     void reduceEmitters(const Settings &);
@@ -65,6 +66,9 @@ class SceneFX {
     bool prepare(UINT, UINT, const Settings &);
     IDirect3DTexture9 *process(IDirect3DTexture9 *, const Settings &, IDirect3DSurface9 *reusable = nullptr);
     IDirect3DTexture9 *exposure(IDirect3DTexture9 *, const Settings &);
+    IDirect3DTexture9 *balanceHistory() const {
+        return balance_[balanceIndex_].texture;
+    }
     bool beginSky(const Settings &, DWORD materialTag);
     void endSky() {
         skyState_.reset();
@@ -84,5 +88,14 @@ class SceneFX {
     }
     unsigned lightCount() const {
         return lights_;
+    }
+    bool skyApplied() const {
+        return skyApplied_;
+    }
+    bool sunOnScreen() const {
+        return sunOnScreen_;
+    }
+    bool hasLightSource() const {
+        return lights_ != 0 || emitters_;
     }
 };

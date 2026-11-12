@@ -104,6 +104,40 @@ int main(int argc, char **) {
     for (int y = 0; y < 128; ++y)
         memcpy((BYTE *)lock.pBits + y * lock.Pitch, skyPixels.data() + y * 4096, 4096);
     skyTexture->UnlockRect(0);
+    // The client switches weather materials at night. Day-only recognition silently disabled SkyFX.
+    {
+        WaterFX catalog(d);
+        const wchar_t *families[] = {L"skybox01", L"skybox02", L"skybox03", L"skybox04",
+                                     L"skybox05", L"skybox06", L"cloud01",  L"cloud02",
+                                     L"cloud03",  L"cloud04",  L"cloud05",  L"rartesia_cloud"};
+        for (int i = 0; i < 12; ++i) {
+            for (bool low : {false, true}) {
+                std::wstring path = L"X:\\Games\\Homesickness\\Weather\\";
+                path += families[i];
+                if (low)
+                    path += L"_low";
+                path += L".dds";
+                FILE *f = _wfopen(path.c_str(), L"rb");
+                CHECK(f);
+                DWORD header[32]{};
+                CHECK(fread(header, 1, 128, f) == 128);
+                UINT width = header[4], height = header[3];
+                D3DFORMAT format = D3DFORMAT(header[21]);
+                UINT rowBytes = ((width + 3) / 4) * (format == D3DFMT_DXT1 ? 8 : 16);
+                std::vector<BYTE> data(rowBytes * ((height + 3) / 4));
+                CHECK(fread(data.data(), 1, data.size(), f) == data.size());
+                fclose(f);
+                Com<IDirect3DTexture9> t;
+                CHECK(SUCCEEDED(
+                    d->CreateTexture(width, height, 1, 0, format, D3DPOOL_MANAGED, t.out(), nullptr)));
+                CHECK(SUCCEEDED(t->LockRect(0, &lock, nullptr, 0)));
+                for (UINT y = 0; y < (height + 3) / 4; ++y)
+                    memcpy((BYTE *)lock.pBits + y * lock.Pitch, data.data() + y * rowBytes, rowBytes);
+                t->UnlockRect(0);
+                CHECK(catalog.materialTag(t) == (i < 6 ? 3u : 4u));
+            }
+        }
+    }
     CHECK(SUCCEEDED(other->LockRect(0, &lock, nullptr, 0)));
     for (int y = 0; y < 128; ++y)
         memset((BYTE *)lock.pBits + y * lock.Pitch, 0xff, 256);

@@ -106,6 +106,8 @@ void Effects::pass(IDirect3DSurface9 *target, UINT w, UINT h, IDirect3DPixelShad
     device_->SetPixelShader(shader);
     device_->SetTexture(0, input);
     device_->SetTexture(1, second);
+    if (shader == composite_)
+        device_->SetTexture(3, scene_.balanceHistory());
     struct Vertex {
         float x, y, z, rhw, u, v;
     };
@@ -150,6 +152,8 @@ void Effects::draw(IDirect3DSurface9 *backbuffer, const Settings &s) {
     device_->SetTexture(2, exposure);
     device_->SetSamplerState(2, D3DSAMP_MINFILTER, D3DTEXF_POINT);
     device_->SetSamplerState(2, D3DSAMP_MAGFILTER, D3DTEXF_POINT);
+    device_->SetSamplerState(3, D3DSAMP_MINFILTER, D3DTEXF_POINT);
+    device_->SetSamplerState(3, D3DSAMP_MAGFILTER, D3DTEXF_POINT);
     device_->SetTexture(3, nullptr);
     float c[5][4] = {{s.bloomStrength, std::pow(s.threshold, 2.2f), s.knee, s.radius},
                      {s.exposure, s.contrast, s.saturation, s.gamma},
@@ -157,7 +161,9 @@ void Effects::draw(IDirect3DSurface9 *backbuffer, const Settings &s) {
                      {s.bloom ? 1.f : 0.f, s.color ? 1.f : 0.f, 0, 0},
                      {0, 0, 0, 0}};
     device_->SetPixelShaderConstantF(0, &c[0][0], 5);
-    float automatic[] = {exposure ? 1.f : 0.f, 0, 0, 0};
+    float automatic[] = {exposure && s.adaptation ? 1.f : 0.f,
+                         s.lightingBalance && scene_.balanceHistory() ? 1.f : 0.f, s.lightingBalanceStrength,
+                         0};
     device_->SetPixelShaderConstantF(5, automatic, 1);
     if (s.bloom) {
         float step[4] = {1.f / width_, 1.f / height_, 0, 0};

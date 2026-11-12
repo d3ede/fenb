@@ -1,5 +1,6 @@
 #include "imgui.h"
 #include "runtime.hpp"
+#include "version.hpp"
 #include <cstdio>
 
 namespace {
@@ -412,7 +413,17 @@ void ProfilePicker(Runtime &r, float width) {
     }
     ImGui::PopStyleVar(2);
 }
-void SceneControls(Settings &s) {
+void SceneControls(Runtime &runtime) {
+    auto &s = runtime.settings;
+    auto status = runtime.sceneStatus();
+    auto notice = [](UiText text) {
+        ImGui::PushFont(nullptr, 13);
+        ImGui::PushTextWrapPos(0);
+        ImGui::TextDisabled("%s", Tr(text));
+        ImGui::PopTextWrapPos();
+        ImGui::PopFont();
+        ImGui::Dummy({0, 5});
+    };
     const Settings defaults;
     bool reset = false;
     auto section = [&](const char *id, const char *title, bool &value, int group) {
@@ -430,6 +441,8 @@ void SceneControls(Settings &s) {
         Row(UiText::Distance, Tr(UiText::AODistanceHelp), s.aoDistance, 10, 500, defaults.aoDistance, "%.0f",
             10);
         ImGui::EndDisabled();
+        if (s.enabled && s.ssao && !status.depth)
+            notice(UiText::SceneDepthUnavailable);
     }
     if (section("rays", Tr(UiText::SunRays), s.sunRays, 1)) {
         ImGui::BeginDisabled(!s.sunRays || !s.enabled);
@@ -439,6 +452,12 @@ void SceneControls(Settings &s) {
             .05f);
         Row(UiText::Decay, Tr(UiText::RayDecayHelp), s.rayDecay, .8f, .99f, defaults.rayDecay, "%.2f", .01f);
         ImGui::EndDisabled();
+        if (s.enabled && s.sunRays) {
+            if (!status.depth)
+                notice(UiText::SceneDepthUnavailable);
+            else if (!status.sun)
+                notice(UiText::RaysNeedSun);
+        }
     }
     if (section("sky", "SkyFX", s.sky, 2)) {
         ImGui::BeginDisabled(!s.sky || !s.enabled);
@@ -450,6 +469,8 @@ void SceneControls(Settings &s) {
             .05f);
         Row(UiText::SunHalo, Tr(UiText::SunHaloHelp), s.sunHalo, 0, 2, defaults.sunHalo, "%.2f", .05f);
         ImGui::EndDisabled();
+        if (s.enabled && s.sky && !status.sky)
+            notice(UiText::SkyNotDetected);
     }
     if (section("fog", Tr(UiText::Fog), s.fog, 3)) {
         ImGui::BeginDisabled(!s.fog || !s.enabled);
@@ -491,6 +512,12 @@ void SceneControls(Settings &s) {
             .1f);
         ImGui::EndDisabled();
     }
+    if (section("lighting-balance", Tr(UiText::LightingBalance), s.lightingBalance, 10)) {
+        ImGui::BeginDisabled(!s.enabled || !s.lightingBalance);
+        Row(UiText::Strength, Tr(UiText::LightingBalanceHelp), s.lightingBalanceStrength, 0, 1,
+            defaults.lightingBalanceStrength, "%.2f", .05f);
+        ImGui::EndDisabled();
+    }
     bool vegetation = true;
     if (Section("foliage", Tr(UiText::Vegetation), vegetation, reset, false, false)) {
         if (reset)
@@ -506,6 +533,12 @@ void SceneControls(Settings &s) {
         Row(UiText::Distance, Tr(UiText::LocalRangeHelp), s.localRange, .25f, 3, defaults.localRange, "%.2f",
             .05f);
         ImGui::EndDisabled();
+        if (s.enabled && s.localLighting) {
+            if (!status.depth)
+                notice(UiText::SceneDepthUnavailable);
+            else if (!status.light)
+                notice(UiText::LightNotDetected);
+        }
     }
     ImGui::Spacing();
     auto qualityPos = ImGui::GetCursorScreenPos();
@@ -679,6 +712,36 @@ void DrawPanel(Runtime &r) {
     const Settings defaults;
     bool reset = false;
     if (r.editorPage == 0) {
+        auto *navDraw = ImGui::GetWindowDrawList();
+        float waterWidth = ImGui::GetContentRegionAvail().x;
+        auto p = ImGui::GetCursorScreenPos();
+        navDraw->AddLine(p, {p.x + waterWidth, p.y}, Line);
+        if (ImGui::InvisibleButton("scene-settings", {waterWidth, 30}, ImGuiButtonFlags_EnableNav))
+            r.editorPage = 2;
+        TextAt(navDraw, {p.x + 17, p.y + 7}, Tr(UiText::LightAtmosphere), Text);
+        TextAt(navDraw, {p.x + waterWidth - 44, p.y + 7}, "→", Muted);
+        p = ImGui::GetCursorScreenPos();
+        navDraw->AddLine(p, {p.x + waterWidth, p.y}, Line);
+        if (ImGui::InvisibleButton("aa-settings", {waterWidth, 30}, ImGuiButtonFlags_EnableNav))
+            r.editorPage = 3;
+        TextAt(navDraw, {p.x + 17, p.y + 7}, Tr(UiText::Antialiasing), Text);
+        TextAt(navDraw, {p.x + waterWidth - 44, p.y + 7}, "→", Muted);
+        ImGui::Dummy({0, 0});
+        auto waterPos = ImGui::GetCursorScreenPos();
+        navDraw->AddLine(waterPos, {waterPos.x + waterWidth, waterPos.y}, Line);
+        if (ImGui::InvisibleButton("water-settings", {waterWidth - 30, 30}, ImGuiButtonFlags_EnableNav))
+            r.editorPage = 1;
+        ImU32 navColor = ImGui::IsItemHovered() ? Text : Muted;
+        TextAt(navDraw, {waterPos.x + 17, waterPos.y + 7}, "WaterFX", Text, 15);
+        float arrowX = waterPos.x + waterWidth - 39;
+        navDraw->AddLine({arrowX - 5, waterPos.y + 15}, {arrowX + 5, waterPos.y + 15}, navColor, 1.3f);
+        navDraw->AddLine({arrowX + 1, waterPos.y + 11}, {arrowX + 5, waterPos.y + 15}, navColor, 1.3f);
+        navDraw->AddLine({arrowX + 5, waterPos.y + 15}, {arrowX + 1, waterPos.y + 19}, navColor, 1.3f);
+        ImGui::SetCursorScreenPos({waterPos.x + waterWidth - 22, waterPos.y + 6});
+        SquareSwitch("waterMain", s.water);
+        ImGui::SetCursorScreenPos(waterPos);
+        ImGui::Dummy({waterWidth, 30});
+        ImGui::Dummy({0, 2});
         bool expanded = Section("grade", Tr(UiText::ColorCorrection), s.color, reset);
         if (reset)
             s.resetColor();
@@ -725,35 +788,6 @@ void DrawPanel(Runtime &r) {
             ImGui::Dummy({width, RowHeight});
             ImGui::EndDisabled();
         }
-        ImGui::Dummy({0, 6});
-        auto waterPos = ImGui::GetCursorScreenPos();
-        float waterWidth = ImGui::GetContentRegionAvail().x;
-        auto *navDraw = ImGui::GetWindowDrawList();
-        navDraw->AddLine(waterPos, {waterPos.x + waterWidth, waterPos.y}, Line);
-        if (ImGui::InvisibleButton("water-settings", {waterWidth - 30, 30}, ImGuiButtonFlags_EnableNav))
-            r.editorPage = 1;
-        ImU32 navColor = ImGui::IsItemHovered() ? Text : Muted;
-        TextAt(navDraw, {waterPos.x + 17, waterPos.y + 7}, "WaterFX", Text, 15);
-        float arrowX = waterPos.x + waterWidth - 39;
-        navDraw->AddLine({arrowX - 5, waterPos.y + 15}, {arrowX + 5, waterPos.y + 15}, navColor, 1.3f);
-        navDraw->AddLine({arrowX + 1, waterPos.y + 11}, {arrowX + 5, waterPos.y + 15}, navColor, 1.3f);
-        navDraw->AddLine({arrowX + 5, waterPos.y + 15}, {arrowX + 1, waterPos.y + 19}, navColor, 1.3f);
-        ImGui::SetCursorScreenPos({waterPos.x + waterWidth - 22, waterPos.y + 6});
-        SquareSwitch("waterMain", s.water);
-        ImGui::SetCursorScreenPos(waterPos);
-        ImGui::Dummy({waterWidth, 30});
-        auto p = ImGui::GetCursorScreenPos();
-        navDraw->AddLine(p, {p.x + waterWidth, p.y}, Line);
-        if (ImGui::InvisibleButton("scene-settings", {waterWidth, 30}, ImGuiButtonFlags_EnableNav))
-            r.editorPage = 2;
-        TextAt(navDraw, {p.x + 17, p.y + 7}, Tr(UiText::LightAtmosphere), Text);
-        TextAt(navDraw, {p.x + waterWidth - 44, p.y + 7}, "→", Muted);
-        p = ImGui::GetCursorScreenPos();
-        navDraw->AddLine(p, {p.x + waterWidth, p.y}, Line);
-        if (ImGui::InvisibleButton("aa-settings", {waterWidth, 30}, ImGuiButtonFlags_EnableNav))
-            r.editorPage = 3;
-        TextAt(navDraw, {p.x + 17, p.y + 7}, Tr(UiText::Antialiasing), Text);
-        TextAt(navDraw, {p.x + waterWidth - 44, p.y + 7}, "→", Muted);
     } else if (r.editorPage == 1) {
         auto back = ImGui::GetCursorScreenPos();
         auto *draw = ImGui::GetWindowDrawList();
@@ -839,7 +873,7 @@ void DrawPanel(Runtime &r) {
         if (ImGui::Button(Label(UiText::BackButton).c_str()))
             r.editorPage = 0;
         ImGui::Dummy({0, 8});
-        SceneControls(s);
+        SceneControls(r);
     }
     if (r.editorPage == 3) {
         if (ImGui::Button(Label(UiText::BackButton).c_str()))
@@ -853,7 +887,8 @@ void DrawPanel(Runtime &r) {
     const char *status = r.message != UiText::None ? Tr(r.message)
                          : r.pendingSave()         ? Tr(UiText::Saving)
                                                    : Tr(UiText::Autosave);
-    TextAt(d, {origin.x + 16, origin.y + footer + 7}, status, Muted, 12);
+    TextAt(d, {origin.x + 16, origin.y + footer + 7}, FENBVersion, Muted, 12);
+    TextAt(d, {origin.x + 65, origin.y + footer + 7}, status, Muted, 12);
     TextAt(d, {origin.x + size.x - 113, origin.y + footer + 7}, "Shift + Enter", Muted, 12);
     s.sanitize();
     if (!(s == before))

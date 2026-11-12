@@ -22,14 +22,15 @@ function weatherHashes(pattern){
   for(const name of fs.readdirSync(weather).sort()){
     if(!pattern.test(name))continue;
     const b=fs.readFileSync(path.join(weather,name));
-    if(b.toString('ascii',0,4)!=='DDS '||b.toString('ascii',84,88)!=='DXT1')throw Error(`Unsupported sky texture: ${name}`);
-    const size=Math.max(1,Math.ceil(b.readUInt32LE(12)/4))*Math.max(1,Math.ceil(b.readUInt32LE(16)/4))*8;
+    const format=b.toString('ascii',84,88);
+    if(b.toString('ascii',0,4)!=='DDS '||!/^DXT[135]$/.test(format))throw Error(`Unsupported sky texture: ${name}`);
+    const size=Math.max(1,Math.ceil(b.readUInt32LE(12)/4))*Math.max(1,Math.ceil(b.readUInt32LE(16)/4))*(format==='DXT1'?8:16);
     if(b.length<128+size)throw Error(`Incomplete sky texture: ${name}`);
     result.push(crypto.createHash('sha256').update(b.subarray(128,128+size)).digest('hex'));
   }
   if(!result.length)throw Error('Verified sky/cloud texture family missing');
   return [...new Set(result)];
 }
-const arrays={WaterHashes:hashes,SkyHashes:weatherHashes(/^skybox01(?:_low)?\.dds$/i),CloudHashes:weatherHashes(/^cloud01(?:_low)?\.dds$/i)};
+const arrays={WaterHashes:hashes,SkyHashes:weatherHashes(/^skybox\d+(?:_low)?\.dds$/i),CloudHashes:weatherHashes(/^(?:cloud\d+|rartesia_cloud)(?:_low)?\.dds$/i)};
 fs.writeFileSync('src/generated/water_catalog.hpp','#pragma once\n'+Object.entries(arrays).map(([name,values])=>'inline constexpr unsigned char '+name+'[][32] = {\n'+values.map(h=>'{'+h.match(/../g).map(x=>'0x'+x).join(',')+'}').join(',\n')+'\n};\n').join(''));
 console.log(`WaterFX: ${hashes.length} exact texture fingerprints`);

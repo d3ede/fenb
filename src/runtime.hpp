@@ -11,6 +11,10 @@ class PipelineProbe;
 
 class Runtime {
   public:
+    struct SceneStatus {
+        bool depth, sky, sun, light;
+    };
+    SceneStatus sceneStatus() const;
     explicit Runtime(IDirect3DDevice9 *device);
     ~Runtime();
     void beforePresent(IDirect3DSwapChain9 *chain, DWORD flags = 0, HWND windowOverride = nullptr);
@@ -78,6 +82,7 @@ class Runtime {
     static LRESULT CALLBACK WindowProc(HWND, UINT, WPARAM, LPARAM, UINT_PTR, DWORD_PTR);
     bool attachWindow(HWND window);
     bool initUI();
+    void recognizeProfile();
     void invalidate();
     void resetFrame();
     IDirect3DDevice9 *device_; // borrowed: owner destroys Runtime before releasing the real device

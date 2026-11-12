@@ -18,6 +18,12 @@ struct PointSampler {
         device->SetSamplerState(slot, D3DSAMP_MAGFILTER, mag);
     }
 };
+float LightLuminance(const D3DCOLORVALUE &color) {
+    return color.r * .2126f + color.g * .7152f + color.b * .0722f;
+}
+float Daylight(const D3DCOLORVALUE &color) {
+    return std::clamp((LightLuminance(color) - .12f) / .38f, 0.f, 1.f);
+}
 } // namespace
 
 bool SceneFX::Target::make(IDirect3DDevice9 *d, UINT w, UINT h, D3DFORMAT f) {
@@ -44,8 +50,11 @@ bool SceneFX::programs() {
     PROGRAM(compositePS_, SceneComposite)
     PROGRAM(lumaPS_, Luminance)
     PROGRAM(reducePS_, Reduce)
-    PROGRAM(adaptPS_, Adapt) PROGRAM(skyPS_, SkyPS) PROGRAM(emitterPS_, EmitterPS) PROGRAM(sumPS_, EmitterSum)
-        PROGRAM(localPS_, EmitterLighting) PROGRAM(visibilityPS_, EmitterVisibility) PROGRAM(fxaaPS_, FXAA)
+    PROGRAM(adaptPS_, Adapt)
+    PROGRAM(skyPS_, SkyPS)
+    PROGRAM(emitterPS_, EmitterPS)
+    PROGRAM(sumPS_, EmitterSum) PROGRAM(localPS_, EmitterLighting) PROGRAM(visibilityPS_, EmitterVisibility)
+        PROGRAM(fxaaPS_, FXAA)
 #undef PROGRAM
             if (!emitterVS_.p &&
                 FAILED(device_->CreateVertexShader(ShaderEmitterVS, emitterVS_.out()))) return false;
@@ -53,6 +62,7 @@ bool SceneFX::programs() {
 }
 void SceneFX::beginFrame() {
     camera_ = depthReady_ = emitters_ = false;
+    skyApplied_ = sunOnScreen_ = false;
     lights_ = emitterDraws_ = 0;
     depth_.beginFrame(true);
 }
@@ -67,6 +77,9 @@ void SceneFX::invalidate() {
         t.clear();
     for (auto &t : exposure_)
         t.clear();
+    for (auto &t : balance_)
+        t.clear();
+    balanceTime_ = 0;
     exposureTime_ = 0;
     exposureIndex_ = 0;
     for (auto &t : emitterColor_)
@@ -100,6 +113,9 @@ void SceneFX::releasePost() {
         t.clear();
     for (auto &t : exposure_)
         t.clear();
+    for (auto &t : balance_)
+        t.clear();
+    balanceTime_ = 0;
     for (auto &t : emitterColor_)
         t.clear();
     for (auto &t : emitterPosition_)
@@ -114,6 +130,8 @@ size_t SceneFX::bytes() const {
     for (auto &t : luma_)
         n += t.bytes();
     for (auto &t : exposure_)
+        n += t.bytes();
+    for (auto &t : balance_)
         n += t.bytes();
     for (auto &t : emitterColor_)
         n += t.bytes();
@@ -298,7 +316,9 @@ IDirect3DTexture9 *SceneFX::process(IDirect3DTexture9 *input, const Settings &s,
     if (sunValid_ && dir[1] > 0 && viewSun[2] > .05f) {
         c[8][0] = (viewSun[0] * projection_._11 / viewSun[2] * .5f + .5f) * c[1][2] + c[1][0];
         c[8][1] = (-viewSun[1] * projection_._22 / viewSun[2] * .5f + .5f) * c[1][3] + c[1][1];
-        c[8][2] = 1;
+        c[8][2] = Daylight(sun_.Diffuse);
+        sunOnScreen_ = c[8][2] > .01f && c[8][0] >= c[1][0] && c[8][0] <= c[1][0] + c[1][2] &&
+                       c[8][1] >= c[1][1] && c[8][1] <= c[1][1] + c[1][3];
     }
     c[8][3] = s.rayStrength;
     c[9][0] = s.rayLength;
@@ -423,7 +443,7 @@ bool SceneFX::emissive(IDirect3DTexture9 *texture) {
 void SceneFX::beginFoliage(const Settings &s) {
     if (s.nightFoliage <= 0 || !camera_ || !sunValid_ || foliageActive_ || skyState_)
         return;
-    float night = std::clamp(1 - std::max({sun_.Diffuse.r, sun_.Diffuse.g, sun_.Diffuse.b}) / .55f, 0.f, 1.f);
+    float night = std::clamp(1 - LightLuminance(sun_.Diffuse) / .55f, 0.f, 1.f);
     if (night <= 0)
         return;
     DWORD lit = 0, fvf = 0;
@@ -600,11 +620,18 @@ void SceneFX::reduceEmitters(const Settings &) {
 }
 IDirect3DTexture9 *SceneFX::exposure(IDirect3DTexture9 *input, const Settings &s) {
     if (!s.adaptation) {
-        for (auto &t : luma_)
-            t.clear();
         for (auto &t : exposure_)
             t.clear();
         exposureTime_ = 0;
+    }
+    if (!s.lightingBalance) {
+        for (auto &t : balance_)
+            t.clear();
+        balanceTime_ = 0;
+    }
+    if (!s.adaptation && !s.lightingBalance) {
+        for (auto &t : luma_)
+            t.clear();
         return nullptr;
     }
     if (!programs())
@@ -612,13 +639,6 @@ IDirect3DTexture9 *SceneFX::exposure(IDirect3DTexture9 *input, const Settings &s
     for (UINT i = 0, size = 64; i < 4; ++i, size /= 4)
         if (!luma_[i].make(device_, size, size))
             return nullptr;
-    bool initial = !exposure_[0].texture.p || !exposure_[1].texture.p || !exposureTime_;
-    for (auto &t : exposure_)
-        if (!t.make(device_, 1, 1, D3DFMT_R32F))
-            return nullptr;
-    if (initial) {
-        exposureTime_ = 0;
-    }
     D3DSURFACE_DESC desc{};
     input->GetLevelDesc(0, &desc);
     float step[] = {1.f / desc.Width, 1.f / desc.Height, 0, 0};
@@ -631,24 +651,39 @@ IDirect3DTexture9 *SceneFX::exposure(IDirect3DTexture9 *input, const Settings &s
         if (!pass(luma_[i], reducePS_, luma_[i - 1].texture))
             return nullptr;
     }
-    ULONGLONG now = GetTickCount64();
-    float dt = exposureTime_ ? std::clamp((now - exposureTime_) * .001f, 0.f, .25f) : .016f;
-    float control[] = {s.adaptationKey, s.minEV, s.maxEV, dt}, speed[] = {s.adaptBright, s.adaptDark, 0, 0};
-    if (initial) {
-        control[3] = -1;
+    auto adapt = [&](Target(&pair)[2], unsigned &index, ULONGLONG &time, float key, float low, float high,
+                     float bright, float dark, bool initializeAtTarget) -> IDirect3DTexture9 * {
+        bool initial = !pair[0].texture.p || !pair[1].texture.p || !time;
+        for (auto &t : pair)
+            if (!t.make(device_, 1, 1, D3DFMT_R32F))
+                return nullptr;
+        ULONGLONG now = GetTickCount64();
+        float dt = !initial ? std::clamp((now - time) * .001f, 0.f, .25f) : .016f;
+        float control[] = {key, low, high, dt}, speed[] = {bright, dark, 0, 0};
+        if (initial) {
+            control[3] = initializeAtTarget ? -2.f : -1.f;
+            device_->SetPixelShaderConstantF(0, control, 1);
+            if (!pass(pair[index], adaptPS_, luma_[3].texture))
+                return nullptr;
+            control[3] = dt;
+        }
         device_->SetPixelShaderConstantF(0, control, 1);
-        if (!pass(exposure_[exposureIndex_], adaptPS_, luma_[3].texture))
+        device_->SetPixelShaderConstantF(1, speed, 1);
+        unsigned next = index ^ 1;
+        if (!pass(pair[next], adaptPS_, luma_[3].texture, pair[index].texture))
             return nullptr;
-        control[3] = dt;
+        index = next;
+        time = now;
+        return pair[next].texture;
+    };
+    if (s.lightingBalance && !adapt(balance_, balanceIndex_, balanceTime_, 1, -12, 12, .9f, .9f, true)) {
+        for (auto &t : balance_)
+            t.clear();
+        balanceTime_ = 0;
     }
-    device_->SetPixelShaderConstantF(0, control, 1);
-    device_->SetPixelShaderConstantF(1, speed, 1);
-    unsigned next = exposureIndex_ ^ 1;
-    if (!pass(exposure_[next], adaptPS_, luma_[3].texture, exposure_[exposureIndex_].texture))
-        return nullptr;
-    exposureIndex_ = next;
-    exposureTime_ = now;
-    return exposure_[next].texture;
+    return s.adaptation ? adapt(exposure_, exposureIndex_, exposureTime_, s.adaptationKey, s.minEV, s.maxEV,
+                                s.adaptBright, s.adaptDark, false)
+                        : nullptr;
 }
 bool SceneFX::beginSky(const Settings &s, DWORD tag) {
     if (!s.sky || (tag != 3 && tag != 4) || skyState_ || !programs())
@@ -660,6 +695,41 @@ bool SceneFX::beginSky(const Settings &s, DWORD tag) {
     if (std::abs(m[1]._41) + std::abs(m[1]._42) + std::abs(m[1]._43) > .001f ||
         std::abs(m[2]._34 - 1) > .001f)
         return false;
+    DWORD flags = 0, coordinate = 0, stage1 = 0, lighting = 0;
+    device_->GetTextureStageState(0, D3DTSS_TEXTURETRANSFORMFLAGS, &flags);
+    device_->GetTextureStageState(0, D3DTSS_TEXCOORDINDEX, &coordinate);
+    device_->GetTextureStageState(1, D3DTSS_COLOROP, &stage1);
+    device_->GetRenderState(D3DRS_LIGHTING, &lighting);
+    if ((flags != D3DTTFF_DISABLE && flags != D3DTTFF_COUNT2) || coordinate || stage1 != D3DTOP_DISABLE ||
+        lighting)
+        return false;
+    D3DMATRIX uv{};
+    if (FAILED(device_->GetTransform(D3DTS_TEXTURE0, &uv)))
+        return false;
+    DWORD operations[6]{};
+    D3DTEXTURESTAGESTATETYPE keys[] = {D3DTSS_COLOROP, D3DTSS_COLORARG1, D3DTSS_COLORARG2,
+                                       D3DTSS_ALPHAOP, D3DTSS_ALPHAARG1, D3DTSS_ALPHAARG2};
+    for (int i = 0; i < 6; ++i)
+        if (FAILED(device_->GetTextureStageState(0, keys[i], operations + i)))
+            return false;
+    if (operations[0] < D3DTOP_SELECTARG1 || operations[0] > D3DTOP_ADD || operations[3] > D3DTOP_ADD)
+        return false;
+    for (int i : {1, 2, 4, 5})
+        if (((operations[i] & 15) > 3 && (operations[i] & 15) != 6) || operations[i] > 63)
+            return false;
+    float stages[4][4] = {
+        {float(operations[0]), float(operations[1]), float(operations[2]), float(operations[3])},
+        {float(operations[4]), float(operations[5]), 0, 0},
+        {},
+        {}};
+    DWORD packed[2] = {0xffffffff, 0xffffffff};
+    device_->GetRenderState(D3DRS_TEXTUREFACTOR, packed);
+    device_->GetTextureStageState(0, D3DTSS_CONSTANT, packed + 1);
+    for (int i = 0; i < 2; ++i) {
+        for (int channel = 0; channel < 3; ++channel)
+            stages[i + 2][channel] = float((packed[i] >> (16 - 8 * channel)) & 255) / 255;
+        stages[i + 2][3] = float(packed[i] >> 24) / 255;
+    }
     auto state = std::make_unique<StateGuard>(device_);
     if (!state->valid())
         return false;
@@ -672,7 +742,7 @@ bool SceneFX::beginSky(const Settings &s, DWORD tag) {
     float options[] = {s.skyStrength, s.skyHorizon, s.cloudContrast, s.sunHalo},
           kind[] = {tag == 4 ? 1.f : 0.f, 0, 0, 0};
     float direction[] = {-light.Direction.x, -light.Direction.y, -light.Direction.z,
-                         lit && light.Direction.y < 0 ? 1.f : 0.f};
+                         lit && light.Direction.y < 0 ? Daylight(light.Diffuse) : 0.f};
     float illumination[4]{};
     for (int i = 0; i < 3; ++i)
         illumination[i] = lit ? std::clamp((&light.Diffuse.r)[i], .02f, 1.f)
@@ -680,12 +750,17 @@ bool SceneFX::beginSky(const Settings &s, DWORD tag) {
     if (FAILED(device_->SetVertexShader(skyVS_)) || FAILED(device_->SetPixelShader(skyPS_)))
         return false;
     device_->SetVertexShaderConstantF(0, &m[0].m[0][0], 12);
+    device_->SetVertexShaderConstantF(12, &uv.m[0][0], 4);
+    float layout[] = {flags == D3DTTFF_COUNT2 ? 1.f : 0.f, 0, 0, 0};
+    device_->SetVertexShaderConstantF(16, layout, 1);
     device_->SetPixelShaderConstantF(0, options, 1);
     device_->SetPixelShaderConstantF(1, kind, 1);
     device_->SetPixelShaderConstantF(10, &light.Diffuse.r, 1);
     device_->SetPixelShaderConstantF(11, direction, 1);
     device_->SetPixelShaderConstantF(16, illumination, 1);
+    device_->SetPixelShaderConstantF(20, stages[0], 4);
     device_->SetRenderState(D3DRS_FOGENABLE, FALSE);
     skyState_ = std::move(state);
+    skyApplied_ = true;
     return true;
 }

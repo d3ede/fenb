@@ -135,20 +135,20 @@ int main() {
     CHECK(!r.settings.unlockFps); // Unknown executables cannot install the simulation hook.
     click(150, 60);               // Close the action menu before the existing interaction checks.
     frame();
-    // Main: WaterFX navigation is visible before color controls. First slider starts at y=181.
+    // Main: navigation precedes color controls. First slider starts at y=240.
     r.settings.exposure = .8f;
     frame();
-    click(440, 161); // ordinary drag changes exposure
-    mouse(440, 161, true);
+    click(440, 253); // ordinary drag changes exposure
+    mouse(440, 253, true);
     CHECK(r.settings.exposure == 0); // second click resets
     frame();
     CHECK(r.settings.exposure == 0);
-    mouse(440, 161, false); // held second click must not drag away from default
-    click(610, 161);
+    mouse(440, 253, false); // held second click must not drag away from default
+    click(610, 253);
     CHECK(std::abs(r.settings.exposure - .01f) < .00001f); // explicit right step
-    click(556, 161);
+    click(556, 253);
     CHECK(r.settings.exposure == 0); // matching left step
-    click(590, 161);
+    click(590, 253);
     io.AddKeyEvent(ImGuiMod_Ctrl, true);
     io.AddKeyEvent(ImGuiKey_A, true);
     frame();
@@ -162,18 +162,18 @@ int main() {
     frame();
     CHECK(std::abs(r.settings.exposure - .75f) < .0001f);
     CHECK(panel->Pos.x == 130);
-    click(640, 161);
+    click(640, 253);
     CHECK(r.settings.exposure == 0); // full reset hit box
     r.settings.exposure = .8f;
     r.settings.saturation = .3f;
     r.settings.waterOpacity = .7f;
-    click(610, 134);
+    click(610, 226);
     CHECK(r.settings.exposure == 0 && r.settings.saturation == 1 && r.settings.waterOpacity == .7f);
-    click(185, 134); // Collapse color: Bloom follows immediately.
-    click(185, 166); // Collapse Bloom: WaterFX must follow the heading, not the footer.
+    click(185, 226); // Collapse color: Bloom follows immediately.
+    click(185, 258); // Collapse Bloom before checking the navigation.
     click(195, 512);
     CHECK(r.editorPage == 0); // The old pinned position is no longer navigation.
-    click(195, 201);
+    click(195, 195);
     CHECK(r.editorPage == 1);
     frame();
     click(610, 168);
@@ -185,7 +185,7 @@ int main() {
     click(185, 132);
     CHECK(r.editorPage == 0);
     frame();
-    click(195, 231);
+    click(195, 135);
     CHECK(r.editorPage == 2);
     frame();
     CHECK(Screenshot(d, L"build/FENB-atmosphere-panel.png"));
@@ -195,7 +195,7 @@ int main() {
     click(170, 131);
     CHECK(r.editorPage == 0);
     frame();
-    click(195, 261);
+    click(195, 165);
     CHECK(r.editorPage == 3);
     frame();
     CHECK(Screenshot(d, L"build/FENB-antialias-panel.png"));

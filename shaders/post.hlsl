@@ -1,6 +1,7 @@
 sampler2D Scene : register(s0);
 sampler2D Glow : register(s1);
 sampler2D Exposure : register(s2);
+sampler2D MeanLuminance : register(s3);
 float4 Bloom : register(c0); // strength, threshold (linear), knee, radius
 float4 Grade : register(c1); // exposure, contrast, saturation, gamma
 float4 Balance : register(c2); // temperature, tint, shadows, highlights
@@ -32,6 +33,14 @@ float4 Blur(float2 uv : TEXCOORD0) : COLOR0 {
 float4 Composite(float2 uv : TEXCOORD0) : COLOR0 {
     float4 source = tex2D(Scene, uv);
     float3 rgb = pow(max(source.rgb, 0), 2.2);
+    if (Automatic.y > .5) {
+        // Adapt one scalar pivot from world-only log luminance. The same hue-preserving curve
+        // acts on every mesh, including skinned characters and unlit props, without screen halos.
+        float pivot=clamp(exp2(-tex2D(MeanLuminance,float2(.5,.5)).r),.02,.18);
+        float luma=dot(rgb,float3(.2126,.7152,.0722));
+        float mapped=pivot*pow(max(.000001,luma)/pivot,1-.55*Automatic.z);
+        rgb*=clamp(mapped/max(.000001,luma),.45,3.5);
+    }
     if (Options.x > .5) rgb += tex2D(Glow, uv).rgb * Bloom.x;
     if (Automatic.x > .5) rgb *= exp2(tex2D(Exposure,float2(.5,.5)).r);
     if (Options.y > .5) {

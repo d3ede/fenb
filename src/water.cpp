@@ -153,18 +153,21 @@ DWORD WaterFX::classify(IDirect3DTexture9 *texture) {
         return false;
     tag = 2;
     bool waterSize = desc.Width == 128 && desc.Height == 128;
-    bool skySize = (desc.Width == 2048 && desc.Height == 512) || (desc.Width == 512 && desc.Height == 512) ||
-                   (desc.Width == 256 && desc.Height == 256);
+    bool skySize = (desc.Width == 2048 && desc.Height == 512) || (desc.Width == 1024 && desc.Height == 256) ||
+                   (desc.Width == 512 && desc.Height == 512) || (desc.Width == 256 && desc.Height == 256);
     if ((waterSize || skySize) && desc.Pool == D3DPOOL_MANAGED && !desc.Usage &&
-        ((waterSize && desc.Format == D3DFMT_A1R5G5B5) || desc.Format == D3DFMT_DXT1)) {
+        ((waterSize && desc.Format == D3DFMT_A1R5G5B5) || desc.Format == D3DFMT_DXT1 ||
+         (skySize && (desc.Format == D3DFMT_DXT3 || desc.Format == D3DFMT_DXT5)))) {
         if (!hash_)
             BCryptOpenAlgorithmProvider(&hash_, BCRYPT_SHA256_ALGORITHM, nullptr, 0);
         D3DLOCKED_RECT lock{};
         if (hash_ && SUCCEEDED(texture->LockRect(0, &lock, nullptr, D3DLOCK_READONLY))) {
             BCRYPT_HASH_HANDLE hash = nullptr;
             if (BCryptCreateHash(hash_, &hash, nullptr, 0, nullptr, 0, 0) >= 0) {
-                UINT rows = desc.Format == D3DFMT_DXT1 ? (desc.Height + 3) / 4 : desc.Height,
-                     bytes = desc.Format == D3DFMT_DXT1 ? ((desc.Width + 3) / 4) * 8 : desc.Width * 2;
+                bool compressed = desc.Format != D3DFMT_A1R5G5B5;
+                UINT rows = compressed ? (desc.Height + 3) / 4 : desc.Height,
+                     bytes = compressed ? ((desc.Width + 3) / 4) * (desc.Format == D3DFMT_DXT1 ? 8 : 16)
+                                        : desc.Width * 2;
                 bool ok = true;
                 for (UINT y = 0; y < rows; ++y)
                     if (BCryptHashData(hash, (PUCHAR)lock.pBits + size_t(y) * lock.Pitch, bytes, 0) < 0) {

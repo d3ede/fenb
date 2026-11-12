@@ -193,3 +193,5 @@ UI_TEXT(RaysNeedSun, "Face the daytime sun; geometry must interrupt the sky.", "
 UI_TEXT(SkyNotDetected, "No supported sky material is visible.", "В кадре нет распознанного материала неба.")
 UI_TEXT(LightNotDetected, "No supported light source is visible.", "В кадре нет распознанного источника света.")
 UI_TEXT(SceneDepthUnavailable, "Scene depth is unavailable.", "Глубина сцены недоступна.")
+UI_TEXT(LightingBalance, "Lighting balance", "Баланс освещения")
+UI_TEXT(LightingBalanceHelp, "Adapt contrast to world luminance: lift dark surfaces and restrain bright models. Preserves hue; no HUD processing.", "Адаптивный контраст по яркости мира: поднимает тёмные поверхности и сдерживает светлые модели. Сохраняет оттенки, не затрагивает HUD.")

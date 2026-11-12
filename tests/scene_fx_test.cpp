@@ -184,6 +184,7 @@ int main(int argc, char **) {
             break;
         }
     };
+    bool darkScene = false, balanceScene = false;
     struct Vertex {
         float x, y, z;
         DWORD color;
@@ -209,10 +210,10 @@ int main(int argc, char **) {
         D3DLIGHT9 sun{};
         sun.Type = D3DLIGHT_DIRECTIONAL;
         sun.Direction = {-.1f, -.1f, -1};
-        sun.Diffuse = {.8f, .75f, .65f, 1};
+        sun.Diffuse = darkScene ? D3DCOLORVALUE{.04f, .04f, .06f, 1} : D3DCOLORVALUE{.8f, .75f, .65f, 1};
         d->SetLight(0, &sun);
         d->LightEnable(0, TRUE);
-        d->SetRenderState(D3DRS_AMBIENT, 0x303030);
+        d->SetRenderState(D3DRS_AMBIENT, darkScene ? 0x08080c : 0x303030);
         D3DLIGHT9 light{};
         light.Type = D3DLIGHT_POINT;
         light.Position = {0, 3, 10};
@@ -222,14 +223,15 @@ int main(int argc, char **) {
         d->SetLight(1, &light);
         d->LightEnable(1, nativePoint);
         fx.sceneFX().observe(settings);
-        d->Clear(0, nullptr, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, solid ? solidColor : 0xff8faec4, 1, 0);
+        d->Clear(0, nullptr, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER,
+                 solid ? solidColor : (balanceScene ? 0xff101827 : 0xff8faec4), 1, 0);
         if (FAILED(d->BeginScene()))
             return false;
         if (!solid) {
             std::vector<Vertex> floor;
             for (int z = -5; z < 100; ++z)
                 for (int x = -15; x < 15; ++x) {
-                    DWORD c = (x + z) & 1 ? 0xff7c725a : 0xffb2a581;
+                    DWORD c = darkScene ? 0xff25211c : ((x + z) & 1 ? 0xff7c725a : 0xffb2a581);
                     for (auto v : std::initializer_list<Vertex>{{float(x), 0, float(z), c},
                                                                 {float(x), 0, float(z + 1), c},
                                                                 {float(x + 1), 0, float(z), c},
@@ -243,6 +245,9 @@ int main(int argc, char **) {
                              {2, 0, 18, 0xff948674},
                              {-2, 7, 18, 0xff948674},
                              {2, 7, 18, 0xff948674}};
+            if (balanceScene)
+                for (auto &v : wall)
+                    v.color = 0xffc0c0c0;
             d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, wall, sizeof(Vertex));
         }
         if (emit) {
@@ -328,6 +333,10 @@ int main(int argc, char **) {
     auto rays = Read(d);
     CHECK(Difference(original, rays) > 100);
     CHECK(Save(rays, L"build/scene-rays.bmp"));
+    darkScene = true;
+    CHECK(render());
+    CHECK(!fx.sceneFX().sunOnScreen()); // A bright blue channel does not make a night light the sun.
+    darkScene = false;
     disableEffect(1);
     settings.localLighting = true;
     CHECK(render());
@@ -365,6 +374,27 @@ int main(int argc, char **) {
     settings.localStrength = 1;
     CHECK(render());
     CHECK(SceneFXFixture::lightMaximum(fx.sceneFX(), d) == 0);
+    // A lamp must visibly light a dark night receiver, not just multiply its nearly black color.
+    occluded = false;
+    darkScene = true;
+    settings.localLighting = false;
+    CHECK(render());
+    auto nightOff = Read(d);
+    settings.localLighting = true;
+    settings.localStrength = 2;
+    settings.localRange = 1.55f;
+    CHECK(render());
+    auto nightOn = Read(d);
+    unsigned nightLit = 0;
+    for (UINT y = H / 2; y < H; ++y)
+        for (UINT x = W / 4; x < W * 3 / 4; ++x)
+            nightLit += Luma(nightOn[y * W + x]) > Luma(nightOff[y * W + x]) + 30;
+    CHECK(nightLit > 100);
+    CHECK(nightOn[50 * W + 20] == nightOff[50 * W + 20]); // Empty sky is not a receiver.
+    CHECK(nightOn[12 * W + 12] == nightOff[12 * W + 12]); // HUD remains exact.
+    CHECK(Save(nightOff, L"build/scene-night-light-off.bmp"));
+    CHECK(Save(nightOn, L"build/scene-night-light-on.bmp"));
+    darkScene = false;
     emit = occluded = false;
     nativePoint = true;
     disableEffect(6);
@@ -411,7 +441,41 @@ int main(int argc, char **) {
     CHECK(render(true));
     auto neutral = Read(d);
     CHECK((neutral[H / 2 * W + W / 2] & 0xffffff) == 0x303030);
-    auto materialFrame = [&](bool sky, bool improve, bool day) {
+    balanceScene = darkScene = true;
+    nativePoint = false;
+    CHECK(render());
+    auto balanceOff = Read(d);
+    settings.lightingBalance = true;
+    settings.lightingBalanceStrength = .8f;
+    CHECK(render());
+    auto balanceOn = Read(d);
+    unsigned lifted = 0, restrained = 0;
+    for (UINT i = 0; i < W * H; ++i) {
+        int before = Luma(balanceOff[i]), after = Luma(balanceOn[i]);
+        lifted += before > 0 && before < 150 && after > before + 5;
+        restrained += before > 400 && after < before - 20;
+    }
+    CHECK(lifted > 1000 && restrained > 100);
+    CHECK(balanceOn[12 * W + 12] == balanceOff[12 * W + 12]);
+    CHECK(Save(balanceOff, L"build/scene-balance-off.bmp"));
+    CHECK(Save(balanceOn, L"build/scene-balance-on.bmp"));
+    settings.lightingBalanceStrength = 0;
+    CHECK(render());
+    auto zeroBalance = Read(d);
+    for (UINT i = 0; i < W * H; ++i)
+        CHECK(std::abs(Luma(zeroBalance[i]) - Luma(balanceOff[i])) <= 3);
+    settings.lightingBalance = false;
+    balanceScene = darkScene = false;
+    nativePoint = true;
+    Com<IDirect3DTexture9> skyArt;
+    CHECK(SUCCEEDED(d->CreateTexture(64, 64, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, skyArt.out(), nullptr)));
+    CHECK(SUCCEEDED(skyArt->LockRect(0, &lock, nullptr, 0)));
+    for (int y = 0; y < 64; ++y)
+        for (int x = 0; x < 64; ++x)
+            ((DWORD *)((BYTE *)lock.pBits + y * lock.Pitch))[x] =
+                ((x / 8 + y / 8) % 3) ? 0xff3098db : 0xffe0e8eb;
+    skyArt->UnlockRect(0);
+    auto materialFrame = [&](bool sky, bool improve, bool day, bool blueNight = false) {
         fx.sceneFX().beginFrame();
         d->SetVertexShader(nullptr);
         d->SetPixelShader(nullptr);
@@ -426,10 +490,15 @@ int main(int argc, char **) {
         d->SetRenderState(D3DRS_FOGENABLE, FALSE);
         d->SetRenderState(D3DRS_LIGHTING, sky ? FALSE : TRUE);
         d->SetRenderState(D3DRS_AMBIENT, 0xff080810);
-        d->SetTexture(0, emitter);
-        d->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
+        d->SetTexture(0, sky ? skyArt.p : emitter.p);
+        d->SetTextureStageState(0, D3DTSS_COLOROP, sky ? D3DTOP_SELECTARG1 : D3DTOP_MODULATE);
         d->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
         d->SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
+        d->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
+        d->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
+        d->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
+        d->SetTextureStageState(0, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
+        d->SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
         D3DMATERIAL9 material{};
         material.Ambient = material.Diffuse = {1, 1, 1, 1};
         d->SetMaterial(&material);
@@ -438,6 +507,8 @@ int main(int argc, char **) {
         sun.Direction = {0, 0, 1};
         float value = day ? .8f : .04f;
         sun.Diffuse = {value, value, value, 1};
+        if (blueNight)
+            sun.Diffuse = {.04f, .04f, .6f, 1};
         d->SetLight(0, &sun);
         d->LightEnable(0, TRUE);
         Settings s;
@@ -453,10 +524,10 @@ int main(int argc, char **) {
                 DWORD color;
                 float u, v;
             };
-            V q[] = {{-2, -1, 1, 0xffffffff, 0, 1},
-                     {-2, 1, 1, 0xffffffff, 0, 0},
-                     {2, -1, 1, 0xffffffff, 1, 1},
-                     {2, 1, 1, 0xffffffff, 1, 0}};
+            V q[] = {{-2, -1, 1, 0xff000000, 0, 1},
+                     {-2, 1, 1, 0xff000000, 0, 0},
+                     {2, -1, 1, 0xff000000, 1, 1},
+                     {2, 1, 1, 0xff000000, 1, 0}};
             d->SetFVF(0x142);
             if (improve)
                 ok = fx.sceneFX().beginSky(s, 3);
@@ -502,6 +573,10 @@ int main(int argc, char **) {
     auto liftedLeaves = Read(d);
     CHECK(Difference(darkLeaves, liftedLeaves) > 1000);
     CHECK(Save(liftedLeaves, L"build/scene-night-foliage.bmp"));
+    CHECK(materialFrame(false, false, false, true));
+    auto blueLeaves = Read(d);
+    CHECK(materialFrame(false, true, false, true));
+    CHECK(Difference(blueLeaves, Read(d)) > 1000);
     CHECK(materialFrame(false, false, true));
     auto dayLeaves = Read(d);
     CHECK(materialFrame(false, true, true));
