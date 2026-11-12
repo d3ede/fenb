@@ -40,6 +40,7 @@ class Runtime {
     char profileName[128]{};
     UiText profileError = UiText::None;
     std::string selectedProfile;
+    int selectedBuiltIn = -1;
     Settings selectedProfileSettings;
     UiText message = UiText::None;
     std::wstring configPath;

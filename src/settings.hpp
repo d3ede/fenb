@@ -1,6 +1,10 @@
 #pragma once
 #include "common.hpp"
 #include "localization.hpp"
+inline constexpr UiText BuiltInProfileNames[] = {UiText::DefaultProfile, UiText::ClearProfile,
+                                                 UiText::GoldenProfile, UiText::SoftProfile,
+                                                 UiText::NightProfile};
+inline constexpr int BuiltInPresetCount = sizeof(BuiltInProfileNames) / sizeof(BuiltInProfileNames[0]);
 
 struct Settings {
     bool enabled = true, bloom = true, color = true;
@@ -43,6 +47,8 @@ struct Settings {
     bool load(const std::wstring &path);
     bool save(const std::wstring &path) const;
     void preset(int index);
+    int matchingPreset() const;
+    void preserveControls(const Settings &);
     void resetColor();
     void resetBloom();
     void resetWater();

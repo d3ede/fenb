@@ -191,6 +191,47 @@ int main() {
     CHECK(loaded.save(path));
     s.language = Language::Russian;
     CHECK(s.load(path) && s.language == Language::English);
+    Settings shipped;
+    CHECK(shipped.load(L"config/FENB.ini"));
+    Settings builtIn;
+    builtIn.preset(0);
+    shipped.preserveControls(builtIn);
+    CHECK(shipped == builtIn && builtIn.matchingPreset() == 0);
+    CHECK(!strcmp(Translate(Language::English, BuiltInProfileNames[0]), "Default"));
+    CHECK(!strcmp(Translate(Language::Russian, BuiltInProfileNames[0]), "Основной"));
+    for (int index = 0; index < BuiltInPresetCount; ++index) {
+        Settings controls;
+        controls.enabled = false;
+        controls.unlockFps = true;
+        controls.msaaSamples = 8;
+        controls.language = Language::Russian;
+        controls.preciseWaterDepth = false;
+        controls.timeOverride = controls.weatherOverride = true;
+        controls.timeMinutes = 1193;
+        controls.freezeTime = false;
+        controls.weatherType = 2;
+        controls.weatherIntensity = 38;
+        auto profile = controls;
+        profile.preset(index);
+        CHECK(profile.matchingPreset() == index);
+        auto sanitized = profile;
+        sanitized.sanitize();
+        CHECK(sanitized == profile);
+        auto retained = Settings{};
+        retained.preserveControls(profile);
+        CHECK(retained == controls);
+        CHECK(profile.save(path));
+        auto roundTrip = profile;
+        CHECK(roundTrip.load(path));
+        CHECK(roundTrip == profile);
+        for (int other = 0; other < index; ++other) {
+            auto different = controls;
+            different.preset(other);
+            CHECK(different != profile);
+        }
+        profile.exposure += .01f;
+        CHECK(profile.matchingPreset() == -1);
+    }
     DeleteFileW(path.c_str());
     puts("PASS: config round-trip, sanitization, corrupt values, failed IO.");
 }

@@ -4,6 +4,11 @@ if(NOT WIN32 OR NOT CMAKE_SIZEOF_VOID_P EQUAL 4)
   message(FATAL_ERROR "FENB must be built for 32-bit Windows (MSVC: -A Win32).")
 endif()
 set(CMAKE_CXX_STANDARD 20)
+find_program(FENB_NODE_EXECUTABLE node REQUIRED)
+add_custom_command(OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/src/generated/presets.hpp"
+  COMMAND "${FENB_NODE_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/embed-presets.mjs"
+  DEPENDS tools/embed-presets.mjs config/FENB.ini config/builtins.json src/settings.cpp src/scene_settings.inc)
+set_source_files_properties(src/settings.cpp PROPERTIES OBJECT_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/generated/presets.hpp")
 option(FENB_DIAGNOSTICS "Enable opt-in bounded DX9 pipeline capture" OFF)
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 set(IMGUI "${CMAKE_CURRENT_SOURCE_DIR}/vendor/imgui-1.92.9b")

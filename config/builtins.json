@@ -1,0 +1,45 @@
+[
+  {"name": "Default", "overrides": {}},
+  {"name": "Clear water", "overrides": {
+    "bloom_strength": 0.10, "contrast": 1.02, "temperature": 0, "gamma": 1.04,
+    "water_waves": 0.025, "water_length": 11, "water_speed": 0.28,
+    "water_ripples": 0.32, "water_opacity": 0.55, "water_sky": 0.70,
+    "water_glints": 0.65, "water_gloss": 0.78, "water_depth": 1.15,
+    "water_refraction": 0.50, "ao_strength": 0.45, "fog_density": 0.0014,
+    "fog_start": 75, "dof": 0, "lighting_balance_strength": 0.5
+  }},
+  {"name": "Golden light", "overrides": {
+    "bloom_strength": 0.26, "threshold": 0.68, "radius": 2.5,
+    "exposure": 0.10, "temperature": 0.10, "saturation": 1.06,
+    "contrast": 1.035, "highlights": -0.10, "shadows": 0.035,
+    "water_waves": 0.045, "water_length": 11, "water_speed": 0.30,
+    "water_ripples": 0.50, "water_ripple_scale": 0.60, "water_opacity": 0.67,
+    "water_sky": 0.86, "water_glints": 0.85, "water_gloss": 0.82,
+    "water_tint": 0.16, "water_depth": 1.5, "water_caustics": 0.30,
+    "ray_strength": 0.95, "sky_strength": 0.68, "fog_density": 0.0024,
+    "fog_start": 65, "dof": 0, "adaptation_key": 0.13, "local_strength": 2.1
+  }},
+  {"name": "Soft atmosphere", "overrides": {
+    "bloom_strength": 0.28, "knee": 0.25, "radius": 2.8,
+    "saturation": 0.96, "temperature": 0.035, "gamma": 1.045,
+    "highlights": -0.12, "contrast": 0.98,
+    "water_waves": 0.02, "water_length": 12, "water_speed": 0.24,
+    "water_ripples": 0.25, "water_opacity": 0.66, "water_sky": 0.68,
+    "water_glints": 0.45, "water_gloss": 0.68, "water_caustics": 0,
+    "fog_density": 0.004, "fog_start": 30, "focus_distance": 60,
+    "focus_range": 50, "dof_radius": 3, "ao_strength": 0.4
+  }},
+  {"name": "Night lights", "overrides": {
+    "bloom_strength": 0.32, "threshold": 0.62, "knee": 0.22, "radius": 2.6,
+    "exposure": 0.03, "contrast": 1, "saturation": 0.98, "gamma": 1.06,
+    "shadows": 0.06, "highlights": -0.10, "adaptation_key": 0.14,
+    "adaptation_min_ev": -0.45, "adaptation_max_ev": 1,
+    "night_foliage": 0.9, "lighting_balance_strength": 0.75,
+    "local_strength": 2.4, "local_range": 1.7, "sky_strength": 0.4,
+    "sun_rays": 0, "dof": 0, "fog_density": 0.0018, "fog_start": 60,
+    "water_waves": 0.03, "water_length": 10, "water_speed": 0.3,
+    "water_ripples": 0.4, "water_opacity": 0.65, "water_sky": 0.8,
+    "water_glints": 0.5, "water_gloss": 0.78, "water_refraction": 0.5,
+    "water_depth": 1.6, "water_caustics": 0
+  }}
+]

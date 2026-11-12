@@ -288,20 +288,7 @@ bool Section(const char *id, const char *title, bool &enabled, bool &reset, bool
     return expanded;
 }
 int MatchingPreset(const Settings &s) {
-    for (int i = 0; i < 4; ++i) {
-        Settings candidate;
-        candidate.preset(i);
-        candidate.enabled = s.enabled;
-        candidate.openOnStart = s.openOnStart;
-        candidate.panelPage = s.panelPage;
-        candidate.language = s.language;
-        candidate.unlockFps = s.unlockFps;
-        candidate.preciseWaterDepth = s.preciseWaterDepth;
-        candidate.msaaSamples = s.msaaSamples;
-        if (candidate == s)
-            return i;
-    }
-    return -1;
+    return s.matchingPreset();
 }
 std::wstring ProfileDirectory(const Runtime &r) {
     return r.configPath.substr(0, r.configPath.find_last_of(L"\\/") + 1) + L"FENB-presets\\";
@@ -342,35 +329,31 @@ void ProfilePicker(Runtime &r, float width) {
     ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(Muted), "%s", Tr(UiText::Profile));
     ImGui::SameLine(88);
     ImGui::SetNextItemWidth(width - 216);
-    const UiText presets[] = {UiText::Neutral, UiText::Warm, UiText::Cool, UiText::SoftLight};
+    const auto &presets = BuiltInProfileNames;
     bool createRequested = false;
     int matching = MatchingPreset(s);
     auto saved = r.selectedProfileSettings;
-    saved.enabled = s.enabled;
-    saved.openOnStart = s.openOnStart;
-    saved.panelPage = s.panelPage;
-    saved.language = s.language;
-    saved.unlockFps = s.unlockFps;
-    saved.preciseWaterDepth = s.preciseWaterDepth;
-    saved.msaaSamples = s.msaaSamples;
+    saved.preserveControls(s);
     std::string caption = r.selectedProfile + (saved == s ? "" : " *");
+    int selectedBuiltIn = r.selectedBuiltIn >= 0 ? r.selectedBuiltIn : matching;
+    if (r.selectedProfile.empty())
+        caption = selectedBuiltIn < 0 ? Tr(UiText::Custom) :
+            std::string(Tr(presets[selectedBuiltIn])) + (matching == selectedBuiltIn ? "" : " *");
     ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(.16f, .17f, .19f, 1));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10, 9));
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8, 6));
-    if (ImGui::BeginCombo("##profile",
-                          !r.selectedProfile.empty()
-                              ? caption.c_str()
-                              : (matching < 0 ? Tr(UiText::Custom) : Tr(presets[matching])),
+    if (ImGui::BeginCombo("##profile", caption.c_str(),
                           ImGuiComboFlags_HeightLarge)) {
         ImGui::PushStyleVar(ImGuiStyleVar_SeparatorTextBorderSize, 1.f);
         ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, ImVec2(0, .5f));
         ImGui::PushStyleColor(ImGuiCol_Separator, ImVec4(.19f, .20f, .22f, 1));
         ImGui::SeparatorText(Tr(UiText::BuiltInProfiles));
-        for (int i = 0; i < 4; ++i)
+        for (int i = 0; i < BuiltInPresetCount; ++i)
             if (ImGui::Selectable(Label(presets[i]).c_str(), matching == i && r.selectedProfile.empty(), 0,
                                   {0, 24})) {
                 s.preset(i);
                 r.selectedProfile.clear();
+                r.selectedBuiltIn = i;
             }
         ImGui::SeparatorText(Tr(UiText::MyProfiles));
         WIN32_FIND_DATAW data{};
@@ -387,15 +370,10 @@ void ProfilePicker(Runtime &r, float width) {
                 if (ImGui::Selectable(label.c_str(), false, 0, {0, 24})) {
                     Settings next;
                     if (next.load(dir + name)) {
-                        next.openOnStart = s.openOnStart;
-                        next.panelPage = s.panelPage;
-                        next.language = s.language;
-                        next.enabled = s.enabled;
-                        next.unlockFps = s.unlockFps;
-                        next.preciseWaterDepth = s.preciseWaterDepth;
-                        next.msaaSamples = s.msaaSamples;
+                        next.preserveControls(s);
                         s = next;
                         r.selectedProfile = label;
+                        r.selectedBuiltIn = -1;
                         r.selectedProfileSettings = s;
                         r.profileError = UiText::None;
                     } else
@@ -448,6 +426,7 @@ void ProfilePicker(Runtime &r, float width) {
             if (s.save(path)) {
                 r.message = UiText::ProfileSaved;
                 r.selectedProfile = UTF8(name);
+                r.selectedBuiltIn = -1;
                 r.selectedProfileSettings = s;
                 ImGui::CloseCurrentPopup();
             } else

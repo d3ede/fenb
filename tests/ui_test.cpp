@@ -421,6 +421,28 @@ int main() {
     frame();
     CHECK(r.settings.exposure == profile.exposure && r.settings.language == Language::Russian);
     CHECK(r.selectedProfile == "Тест воды");
+    for (int preset=0;preset<BuiltInPresetCount;++preset) {
+        click(360,102);frame();
+        CHECK(!ImGui::GetCurrentContext()->OpenPopupStack.empty());
+        auto *picker=ImGui::GetCurrentContext()->OpenPopupStack.back().Window;
+        auto id="###text-"+std::to_string(static_cast<int>(BuiltInProfileNames[preset]));
+        ImGui::ActivateItemByID(picker->GetID(id.c_str()));frame();
+        CHECK(r.selectedProfile.empty() && r.selectedBuiltIn==preset);
+        CHECK(r.settings.matchingPreset()==preset && r.settings.language==Language::Russian);
+    }
+    r.settings.preset(0);r.selectedBuiltIn=0;
+    r.settings.exposure+=.01f;
+    frame();
+    CHECK(r.selectedBuiltIn==0 && r.settings.matchingPreset()==-1);
+    CHECK(Screenshot(d,L"build/FENB-default-modified-russian.png"));
+    click(360,102);frame();
+    CHECK(Screenshot(d,L"build/FENB-builtins-russian.png"));
+    click(720,560);frame();
+    r.settings.language=Language::English;
+    click(360,102);frame();
+    CHECK(Screenshot(d,L"build/FENB-builtins-english.png"));
+    click(720,560);frame();
+    r.settings.language=Language::Russian;
     r.settings.preset(0);
     frame();
     CHECK(r.settings.language == Language::Russian);

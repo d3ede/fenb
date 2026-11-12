@@ -1,4 +1,4 @@
-# FENB 0.1f
+# FENB 0.1g
 
 FENB is a graphics mod for Flyff, inspired by ENBSeries. It uses a Windows x86 Direct3D 9 proxy, C++20, precompiled shaders and a native Dear ImGui settings panel.
 
@@ -16,11 +16,13 @@ FENB is a graphics mod for Flyff, inspired by ENBSeries. It uses a Windows x86 D
 - **Light and atmosphere →** opens compact collapsible controls for SSAO, Sun Rays, SkyFX, fog, DoF, adaptation, lighting balance, vegetation and local illumination. Each effect has its own switch and parameter reset. **Antialiasing →** contains FXAA, SMAA and native MSAA.
 - The reset icon in each section heading resets only that section's parameters. Effect enable switches, other sections, the global switch and the FPS option are preserved.
 
-**Основной** is the consolidated starting profile. Its entire WaterFX block preserves the owner's active water configuration: 0.05 wave shading, 9.5 wavelength, 0.4 speed, 0.8 ripples, 0.74 opacity and sky, detailed SSR, and caustics disabled. Other effects form one combined visual setup: moderate SSAO and Bloom, a stronger daylight ray source, recognized day/night sky and clouds, distant height fog, subtle far DoF without near blur, capped adaptation, warm local surface lighting, SMAA and night foliage fill.
+**Default / Основной** is the built-in starting profile. Its entire WaterFX block preserves the owner's active water configuration: 0.05 wave shading, 9.5 wavelength, 0.4 speed, 0.8 ripples, 0.74 opacity and sky, detailed SSR, and caustics disabled. Other effects form one combined visual setup: moderate SSAO and Bloom, a stronger daylight ray source, recognized day/night sky and clouds, distant height fog, subtle far DoF without near blur, capped adaptation, warm local surface lighting, SMAA and night foliage fill.
 
-The supplied profile replaces the earlier collection of comparison presets. The installation performed for this update archives the old client profile folder and configuration before activating the new setup; the active water values and hardware/FPS/language preferences are retained. Normal image-profile loading preserves hardware MSAA, precise-depth, FPS and interface-language choices. A matching saved profile is recognized at startup, and an asterisk marks subsequent changes.
+The built-in list contains exactly five looks: **Default / Основной**, **Clear water / Чистая вода**, **Golden light / Золотой свет**, **Soft atmosphere / Мягкая атмосфера**, and **Night lights / Ночные огни**. They replace the earlier Neutral/Warm/Cool/Soft light set. Clear water uses calmer, more transparent water and lighter processing; Golden light uses warm color, broader bloom and restrained caustics; Soft atmosphere uses gentle highlights, ripples, haze and far focus; Night lights lifts dark detail and emphasizes local glow without forcing the game clock. These are image looks, not time-of-day overrides.
 
-The lower-left corner shows the public version, **0.1f**, followed by save status. Public versions use the form `digit.digitletter`.
+All five are compiled into the DLL; the default image settings come from `config/FENB.ini`, with named variations in `config/builtins.json`. `node tools/embed-presets.mjs` regenerates `src/generated/presets.hpp`, and both build paths keep it in sync. No shipped `.ini` is added under **My profiles**. The old saved copy of Основной can be archived when migrating to the identical built-in, without discarding user edits. Custom files remain independently supported. Image-profile changes preserve the master switch, language, hardware/FPS choices and local time/weather controls. Modified built-ins retain their translated name with an asterisk, and can be saved as a custom profile.
+
+The lower-left corner shows the public version, **0.1g**, followed by save status. Public versions use the form `digit.digitletter`.
 
 ## When an effect is visible
 

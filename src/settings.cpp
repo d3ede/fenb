@@ -1,4 +1,5 @@
 #include "settings.hpp"
+#include "generated/presets.hpp"
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -251,37 +252,26 @@ bool Settings::save(const std::wstring &path) const {
     return true;
 }
 
+void Settings::preserveControls(const Settings &source) {
+#define KEEP(member) member = source.member;
+    KEEP(enabled)
+    KEEP(openOnStart) KEEP(unlockFps) KEEP(preciseWaterDepth) KEEP(msaaSamples) KEEP(panelPage) KEEP(language)
+        KEEP(timeOverride) KEEP(timeMinutes) KEEP(freezeTime) KEEP(weatherOverride) KEEP(weatherType)
+            KEEP(weatherIntensity)
+#undef KEEP
+}
 void Settings::preset(int index) {
-    bool open = openOnStart;
-    bool unlock = unlockFps;
-    bool precise = preciseWaterDepth;
-    int msaa = msaaSamples;
-    int page = panelPage;
-    auto selectedLanguage = language;
+    const Settings controls = *this;
     *this = Settings{};
-    openOnStart = open;
-    unlockFps = unlock;
-    preciseWaterDepth = precise;
-    msaaSamples = msaa;
-    panelPage = page;
-    language = selectedLanguage;
-    if (index == 1) {
-        bloomStrength = .32f;
-        temperature = .12f;
-        saturation = .94f;
-        contrast = 1.04f;
+    ApplyBuiltInVisuals(*this, index);
+    preserveControls(controls);
+}
+int Settings::matchingPreset() const {
+    for (int i = 0; i < BuiltInPresetCount; ++i) {
+        Settings candidate = *this;
+        candidate.preset(i);
+        if (candidate == *this)
+            return i;
     }
-    if (index == 2) {
-        bloomStrength = .12f;
-        temperature = -.10f;
-        saturation = .88f;
-        contrast = 1.08f;
-    }
-    if (index == 3) {
-        bloomStrength = .38f;
-        threshold = .64f;
-        radius = 2.4f;
-        saturation = 1.10f;
-        shadows = .05f;
-    }
+    return -1;
 }

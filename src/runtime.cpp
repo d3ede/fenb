@@ -73,6 +73,9 @@ Runtime::SceneStatus Runtime::sceneStatus() const {
 }
 void Runtime::recognizeProfile() {
     selectedProfile.clear();
+    selectedBuiltIn = settings.matchingPreset();
+    if (selectedBuiltIn >= 0)
+        return;
     auto directory = configPath.substr(0, configPath.find_last_of(L"\\/") + 1) + L"FENB-presets\\";
     WIN32_FIND_DATAW data{};
     HANDLE find = FindFirstFileW((directory + L"*.ini").c_str(), &data);
@@ -85,13 +88,7 @@ void Runtime::recognizeProfile() {
         Settings candidate;
         if (!candidate.load(directory + data.cFileName))
             continue;
-        candidate.enabled = settings.enabled;
-        candidate.openOnStart = settings.openOnStart;
-        candidate.panelPage = settings.panelPage;
-        candidate.unlockFps = settings.unlockFps;
-        candidate.preciseWaterDepth = settings.preciseWaterDepth;
-        candidate.msaaSamples = settings.msaaSamples;
-        candidate.language = settings.language;
+        candidate.preserveControls(settings);
         if (candidate == settings) {
             std::wstring name = data.cFileName;
             name.resize(name.size() - 4);

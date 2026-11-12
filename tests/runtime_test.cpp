@@ -196,6 +196,13 @@ int main() {
               runtime.settings.msaaSamples == after.msaaSamples);
     }
     DeleteFileW(primary.c_str());
+    after.preset(0);
+    CHECK(after.save(config) && after.save(primary));
+    {
+        Runtime runtime(device);
+        CHECK(runtime.selectedProfile.empty() && runtime.selectedBuiltIn == 0);
+    }
+    DeleteFileW(primary.c_str());
     RemoveDirectoryW(profiles.c_str());
     {
         Runtime runtime(device);

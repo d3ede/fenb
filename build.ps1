@@ -10,6 +10,8 @@ node tools/embed-font.mjs
 if ($LASTEXITCODE) { throw 'Font embedding failed' }
 node tools/embed-logo.mjs
 if ($LASTEXITCODE) { throw 'Logo embedding failed' }
+node tools/embed-presets.mjs
+if ($LASTEXITCODE) { throw 'Profile embedding failed' }
 & $cxx '-std=c++20' '-O2' '-static' 'tools/shaderc.cpp' '-ld3dcompiler' '-o' 'build/shaderc.exe'
 if ($LASTEXITCODE) { throw 'Shader compiler build failed' }
 & '.\build\shaderc.exe' 'shaders/post.hlsl' 'src/generated/shaders.hpp'
@@ -36,7 +38,6 @@ if ($LASTEXITCODE) { throw 'FENB build failed' }
 Copy-Item -LiteralPath 'config/FENB.ini' -Destination "$outputDirectory/FENB.ini" -Force
 Copy-Item -LiteralPath 'README.md' -Destination "$outputDirectory/README.md" -Force
 New-Item -ItemType Directory -Force -Path "$outputDirectory/FENB-presets" | Out-Null
-Get-ChildItem -LiteralPath 'config/presets' -Filter '*.ini' -File | Copy-Item -Destination "$outputDirectory/FENB-presets" -Force
 Copy-Item -LiteralPath "$imgui/LICENSE.txt" -Destination "$outputDirectory/Dear-ImGui-LICENSE.txt" -Force
 Copy-Item -LiteralPath 'assets/fonts/OFL.txt' -Destination "$outputDirectory/Inter-OFL.txt" -Force
 Copy-Item -LiteralPath 'vendor/smaa/LICENSE.txt' -Destination "$outputDirectory/SMAA-LICENSE.txt" -Force
