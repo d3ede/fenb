@@ -500,6 +500,8 @@ void SceneControls(Runtime &runtime) {
         Row(UiText::Clouds, Tr(UiText::CloudsHelp), s.cloudContrast, .5f, 2, defaults.cloudContrast, "%.2f",
             .05f);
         Row(UiText::SunHalo, Tr(UiText::SunHaloHelp), s.sunHalo, 0, 2, defaults.sunHalo, "%.2f", .05f);
+        Row(UiText::SkyDetail, Tr(UiText::SkyDetailHelp), s.skyDetail, 0, 1, defaults.skyDetail, "%.2f", .05f);
+        Row(UiText::FineStars, Tr(UiText::FineStarsHelp), s.skyStars, 0, 1, defaults.skyStars, "%.2f", .05f);
         ImGui::EndDisabled();
         if (s.enabled && s.sky && !status.sky)
             notice(UiText::SkyNotDetected);

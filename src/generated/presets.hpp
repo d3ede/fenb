@@ -51,6 +51,8 @@ inline void ApplyBuiltInVisuals(Settings &s, int index) {
     s.skyHorizon = 0.650000f;
     s.cloudContrast = 1.080000f;
     s.sunHalo = 0.650000f;
+    s.skyDetail = 0.700000f;
+    s.skyStars = 0.550000f;
     s.fog = true;
     s.fogDensity = 0.002800f;
     s.fogStart = 42.000000f;

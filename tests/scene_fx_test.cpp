@@ -718,6 +718,8 @@ int main(int argc, char **) {
             s.skyStrength = 0;
             s.sunHalo = 0;
             s.cloudContrast = 1;
+            s.skyDetail = 0;
+            s.skyStars = 0;
         }
         fx.sceneFX().observe(s);
         d->Clear(0, nullptr, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, 0xff000000, 1, 0);

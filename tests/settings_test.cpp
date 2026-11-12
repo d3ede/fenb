@@ -47,6 +47,11 @@ int main() {
               particles.sfxWake == 0 && particles.language == Language::Russian);
         particles.resetWaterSurface();
         CHECK(particles.sfxWake == Settings{}.sfxWake && !particles.sfx);
+        particles.skyDetail=2;particles.skyStars=std::numeric_limits<float>::quiet_NaN();
+        particles.sanitize();
+        CHECK(particles.skyDetail==1 && particles.skyStars==Settings{}.skyStars);
+        particles.resetSceneSection(2);
+        CHECK(particles.skyDetail==Settings{}.skyDetail && particles.language==Language::Russian);
         CHECK(particles.save(L"build/sfx-settings.ini"));
         Settings restored;
         CHECK(restored.load(L"build/sfx-settings.ini") && restored == particles);

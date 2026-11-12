@@ -941,7 +941,14 @@ bool SceneFX::beginSky(const Settings &s, DWORD tag) {
     DWORD fog = 0;
     device_->GetRenderState(D3DRS_FOGCOLOR, &fog);
     float options[] = {s.skyStrength, s.skyHorizon, s.cloudContrast, s.sunHalo},
-          kind[] = {tag == 4 ? 1.f : 0.f, 0, 0, 0};
+          kind[] = {tag == 4 ? 1.f : 0.f, lit ? 1.f-Daylight(light.Diffuse) : 0.f, 0, 0};
+    Com<IDirect3DBaseTexture9> skyTexture;
+    D3DSURFACE_DESC textureDescription{};
+    if (FAILED(device_->GetTexture(0, skyTexture.out())) || !skyTexture.p ||
+        skyTexture->GetType()!=D3DRTYPE_TEXTURE ||
+        FAILED(static_cast<IDirect3DTexture9*>(skyTexture.p)->GetLevelDesc(0,&textureDescription)))
+        return false;
+    float detail[] = {1.f/textureDescription.Width,1.f/textureDescription.Height,s.skyDetail,s.skyStars};
     float direction[] = {-light.Direction.x, -light.Direction.y, -light.Direction.z,
                          lit && light.Direction.y < 0 ? Daylight(light.Diffuse) : 0.f};
     float illumination[4]{};
@@ -960,6 +967,11 @@ bool SceneFX::beginSky(const Settings &s, DWORD tag) {
     device_->SetPixelShaderConstantF(11, direction, 1);
     device_->SetPixelShaderConstantF(16, illumination, 1);
     device_->SetPixelShaderConstantF(20, stages[0], 4);
+    device_->SetPixelShaderConstantF(24, detail, 1);
+    if (s.skyDetail > 0) {
+        device_->SetSamplerState(0,D3DSAMP_MINFILTER,D3DTEXF_LINEAR);
+        device_->SetSamplerState(0,D3DSAMP_MAGFILTER,D3DTEXF_LINEAR);
+    }
     device_->SetRenderState(D3DRS_FOGENABLE, FALSE);
     skyState_ = std::move(state);
     skyApplied_ = true;

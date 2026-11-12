@@ -549,6 +549,21 @@ int main() {
         frame();
         CHECK(Screenshot(d, language ? L"build/FENB-sfx-russian.png" : L"build/FENB-sfx-english.png"));
     }
+    adjustments->StateStorage.SetBool(ImHashStr("expanded",0,adjustments->GetID("sfx")),false);
+    adjustments->StateStorage.SetBool(ImHashStr("expanded",0,adjustments->GetID("sky")),true);
+    r.settings.sky=true;
+    for(int language=0;language<2;++language) {
+        r.settings.language=language?Language::Russian:Language::English;
+        ImGui::SetScrollY(adjustments,0);frame();frame();
+        CHECK(Screenshot(d,language?L"build/FENB-sky-detail-russian.png":L"build/FENB-sky-detail-english.png"));
+        r.settings.water=true;r.settings.sfx=false;
+        r.editorPage=1;frame();frame();
+        ImGui::SetScrollY(adjustments,0);frame();
+        if(language==0)click(185,168);
+        frame();
+        CHECK(Screenshot(d,language?L"build/FENB-water-wake-russian.png":L"build/FENB-water-wake-english.png"));
+        r.editorPage=2;
+    }
     DeleteFileW((ModuleDirectory() + L"FENB-presets\\Тест воды.ini").c_str());
     ImGui_ImplDX9_Shutdown();
     ImGui::DestroyContext();

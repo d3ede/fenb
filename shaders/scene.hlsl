@@ -222,6 +222,38 @@ float4 SkyColorStage:register(c20);
 float4 SkyAlphaStage:register(c21);
 float4 SkyFactor:register(c22);
 float4 SkyConstant:register(c23);
+float4 SkyTexture:register(c24); // inverse native size, detail, fine stars
+float4 ReconstructSky(float2 uv){
+    float2 p=uv/SkyTexture.xy-.5,base=floor(p),f=frac(p);
+    float2 w0=f*(-.5+f*(1-.5*f));
+    float2 w1=1+f*f*(-2.5+1.5*f);
+    float2 w2=f*(.5+f*(2-1.5*f));
+    float2 w3=f*f*(-.5+.5*f),w12=w1+w2;
+    float3 x=float3(base.x-.5,base.x+.5+w2.x/w12.x,base.x+2.5)*SkyTexture.x;
+    float3 y=float3(base.y-.5,base.y+.5+w2.y/w12.y,base.y+2.5)*SkyTexture.y;
+    float3 wx=float3(w0.x,w12.x,w3.x),wy=float3(w0.y,w12.y,w3.y);
+    float4 sum=0;
+    [unroll]for(int j=0;j<3;++j)[unroll]for(int i=0;i<3;++i)
+        sum+=tex2Dlod(Image,float4(x[i],y[j],0,0))*wx[i]*wy[j];
+    return saturate(sum);
+}
+float3 FineSkyStars(float2 p,float2 dx,float2 dy,float height){
+    // Upper-hemisphere octahedral coordinates avoid a panorama seam and pole singularity.
+    float2 cell=floor(p),local=frac(p)-.5;
+    float3 hash=frac(float3(cell.x,cell.y,cell.x)*float3(.1031,.1030,.0973));
+    hash+=dot(hash,hash.yzx+33.33);
+    hash=frac((hash.xxy+hash.yzz)*hash.zyx);
+    float rarity=frac(hash.z*29.97);
+    float radius=.045+.13*pow(rarity,7);
+    float2 delta=local-(hash.xy-.5)*.6;
+    float determinant=dx.x*dy.y-dx.y*dy.x;
+    float inverse=(determinant>=0?1:-1)/max(.000001,abs(determinant));
+    float2 screenDelta=float2(delta.x*dy.y-delta.y*dy.x,dx.x*delta.y-dx.y*delta.x)*inverse;
+    float size=radius*radius/max(.000001,abs(determinant)),variance=size+.35;
+    float star=exp(-dot(screenDelta,screenDelta)/variance)*size/variance;
+    star*=step(.965,hash.z)*smoothstep(0,.12,height)*(1+rarity);
+    return lerp(float3(.76,.84,1),float3(1,.9,.74),rarity*.45)*star;
+}
 float4 SkyArgument(float argument,float4 textureValue,float4 diffuse){
     float base=fmod(argument,16);
     float4 value=base==2?textureValue:base==3?SkyFactor:base==6?SkyConstant:diffuse;
@@ -237,10 +269,26 @@ float4 SkyOperation(float op,float4 a,float4 b){
 }
 float4 SkyPS(float2 uv:TEXCOORD0,float3 direction:TEXCOORD1,float4 color:COLOR0):COLOR0 {
     float4 texel=tex2D(Image,uv);
+    float3 d=normalize(direction);
+    float2 starCoordinates=d.xz/max(.001,abs(d.x)+abs(d.y)+abs(d.z))*256;
+    float2 starDx=ddx(starCoordinates),starDy=ddy(starCoordinates);
+    float2 uvDx=ddx(uv),uvDy=ddy(uv);
+    float footprint=max(length(uvDx/SkyTexture.xy),length(uvDy/SkyTexture.xy));
+    [branch]if(SkyTexture.z>0){
+        [branch]if(footprint<1.2)texel=lerp(texel,ReconstructSky(uv),SkyTexture.z);
+        [branch]if(Viewport.x<.5 && Viewport.y>.01){
+            float2 span=SkyTexture.xy*2.5;
+            float3 base=min(texel.rgb,tex2Dgrad(Image,uv+span,uvDx,uvDy).rgb);
+            base=min(base,tex2Dgrad(Image,uv-span,uvDx,uvDy).rgb);
+            base=min(base,tex2Dgrad(Image,uv+span*float2(1,-1),uvDx,uvDy).rgb);
+            base=min(base,tex2Dgrad(Image,uv+span*float2(-1,1),uvDx,uvDy).rgb);
+            texel.rgb=lerp(texel.rgb,base,Viewport.y*SkyTexture.z*.9);
+            texel.rgb+=FineSkyStars(starCoordinates,starDx,starDy,d.y)*(SkyTexture.z*SkyTexture.w*Viewport.y);
+        }
+    }
     float3 nativeRGB=SkyOperation(SkyColorStage.x,SkyArgument(SkyColorStage.y,texel,color),SkyArgument(SkyColorStage.z,texel,color)).rgb;
     float nativeAlpha=SkyColorStage.w<1.5?color.a:SkyOperation(SkyColorStage.w,SkyArgument(SkyAlphaStage.x,texel,color),SkyArgument(SkyAlphaStage.y,texel,color)).a;
     float4 source=float4(nativeRGB,nativeAlpha);
-    float3 d=normalize(direction);
     if(Viewport.x>.5){
         source.rgb=saturate((source.rgb-.5)*Camera.z+.5);
         return source;
