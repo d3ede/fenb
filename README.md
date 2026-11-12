@@ -12,7 +12,7 @@
 
 A graphics mod inspired by ENBSeries, with adjustable effects and an in-game settings panel.
 
-[![Release](https://img.shields.io/badge/release-unreleased-7954B4?labelColor=17172D)](https://github.com/d3ede/fenb/releases)
+[![Release](https://img.shields.io/github/v/release/d3ede/fenb?color=7954B4&labelColor=17172D)](https://github.com/d3ede/fenb/releases/latest)
 [![Windows](https://img.shields.io/badge/Windows-x86%20client-7954B4?labelColor=17172D)](https://github.com/d3ede/fenb/releases)
 [![DirectX 9](https://img.shields.io/badge/DirectX-9-7954B4?labelColor=17172D)](https://github.com/d3ede/fenb/releases)
 [![MIT License](https://img.shields.io/badge/license-MIT-7954B4?labelColor=17172D)](LICENSE)
@@ -65,7 +65,7 @@ A graphics mod inspired by ENBSeries, with adjustable effects and an in-game set
 
 **Requirements:** Windows and a compatible **32-bit DirectX 9 Flyff client** (`Neuz.exe`). No installer is needed.
 
-1. Close the game. Use a packaged FENB build from [Releases](https://github.com/d3ede/fenb/releases), when available, or the `dist/` output of a local build.
+1. Close the game. Download and extract **`FENB-<version>-win32.zip`** from the [latest release](https://github.com/d3ede/fenb/releases/latest), or use the `dist/` output of a local build.
 2. Copy **`d3d9.dll`** and **`FENB.ini`** into the game folder, beside **`Neuz.exe`**, and keep **`LICENSES.txt`** with them. The archive's **`INSTALL.txt`** contains English instructions followed by Russian instructions. Built-in profiles are embedded in the DLL; `FENB-presets/` is created for your own profiles when needed.
 3. Launch the game normally and press **Shift + Enter** to open the panel.
 4. Choose a profile or adjust the effects to your liking. Changes save automatically.
