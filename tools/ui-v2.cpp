@@ -23,8 +23,17 @@ constexpr ImU32 Surface = IM_COL32(32, 33, 37, 255);
 Language language = Language::English;
 bool motion = true, customCursor = true, running = true, captureFrames = false;
 int page = 0, subpage = 0, profile = 0, weather = 0;
-bool switches[8] = {true, true, true, true, true, true, true, true};
-float values[14] = {.38f, .72f, .50f, .55f, .58f, .32f, .45f, .20f, .65f, .42f, .18f, .35f, .50f, .35f};
+enum Toggle { BloomOn, GradeOn, SkyOn, RaysOn, DepthOn, WaterOn, ReflectionOn,
+    TimeOn, WeatherOn, WorldSkyOn, AaOn, MasterOn, ToggleCount };
+bool switches[ToggleCount];
+int aaMethod = 1;
+enum Parameter { Exposure, Contrast, Saturation, Temperature, Bloom, Threshold, Radius,
+    Haze, Horizon, Rays, RayRadius, Focus, Blur, Waves, Speed, Ripples, Refraction, Opacity,
+    Reflection, Time, WorldHaze, Clouds, ParameterCount };
+constexpr float defaults[ParameterCount] = {.50f, .55f, .58f, .32f, .38f, .72f, .45f,
+    .32f, .45f, .20f, .65f, .35f, .50f, .32f, .45f, .20f, .65f, .35f,
+    .50f, .42f, .18f, .35f};
+float values[ParameterCount];
 double pageStart = 0;
 IDirect3DTexture9 *logo = nullptr;
 ImVec2 origin{};
@@ -51,6 +60,12 @@ void Text(float x, float y, const char *s, float size = 14, ImU32 color = Ink) {
 void Text(float x, float y, UiText id, float size = 14, ImU32 color = Ink) {
     Text(x, y, Tr(id), size, color);
 }
+float TextWidth(const char *text, float size) {
+    return ImGui::GetFont()->CalcTextSizeA(size, FLT_MAX, 0, text).x;
+}
+void CenterText(float x, float y, float w, const char *text, float size, ImU32 color) {
+    Text(x + std::floor((w - TextWidth(text, size)) * .5f), y, text, size, color);
+}
 void Rect(float x, float y, float w, float h, ImU32 color, float rounding = 6) {
     draw->AddRectFilled(P(x, y), P(x + w, y + h), color, rounding);
 }
@@ -70,6 +85,32 @@ void Tip(UiText id) {
         ImGui::EndTooltip();
     }
 }
+// Small icons are strokes, never font glyphs: identical shapes in EN and RU.
+void Chevron(float x, float y, int direction, ImU32 color = Muted) {
+    if (direction == 0) {
+        draw->AddLine(P(x - 3, y - 1.5f), P(x, y + 1.5f), color, 1.2f);
+        draw->AddLine(P(x, y + 1.5f), P(x + 3, y - 1.5f), color, 1.2f);
+    } else {
+        draw->AddLine(P(x - direction * 1.5f, y - 3), P(x + direction * 1.5f, y), color, 1.2f);
+        draw->AddLine(P(x + direction * 1.5f, y), P(x - direction * 1.5f, y + 3), color, 1.2f);
+    }
+}
+void ResetIcon(float x, float y, ImU32 color) {
+    draw->PathArcTo(P(x, y), 4.5f, -2.35f, 2.65f, 18);
+    draw->PathStroke(color, 1.2f);
+    draw->AddLine(P(x - 3.2f, y - 3.2f), P(x - 3.2f, y - 6), color, 1.2f);
+    draw->AddLine(P(x - 3.2f, y - 3.2f), P(x, y - 3.2f), color, 1.2f);
+}
+bool IconButton(const char *id, float x, float y, int icon, UiText tip, bool emphasized = true) {
+    bool pressed = Hit(id, x, y, 24, 24);
+    bool hover = ImGui::IsItemHovered();
+    if (hover) Rect(x, y, 24, 24, IM_COL32(48, 50, 56, 255), 3);
+    ImU32 color = hover ? Ink : emphasized ? Muted : IM_COL32(85, 88, 98, 255);
+    if (icon == 2) ResetIcon(x + 12, y + 12, color);
+    else Chevron(x + 12, y + 12, icon, color);
+    Tip(tip);
+    return pressed;
+}
 void Switch(const char *id, float x, float y, bool &value) {
     ImGui::PushID(id);
     if (Hit("switch", x - 4, y - 6, 42, 30) ||
@@ -82,38 +123,101 @@ void Switch(const char *id, float x, float y, bool &value) {
     ImGui::PopID();
 }
 
-void Slider(const char *id, float y, UiText label, float &value, bool clock = false) {
-    ImGui::PushID(id);
-    Text(28, y + 5, label, 13, Muted);
-    Hit("track", 203, y, 257, 25);
+void Slider(float y, UiText label, Parameter parameter, bool clock = false) {
+    ImGui::PushID(parameter);
+    float &value = values[parameter];
+    Text(42, y + 6, label, 13, Muted);
+    Hit("track", 201, y, 205, 26);
     bool hover = ImGui::IsItemHovered(), active = ImGui::IsItemActive();
     if (active && ImGui::IsMouseDown(0))
-        value = std::clamp((ImGui::GetIO().MousePos.x - P(210, 0).x) / 242, 0.f, 1.f);
+        value = std::clamp((ImGui::GetIO().MousePos.x - P(207, 0).x) / 192, 0.f, 1.f);
+    float step = clock ? 1.f / 1440 : .01f;
     if (ImGui::IsItemFocused()) {
-        if (ImGui::IsKeyPressed(ImGuiKey_LeftArrow)) value = std::max(0.f, value - .01f);
-        if (ImGui::IsKeyPressed(ImGuiKey_RightArrow)) value = std::min(1.f, value + .01f);
+        if (ImGui::IsKeyPressed(ImGuiKey_LeftArrow)) value = std::max(0.f, value - step);
+        if (ImGui::IsKeyPressed(ImGuiKey_RightArrow)) value = std::min(1.f, value + step);
     }
     float t = Animate("hover", hover || active ? 1.f : 0.f);
-    draw->AddLine(P(210, y + 13), P(452, y + 13), IM_COL32(75, 77, 84, 255), 1.5f);
-    draw->AddLine(P(210, y + 13), P(210 + 242 * value, y + 13),
+    draw->AddLine(P(207, y + 13), P(399, y + 13), IM_COL32(69, 72, 80, 255), 1.5f);
+    float neutral = 207 + 192 * defaults[parameter];
+    float knob = std::floor(207 + 192 * value);
+    draw->AddLine(P(neutral, y + 10), P(neutral, y + 16), IM_COL32(93, 96, 106, 255), 1);
+    draw->AddLine(P(207, y + 13), P(knob, y + 13),
         Mix(IM_COL32(130, 133, 143, 255), Violet, t), 2);
-    float knob = 210 + 242 * value;
     Rect(knob - 2, y + 8, 4, 10, active ? Violet : Ink, 1);
-    Rect(475, y + 2, 55, 23, IM_COL32(39, 40, 45, 255), 3);
+
+    ImGui::PushItemFlag(ImGuiItemFlags_ButtonRepeat, true);
+    if (IconButton("less", 414, y + 1, -1, clock ? UiText::TimeInputHelp : UiText::NumberInputHelp))
+        value = std::max(0.f, value - step);
+    ImGui::PopItemFlag();
     char number[24];
     if (clock) {
         int minutes = std::min(1439, int(value * 1440));
         std::snprintf(number, sizeof(number), "%02d:%02d", minutes / 60, minutes % 60);
     } else std::snprintf(number, sizeof(number), "%.2f", value);
-    Text(486, y + 6, number, 12, Ink);
+    ImGui::SetCursorScreenPos(P(438, y + 2));
+    ImGui::SetNextItemWidth(48);
+    ImGui::PushFont(nullptr, 12);
+    float pad = std::max(2.f, (48 - TextWidth(number, 12)) * .5f);
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, {pad, 4});
+    if (clock) {
+        if (ImGui::InputText("##value", number, sizeof(number), ImGuiInputTextFlags_AutoSelectAll)) {
+            int hours, minutes; char tail;
+            if (std::sscanf(number, "%d:%d%c", &hours, &minutes, &tail) == 2 &&
+                hours >= 0 && hours < 24 && minutes >= 0 && minutes < 60)
+                value = (hours * 60.f + minutes) / 1440;
+        }
+    } else if (ImGui::InputFloat("##value", &value, 0, 0, "%.2f", ImGuiInputTextFlags_AutoSelectAll))
+        value = std::isfinite(value) ? std::clamp(value, 0.f, 1.f) : defaults[parameter];
+    ImGui::PopStyleVar();
+    ImGui::PopFont();
+    Tip(clock ? UiText::TimeInputHelp : UiText::NumberInputHelp);
+    ImGui::PushItemFlag(ImGuiItemFlags_ButtonRepeat, true);
+    if (IconButton("more", 486, y + 1, 1, clock ? UiText::TimeInputHelp : UiText::NumberInputHelp))
+        value = std::min(1.f, value + step);
+    ImGui::PopItemFlag();
+    if (IconButton("reset-value", 516, y + 1, 2, UiText::ResetValue,
+        std::abs(value - defaults[parameter]) > .001f)) value = defaults[parameter];
     ImGui::PopID();
 }
-void Section(const char *id, float y, UiText title, int toggle = -1) {
+bool Section(const char *id, float y, UiText title, int toggle = -1, bool *reset = nullptr) {
     ImGui::PushID(id);
-    Rect(16, y, 528, 29, IM_COL32(38, 39, 44, 255), 3);
-    Text(28, y + 7, title, 13);
+    auto *state = ImGui::GetStateStorage();
+    auto key = ImGui::GetID("expanded");
+    bool expanded = state->GetBool(key, true);
+    Rect(16, y, 528, 30, IM_COL32(36, 38, 43, 255), 4);
+    if (Hit("heading", 16, y, reset ? 452 : 528, 30) && reset) {
+        expanded = !expanded;
+        state->SetBool(key, expanded);
+    }
+    if (ImGui::IsItemHovered() && reset) Rect(16, y, 452, 30, IM_COL32(42, 44, 50, 255), 4);
+    if (reset) Chevron(28, y + 15, expanded ? 0 : 1);
+    Text(reset ? 42 : 28, y + 8, title, 13);
+    if (reset) *reset = IconButton("reset-section", 470, y + 3, 2, UiText::ResetSection);
     if (toggle >= 0) Switch("enable", 504, y + 7, switches[toggle]);
     ImGui::PopID();
+    return expanded;
+}
+struct Row { UiText label; Parameter parameter; bool clock = false; };
+void Group(const char *id, float &y, UiText title, int toggle, std::initializer_list<Row> rows) {
+    bool reset = false;
+    bool expanded = Section(id, y, title, toggle, &reset);
+    if (reset) {
+        for (const auto &row : rows) values[row.parameter] = defaults[row.parameter];
+        if (toggle >= 0) switches[toggle] = true;
+    }
+    y += 34;
+    if (expanded) {
+        const float firstRow = y;
+        ImGui::BeginDisabled(toggle >= 0 && !switches[toggle]);
+        for (const auto &row : rows) {
+            Slider(y, row.label, row.parameter, row.clock);
+            y += 28;
+        }
+        ImGui::EndDisabled();
+        if (toggle >= 0 && !switches[toggle])
+            Rect(17, firstRow, 526, y - firstRow, IM_COL32(29, 30, 34, 140), 0);
+    }
+    y += 10;
 }
 void ChangePage(int next, int section = 0) {
     page = next; subpage = section; pageStart = ImGui::GetTime();
@@ -122,74 +226,78 @@ void NavRow(const char *id, float y, UiText title, int target) {
     bool clicked = Hit(id, 16, y, 528, 29);
     if (ImGui::IsItemHovered()) Rect(16, y, 528, 29, IM_COL32(38, 39, 44, 255), 3);
     Text(28, y + 7, title, 13);
-    Text(514, y + 5, "→", 15, Muted);
+    Chevron(528, y + 15, 1, ImGui::IsItemHovered() ? Ink : Muted);
     draw->AddLine(P(16, y + 29), P(544, y + 29), Line);
     if (clicked) ChangePage(0, target);
 }
 void ResetDemo() {
-    const float defaults[] = {.38f, .72f, .50f, .55f, .58f, .32f, .45f, .20f, .65f, .42f, .18f, .35f, .50f, .35f};
     std::copy(std::begin(defaults), std::end(defaults), values);
     std::fill(std::begin(switches), std::end(switches), true);
-    switches[7] = true; profile = weather = 0;
+    profile = weather = 0; aaMethod = 1;
 }
 void Effects() {
     if (subpage != 0) {
-        if (Hit("back", 16, 91, 90, 27)) ChangePage(0);
-        Text(26, 98, UiText::BackButton, 12, Muted);
+        if (Hit("back", 16, 91, 94, 28)) ChangePage(0);
+        if (ImGui::IsItemHovered()) Rect(16, 91, 94, 28, IM_COL32(40, 42, 48, 255), 4);
+        Chevron(28, 105, -1);
+        Text(42, 98, UiText::V2Back, 12, Muted);
+        const UiText heading = subpage == 1 ? UiText::LightAtmosphere : UiText::V2Water;
+        Text(128, 98, heading, 13);
+        float y = 132;
         if (subpage == 1) {
-            Section("sky", 133, UiText::V2Sky, 2);
-            Slider("haze", 174, UiText::V2Fog, values[5]);
-            Slider("horizon", 203, UiText::Horizon, values[6]);
-            Section("rays", 251, UiText::V2Rays, 3);
-            Slider("ray-strength", 292, UiText::V2Intensity, values[7]);
-            Slider("ray-radius", 321, UiText::V2Radius, values[8]);
-            Section("depth", 369, UiText::DepthOfField, 4);
-            Slider("focus", 410, UiText::Focus, values[11]);
-            Slider("blur", 439, UiText::Blur, values[12]);
+            Group("sky", y, UiText::V2Sky, SkyOn, {{UiText::V2Fog, Haze}, {UiText::Horizon, Horizon}});
+            Group("rays", y, UiText::V2Rays, RaysOn, {{UiText::V2Intensity, Rays}, {UiText::V2Radius, RayRadius}});
+            Group("depth", y, UiText::DepthOfField, DepthOn, {{UiText::Focus, Focus}, {UiText::Blur, Blur}});
         } else {
-            Section("water", 133, UiText::Surface, 2);
-            Slider("waves", 174, UiText::WaveHeight, values[5]);
-            Slider("speed", 203, UiText::Speed, values[6]);
-            Slider("ripples", 232, UiText::Ripples, values[7]);
-            Section("depth", 280, UiText::DepthReflections, 3);
-            Slider("refraction", 321, UiText::Refraction, values[8]);
-            Slider("opacity", 350, UiText::Opacity, values[11]);
-            Slider("reflection", 379, UiText::SkyReflection, values[12]);
+            Group("water", y, UiText::Surface, WaterOn, {{UiText::WaveHeight, Waves}, {UiText::Speed, Speed}, {UiText::Ripples, Ripples}});
+            Group("depth", y, UiText::DepthReflections, ReflectionOn, {{UiText::Refraction, Refraction}, {UiText::Opacity, Opacity}, {UiText::SkyReflection, Reflection}});
         }
         return;
     }
     NavRow("atmosphere", 91, UiText::LightAtmosphere, 1);
     NavRow("water", 123, UiText::V2Water, 2);
-    Section("grade", 168, UiText::ColorCorrection, 1);
-    Slider("exposure", 205, UiText::Exposure, values[2]);
-    Slider("contrast", 234, UiText::Contrast, values[3]);
-    Slider("saturation", 263, UiText::Saturation, values[4]);
-    Slider("temperature", 292, UiText::Temperature, values[5]);
-    Section("bloom", 337, UiText::V2Bloom, 0);
-    Slider("bloom-strength", 374, UiText::V2Intensity, values[0]);
-    Slider("threshold", 403, UiText::V2Threshold, values[1]);
-    Slider("radius", 432, UiText::V2Radius, values[6]);
-    Text(28, 476, UiText::V2AA, 12, Muted);
-    Text(369, 476, "SMAA", 12, Ink);
-    Switch("aa", 504, 474, switches[4]);
+    float y = 168;
+    Group("grade", y, UiText::ColorCorrection, GradeOn,
+        {{UiText::Exposure, Exposure}, {UiText::Contrast, Contrast}, {UiText::Saturation, Saturation}, {UiText::Temperature, Temperature}});
+    Group("bloom", y, UiText::V2Bloom, BloomOn,
+        {{UiText::V2Intensity, Bloom}, {UiText::V2Threshold, Threshold}, {UiText::V2Radius, Radius}});
+    draw->AddLine(P(16, y), P(544, y), Line);
+    Text(28, y + 11, UiText::V2AA, 12, Muted);
+    const char *methods[] = {"FXAA", "SMAA"};
+    if (Hit("aa-method", 366, y + 5, 124, 24)) ImGui::OpenPopup("aa-methods");
+    Rect(366, y + 5, 124, 24, ImGui::IsItemHovered() ? IM_COL32(46, 48, 54, 255) : IM_COL32(37, 39, 44, 255), 3);
+    Text(378, y + 11, methods[aaMethod], 12);
+    Chevron(477, y + 17, 0);
+    ImGui::SetNextWindowPos(P(366, y + 32));
+    ImGui::SetNextWindowSize({124, 0});
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {6, 6});
+    if (ImGui::BeginPopup("aa-methods")) {
+        for (int i = 0; i < 2; ++i) if (ImGui::Selectable(methods[i], aaMethod == i)) aaMethod = i;
+        ImGui::EndPopup();
+    }
+    ImGui::PopStyleVar();
+    Switch("aa", 504, y + 9, switches[AaOn]);
 }
 void World() {
-    Section("time", 100, UiText::V2Time, 5);
-    Slider("time-of-day", 146, UiText::V2Time, values[9], true);
-    Text(28, 184, UiText::V2TimeNote, 12, Muted);
-    Section("weather", 232, UiText::V2Weather, 6);
+    float y = 100;
+    Group("time", y, UiText::V2Time, TimeOn, {{UiText::V2Time, Time, true}});
+    bool reset = false;
+    bool expanded = Section("weather", y, UiText::V2Weather, WeatherOn, &reset);
+    if (reset) { weather = 0; switches[WeatherOn] = true; }
+    y += 40;
     const UiText labels[] = {UiText::V2Clear, UiText::V2Rain, UiText::V2Snow};
-    for (int i = 0; i < 3; ++i) {
+    if (expanded) for (int i = 0; i < 3; ++i) {
         ImGui::PushID(i);
         float x = 28 + i * 168.f;
-        if (Hit("weather", x, 279, 152, 28)) weather = i;
-        Rect(x, 279, 152, 28, weather == i ? IM_COL32(55, 57, 64, 255) : IM_COL32(37, 38, 43, 255), 3);
-        Text(x + 15, 287, labels[i], 12, weather == i ? Ink : Muted);
+        ImGui::BeginDisabled(!switches[WeatherOn]);
+        if (Hit("weather", x, y, 152, 28)) weather = i;
+        Rect(x, y, 152, 28, weather == i ? IM_COL32(55, 57, 64, 255) : IM_COL32(37, 38, 43, 255), 3);
+        CenterText(x, y + 8, 152, Tr(labels[i]), 12, weather == i ? Ink : Muted);
+        ImGui::EndDisabled();
         ImGui::PopID();
     }
-    Section("sky", 349, UiText::V2Sky, 2);
-    Slider("haze", 395, UiText::V2Fog, values[10]);
-    Slider("clouds", 424, UiText::Clouds, values[11]);
+    y += expanded ? 52 : 0;
+    Group("sky", y, UiText::V2Sky, WorldSkyOn, {{UiText::V2Fog, WorldHaze}, {UiText::Clouds, Clouds}});
 }
 void Profiles() {
     Text(20, 105, UiText::V2Profiles, 16);
@@ -231,7 +339,7 @@ void Appearance() {
     Text(32, 330, UiText::V2CursorSample, 14);
     Text(32, 357, UiText::V2CursorSampleNote, 11, Muted);
     DrawPointer(draw, P(45, 409));
-    Text(70, 410, "14 × 14 px", 11, Muted);
+    Text(70, 410, "12 × 12 px", 11, Muted);
     DrawPointer(draw, P(442, 391), 4);
 }
 void Cursor() {
@@ -263,14 +371,18 @@ void Panel() {
     }
     Text(47, 15, "FENB", 13, Ink);
     const UiText tabs[] = {UiText::Image, UiText::WorldTab};
-    const float xs[] = {103, 220}, widths[] = {106, 55};
+    float tabX = 103;
     for (int i = 0; i < 2; ++i) {
         ImGui::PushID(i);
-        if (Hit("tab", xs[i], 7, widths[i], 30)) ChangePage(i);
+        const float textWidth = std::ceil(TextWidth(Tr(tabs[i]), 13));
+        const float width = textWidth + 20;
+        if (Hit("tab", tabX, 7, width, 32)) ChangePage(i);
         bool selected = page == i;
-        if (ImGui::IsItemHovered()) Rect(xs[i], 7, widths[i], 30, IM_COL32(39, 40, 45, 255), 3);
-        Text(xs[i] + 9, 15, tabs[i], 13, selected ? Ink : Muted);
-        if (selected) Rect(xs[i] + 9, 37, widths[i] - 18, 2, Violet, 1);
+        const float hover = Animate("hover", ImGui::IsItemHovered() ? 1.f : 0.f);
+        Rect(tabX, 7, width, 32, Mix(IM_COL32(29, 30, 34, 255), IM_COL32(40, 42, 48, 255), hover), 4);
+        Text(tabX + 10, 15, tabs[i], 13, selected ? Ink : Muted);
+        if (selected) Rect(tabX + 10, 37, textWidth, 2, Violet, 1);
+        tabX += width + 8;
         ImGui::PopID();
     }
     const char *languages[] = {Tr(UiText::V2English), Tr(UiText::V2Russian)};
@@ -280,14 +392,16 @@ void Panel() {
         Text(336 + i * 31.f, 16, languages[i], 11, int(language == Language::Russian) == i ? Ink : Muted);
         ImGui::PopID();
     }
-    Switch("master", 408, 15, switches[7]);
+    Switch("master", 408, 15, switches[MasterOn]);
     Text(442, 16, UiText::Effects, 11, Muted);
     if (Hit("appearance", 500, 8, 25, 27)) ChangePage(3);
     for (int dot = 0; dot < 3; ++dot)
         draw->AddCircleFilled(P(506 + dot * 5.f, 22), 1, page == 3 ? Ink : Muted, 8);
     Tip(UiText::V2Appearance);
     if (Hit("close", 529, 8, 23, 27)) running = false;
-    Text(536, 13, "×", 15, Muted);
+    if (ImGui::IsItemHovered()) Rect(529, 8, 23, 27, IM_COL32(46, 43, 48, 255), 4);
+    draw->AddLine(P(537, 18), P(544, 25), Muted, 1.2f);
+    draw->AddLine(P(544, 18), P(537, 25), Muted, 1.2f);
     Tip(UiText::V2CloseHelp);
     draw->AddLine(P(1, 44), P(559, 44), Line);
     Text(16, 62, UiText::Profile, 12, Muted);
@@ -295,11 +409,12 @@ void Panel() {
     Rect(89, 53, 314, 27, IM_COL32(39, 40, 45, 255), 3);
     const UiText profiles[] = {UiText::V2Natural, UiText::V2Golden, UiText::V2Moonlit};
     Text(100, 61, profiles[profile], 12);
-    draw->AddLine(P(383, 64), P(387, 68), Muted, 1);
-    draw->AddLine(P(387, 68), P(391, 64), Muted, 1);
+    Chevron(387, 66, 0);
     if (Hit("reset", 421, 53, 123, 27)) ResetDemo();
     if (ImGui::IsItemHovered()) Rect(421, 53, 123, 27, IM_COL32(40, 41, 46, 255), 3);
-    Text(433, 61, UiText::V2Reset, 11, Muted);
+    ResetIcon(432, 66, Muted);
+    Text(447, 61, UiText::ResetAll, 11, Muted);
+    Tip(UiText::V2Reset);
     float enter = motion && !captureFrames ? std::clamp(float(ImGui::GetTime() - pageStart) / .14f, 0.f, 1.f) : 1;
     float shift = std::floor(3 * (1 - enter) * (1 - enter));
     origin.y += shift;
@@ -349,6 +464,7 @@ bool Capture(IDirect3DDevice9 *device, const std::filesystem::path &path) {
 } // namespace
 
 int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR command, int) {
+    ResetDemo();
     bool capture = std::string(command).find("--capture") != std::string::npos;
     captureFrames = capture;
     if (std::string(command).find("--russian") != std::string::npos) language = Language::Russian;
@@ -403,9 +519,17 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR command, int) {
     theme.WindowPadding = {0, 0};
     theme.WindowBorderSize = 0;
     theme.WindowRounding = 8;
+    theme.FrameRounding = 3;
     theme.Colors[ImGuiCol_PopupBg] = ImGui::ColorConvertU32ToFloat4(Surface);
     theme.Colors[ImGuiCol_Text] = ImGui::ColorConvertU32ToFloat4(Ink);
     theme.Colors[ImGuiCol_NavCursor] = ImGui::ColorConvertU32ToFloat4(Violet);
+    theme.Colors[ImGuiCol_FrameBg] = ImColor(37, 39, 44);
+    theme.Colors[ImGuiCol_FrameBgHovered] = ImColor(46, 48, 55);
+    theme.Colors[ImGuiCol_FrameBgActive] = ImColor(49, 49, 60);
+    theme.Colors[ImGuiCol_TextSelectedBg] = ImColor(105, 85, 135, 140);
+    theme.Colors[ImGuiCol_Header] = ImColor(48, 50, 57);
+    theme.Colors[ImGuiCol_HeaderHovered] = ImColor(58, 59, 68);
+    theme.Colors[ImGuiCol_HeaderActive] = ImColor(63, 61, 73);
     if (!ImGui_ImplWin32_Init(window) || !ImGui_ImplDX9_Init(device)) return 7;
     Gdiplus::GdiplusStartupInput startup;
     ULONG_PTR gdiplus = 0;
@@ -432,13 +556,19 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR command, int) {
             ImGui_ImplDX9_CreateDeviceObjects();
         }
         if (capture) {
-            int view = (frame / 4) % 6;
-            page = view < 4 ? view : 0;
-            subpage = view < 4 ? 0 : view - 3;
-            language = frame < 24 ? Language::English : Language::Russian;
+            int view = (frame / 4) % 8;
+            page = view < 4 ? view : view == 6 ? 1 : 0;
+            subpage = view == 4 || view == 5 ? view - 3 : 0;
+            language = frame < 32 ? Language::English : Language::Russian;
         }
         ImGui_ImplDX9_NewFrame();
         ImGui_ImplWin32_NewFrame();
+        if (capture) {
+            // Render actual hovered widget states, including the compact cursor.
+            const int view = (frame / 4) % 8;
+            io.AddMousePosEvent(view >= 6 ? (Width - PanelWidth) / 2 + 125 : -FLT_MAX,
+                view >= 6 ? (Height - PanelHeight) / 2 + 22 : -FLT_MAX);
+        }
         ImGui::NewFrame();
         if (ImGui::IsKeyPressed(ImGuiKey_Escape)) running = false;
         Panel();
@@ -454,12 +584,12 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR command, int) {
             device->EndScene();
             if (capture && frame % 4 == 3) {
                 std::wstring name = (language == Language::Russian ? L"russian-" : L"english-") +
-                    std::to_wstring((frame / 4) % 6) + L".png";
+                    std::to_wstring((frame / 4) % 8) + L".png";
                 if (!Capture(device, output / name)) { result = 9; break; }
             }
         }
         device->Present(nullptr, nullptr, nullptr, nullptr);
-        if (capture && ++frame == 48) break;
+        if (capture && ++frame == 64) break;
     }
     Gdiplus::GdiplusShutdown(gdiplus);
     ImGui_ImplDX9_Shutdown();
