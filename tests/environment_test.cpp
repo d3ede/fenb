@@ -54,8 +54,11 @@ int main() {
     CHECK(!InspectImage(nullptr));
     // ASLR-relocated, disposable image: version, code and page protections must all match.
     constexpr DWORD imageSize = 11538432;
+    HANDLE mapping =
+        CreateFileMappingW(INVALID_HANDLE_VALUE, nullptr, PAGE_EXECUTE_READWRITE, 0, imageSize, nullptr);
+    CHECK(mapping);
     auto *image = static_cast<unsigned char *>(
-        VirtualAlloc(nullptr, imageSize, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE));
+        MapViewOfFile(mapping, FILE_MAP_ALL_ACCESS | FILE_MAP_EXECUTE, 0, 0, imageSize));
     CHECK(image);
     auto *dos = reinterpret_cast<IMAGE_DOS_HEADER *>(image);
     dos->e_magic = IMAGE_DOS_SIGNATURE;
@@ -76,10 +79,21 @@ int main() {
     memcpy(image + 0x3863d0, init, sizeof(init));
     memcpy(image + 0x3b7200, compute, sizeof(compute));
     DWORD protection = 0;
+    CHECK(VirtualProtect(image, imageSize, PAGE_WRITECOPY, &protection));
+    for (DWORD rva : {0x829000, 0x83e000, 0x866000, 0x923000})
+        CHECK(VirtualProtect(image + rva, 4096, PAGE_READWRITE, &protection));
+    // Match live Neuz: one large sky object crosses several writable and COW image regions.
+    CHECK(VirtualProtect(image + 0xa2d000, 8192, PAGE_READWRITE, &protection));
     CHECK(VirtualProtect(image + 0xd9000, 4096, PAGE_EXECUTE_READ, &protection));
     CHECK(VirtualProtect(image + 0x386000, 4096, PAGE_EXECUTE_READ, &protection));
     CHECK(VirtualProtect(image + 0x3b7000, 4096, PAGE_EXECUTE_READ, &protection));
     CHECK(VirtualProtect(image + 0x794000, 4096, PAGE_READONLY, &protection));
+    CHECK(InspectImage(reinterpret_cast<HMODULE>(image)));
+    CHECK(VirtualProtect(image + 0xa40000, 4096, PAGE_READONLY, &protection));
+    CHECK(!InspectImage(reinterpret_cast<HMODULE>(image))); // A read-only hole inside the sky is unsafe.
+    CHECK(VirtualProtect(image + 0xa40000, 4096, PAGE_READWRITE | PAGE_GUARD, &protection));
+    CHECK(!InspectImage(reinterpret_cast<HMODULE>(image)));
+    CHECK(VirtualProtect(image + 0xa40000, 4096, PAGE_WRITECOPY, &protection));
     CHECK(InspectImage(reinterpret_cast<HMODULE>(image)));
     nt->FileHeader.TimeDateStamp++;
     CHECK(!InspectImage(reinterpret_cast<HMODULE>(image)));
@@ -91,7 +105,8 @@ int main() {
     image[0x3863d0] = 0xcc;
     CHECK(VirtualProtect(image + 0x386000, 4096, PAGE_EXECUTE_READ, &protection));
     CHECK(!InspectImage(reinterpret_cast<HMODULE>(image)));
-    VirtualFree(image, 0, MEM_RELEASE);
+    UnmapViewOfFile(image);
+    CloseHandle(mapping);
 
     WNDCLASSW wc{};
     wc.lpfnWndProc = DefWindowProcW;

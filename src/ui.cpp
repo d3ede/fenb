@@ -672,12 +672,17 @@ void EnvironmentControls(Runtime &r) {
     if (open) {
         ImGui::BeginDisabled(!s.weatherOverride || !s.enabled);
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(12, 6));
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1);
+        ImGui::PushStyleColor(ImGuiCol_FrameBg, ImGui::ColorConvertU32ToFloat4(Raised));
         const UiText types[] = {UiText::WeatherClear, UiText::WeatherRain, UiText::WeatherSnow};
         for (int i = 0; i < 3; ++i) {
             if (i) ImGui::SameLine();
-            ImGui::RadioButton(Label(types[i]).c_str(), &s.weatherType, i);
+            bool selected = s.weatherType == i;
+            if (ImGui::Checkbox(Label(types[i]).c_str(), &selected) && selected)
+                s.weatherType = i;
         }
-        ImGui::PopStyleVar();
+        ImGui::PopStyleColor();
+        ImGui::PopStyleVar(2);
         ImGui::Dummy({0, 6});
         ImGui::BeginDisabled(s.weatherType == 0);
         Row(UiText::WeatherIntensity, Tr(UiText::WeatherIntensityHelp), s.weatherIntensity, 0, 100,

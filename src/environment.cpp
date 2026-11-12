@@ -13,14 +13,27 @@ template <class T> T &Field(unsigned char *p, size_t offset) {
     return *reinterpret_cast<T *>(p + offset);
 }
 bool Region(HMODULE image, DWORD offset, size_t bytes, bool executable = false) {
-    auto *p = reinterpret_cast<unsigned char *>(image) + offset;
-    MEMORY_BASIC_INFORMATION info{};
-    if (!VirtualQuery(p, &info, sizeof(info)) || info.AllocationBase != image || info.State != MEM_COMMIT ||
-        (info.Protect & (PAGE_GUARD | PAGE_NOACCESS)) ||
-        p + bytes > static_cast<unsigned char *>(info.BaseAddress) + info.RegionSize)
+    auto start = reinterpret_cast<uintptr_t>(image) + offset;
+    auto end = start + bytes;
+    if (end < start)
         return false;
-    return executable ? info.Protect == PAGE_EXECUTE_READ || info.Protect == PAGE_EXECUTE_READWRITE
-                      : info.Protect == PAGE_READWRITE;
+    // SEC_IMAGE data can span private writable pages and untouched copy-on-write pages.
+    // Validate every region: a single VirtualQuery extent need not contain the whole object.
+    for (auto cursor = start; cursor < end;) {
+        MEMORY_BASIC_INFORMATION info{};
+        if (!VirtualQuery(reinterpret_cast<void *>(cursor), &info, sizeof(info)) ||
+            info.AllocationBase != image || info.State != MEM_COMMIT ||
+            (info.Protect & (PAGE_GUARD | PAGE_NOACCESS)))
+            return false;
+        bool accessible = executable
+                              ? info.Protect == PAGE_EXECUTE_READ || info.Protect == PAGE_EXECUTE_READWRITE
+                              : info.Protect == PAGE_READWRITE || info.Protect == PAGE_WRITECOPY;
+        auto next = reinterpret_cast<uintptr_t>(info.BaseAddress) + info.RegionSize;
+        if (!accessible || next <= cursor)
+            return false;
+        cursor = next;
+    }
+    return true;
 }
 template <size_t N> bool Bytes(HMODULE image, DWORD offset, const unsigned char (&expected)[N]) {
     return Region(image, offset, N, true) &&

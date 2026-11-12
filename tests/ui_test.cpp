@@ -258,6 +258,12 @@ int main() {
     CHECK(r.settings.freezeTime);
     click(330, 253);
     CHECK(r.settings.weatherType == 2);
+    click(330, 253); // The selected checkbox stays selected; the section switch restores game weather.
+    CHECK(r.settings.weatherType == 2 && r.settings.weatherOverride);
+    click(180, 253);
+    CHECK(r.settings.weatherType == 0);
+    click(250, 253);
+    CHECK(r.settings.weatherType == 1);
     mouse(430, 289, true);
     auto firstIntensity = r.settings.weatherIntensity;
     mouse(475, 289, true);
