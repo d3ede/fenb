@@ -83,6 +83,7 @@ class SceneFX {
     }
     void beginFrame();
     void observe(const Settings &);
+    bool worldOverlay();
     void invalidate();
     void releasePost();
     bool prepare(UINT, UINT, const Settings &);

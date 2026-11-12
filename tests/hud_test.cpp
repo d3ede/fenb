@@ -16,6 +16,77 @@ void Marker(IDirect3DDevice9* device){
     struct V{float x,y,z;DWORD color;};V v[]={{3,3,.5f,0xffffffff},{4,3,.5f,0xffffffff},{3,4,.5f,0xffffffff}};
     device->SetFVF(D3DFVF_XYZ|D3DFVF_DIFFUSE);device->DrawPrimitiveUP(D3DPT_TRIANGLELIST,1,v,sizeof(V));
 }
+// Optional native material identity check; test data stays in the local client.
+IDirect3DTexture9* NativeArrow(IDirect3DDevice9* device){
+    FILE* file=_wfopen(L"X:/Games/Homesickness/Model/Texture/etc_arrow-01.dds",L"rb");
+    if(!file){puts("SKIP: native quest-arrow asset unavailable");return nullptr;}
+    DWORD header[32]{};bool ok=fread(header,1,sizeof(header),file)==sizeof(header);
+    const UINT w=header[4],h=header[3],pitch=((w+3)/4)*8,rows=(h+3)/4;
+    IDirect3DTexture9* texture=nullptr;
+    ok=ok&&header[0]==0x20534444&&header[21]==D3DFMT_DXT1&&w==128&&h==256;
+    if(ok)ok=SUCCEEDED(device->CreateTexture(w,h,1,0,D3DFMT_DXT1,D3DPOOL_MANAGED,&texture,nullptr));
+    D3DLOCKED_RECT lock{};
+    if(ok){
+        ok=SUCCEEDED(texture->LockRect(0,&lock,nullptr,0));
+        if(ok){for(UINT y=0;y<rows;++y)ok=(fread((BYTE*)lock.pBits+y*lock.Pitch,1,pitch,file)==pitch)&&ok;texture->UnlockRect(0);}
+    }
+    fclose(file);if(!ok)Drop(texture);return texture;
+}
+bool OverlayFrame(IDirect3DDevice9* device,IDirect3DTexture9* arrow,bool beforeHUD,bool visible){
+    Com<IDirect3DSurface9> bb;device->GetBackBuffer(0,0,D3DBACKBUFFER_TYPE_MONO,bb.out());
+    if(FAILED(device->Clear(0,nullptr,D3DCLEAR_TARGET|D3DCLEAR_ZBUFFER,0xff202830,1,0))||FAILED(device->BeginScene()))return false;
+    D3DMATRIX id{};id._11=id._22=id._33=id._44=1;
+    auto p=id;p._33=100.f/99.9f;p._34=1;p._43=-.1f*p._33;p._44=0;
+    device->SetTransform(D3DTS_WORLD,&id);device->SetTransform(D3DTS_VIEW,&id);device->SetTransform(D3DTS_PROJECTION,&p);
+    device->SetVertexShader(nullptr);device->SetPixelShader(nullptr);device->SetTexture(0,nullptr);
+    device->SetRenderState(D3DRS_LIGHTING,FALSE);device->SetRenderState(D3DRS_FOGENABLE,FALSE);
+    device->SetRenderState(D3DRS_ZENABLE,TRUE);device->SetRenderState(D3DRS_ZWRITEENABLE,TRUE);
+    device->SetRenderState(D3DRS_ALPHABLENDENABLE,FALSE);device->SetRenderState(D3DRS_ALPHATESTENABLE,FALSE);
+    device->SetRenderState(D3DRS_CULLMODE,D3DCULL_NONE);
+    device->SetTextureStageState(0,D3DTSS_COLOROP,D3DTOP_SELECTARG1);device->SetTextureStageState(0,D3DTSS_COLORARG1,D3DTA_DIFFUSE);
+    device->SetTextureStageState(1,D3DTSS_COLOROP,D3DTOP_DISABLE);
+    Marker(device);
+    // Different sky and world colors expose fog applied to invisible marker depth.
+    device->ColorFill(bb,nullptr,0xff404820);
+    struct UI{float x,y,z,w;DWORD color;};
+    UI hud[]={{20,20,0,1,0xff40a0e0},{100,20,0,1,0xff40a0e0},{20,60,0,1,0xff40a0e0},{100,60,0,1,0xff40a0e0}};
+    auto drawHUD=[&](){device->SetFVF(D3DFVF_XYZRHW|D3DFVF_DIFFUSE);device->SetRenderState(D3DRS_ZENABLE,FALSE);
+        return SUCCEEDED(device->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP,2,hud,sizeof(UI)));};
+    if(!beforeHUD&&!drawHUD())return false;
+    struct V{float x,y,z,nx,ny,nz,u,v;};
+    V vertices[31]={{-2,-2,5,0,0,-1,.5f,.5f},{2,-2,5,0,0,-1,.5f,.5f},{0,2,5,0,0,-1,.5f,.5f}};
+    WORD indices[84]{};for(int i=0;i<84;++i)indices[i]=WORD(i%3);
+    D3DMATERIAL9 material{};material.Ambient=material.Diffuse={1,1,1,visible?1.f:0.f};
+    device->SetMaterial(&material);device->SetRenderState(D3DRS_AMBIENT,0xffffffff);
+    device->SetRenderState(D3DRS_LIGHTING,TRUE);device->SetRenderState(D3DRS_ZENABLE,TRUE);
+    device->SetRenderState(D3DRS_ALPHABLENDENABLE,TRUE);device->SetRenderState(D3DRS_SRCBLEND,D3DBLEND_SRCALPHA);
+    device->SetRenderState(D3DRS_DESTBLEND,D3DBLEND_INVSRCALPHA);device->SetRenderState(D3DRS_ALPHATESTENABLE,TRUE);
+    device->SetRenderState(D3DRS_ALPHAFUNC,D3DCMP_ALWAYS);device->SetRenderState(D3DRS_ALPHAREF,0);
+    device->SetFVF(0x112);device->SetTexture(0,arrow);
+    device->SetTextureStageState(0,D3DTSS_COLOROP,D3DTOP_MODULATE);device->SetTextureStageState(0,D3DTSS_COLORARG1,D3DTA_TEXTURE);
+    device->SetTextureStageState(0,D3DTSS_COLORARG2,D3DTA_DIFFUSE);
+    device->SetTextureStageState(0,D3DTSS_ALPHAOP,D3DTOP_SELECTARG1);device->SetTextureStageState(0,D3DTSS_ALPHAARG1,D3DTA_DIFFUSE);
+    if(FAILED(device->DrawIndexedPrimitiveUP(D3DPT_TRIANGLELIST,0,31,28,indices,D3DFMT_INDEX16,vertices,sizeof(V))))return false;
+    D3DMATERIAL9 restored{};device->GetMaterial(&restored);
+    if(restored.Diffuse.a!=material.Diffuse.a){puts("Native marker material was modified");return false;}
+    device->SetRenderState(D3DRS_LIGHTING,FALSE);device->SetRenderState(D3DRS_ALPHABLENDENABLE,FALSE);
+    device->SetRenderState(D3DRS_ALPHATESTENABLE,FALSE);device->SetTexture(0,nullptr);
+    device->SetTextureStageState(0,D3DTSS_COLOROP,D3DTOP_SELECTARG1);device->SetTextureStageState(0,D3DTSS_COLORARG1,D3DTA_DIFFUSE);
+    if(!drawHUD())return false;
+    UI translucent[]={{220,150,0,1,0x8040a0e0},{280,150,0,1,0x8040a0e0},{220,190,0,1,0x8040a0e0},{280,190,0,1,0x8040a0e0}};
+    device->SetRenderState(D3DRS_ALPHABLENDENABLE,TRUE);
+    device->SetTextureStageState(0,D3DTSS_ALPHAOP,D3DTOP_SELECTARG1);device->SetTextureStageState(0,D3DTSS_ALPHAARG1,D3DTA_DIFFUSE);
+    if(FAILED(device->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP,2,translucent,sizeof(UI)))||FAILED(device->EndScene()))return false;
+    const DWORD center=Pixel(device,bb,160,120),outside=Pixel(device,bb,250,120),hudColor=Pixel(device,bb,40,40);
+    printf("Native 3D overlay: first=%d visible=%d center=%06lx outside=%06lx HUD=%06lx\n",beforeHUD,visible,center,outside,hudColor);
+    if(hudColor!=0x40a0e0||(visible?center==outside:center!=outside))return false;
+    const DWORD blended=Pixel(device,bb,250,170);
+    for(unsigned shift:{0u,8u,16u}){
+        const int expected=(((0x40a0e0>>shift)&255)*128+((outside>>shift)&255)*127+127)/255;
+        if(std::abs(int((blended>>shift)&255)-expected)>1){puts("Translucent HUD was filtered instead of natively blended");return false;}
+    }
+    return SUCCEEDED(device->Present(nullptr,nullptr,nullptr,nullptr));
+}
 bool Frame(IDirect3DDevice9* device,bool world,bool swapchain,bool readAfter,int preWorld=0,bool newWorld=false,bool visibilityProbe=false){
     Com<IDirect3DSurface9> bb;device->GetBackBuffer(0,0,D3DBACKBUFFER_TYPE_MONO,bb.out());
     device->ColorFill(bb,nullptr,0xff202830);
@@ -75,7 +146,8 @@ bool Frame(IDirect3DDevice9* device,bool world,bool swapchain,bool readAfter,int
     return true;
 }
 int main(){
-    auto path=Directory()+L"FENB.ini";Settings saved;saved.load(path);Settings s;s.openOnStart=false;s.exposure=2;s.bloomStrength=1;s.smaa=true;s.save(path);
+    auto path=Directory()+L"FENB.ini";Settings saved;saved.load(path);Settings s;s.openOnStart=false;s.exposure=2;s.bloomStrength=1;s.smaa=true;
+    s.fog=true;s.fogStart=0;s.fogDensity=.03f;s.fogFalloff=0;s.save(path);
     struct Restore{Settings settings;std::wstring path;~Restore(){settings.save(path);}}restore{saved,path};
     WNDCLASSW wc{};wc.lpfnWndProc=DefWindowProcW;wc.hInstance=GetModuleHandleW(nullptr);wc.lpszClassName=L"FENBHudTest";RegisterClassW(&wc);
     HWND window=CreateWindowW(wc.lpszClassName,L"HUD test",WS_OVERLAPPEDWINDOW,0,0,320,240,nullptr,nullptr,wc.hInstance,nullptr);
@@ -89,6 +161,12 @@ int main(){
         CHECK(Frame(device,true,false,!msaa,2)); // Depth-disabled 3D markers are not the world phase.
         CHECK(Frame(device,true,false,!msaa,false,true)); // Full main clears establish a new render epoch.
         CHECK(Frame(device,true,false,!msaa,0,false,true)); // Visibility queries must not end the scene.
+        Com<IDirect3DTexture9> arrow;arrow.p=NativeArrow(device);
+        if(arrow.p){
+            CHECK(OverlayFrame(device,arrow,true,false));CHECK(OverlayFrame(device,arrow,false,false));
+            CHECK(OverlayFrame(device,arrow,true,true));CHECK(OverlayFrame(device,arrow,false,true));
+        }
+        arrow.out();
         CHECK(SUCCEEDED(device->Reset(&pp)));CHECK(Frame(device,true,false,!msaa));
         printf("PASS: HUD exact RGB preserved, world graded once, UI-only skipped, Reset, MSAA=%d\n",msaa);
     }

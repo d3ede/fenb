@@ -74,7 +74,7 @@ class Runtime {
     }
     bool environmentSupported() { return environment_.supported(); }
     float environmentMinutes() const { return environment_.minutes(settings); }
-    void beforeDraw();
+    void beforeDraw(UINT primitives = 0, UINT vertices = 0);
     void targetCleared(DWORD flags, DWORD rectangles);
     void environmentDraw(D3DPRIMITIVETYPE type, UINT start, UINT count);
     void beforeWaterDraw(UINT upStride, DrawCall);
@@ -114,6 +114,7 @@ class Runtime {
     void recognizeProfile();
     void invalidate();
     void resetFrame();
+    void finishWorld();
     IDirect3DDevice9 *device_; // borrowed: owner destroys Runtime before releasing the real device
     std::unique_ptr<Effects> effects_;
     std::unique_ptr<WaterFX> water_;

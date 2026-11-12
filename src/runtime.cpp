@@ -287,7 +287,7 @@ void Runtime::emitterDraw(DrawCall draw) {
         return;
     effects_->sceneFX().captureEmitter(settings, draw);
 }
-void Runtime::beforeDraw() {
+void Runtime::beforeDraw(UINT primitives, UINT vertices) {
     // Cache setters: do not query every DX9 state on thousands of world draws.
     if (hudStarted_ || lost_)
         return;
@@ -316,6 +316,11 @@ void Runtime::beforeDraw() {
     }
     const bool screenSpace = !vertexShaderActive_ && (drawFVF_ & D3DFVF_POSITION_MASK) == D3DFVF_XYZRHW;
     if (!screenSpace) {
+        if (sawWorld_ && !vertexShaderActive_ && drawFVF_ == 0x112 && vertices && vertices <= 64 &&
+            primitives <= 64 && effects_->sceneFX().worldOverlay()) {
+            finishWorld();
+            return;
+        }
         if (settings.enabled && (settings.sfx || (settings.water && settings.sfxWake > 0)) && !compare && !vertexShaderActive_)
             sfx_->observe();
         if (settings.enabled && !compare && !vertexShaderActive_)
@@ -345,6 +350,9 @@ void Runtime::beforeDraw() {
         return; // A pre-world screen-space draw must not latch the renderer off for this frame.
     // Neuz switches from world geometry to RHW HUD/nameplates. Process once BEFORE
     // the first HUD draw. Any later 3D UI previews must remain unprocessed as well.
+    finishWorld();
+}
+void Runtime::finishWorld() {
     hudStarted_ = true;
     if (!sawWorld_ || !settings.enabled || compare)
         return;

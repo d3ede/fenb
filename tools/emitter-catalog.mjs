@@ -24,3 +24,11 @@ for(const file of fs.readdirSync(path.join(root,'Model/Texture')).sort().filter(
  out+='// '+file+'\n{'+hash.match(/../g).map(x=>'0x'+x).join(',')+'},\n';
 }
 fs.writeFileSync('src/generated/foliage_catalog.hpp',out+'};\n');console.log('Generated '+seen.size+' common-tree material identities');
+out='#pragma once\ninline constexpr unsigned char OverlayHashes[][32] = {\n';
+for(const file of ['Model/Texture/ARROW1.dds','Model/Texture/etc_arrow-01.dds']){
+ const b=fs.readFileSync(path.join(root,file)),w=b.readUInt32LE(16),h=b.readUInt32LE(12);
+ if(b.toString('ascii',84,88)!=='DXT1')throw Error('Unexpected native marker format: '+file);
+ const hash=crypto.createHash('sha256').update(b.subarray(128,128+Math.ceil(w/4)*Math.ceil(h/4)*8)).digest('hex');
+ out+='// '+file+' (native 3D UI marker)\n{'+hash.match(/../g).map(x=>'0x'+x).join(',')+'},\n';
+}
+fs.writeFileSync('src/generated/overlay_catalog.hpp',out+'};\n');

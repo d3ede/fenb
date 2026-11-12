@@ -3,6 +3,7 @@
 #include "generated/emitter_catalog.hpp"
 #include "generated/foliage_catalog.hpp"
 #include "generated/sun_catalog.hpp"
+#include "generated/overlay_catalog.hpp"
 #include <cstring>
 namespace {
 struct PointSampler {
@@ -513,6 +514,26 @@ IDirect3DTexture9 *SceneFX::process(IDirect3DTexture9 *input, const Settings &s)
     }
     return output_.texture;
 }
+bool SceneFX::worldOverlay() {
+    // The captured focus-arrow pass is native UI despite using world coordinates.
+    // Its zero material alpha can hide color while still writing scene depth.
+    DWORD blend=0, src=0, dst=0, test=0, write=0;
+    if (FAILED(device_->GetRenderState(D3DRS_ALPHABLENDENABLE,&blend)) || !blend ||
+        FAILED(device_->GetRenderState(D3DRS_SRCBLEND,&src)) || src!=D3DBLEND_SRCALPHA ||
+        FAILED(device_->GetRenderState(D3DRS_DESTBLEND,&dst)) || dst!=D3DBLEND_INVSRCALPHA ||
+        FAILED(device_->GetRenderState(D3DRS_ALPHATESTENABLE,&test)) || !test ||
+        FAILED(device_->GetRenderState(D3DRS_ZWRITEENABLE,&write)) || !write)
+        return false;
+    Com<IDirect3DPixelShader9> ps;
+    Com<IDirect3DBaseTexture9> base;
+    if (FAILED(device_->GetPixelShader(ps.out())) || ps.p ||
+        FAILED(device_->GetTexture(0,base.out())) || !base.p || base->GetType()!=D3DRTYPE_TEXTURE)
+        return false;
+    auto *texture=static_cast<IDirect3DTexture9 *>(base.p);
+    emissive(texture);
+    DWORD tag=0, size=4;
+    return SUCCEEDED(texture->GetPrivateData(EmitterTag,&tag,&size)) && size==4 && (tag&16);
+}
 bool SceneFX::emissive(IDirect3DTexture9 *texture) {
     DWORD tag = 0, size = 4;
     if (SUCCEEDED(texture->GetPrivateData(EmitterTag, &tag, &size)) && size == 4)
@@ -555,6 +576,9 @@ bool SceneFX::emissive(IDirect3DTexture9 *texture) {
     for (auto &known : SunFlareHashes)
         if (!memcmp(digest, known, 32))
             tag |= 8;
+    for (auto &known : OverlayHashes)
+        if (!memcmp(digest, known, 32))
+            tag |= 16;
     if (!tag)
         tag = 4;
     texture->SetPrivateData(EmitterTag, &tag, 4, 0);
