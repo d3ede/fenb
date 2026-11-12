@@ -33,7 +33,7 @@ float3 WorldPoint(float3 p) { return EyeTime.xyz+mul((float3x3)View,p); }
 float2 ProjectUV(float3 p) {
     return ((p.xy*Camera.xy/p.z)*float2(.5,-.5)+.5)*Viewport.zw+Viewport.xy;
 }
-float4 TraceReflection(float3 start,float3 direction,float waterY) {
+float4 TraceReflection(float3 start,float3 direction,float3 planeNormal) {
     float previousT=.06;
     float previousDelta=-.01;
     [loop] for(int i=0;i<24;++i) {
@@ -58,28 +58,38 @@ float4 TraceReflection(float3 start,float3 direction,float waterY) {
             float3 q=start+direction*((lo+hi)*.5);
             float2 hitUV=ProjectUV(q);
             float hitZ=DepthZ(hitUV);
-            float3 hit=WorldPoint(ViewPoint(hitUV,hitZ));
+            float3 hit=ViewPoint(hitUV,hitZ);
+            // Reject silhouette jumps and loose depth matches instead of stretching a bank into water.
+            float tolerance=clamp(2*hitZ*hitZ/(max(.01,abs(Camera.w))*65535),.03,.35);
+            float edgeZ=max(abs(DepthZ(hitUV+float2(Screen.x,0))-hitZ),abs(DepthZ(hitUV+float2(0,Screen.y))-hitZ));
             float2 edge=min((hitUV-Viewport.xy)/Viewport.zw,1-(hitUV-Viewport.xy)/Viewport.zw);
             float confidence=saturate(min(edge.x,edge.y)*14)*saturate(1-hi/Trace.y);
-            confidence*=abs(q.z-hitZ)<max(.15,hitZ*.006) && hit.y>waterY+.03;
-            return float4(hitUV,hitZ,confidence);
+            confidence*=abs(q.z-hitZ)<tolerance && dot(hit-start,planeNormal)>.01;
+            confidence*=saturate(1-edgeZ/max(.05,tolerance*2));
+            return float4(tex2Dlod(SceneColor,float4(hitUV,0,0)).rgb,confidence);
         }
         previousT=t;previousDelta=delta;
     }
     return 0;
 }
-float4 WaterPS(float2 uv:TEXCOORD0,float3 world:TEXCOORD1,float3 normal:TEXCOORD2,float fogDepth:TEXCOORD3,float4 color:COLOR0,float2 pixel:VPOS):COLOR0 {
+float4 WaterPS(float2 uv:TEXCOORD0,float3 relative:TEXCOORD1,float3 normal:TEXCOORD2,float fogDepth:TEXCOORD3,float4 color:COLOR0,float2 pixel:VPOS):COLOR0 {
     float t=EyeTime.w*Sun.w;
+    float3 world=relative+EyeTime.xyz;
     float2 p=world.xz*Surface.y;
     float footprint=max(length(ddx(p)),length(ddy(p)));
-    float3 viewPosition=mul(float4(world,1),View).xyz;
-    float3 v=normalize(EyeTime.xyz-world);
-    float3 traceNormal=normalize(normal);
+    float3 viewPosition=mul(float4(relative,0),View).xyz;
+    float3 v=normalize(-relative);
+    float3 geometric=cross(ddx(relative),ddy(relative));
+    geometric=normalize(geometric+float3(0,.00000001,0));
+    if(geometric.y<0)geometric=-geometric;
+    float surface=smoothstep(.45,.85,geometric.y);
+    float3 planeNormal=mul(float4(geometric,0),View).xyz;
+    float3 traceNormal=geometric;
     float3 traceReflected=reflect(-v,traceNormal);
     float4 worldReflection=0;
-    if(Optics.x>.5 && Optics.w>0 && traceReflected.y>.005 && v.y>0){
+    if(Optics.x>.5 && Optics.w>0 && traceReflected.y>.005 && v.y>0 && surface>.01){
         float3 direction=mul(float4(traceReflected,0),View).xyz;
-        worldReflection=TraceReflection(viewPosition+mul(float4(traceNormal,0),View).xyz*.05,direction,world.y);
+        worldReflection=TraceReflection(viewPosition+planeNormal*.05,direction,planeNormal);
     }
     // Crossed, domain-warped wave bands break the old regular horizontal comb.
     float firstLOD=clamp(log2(max(1,footprint*128*.065)),0,7);
@@ -90,8 +100,8 @@ float4 WaterPS(float2 uv:TEXCOORD0,float3 world:TEXCOORD1,float3 normal:TEXCOORD
     float2 ripple=first+float2(second.x*.8+second.y*.6,-second.x*.6+second.y*.8)*.5;
     // Attenuate subpixel ripples at distance instead of letting specular highlights shimmer.
     float rippleFade=rcp(1+footprint*footprint*6);
-    // Keep geometric wave normals consistent with the mesh; the two normal layers supply fine detail.
-    float3 n=normalize(traceNormal+float3(ripple.x,0,ripple.y)*Surface.x*.12*rippleFade);
+    // Animated shading is separate from the static geometric plane used to locate reflected objects.
+    float3 n=normalize(lerp(geometric,normal,surface)+float3(ripple.x,0,ripple.y)*Surface.x*.12*rippleFade*surface);
     float2 screenUV=(pixel+.5)*Screen.xy;
     float path=0,shore=1;
     if(Optics.x>.5 && Optics.y>0){
@@ -114,24 +124,19 @@ float4 WaterPS(float2 uv:TEXCOORD0,float3 world:TEXCOORD1,float3 normal:TEXCOORD
     float3 sky=lerp(FogColor.rgb,float3(.36,.58,.78),saturate(reflected.y*.8+.2));
     sky*=saturate(BodyAmbient.rgb+BodyDiffuse.rgb);
     if(Detail.w>.5) sky=texCUBE(SkyEnvironment,reflected).rgb;
-    float reflectionWeight=fresnel*Surface.w*shore;
-    if(worldReflection.a>0){
-        float2 reflectionUV=clamp(worldReflection.xy+ripple*Surface.x*24*Screen.xy*rippleFade,Screen.xy,1-Screen.xy);
-        if(abs(DepthZ(reflectionUV)-worldReflection.z)>max(.15,worldReflection.z*.007))reflectionUV=worldReflection.xy;
-        float3 sceneReflection=tex2Dlod(SceneColor,float4(reflectionUV,0,0)).rgb;
-        sky=lerp(sky,sceneReflection,worldReflection.a*Optics.w);
-    }
-    reflectionWeight=fresnel*max(Surface.w,worldReflection.a*Optics.w)*shore;
+    // No arbitrary screen-pixel warp after a ray hit: it moves unrelated scene pixels into the mirror.
+    sky=lerp(sky,worldReflection.rgb,worldReflection.a*Optics.w);
+    float reflectionWeight=fresnel*max(Surface.w,worldReflection.a*Optics.w)*shore*surface;
     float3 base=body;
     float opacity=saturate(Surface.z+fresnel*(1-Surface.z)*Surface.w);
     if(Screen.z>.5){
         float3 viewNormal=mul(float4(n,0),View).xyz;
-        float2 offset=viewNormal.xy*float2(1,-1)*Screen.w*12*Screen.xy*rippleFade*shore;
+        float2 offset=viewNormal.xy*float2(1,-1)*Screen.w*12*Screen.xy*rippleFade*shore*surface;
         float2 sampleUV=clamp(screenUV+offset,Screen.xy,1-Screen.xy);
         if(Optics.x>.5){
             float sampleZ=DepthZ(sampleUV);
-            float3 samplePosition=WorldPoint(ViewPoint(sampleUV,sampleZ));
-            if(sampleZ<viewPosition.z+.01 || samplePosition.y>world.y+.03)sampleUV=screenUV;
+            float3 samplePosition=ViewPoint(sampleUV,sampleZ);
+            if(sampleZ<viewPosition.z+.01 || dot(samplePosition-viewPosition,planeNormal)>.03)sampleUV=screenUV;
         }
         float3 through=tex2D(SceneColor,sampleUV).rgb;
         if(Optics.x>.5 && Optics.y>0){
@@ -154,7 +159,7 @@ float4 WaterPS(float2 uv:TEXCOORD0,float3 world:TEXCOORD1,float3 normal:TEXCOORD
     float geometry=nv/(nv*(1-smithK)+smithK)*nl/(nl*(1-smithK)+smithK);
     float lightFresnel=.02+.98*pow(1-saturate(dot(v,h)),5);
     float spec=min(1.5,distribution*geometry*lightFresnel/max(.001,4*nv))*Sun.x*LightDir.w;
-    base+=LightColor.rgb*spec*shore;
+    base+=LightColor.rgb*spec*shore*surface;
     float visibility=1;
     if(Fog.x>.5){
         if(Fog.y>2.5)visibility=saturate((Fog.w-fogDepth)/max(.001,Fog.w-Fog.z));

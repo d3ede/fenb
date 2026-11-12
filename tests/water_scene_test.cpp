@@ -155,6 +155,8 @@ int main(int argc, char **) {
     settings.waterOpacity = .49f;
     settings.waterRefraction = .4f;
     float sceneLight = -1;
+    bool steppedMesh = false;
+    bool translatedScene = false;
     auto render = [&](float floorY, bool wall, bool replace) {
         water.beginFrame(true, true, true);
         d->SetRenderState(D3DRS_ZENABLE, TRUE);
@@ -165,8 +167,17 @@ int main(int argc, char **) {
         d->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
         d->SetVertexShader(nullptr);
         d->SetPixelShader(nullptr);
-        d->SetTransform(D3DTS_WORLD, &id);
-        d->SetTransform(D3DTS_VIEW, &view);
+        D3DMATRIX sceneWorld = id, sceneView = view;
+        if (translatedScene) {
+            sceneWorld._41 = 7000;
+            sceneWorld._42 = 100;
+            sceneWorld._43 = 3300;
+            for (int axis = 0; axis < 3; ++axis)
+                sceneView.m[3][axis] -=
+                    7000 * view.m[0][axis] + 100 * view.m[1][axis] + 3300 * view.m[2][axis];
+        }
+        d->SetTransform(D3DTS_WORLD, &sceneWorld);
+        d->SetTransform(D3DTS_VIEW, &sceneView);
         d->SetTransform(D3DTS_PROJECTION, &projection);
         d->SetFVF(D3DFVF_XYZ | D3DFVF_DIFFUSE);
         d->SetTexture(0, nullptr);
@@ -212,14 +223,31 @@ int main(int argc, char **) {
             float optics[4]{};
             d->GetPixelShaderConstantF(14, optics, 1);
             ok = ok && optics[0] == ((settings.waterDepth > 0 || settings.waterSSR > 0) ? 1.f : 0.f);
-            if (ok)
+            if (ok && !steppedMesh)
                 ok = SUCCEEDED(d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, vertices, sizeof(Vertex)));
+            else if (ok) {
+                Vertex left[4], right[4];
+                memcpy(left, vertices, sizeof(vertices));
+                memcpy(right, vertices, sizeof(vertices));
+                left[1].z = left[3].z = 10;
+                right[0].z = right[2].z = 10;
+                for (auto &vertex : right)
+                    vertex.y = -.2f;
+                Vertex skirt[] = {{-8, 0, 10, 0, 0, -1, 0x00ffffff, 0, 0},
+                                  {-8, -.2f, 10, 0, 0, -1, 0x00ffffff, 0, 1},
+                                  {8, 0, 10, 0, 0, -1, 0x00ffffff, 1, 0},
+                                  {8, -.2f, 10, 0, 0, -1, 0x00ffffff, 1, 1}};
+                ok = SUCCEEDED(d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, left, sizeof(Vertex))) &&
+                     SUCCEEDED(d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, right, sizeof(Vertex))) &&
+                     SUCCEEDED(d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, skirt, sizeof(Vertex)));
+            }
             water.end(true);
         }
         d->EndScene();
         return ok;
     };
     for (int reset = 0; reset < 2; ++reset) {
+        translatedScene = reset != 0;
         settings.waterSSRQuality = reset;
         settings.waterSSR = 0;
         CHECK(render(-2, true, true));
@@ -265,10 +293,48 @@ int main(int argc, char **) {
         int deepDifference = Difference(bare[sample], deep[sample]);
         printf("Depth absorption: shallow=%d deep=%d\n", nearDifference, deepDifference);
         CHECK(nearDifference < 8 && deepDifference > nearDifference + 20);
+        // Wave amplitude must not relocate the reflected object across the water.
+        settings.waterSky = 0;
+        settings.waterRefraction = 0;
+        auto reflectionMask = [&](float amplitude) {
+            settings.waterWaves = amplitude;
+            settings.waterSSR = 0;
+            render(-2, true, true);
+            auto background = ReadFrame(d);
+            settings.waterSSR = 1;
+            render(-2, true, true);
+            auto reflectedFrame = ReadFrame(d);
+            std::vector<bool> mask(Width * Height);
+            for (UINT y = Height * 4 / 10; y < Height * 8 / 10; ++y)
+                for (UINT x = Width * 3 / 10; x < Width * 7 / 10; ++x) {
+                    UINT i = y * Width + x;
+                    mask[i] = int((reflectedFrame[i] >> 16) & 255) > int((background[i] >> 16) & 255);
+                }
+            return mask;
+        };
+        auto flatMask = reflectionMask(0), waveMask = reflectionMask(.15f);
+        unsigned shared = 0, total = 0;
+        for (size_t i = 0; i < flatMask.size(); ++i) {
+            shared += flatMask[i] && waveMask[i];
+            total += flatMask[i] || waveMask[i];
+        }
+        CHECK(total > 100 && shared * 100 > total * 90);
+        printf("Reflection footprint overlap at maximum waves: %.2f%%\n", 100.f * shared / total);
         settings.waterDepth = 0;
         settings.waterSSR = 0;
         settings.waterRefraction = 0;
         settings.waterOpacity = 1;
+        settings.waterWaves = 0;
+        steppedMesh = true;
+        CHECK(render(-3, false, true));
+        auto stitchedFlat = ReadFrame(d);
+        settings.waterWaves = .15f;
+        CHECK(render(-3, false, true));
+        auto stitchedWaves = ReadFrame(d);
+        CHECK(stitchedFlat == stitchedWaves); // Adjacent tiles and their vertical skirt remain welded.
+        steppedMesh = false;
+        settings.waterWaves = 0;
+        settings.waterSky = .75f;
         sceneLight = 1;
         CHECK(render(-3, false, true));
         auto day = ReadFrame(d);

@@ -531,7 +531,8 @@ void DrawPanel(Runtime &r) {
             s.resetWaterSurface();
         if (expanded) {
             ImGui::BeginDisabled(!s.water || !s.enabled);
-            Row("Высота волн", "Небольшое смещение вершин воды. Крупная сетка ограничивает детализацию.",
+            Row("Высота волн",
+                "Наклон поверхности в освещении. Исходная сетка сохраняется, чтобы не разрывать стыки.",
                 s.waterWaves, 0, .15f, defaults.waterWaves, "%.3f", .005f);
             Row("Длина волн", "Расстояние между гребнями волн в координатах мира.", s.waterLength, 1, 15,
                 defaults.waterLength, "%.2f", .25f);

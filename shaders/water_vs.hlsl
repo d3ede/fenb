@@ -12,12 +12,12 @@ Output WaterVS(Input v){
     float t=EyeTime.w*Waves.z;
     float a=dot(w.xz,float2(.8,.6))*k+t;
     float b=dot(w.xz,float2(-.4,.9165))*k*1.57-t*1.24;
-    // Fade displacement on vertical mesh edges; no CPU readback of WRITEONLY vertices.
-    float horizontal=saturate(abs(mul(float4(v.normal,0),World).y));
-    w.y+=Waves.x*(sin(a)+.4*sin(b))*horizontal;
+    // Preserve Neuz positions exactly: independently lifted river tiles/skirts cannot stay welded.
+    // Wave height changes the shading normal, never the shared mesh boundary or optical plane.
     float2 slope=Waves.x*k*(cos(a)*float2(.8,.6)+.628*cos(b)*float2(-.4,.9165));
     o.normal=normalize(float3(-slope.x,1,-slope.y));
-    o.world=w;o.uv=v.uv;o.color=v.color;
+    // Interpolate camera-relative positions to keep derivatives stable at Neuz world coordinates.
+    o.world=w-EyeTime.xyz;o.uv=v.uv;o.color=v.color;
     float4 view=mul(float4(w,1),View);
     o.fogDepth=lerp(abs(view.z),length(view.xyz),Waves.w);o.pos=mul(view,Projection);
     return o;
