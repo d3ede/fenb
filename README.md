@@ -17,7 +17,7 @@ A graphics mod inspired by ENBSeries, with adjustable effects and an in-game set
 [![DirectX 9](https://img.shields.io/badge/DirectX-9-7954B4?labelColor=17172D)](https://github.com/d3ede/fenb/releases)
 [![MIT License](https://img.shields.io/badge/license-MIT-7954B4?labelColor=17172D)](LICENSE)
 
-**[Releases](https://github.com/d3ede/fenb/releases)** · [Comparisons](#in-game-comparisons) · [Installation](#installation) · [Hotkeys](#hotkeys) · [Report an issue](https://github.com/d3ede/fenb/issues)
+**[Releases](https://github.com/d3ede/fenb/releases)** · [Effects](#effects-in-action) · [Comparisons](#in-game-comparisons) · [Installation](#installation) · [Hotkeys](#hotkeys) · [Report an issue](https://github.com/d3ede/fenb/issues)
 
 </div>
 
@@ -37,6 +37,52 @@ A graphics mod inspired by ENBSeries, with adjustable effects and an in-game set
 | **Profiles** | Seven translated built-in looks, with Default, Default (Low-end PC) and Default (Potato) listed first. Low-end PC disables SSAO. Potato keeps the default color, exposure, tone balance, bloom and sky, uses FXAA, and disables WaterFX and costly scene effects. Clear water, Golden light, Soft atmosphere and Night lights remain available. Save your own profiles alongside them. Settings save automatically. |
 | **In-game controls** | Compact English/Russian panel with muted violet accents, animated switches and dropdown arrows, an optional compact cursor, individual effect switches and a master toggle. Unlock FPS stays visible in the footer on supported clients. Processing preserves the game HUD. |
 | **Panel updates** | New-version notice when opening the panel, verified downloads and a restart prompt. Settings and profiles stay in place; the previous DLL is kept for rollback. No separate updater executable. |
+
+## Effects in action
+
+In-game captures cropped to focus on each effect, without the HUD or minimap. Colors are unchanged from the captures. Click an image for the full-size crop.
+
+<details>
+<summary><strong>Color & weather — desaturated snowfall</strong></summary>
+
+Reduced saturation and the snow weather override give the town a monochrome winter look.
+
+![Town with reduced saturation and snow weather](assets/screenshots/effects/color-weather.png)
+
+</details>
+
+<details open>
+<summary><strong>Local lighting — off / on</strong></summary>
+
+The same lamppost with local lighting disabled and enabled. Look at the warm light on the benches and paving around its base.
+
+| Off | On |
+| :---: | :---: |
+| ![Local lighting off: dim benches and paving beneath the lamppost](assets/screenshots/effects/local-lighting-off.png) | ![Local lighting on: warm illumination on the benches and paving](assets/screenshots/effects/local-lighting-on.png) |
+
+</details>
+
+<details open>
+<summary><strong>Water reflections — three modes</strong></summary>
+
+The same stretch of river with **Sky Only**, **SSR Performance** and **SSR Quality**. Compare the bridge and tree reflections; screen-space reflections depend on visible scene content.
+
+| Sky Only | SSR Performance | SSR Quality |
+| :---: | :---: | :---: |
+| ![Sky Only: sky reflected in the river without screen-space scenery reflections](assets/screenshots/effects/reflection-sky-only.png) | ![SSR Performance: bridge and tree reflections in the river](assets/screenshots/effects/reflection-performance.png) | ![SSR Quality: bridge and tree reflections using the higher-quality mode](assets/screenshots/effects/reflection-quality.png) |
+
+</details>
+
+<details>
+<summary><strong>Water appearance — different settings</strong></summary>
+
+Three water configurations in the same scene, showing different surface color and reflection balance.
+
+| Variation 1 | Variation 2 | Variation 3 |
+| :---: | :---: | :---: |
+| ![Water variation 1: a brighter teal surface with scenery reflections](assets/screenshots/effects/water-variation-01.png) | ![Water variation 2: a bluer surface with scenery reflections](assets/screenshots/effects/water-variation-02.png) | ![Water variation 3: a darker blue surface with scenery reflections](assets/screenshots/effects/water-variation-03.png) |
+
+</details>
 
 ## In-game comparisons
 
