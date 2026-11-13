@@ -50,5 +50,29 @@
     "local_lighting": 0,
     "water": 0, "sfx_wake": 0, "water_caustics": 0,
     "smaa": 0, "fxaa": 1, "bloom_scale": 4
+  }},
+  {"name": "Default (Blue Water)", "overrides": {
+    "water": 1, "water_waves": 0.08, "water_length": 7.25,
+    "water_speed": 1.05, "water_ripples": 0.52, "water_ripple_scale": 1.35,
+    "water_opacity": 1, "water_sky": 0.74, "water_glints": 1.1,
+    "water_gloss": 0.86, "water_tint": 0, "water_refraction": 1,
+    "water_texture": 0, "water_depth": 2, "water_shore": 2.35,
+    "water_ssr": 1, "water_ssr_quality": 1, "water_caustics": 0,
+    "water_dispersion": 0.15, "water_caustic_scale": 2, "water_reflection_method": 2,
+    "water_reflection_resolution": 100, "water_ray_steps": 0, "water_refinement_steps": 12,
+    "water_trace_distance": 512, "water_trace_bias": 0.06, "water_trace_thickness": 1,
+    "water_reflection_confidence": 0, "water_soft_fallback": 1
+  }},
+  {"name": "Default (Cyan Water)", "overrides": {
+    "water": 1, "water_waves": 0.08, "water_length": 7.25,
+    "water_speed": 1.05, "water_ripples": 0.52, "water_ripple_scale": 1.35,
+    "water_opacity": 1, "water_sky": 0.74, "water_glints": 1.1,
+    "water_gloss": 0.86, "water_tint": 1, "water_refraction": 1,
+    "water_texture": 0, "water_depth": 2, "water_shore": 2.35,
+    "water_ssr": 1, "water_ssr_quality": 1, "water_caustics": 0,
+    "water_dispersion": 0.15, "water_caustic_scale": 2, "water_reflection_method": 2,
+    "water_reflection_resolution": 100, "water_ray_steps": 0, "water_refinement_steps": 12,
+    "water_trace_distance": 512, "water_trace_bias": 0.06, "water_trace_thickness": 1,
+    "water_reflection_confidence": 0, "water_soft_fallback": 1
   }}
 ]

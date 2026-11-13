@@ -265,6 +265,14 @@ int main() {
           BuiltInProfileNames[BuiltInProfileOrder[2]]==UiText::PotatoProfile);
     unsigned ordered=0;for(int index:BuiltInProfileOrder)ordered|=1u<<index;
     CHECK(ordered==(1u<<BuiltInPresetCount)-1);
+    Settings blueWater;blueWater.preset(7);
+    CHECK(blueWater.water && blueWater.waterWaves==.08f && blueWater.waterOpacity==1.f &&
+          blueWater.waterRefraction==1.f && blueWater.waterSSRQuality==1 && blueWater.waterReflectionMethod==2);
+    auto waterOnly=blueWater;
+    waterOnly.resetWater();auto defaultWater=builtIn;defaultWater.resetWater();
+    CHECK(waterOnly==defaultWater);
+    Settings cyanWater;cyanWater.preset(8);cyanWater.resetWater();
+    CHECK(cyanWater==defaultWater);
     Settings potato;potato.preset(6);
     CHECK(potato.adaptation==builtIn.adaptation && potato.lightingBalance==builtIn.lightingBalance &&
           potato.adaptationKey==builtIn.adaptationKey && potato.lightingBalanceStrength==builtIn.lightingBalanceStrength);
