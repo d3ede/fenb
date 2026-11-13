@@ -105,6 +105,7 @@ int main(int argc, char **argv) {
         root->CreateDevice(0, D3DDEVTYPE_HAL, window, D3DCREATE_HARDWARE_VERTEXPROCESSING, &pp, d.out())));
     SfxFX sfx(d);
     Settings settings;
+    settings.sfx = true; // Exercise the opt-in effect independently of shipped profile defaults.
     Com<IDirect3DTexture9> texture;
     CHECK(
         SUCCEEDED(d->CreateTexture(64, 64, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, texture.out(), nullptr)));
@@ -370,6 +371,7 @@ int main(int argc, char **argv) {
         texture->UnlockRect(0);
         auto savedSettings = settings;
         settings = Settings{};
+        settings.sfx = true;
         world._11 = world._22 = 2;
         fade = 0xd0ffffff;
         render(false); auto runeNative = Read(d);
@@ -377,6 +379,7 @@ int main(int argc, char **argv) {
         settings.sfxGlow = settings.sfxSoftness = 0;
         CHECK(render(true) && Difference(runeNative, Read(d)) == 0);
         settings = Settings{};
+        settings.sfx = true;
         settings.sceneQuality = false;
         CHECK(render(true)); auto economical = Read(d);
         settings.sceneQuality = true;

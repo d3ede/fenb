@@ -224,6 +224,18 @@ void SceneFX::observe(const Settings &s) {
         skyBackdrop_.clear();
     for (int axis = 0; axis < 3; ++axis)
         eye_[axis] = -(v._41 * v.m[axis][0] + v._42 * v.m[axis][1] + v._43 * v.m[axis][2]);
+    if (s.localLighting && sourceOriginValid_ &&
+        (std::abs(eye_[0] - sourceOrigin_[0]) > 256 ||
+         std::abs(eye_[1] - sourceOrigin_[1]) > 256 ||
+         std::abs(eye_[2] - sourceOrigin_[2]) > 256)) {
+        // The atlas stores FP16 positions relative to this origin. A distant map transition
+        // must not reuse quantized old-map positions or its still-live source slots. Rebase
+        // before capturing new lights; the next capture clears both atlas attachments.
+        // A generous cell margin avoids resetting lights at every ordinary cell crossing.
+        memset(sources_, 0, sizeof(sources_));
+        sourceOriginValid_ = false;
+        emitters_ = false;
+    }
     BOOL on = FALSE;
     sunValid_ = SUCCEEDED(device_->GetLight(0, &sun_)) && SUCCEEDED(device_->GetLightEnable(0, &on)) && on &&
                 sun_.Type == D3DLIGHT_DIRECTIONAL;
@@ -717,15 +729,32 @@ void SceneFX::captureEmitter(const Settings &s, DrawCall draw) {
             if (row < 3 && col < 3 && std::abs(nativeView.m[row][col] - view_.m[row][col]) > .00001f)
                 return;
         }
-    DWORD lighting = 0, test = 0, transform = 0, stage1 = 0, coordinate = 0;
+    DWORD lighting = 0, test = 0, transform = 0, coordinate = 0;
     device_->GetRenderState(D3DRS_LIGHTING, &lighting);
     device_->GetRenderState(D3DRS_ALPHATESTENABLE, &test);
     device_->GetTextureStageState(0, D3DTSS_TEXTURETRANSFORMFLAGS, &transform);
-    device_->GetTextureStageState(1, D3DTSS_COLOROP, &stage1);
     device_->GetTextureStageState(0, D3DTSS_TEXCOORDINDEX, &coordinate);
-    if (lighting || test || transform || coordinate || stage1 != D3DTOP_DISABLE ||
-        !(fvf & D3DFVF_TEXCOUNT_MASK))
+    if (lighting || test || transform || coordinate || !(fvf & D3DFVF_TEXCOUNT_MASK))
         return;
+    // Captured Flaris windows/signs sometimes retain SELECTARG1(CURRENT) in stage 1.
+    // Accept only exact pass-through stages, not multitexture materials whose emission
+    // this single-texture capture cannot reproduce. Additive ONE ignores native alpha.
+    for (DWORD stage = 1; stage < 8; ++stage) {
+        DWORD op = 0, argument = 0, alphaOp = 0, alphaArgument = 0;
+        if (FAILED(device_->GetTextureStageState(stage, D3DTSS_COLOROP, &op))) return;
+        if (op == D3DTOP_DISABLE) break;
+        if ((op != D3DTOP_SELECTARG1 && op != D3DTOP_SELECTARG2) ||
+            FAILED(device_->GetTextureStageState(stage,
+                op == D3DTOP_SELECTARG1 ? D3DTSS_COLORARG1 : D3DTSS_COLORARG2, &argument)) ||
+            argument != D3DTA_CURRENT) return;
+        if (source == D3DBLEND_ONE) continue;
+        if (FAILED(device_->GetTextureStageState(stage, D3DTSS_ALPHAOP, &alphaOp))) return;
+        if (alphaOp == D3DTOP_DISABLE) continue;
+        if ((alphaOp != D3DTOP_SELECTARG1 && alphaOp != D3DTOP_SELECTARG2) ||
+            FAILED(device_->GetTextureStageState(stage,
+                alphaOp == D3DTOP_SELECTARG1 ? D3DTSS_ALPHAARG1 : D3DTSS_ALPHAARG2, &alphaArgument)) ||
+            alphaArgument != D3DTA_CURRENT) return;
+    }
     DWORD operations[6]{};
     D3DTEXTURESTAGESTATETYPE keys[] = {D3DTSS_COLOROP, D3DTSS_COLORARG1, D3DTSS_COLORARG2,
                                        D3DTSS_ALPHAOP, D3DTSS_ALPHAARG1, D3DTSS_ALPHAARG2};
@@ -825,7 +854,7 @@ void SceneFX::captureEmitter(const Settings &s, DrawCall draw) {
         return;
     if (!sourceOriginValid_) {
         for (int i = 0; i < 3; ++i)
-            sourceOrigin_[i] = std::floor(eye_[i] / 128) * 128;
+            sourceOrigin_[i] = std::round(eye_[i] / 128) * 128;
         sourceOriginValid_ = true;
     }
     world._41 -= sourceOrigin_[0];

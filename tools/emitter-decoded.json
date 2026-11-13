@@ -23,5 +23,40 @@
     "file": "SFX/Texture/obj_magiclight.dds",
     "rawHash": "38ea5be20b5b6a07934b8000a57215d2cbea4693a0a303ebe79adbd821db63b7",
     "sha256": "c00fc7676d45ba647ceedd0c24f6591586d07ef1d6e4e8f630dc15757b240e35"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlRe01-light.dds",
+    "rawHash": "ae07d0214730ae785ff179810eb40faf099dc2df1fe5ee7c8d9498170c29e79c",
+    "sha256": "2ad8ef43032b685390169197bd50df3c5d6fcb38cd7baafd9298f8e84e20d710"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlHo01-light.dds",
+    "rawHash": "a35d13831a4997d74f1366a7310151940814cd820c3a2e7653a0cb6b6171a12c",
+    "sha256": "49f610b6cabd217c579057040daba1ec7bfa9a33639a574f8c558889a82f955b"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlCi001-light.dds",
+    "rawHash": "fa695da1c66aea354a606d04cc36edc0f94a5afc3cede151e12e46951ac3502a",
+    "sha256": "ffb561ebce44e8b3e1476b0b89208e9ff167f2730ae012ffa74118828e1e504d"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlFo001-light.dds",
+    "rawHash": "493e2272dc8920f90c3133b7e74c3a8fa025e05d02a81a97d499544ed7ce8da1",
+    "sha256": "c62f011bafe24494183c1c847ac7340788643fa7c6198270b0903e8c09da5900"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlReq-light.dds",
+    "rawHash": "6ae1488e3626830a8d68c79e7a2589bb6ea2dca81ef1ee6f5282c455b296ffb1",
+    "sha256": "25ac87011eebc58f2669d0ff74d320ec50cc6ae5ecba0964a229a6e8814a42c6"
+  },
+  {
+    "file": "Model/Texture/obj_MaFlPrGe01-light.dds",
+    "rawHash": "493e2272dc8920f90c3133b7e74c3a8fa025e05d02a81a97d499544ed7ce8da1",
+    "sha256": "c62f011bafe24494183c1c847ac7340788643fa7c6198270b0903e8c09da5900"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrSkySign03-light.dds",
+    "rawHash": "12b00107fe68ca6f08f4dedccb42d7f915e7b5d2dd071e4ee45af8a2e927627d",
+    "sha256": "9f48046132e6ed50f5afb30ae708efaedf2146d022a765e9c4d83b10f6e49520"
   }
 ]

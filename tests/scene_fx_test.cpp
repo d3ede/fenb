@@ -232,6 +232,9 @@ int main(int argc, char **) {
     bool darkScene = false, balanceScene = false;
     unsigned farEmitters = 0;
     float emitterJitter = 0;
+    std::array<float, 3> sceneOffset{};
+    // Native building light maps can leave stage 1 selecting the unchanged stage-0 result.
+    DWORD emitterStage1 = D3DTOP_DISABLE, emitterStage1Argument = D3DTA_CURRENT;
     struct Vertex {
         float x, y, z;
         DWORD color;
@@ -241,7 +244,9 @@ int main(int argc, char **) {
         d->SetVertexShader(nullptr);
         d->SetPixelShader(nullptr);
         d->SetFVF(D3DFVF_XYZ | D3DFVF_DIFFUSE);
-        d->SetTransform(D3DTS_WORLD, &id);
+        auto sceneWorld = id;
+        for (int axis = 0; axis < 3; ++axis) sceneWorld.m[3][axis] = sceneOffset[axis];
+        d->SetTransform(D3DTS_WORLD, &sceneWorld);
         D3DMATRIX currentView = view;
         if (cameraYaw != 0) {
             // Orbit around the receiver while keeping the world and emissive geometry fixed.
@@ -273,6 +278,9 @@ int main(int argc, char **) {
                            -ex * zx - 4 * zy - ez * zz,
                            1};
         }
+        for (int axis = 0; axis < 3; ++axis)
+            for (int component = 0; component < 3; ++component)
+                currentView.m[3][axis] -= sceneOffset[component] * currentView.m[component][axis];
         d->SetTransform(D3DTS_VIEW, &currentView);
         d->SetTransform(D3DTS_PROJECTION, &projection);
         d->SetRenderState(D3DRS_ZENABLE, TRUE);
@@ -305,7 +313,7 @@ int main(int argc, char **) {
         d->SetRenderState(D3DRS_AMBIENT, darkScene ? 0x08080c : 0x303030);
         D3DLIGHT9 light{};
         light.Type = D3DLIGHT_POINT;
-        light.Position = {0, 3, 10};
+        light.Position = {sceneOffset[0], 3 + sceneOffset[1], 10 + sceneOffset[2]};
         light.Diffuse = {2, .8f, .2f, 1};
         light.Range = 12;
         light.Attenuation0 = 1;
@@ -370,17 +378,21 @@ int main(int argc, char **) {
             d->SetRenderState(D3DRS_TEXTUREFACTOR, (DWORD(emitterFade * 255) << 24) | 0xffffff);
             d->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
             d->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TFACTOR);
+            d->SetTextureStageState(1, D3DTSS_COLOROP, emitterStage1);
+            d->SetTextureStageState(1, D3DTSS_COLORARG1, emitterStage1Argument);
+            d->SetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
+            d->SetTextureStageState(2, D3DTSS_COLOROP, D3DTOP_DISABLE);
             D3DMATERIAL9 mat{};
             mat.Diffuse = {1, 1, 1, 1};
             d->SetMaterial(&mat);
             for (unsigned i=0;i<farEmitters;++i) {
-                auto distant=id;distant._41=200+i*10.f;
+                auto distant=sceneWorld;distant._41+=200+i*10.f;
                 d->SetTransform(D3DTS_WORLD,&distant);
                 fx.sceneFX().captureEmitter(settings,[&]() {
                     return d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP,2,quad,sizeof(E));
                 });
             }
-            auto lamp=id;lamp._41=emitterJitter;
+            auto lamp=sceneWorld;lamp._41+=emitterJitter;
             d->SetTransform(D3DTS_WORLD,&lamp);
             fx.sceneFX().captureEmitter(
                 settings, [&]() { return d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, quad, sizeof(E)); });
@@ -598,6 +610,47 @@ int main(int argc, char **) {
             CHECK(std::abs(rotatedSource[axis] - fixedSource[axis]) < .02f);
     }
     cameraYaw = 0;
+    CHECK(render());
+    // Teleport between distant maps without toggling local lighting. Relative FP16 positions
+    // must rebase, discard the previous map's cached lights and match a freshly enabled pass.
+    for (const auto offset : {std::array<float, 3>{32768, 512, -65536},
+                              std::array<float, 3>{0, 0, 0}}) {
+        sceneOffset = offset;
+        for (float yaw : {0.f, -.65f, .8f}) {
+            cameraYaw = yaw;
+            CHECK(render());
+            CHECK(SceneFXFixture::sourceCount(fx.sceneFX()) == 1);
+            const auto source = SceneFXFixture::sourcePosition(fx.sceneFX(), d);
+            printf("Teleport light: offset %.0f %.0f %.0f, yaw %.2f, source %.3f %.3f %.3f\n",
+                   offset[0], offset[1], offset[2], yaw, source[0], source[1], source[2]);
+            for (int axis = 0; axis < 3; ++axis)
+                CHECK(std::abs(source[axis] - offset[axis] - fixedSource[axis]) < .1f);
+            const float beforeToggle = SceneFXFixture::lightMaximum(fx.sceneFX(), d);
+            CHECK(beforeToggle > 0);
+            settings.localLighting = false; CHECK(render());
+            settings.localLighting = true; CHECK(render());
+            CHECK(std::abs(SceneFXFixture::lightMaximum(fx.sceneFX(), d) - beforeToggle) < .03f);
+        }
+    }
+    cameraYaw = 0;
+    CHECK(render());
+    const float directEmission = SceneFXFixture::lightMaximum(fx.sceneFX(), d);
+    settings.localLighting = false; CHECK(render());
+    emitterStage1 = D3DTOP_SELECTARG1;
+    settings.localLighting = true; CHECK(render());
+    CHECK(SceneFXFixture::sourceCount(fx.sceneFX()) == 1);
+    CHECK(std::abs(SceneFXFixture::lightMaximum(fx.sceneFX(), d) - directEmission) < .01f);
+    CHECK(Save(Read(d), L"build/scene-window-lighting.bmp"));
+    settings.localLighting = false; CHECK(render());
+    emitterStage1Argument = D3DTA_TEXTURE; // An actual second texture is not a pass-through.
+    settings.localLighting = true; CHECK(render());
+    CHECK(SceneFXFixture::sourceCount(fx.sceneFX()) == 0);
+    settings.localLighting = false; CHECK(render());
+    emitterStage1Argument = D3DTA_CURRENT;
+    emitterStage1 = D3DTOP_MODULATE; // Nor is a color-changing operation on CURRENT.
+    settings.localLighting = true; CHECK(render());
+    CHECK(SceneFXFixture::sourceCount(fx.sceneFX()) == 0);
+    emitterStage1 = D3DTOP_DISABLE;
     CHECK(render());
     for (int frame=0;frame<40;++frame) {
         emitterJitter=(frame&1)?.0002f:-.0002f;

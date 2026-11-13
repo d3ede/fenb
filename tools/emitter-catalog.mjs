@@ -2,7 +2,11 @@
 import fs from 'node:fs';import path from 'node:path';import crypto from 'node:crypto';
 const root=process.argv[2];if(!root)throw Error('Usage: node tools/emitter-catalog.mjs <client directory>');
 const files=['Model/Texture/Obj_MaFlRe01-light.dds','Model/Texture/Obj_MaFlHo01-light.dds','Model/Texture/Obj_MaFlCi001-light.dds',
- 'Model/Texture/Obj_MaFlFo001-light.dds','SFX/Texture/sfx_genlight01-1.dds','SFX/Texture/sfx_genlodelight01-1.dds',
+ 'Model/Texture/Obj_MaFlFo001-light.dds',
+ // Verified unlit additive world passes: Flaris quest office, machinery and illuminated sign.
+ 'Model/Texture/Obj_MaFlReq-light.dds','Model/Texture/obj_MaFlPrGe01-light.dds',
+ 'Model/Texture/Obj_MaCoPrSkySign03-light.dds',
+ 'SFX/Texture/sfx_genlight01-1.dds','SFX/Texture/sfx_genlodelight01-1.dds',
  'SFX/Texture/sfx_light01.dds','SFX/Texture/sfx_light02.dds','SFX/Texture/obj_magiclight.dds'];
 let out='#pragma once\ninline constexpr unsigned char EmitterHashes[][32] = {\n';
 const hashes=new Set(),rawHashes={};
