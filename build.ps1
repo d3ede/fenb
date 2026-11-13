@@ -14,6 +14,8 @@ node tools/embed-logo.mjs
 if ($LASTEXITCODE) { throw 'Logo embedding failed' }
 node tools/embed-presets.mjs
 if ($LASTEXITCODE) { throw 'Profile embedding failed' }
+node tools/embed-updater.mjs
+if ($LASTEXITCODE) { throw 'Updater embedding failed' }
 & $cxx '-std=c++20' '-O2' '-static' 'tools/shaderc.cpp' '-ld3dcompiler' '-o' 'build/shaderc.exe'
 if ($LASTEXITCODE) { throw 'Shader compiler build failed' }
 if($Diagnostics){
@@ -41,7 +43,7 @@ if ($LASTEXITCODE) { throw 'SFX shader compilation failed' }
 & '.\build\shaderc.exe' 'shaders/smaa.hlsl' 'src/generated/smaa_shaders.hpp' 'smaa'
 if ($LASTEXITCODE) { throw 'SMAA shader compilation failed' }
 $imgui='vendor/imgui-1.92.9b'
-$sources=@('src/exports.cpp','src/generated/exports.cpp','src/proxy.cpp','src/generated/proxies.cpp','src/settings.cpp','src/runtime.cpp','src/effects.cpp','src/water.cpp','src/scene_fx.cpp','src/fps_limiter.cpp','src/environment.cpp','src/ui.cpp',
+$sources=@('src/exports.cpp','src/generated/exports.cpp','src/proxy.cpp','src/generated/proxies.cpp','src/settings.cpp','src/runtime.cpp','src/effects.cpp','src/water.cpp','src/scene_fx.cpp','src/fps_limiter.cpp','src/environment.cpp','src/ui.cpp','src/updater.cpp',
     "$imgui/imgui.cpp","$imgui/imgui_draw.cpp","$imgui/imgui_tables.cpp","$imgui/imgui_widgets.cpp","$imgui/backends/imgui_impl_win32.cpp","$imgui/backends/imgui_impl_dx9.cpp")
 $options=@('-std=c++20','-Os','-static','-shared','-fno-rtti','-ffunction-sections','-fdata-sections','-DIMGUI_DISABLE_DEMO_WINDOWS','-DIMGUI_DISABLE_DEBUG_TOOLS','-DIMGUI_IMPL_WIN32_DISABLE_GAMEPAD','-DIMGUI_USE_BGRA_PACKED_COLOR',"-I$imgui",'-Isrc','-Wall','-Wextra','-Wno-unused-parameter')
 if($Diagnostics){$options+='-DFENB_DIAGNOSTICS';$sources+='src/pipeline_probe.cpp'}
@@ -134,8 +136,8 @@ if ($Tests) {
         & (Join-Path $outputDirectory 'probe-test.exe')
         if($LASTEXITCODE){throw 'Probe test failed'}
     }
-    $runtimeOptions=@($options | Where-Object { $_ -ne '-shared' }) + @('-lwinmm')
-    $runtimeSources=@('tests/runtime_test.cpp','src/settings.cpp','src/runtime.cpp','src/effects.cpp','src/water.cpp','src/scene_fx.cpp','src/fps_limiter.cpp','src/environment.cpp','src/ui.cpp',
+    $runtimeOptions=@($options | Where-Object { $_ -ne '-shared' }) + @('-lwinmm','-DFENB_UPDATER_OFFLINE_TESTS')
+    $runtimeSources=@('tests/runtime_test.cpp','src/settings.cpp','src/runtime.cpp','src/effects.cpp','src/water.cpp','src/scene_fx.cpp','src/fps_limiter.cpp','src/environment.cpp','src/ui.cpp','src/updater.cpp',
         "$imgui/imgui.cpp","$imgui/imgui_draw.cpp","$imgui/imgui_tables.cpp","$imgui/imgui_widgets.cpp","$imgui/backends/imgui_impl_win32.cpp","$imgui/backends/imgui_impl_dx9.cpp")
     if($Diagnostics){$runtimeSources+='src/pipeline_probe.cpp'}
     & $cxx @runtimeOptions @runtimeSources '-ld3d9' '-ldxguid' '-lcomctl32' '-ldwmapi' '-lgdi32' '-limm32' '-lbcrypt' '-o' 'build/runtime-test.exe'
@@ -147,5 +149,7 @@ if ($Tests) {
     if($LASTEXITCODE){throw 'UI test build failed'}
     & '.\build\ui-test.exe'
     if($LASTEXITCODE){throw 'UI interaction tests failed'}
+    & (Join-Path $env:SystemRoot 'System32/WindowsPowerShell/v1.0/powershell.exe') -NoProfile -ExecutionPolicy Bypass -File './tests/updater_test.ps1' -Binary (Join-Path $outputDirectory 'd3d9.dll')
+    if($LASTEXITCODE){throw 'Updater transaction tests failed'}
 
 }

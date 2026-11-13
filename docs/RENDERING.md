@@ -142,6 +142,24 @@ Recognized refinement textures, pet-bead auras and elemental weapon materials us
 
 The DLL belongs beside `Neuz.exe`. Keep an existing `FENB.ini` when updating. A running game keeps its already loaded DLL and must be restarted to load a replacement.
 
+### Panel updates and recovery
+
+Opening the panel starts one background check per game session against the official repository's `releases/latest/download/FENB-update.json`. A newer stable release opens a centered English/Russian modal. The actions menu also exposes checking, download status and rollback. No network requests run on the rendering thread, and closed panels do not poll status. The DLL embeds the local PowerShell worker; it writes its working files into `FENB-update/` beside the DLL and runs the system Windows PowerShell hidden, without a separate updater executable. If PowerShell, networking or folder writes are unavailable, the panel reports failure and manual updates remain available.
+
+The manifest has schema 1, a `digit.digit[a-h]` version, ZIP byte length and SHA-256. Downloads are restricted to HTTPS on GitHub and its release-asset hosts, with normal certificate validation, bounded redirects, timeouts and sizes. The archive checksum and exact entry allowlist are checked before extracting only the x86 PE DLL and `LICENSES.txt`. The shipped INI is never extracted into the game folder. Configurations, unknown INI values, language and personal profiles are retained in place. SHA-256 checks detect corruption; release authenticity relies on HTTPS and control of the official GitHub release account, rather than a separate signing key.
+
+After verification the modal asks the player to close the game and relaunch through their usual launcher. The close button saves settings and sends a normal close request, never terminating or automatically relaunching the client. Replacement waits for the initiating process identity to exit; locked files cause a bounded failure. A localized desktop message confirms completion and invites the player to launch again. One verified rollback generation of the DLL and existing license notices is retained. A file-operation failure attempts automatic restoration; an interrupted transaction is detected by the next panel check and schedules restoration after exit. A regression in a successfully installed release requires **Restore previous version** from the panel. There is no blanket crash detector or forced game termination.
+
+If the new version cannot open the panel, close all game instances and run the existing local worker from Windows PowerShell in the game directory:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\FENB-update\worker.ps1 -Mode Rollback -Root .
+```
+
+Keep `FENB-update/` until the new version has been verified; it contains the rollback snapshot and an `error.txt` with local failure details. Deleting it removes rollback history. The worker serializes operations with an exclusive lock, verifies backup hashes again before restoration and never installs into a different game directory.
+
+For update-enabled releases, run `release.ps1` and publish both `FENB-<version>-win32.zip` and the generated `FENB-update.json` under the stable GitHub tag `v<version>`. Publish the manifest only with the matching verified ZIP. Old releases without the manifest remain installable manually; the panel cannot offer them as automatic updates. Packaging generates local artifacts only and does not publish anything.
+
 ### Local release packaging
 
 Run `./release.ps1` from the repository root. It runs a normal `./build.ps1 -Tests`

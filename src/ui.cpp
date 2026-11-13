@@ -137,6 +137,7 @@ void Theme() {
     s.Colors[ImGuiCol_HeaderActive] = {.32f, .33f, .37f, 1};
     s.Colors[ImGuiCol_TextSelectedBg] = {.40f, .37f, .49f, .65f};
     s.Colors[ImGuiCol_NavCursor] = ImGui::ColorConvertU32ToFloat4(Accent);
+    s.Colors[ImGuiCol_ModalWindowDimBg] = {.03f, .03f, .04f, .45f};
 }
 void Tip(const char *text, ImGuiHoveredFlags flags = ImGuiHoveredFlags_None) {
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal | flags)) {
@@ -780,6 +781,87 @@ void EnvironmentControls(Runtime &r) {
         ImGui::EndDisabled();
     }
 }
+void UpdateDialog(Runtime &r, ImVec2 origin, ImVec2 panelSize) {
+    const auto &update = r.updater.status();
+    const bool readyNotice = update.state == UpdateState::Ready || update.state == UpdateState::RollbackReady;
+    const auto notice = (readyNotice ? "ready-" : "available-") + update.version;
+    if ((readyNotice || update.state == UpdateState::Available) && r.updateNotified != notice) {
+        r.updateNotified = notice;
+        r.updateDialog = true;
+    }
+    if (r.updateDialog) {
+        ImGui::OpenPopup("###fenb-update");
+        r.updateDialog = false;
+    }
+    const float width = std::min(416.f, panelSize.x - 24);
+    const auto display = ImGui::GetIO().DisplaySize;
+    ImVec2 center{origin.x + panelSize.x*.5f, origin.y + panelSize.y*.5f};
+    center.x = std::clamp(center.x, width*.5f+8, display.x-width*.5f-8);
+    if (origin.y < 0 || origin.y + panelSize.y > display.y) center.y = display.y*.5f;
+    ImGui::SetNextWindowPos(center, ImGuiCond_Always, {.5f,.5f});
+    ImGui::SetNextWindowSize({width,0}, ImGuiCond_Always);
+    ImGui::SetNextWindowSizeConstraints({width,0}, {width,display.y-16});
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(20,18));
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8,12));
+    const auto title = std::string(Tr(UiText::Updates)) + "###fenb-update";
+    if (ImGui::BeginPopupModal(title.c_str(), nullptr, ImGuiWindowFlags_NoDecoration |
+            ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoMove)) {
+        ImGui::PushTextWrapPos(ImGui::GetCursorPosX()+width-40);
+        ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(Lavender), "%s", Tr(UiText::Updates));
+        ImGui::Separator();
+        const bool ready = update.state == UpdateState::Ready || update.state == UpdateState::RollbackReady;
+        UiText message = UiText::UpdateIdle;
+        switch (update.state) {
+        case UpdateState::Checking: message = UiText::UpdateChecking; break;
+        case UpdateState::Available: message = UiText::UpdateAvailable; break;
+        case UpdateState::Current: message = UiText::UpdateCurrent; break;
+        case UpdateState::Downloading: message = UiText::UpdateDownloading; break;
+        case UpdateState::Ready: message = UiText::UpdateRestart; break;
+        case UpdateState::RollbackReady: message = UiText::RollbackRestart; break;
+        case UpdateState::Installing: message = UiText::UpdateInstalling; break;
+        case UpdateState::Installed: message = UiText::UpdateInstalled; break;
+        case UpdateState::Restored: message = UiText::UpdateRestored; break;
+        case UpdateState::Failed: message = UiText::UpdateFailed; break;
+        default: break;
+        }
+        ImGui::TextWrapped("%s", Tr(message));
+        if (!update.version.empty() && update.state != UpdateState::Installed)
+            ImGui::Text("%s  >  %s", FENBVersion, update.version.c_str());
+        ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ColorConvertU32ToFloat4(Muted));
+        ImGui::TextWrapped("%s", Tr(UiText::UpdateSettingsSafe));
+        ImGui::PopStyleColor();
+        ImGui::PopTextWrapPos();
+        const float buttonWidth = width-40;
+        auto flushSettings = [&]() {
+            if (r.pendingSave()) r.save();
+            return !r.pendingSave() && r.message != UiText::ConfigWriteFailed;
+        };
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(.32f,.26f,.40f,1));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(.42f,.33f,.52f,1));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(.49f,.39f,.60f,1));
+        if (update.state == UpdateState::Available) {
+            if (ImGui::Button(Label(UiText::UpdateInstall).c_str(), {buttonWidth,30})) {
+                if (flushSettings()) r.updater.install(r.settings.language);
+            }
+        } else if (ready) {
+            if (ImGui::Button(Label(update.state == UpdateState::RollbackReady ? UiText::RollbackCloseGame : UiText::UpdateCloseGame).c_str(), {buttonWidth,30})) {
+                if (flushSettings()) r.closeForUpdate();
+            }
+        } else if (!r.updater.busy()) {
+            if (ImGui::Button(Label(UiText::UpdateCheck).c_str(), {buttonWidth,30})) r.updater.check(r.settings.language);
+        }
+        ImGui::PopStyleColor(3);
+        if (update.rollback && !r.updater.busy()) {
+            if (ImGui::Button(Label(UiText::UpdateRollback).c_str(), {buttonWidth,30})) {
+                if (flushSettings()) r.updater.rollback(r.settings.language);
+            }
+        }
+        if (r.message == UiText::ConfigWriteFailed) ImGui::TextWrapped("%s",Tr(r.message));
+        if (ImGui::Button(Label(UiText::UpdateLater).c_str(), {buttonWidth,28})) ImGui::CloseCurrentPopup();
+        ImGui::EndPopup();
+    }
+    ImGui::PopStyleVar(2);
+}
 } // namespace
 void DrawPanel(Runtime &r, const PanelBranding &branding) {
     Theme();
@@ -788,6 +870,8 @@ void DrawPanel(Runtime &r, const PanelBranding &branding) {
     const Settings before = s;
     uiLanguage = s.language;
     uiMotion = s.interfaceMotion;
+    if (r.centerPanel) r.updater.menuOpened(s.language);
+    r.updater.poll();
     ImVec2 size{std::max(310.f, std::min(560.f, io.DisplaySize.x - 24)),
                 std::max(250.f, std::min(540.f, io.DisplaySize.y - 24))};
     ImGui::SetNextWindowSize(size, ImGuiCond_Always);
@@ -839,6 +923,8 @@ void DrawPanel(Runtime &r, const PanelBranding &branding) {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10, 8));
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(10, 7));
     if (ImGui::BeginPopup("actions")) {
+        if (ImGui::MenuItem(Label(UiText::Updates).c_str())) r.updateDialog = true;
+        ImGui::Separator();
         if (ImGui::MenuItem(Label(UiText::V2Appearance).c_str())) r.editorPage=5;
         ImGui::Separator();
 #ifdef FENB_DIAGNOSTICS
@@ -1097,6 +1183,7 @@ void DrawPanel(Runtime &r, const PanelBranding &branding) {
         r.settingsChanged();
     if (!r.visible && r.pendingSave())
         r.save();
+    UpdateDialog(r, origin, size);
     ImGui::End();
     const auto mouse = io.MousePos;
     if (s.customCursor && r.visible && ImGui::IsMousePosValid() && mouse.x >= 0 && mouse.y >= 0 &&

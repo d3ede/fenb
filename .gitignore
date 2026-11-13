@@ -10,6 +10,7 @@ AGENTS.override.md
 /build-*/
 /dist/
 /dist-diagnostics/
+/FENB-update/
 node_modules/
 vendor/**/examples/
 *.exe

@@ -5,6 +5,7 @@
 #include "draw_call.hpp"
 #include "depth_policy.hpp"
 #include "presentation_reload.hpp"
+#include "updater.hpp"
 struct ImGuiContext;
 struct PanelBranding;
 class Effects;
@@ -33,6 +34,9 @@ class Runtime {
         return inScene_;
     }
     Settings settings;
+    Updater updater;
+    bool updateDialog = false;
+    std::string updateNotified;
     bool visible = false;
     bool compare = false;
     bool centerPanel = true;
@@ -68,6 +72,7 @@ class Runtime {
         return result;
     }
     void save();
+    void closeForUpdate();
     void reload();
     void settingsChanged();
     bool fpsUnlockSupported() {

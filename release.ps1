@@ -56,3 +56,6 @@ try{
     if(Test-Path -LiteralPath $temporary){Remove-Item -LiteralPath $temporary}
 }
 Get-Item -LiteralPath $destination | Select-Object FullName,Length
+node tools/prepare-update.mjs dist
+if($LASTEXITCODE){throw 'Update manifest generation failed'}
+Get-Item -LiteralPath 'dist/FENB-update.json' | Select-Object FullName,Length

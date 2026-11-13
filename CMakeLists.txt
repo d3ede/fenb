@@ -15,6 +15,10 @@ add_custom_command(OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/src/generated/presets.hpp
   DEPENDS tools/embed-presets.mjs config/FENB.ini config/builtins.json src/settings.cpp src/scene_settings.inc)
 set_source_files_properties(src/settings.cpp PROPERTIES OBJECT_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/generated/presets.hpp")
 option(FENB_DIAGNOSTICS "Enable opt-in bounded DX9 pipeline capture" OFF)
+add_custom_command(OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/src/generated/update_worker.hpp"
+  COMMAND "${FENB_NODE_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/embed-updater.mjs"
+  DEPENDS tools/embed-updater.mjs tools/update-worker.ps1)
+set_source_files_properties(src/updater.cpp PROPERTIES OBJECT_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/generated/update_worker.hpp")
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 set(IMGUI "${CMAKE_CURRENT_SOURCE_DIR}/vendor/imgui-1.92.9b")
 add_executable(shaderc tools/shaderc.cpp)
@@ -52,7 +56,7 @@ add_library(d3d9 SHARED src/exports.cpp src/generated/exports.cpp src/proxy.cpp 
 add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/generated/sfx_shaders.hpp"
   COMMAND shaderc "${CMAKE_CURRENT_SOURCE_DIR}/shaders/sfx.hlsl" "${CMAKE_CURRENT_BINARY_DIR}/generated/sfx_shaders.hpp" sfx
   DEPENDS shaderc shaders/sfx.hlsl)
-target_sources(d3d9 PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated/sfx_shaders.hpp")
+target_sources(d3d9 PRIVATE src/updater.cpp "${CMAKE_CURRENT_BINARY_DIR}/generated/sfx_shaders.hpp")
 target_include_directories(d3d9 PRIVATE "${CMAKE_CURRENT_BINARY_DIR}" src "${IMGUI}")
 target_compile_definitions(d3d9 PRIVATE IMGUI_DISABLE_DEMO_WINDOWS IMGUI_DISABLE_DEBUG_TOOLS IMGUI_IMPL_WIN32_DISABLE_GAMEPAD IMGUI_USE_BGRA_PACKED_COLOR)
 target_link_libraries(d3d9 PRIVATE dxguid comctl32 dwmapi gdi32 imm32 bcrypt winmm)
@@ -86,6 +90,9 @@ else()
 endif()
 include(CTest)
 if(BUILD_TESTING)
+  add_test(NAME updater-transactions COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass
+    -File "${CMAKE_CURRENT_SOURCE_DIR}/tests/updater_test.ps1" -Binary "$<TARGET_FILE:d3d9>"
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
   if(FENB_DIAGNOSTICS)
     add_executable(water-capture-test tests/water_capture_test.cpp src/pipeline_probe.cpp src/water.cpp src/scene_fx.cpp
       "${CMAKE_CURRENT_BINARY_DIR}/generated/probe_depth.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/probe_vertices_vs.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/probe_vertices_ps.hpp"
@@ -214,6 +221,8 @@ if(BUILD_TESTING)
   target_sources(runtime-test PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated/water_vs.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/water_ps.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/caustics.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/scene_shaders.hpp")
   target_sources(runtime-test PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated/reflection_ps.hpp")
   target_sources(runtime-test PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated/sfx_shaders.hpp")
+  target_sources(runtime-test PRIVATE src/updater.cpp)
+  target_compile_definitions(runtime-test PRIVATE FENB_UPDATER_OFFLINE_TESTS)
   target_include_directories(runtime-test PRIVATE "${CMAKE_CURRENT_BINARY_DIR}" src "${IMGUI}")
   target_compile_definitions(runtime-test PRIVATE IMGUI_DISABLE_DEMO_WINDOWS IMGUI_DISABLE_DEBUG_TOOLS IMGUI_IMPL_WIN32_DISABLE_GAMEPAD IMGUI_USE_BGRA_PACKED_COLOR)
   # Use the system import library, not the d3d9 proxy target (this test instantiates Runtime directly).

@@ -35,6 +35,14 @@ Changes save automatically; Ctrl + S saves immediately.
 
 Updating
 --------
+Open the panel for a new-version notice, or select FENB updates in the ...
+menu. Download the update, close the game when prompted, wait for the
+completion message, then launch normally. Windows PowerShell, Internet
+access and write access to the game folder are required. Settings and
+profiles stay in place. Restore previous version schedules a rollback
+after exit. The FENB-update folder stores the single rollback snapshot.
+
+Manual update:
 Close the game before replacing d3d9.dll. Keep your existing FENB.ini and
 FENB-presets folder to retain settings and custom profiles. Do not overwrite
 your configuration with the archive's default FENB.ini. Replace LICENSES.txt
@@ -87,6 +95,14 @@ Shift + Enter: открыть или закрыть панель.
 
 Обновление
 ----------
+Откройте панель для уведомления о новой версии или выберите «Обновления
+FENB» в меню «...». Скачайте обновление, закройте игру по предложению,
+дождитесь сообщения о завершении и запустите игру обычным способом.
+Нужны Windows PowerShell, Интернет и доступ на запись к папке игры.
+Настройки и профили сохраняются. «Вернуть предыдущую версию» назначает
+откат после выхода. FENB-update хранит одну копию для отката.
+
+Обновление вручную:
 Перед заменой d3d9.dll закройте игру. Сохраните существующие FENB.ini и папку
 FENB-presets, чтобы не потерять настройки и собственные профили. Не заменяйте
 ваш конфигурационный файл стандартным FENB.ini из архива. Обновите LICENSES.txt

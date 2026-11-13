@@ -36,6 +36,7 @@ A graphics mod inspired by ENBSeries, with adjustable effects and an in-game set
 | **Antialiasing** | FXAA, SMAA and hardware MSAA where supported. |
 | **Profiles** | Seven translated built-in looks, including Default, Default (Low-end PC) and Default (Potato). Low-end PC disables SSAO. Potato keeps the default color, bloom and sky, uses FXAA, and disables WaterFX and costly scene effects. Clear water, Golden light, Soft atmosphere and Night lights remain available. Save your own profiles alongside them. Settings save automatically. |
 | **In-game controls** | Compact English/Russian panel with muted violet accents, animated switches and dropdown arrows, an optional compact cursor, individual effect switches and a master toggle. Unlock FPS stays visible in the footer on supported clients. Processing preserves the game HUD. |
+| **Panel updates** | New-version notice when opening the panel, verified downloads and a restart prompt. Settings and profiles stay in place; the previous DLL is kept for rollback. No separate updater executable. |
 
 ## In-game comparisons
 
@@ -73,7 +74,7 @@ A graphics mod inspired by ENBSeries, with adjustable effects and an in-game set
 
 The combined `LICENSES.txt` preserves FENB and third-party license notices. If the game folder already contains another `d3d9.dll`, back it up first; loading multiple graphics proxies together is not currently supported.
 
-**Updating:** close the game before replacing the DLL. Keep your existing `FENB.ini` and `FENB-presets/` to retain your settings and profiles.
+**Updating:** open the panel to check for a new version, or choose **FENB updates** in the **…** menu. Download the update, close the game when prompted, wait for the completion message, then launch normally. The panel uses Windows PowerShell in the background and needs Internet access and write access to the game folder. Your `FENB.ini` and `FENB-presets/` are preserved. **Restore previous version** schedules a rollback after exit; installation errors trigger automatic restoration. Manual updates remain available by replacing the DLL with the game closed. See [update and recovery details](docs/RENDERING.md#panel-updates-and-recovery).
 
 **Uninstalling:** close the game and remove FENB's `d3d9.dll`. Restore the original DLL if you backed one up. Your configuration and profiles can be kept for later.
 

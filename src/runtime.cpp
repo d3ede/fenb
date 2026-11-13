@@ -69,6 +69,9 @@ Runtime::~Runtime() {
     }
     effects_.reset();
 }
+void Runtime::closeForUpdate() {
+    if (window_ && !pendingSave()) PostMessageW(window_, WM_CLOSE, 0, 0);
+}
 Runtime::SceneStatus Runtime::sceneStatus() const {
     auto &fx = effects_->sceneFX();
     return {fx.depthReady(), fx.skyApplied(), fx.sunOnScreen(), fx.hasLightSource()};

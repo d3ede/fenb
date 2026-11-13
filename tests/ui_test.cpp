@@ -85,6 +85,11 @@ bool Screenshot(IDirect3DDevice9 *d, const wchar_t *path) {
     read->UnlockRect();
     return ok;
 }
+struct UpdateTestAccess {
+    static void set(Updater &updater, UpdateState state, const char *version = "", bool rollback = false) {
+        updater.status_ = {state, version, rollback};
+    }
+};
 int main() {
     CreateDirectoryW(ModuleDirectory().c_str(), nullptr);
     WNDCLASSW wc{};
@@ -287,6 +292,43 @@ int main() {
         CHECK(Screenshot(d,language?L"build/ui-integrated/ru-time-without-effects.png":L"build/ui-integrated/en-time-without-effects.png"));
     }
     DeleteFileW((ModuleDirectory()+L"FENB-presets\\Тест воды.ini").c_str());
+    // Production modal: stable translated IDs, one notification per version,
+    // download-in-background -> restart prompt, and narrow-screen wrapping.
+    r.editorPage=0;
+    r.settings.enabled=true;
+    for(int language=0;language<2;++language) {
+        r.settings.language=language?Language::Russian:Language::English;
+        r.updateNotified.clear();
+        UpdateTestAccess::set(r.updater,UpdateState::Available,"0.4c");
+        frame();frame();
+        auto *modal=ImGui::FindWindowByName("###fenb-update");
+        CHECK(modal && modal->WasActive);
+        for(int settle=0;settle<30;++settle) frame(); // Inspect the fully faded modal backdrop.
+        CHECK(std::abs(modal->Pos.x+modal->Size.x*.5f-(panel->Pos.x+panel->Size.x*.5f))<2);
+        auto path=std::wstring(L"build/ui-integrated/")+(language?L"ru-update.png":L"en-update.png");
+        CHECK(Screenshot(d,path.c_str()));
+        auto later="###text-"+std::to_string(static_cast<int>(UiText::UpdateLater));
+        activate(modal,later.c_str());frame();CHECK(!modal->WasActive);
+        frame();CHECK(!modal->WasActive);
+        UpdateTestAccess::set(r.updater,UpdateState::Ready,"0.4c");frame();frame();
+        CHECK(modal->WasActive);
+        path=std::wstring(L"build/ui-integrated/")+(language?L"ru-update-restart.png":L"en-update-restart.png");
+        CHECK(Screenshot(d,path.c_str()));
+        io.DisplaySize={360,400};frame();frame();
+        CHECK(modal->Pos.x>=0 && modal->Pos.x+modal->Size.x<=360);
+        CHECK(modal->Pos.y>=0 && modal->Pos.y+modal->Size.y<=400);
+        path=std::wstring(L"build/ui-integrated/")+(language?L"ru-update-narrow.png":L"en-update-narrow.png");
+        CHECK(Screenshot(d,path.c_str()));
+        activate(modal,later.c_str());
+        io.DisplaySize={800,600};frame();
+        UpdateTestAccess::set(r.updater,UpdateState::Installed,"0.4b",true);
+        r.updateDialog=true;frame();frame();
+        CHECK(modal->WasActive);
+        path=std::wstring(L"build/ui-integrated/")+(language?L"ru-update-rollback.png":L"en-update-rollback.png");
+        CHECK(Screenshot(d,path.c_str()));
+        activate(modal,later.c_str());
+        UpdateTestAccess::set(r.updater,UpdateState::Idle);
+    }
     ImGui_ImplDX9_Shutdown();ImGui::DestroyContext();DestroyWindow(window);DeleteFileW(r.configPath.c_str());
-    puts("PASS: integrated UI gestures, numeric input, resets, profiles, language, appearance persistence, FPS guard and page captures.");
+    puts("PASS: integrated UI gestures, language, profiles, update/restart/rollback dialogs and page captures.");
 }
