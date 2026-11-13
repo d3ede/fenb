@@ -317,7 +317,8 @@ class SfxFX {
         c[6][0] = 1.f / desc.Width;
         c[6][1] = 1.f / desc.Height;
         c[6][2] = float(kind);
-        c[6][3] = wake ? 1.f / (1 + scale * .45f) : 1.f / (1 + std::max(0.f, float(draws_) - 64) * .015f);
+        c[6][3] = kind == 6 ? 1.f : wake ? 1.f / (1 + scale * .45f) :
+                                               1.f / (1 + std::max(0.f, float(draws_) - 64) * .015f);
         c[7][0] = width_ ? 1.f / width_ : 0;
         c[7][1] = height_ ? 1.f / height_ : 0;
         c[7][2] = snapshot_ ? 1.f : 0;

@@ -116,7 +116,7 @@ float4 SfxPS(float2 uv:TEXCOORD0,float fogDepth:TEXCOORD1,float4 color:COLOR0,fl
  return original;
 }
 // Equipment refinement, pet beads and elemental weapon auras have a dedicated, cheaper
-// shader. Native alpha, material animation and additive blending remain unchanged.
+// shader. Native fade endpoints, material animation and additive blend mode are preserved.
 float4 AuraPS(float2 uv:TEXCOORD0,float fogDepth:TEXCOORD1,float4 color:COLOR0):COLOR0 {
  float4 original=Native(tex2D(Art,uv),color);
  if(Style.x!=1 || Style.y>0 || Style.z!=1 || Style.w>0 || FogExtra.y>0) {
@@ -138,6 +138,11 @@ float4 AuraPS(float2 uv:TEXCOORD0,float fogDepth:TEXCOORD1,float4 color:COLOR0):
   rgb+=sum*(Style.y*.08)*(1-saturate(peak));
  }
  original.rgb=lerp(original.rgb,rgb,Texel.w);
+ // Saturated blue already reaches the UNORM color ceiling. Its additive
+ // contribution still depends on source alpha, so RGB gain alone is invisible.
+ // Raise optical coverage smoothly; preserve both zero fade and opaque endpoints.
+ if(AlphaStage.z>.5 && FogExtra.y>0)
+  original.a=1-pow(saturate(1-original.a),1+FogExtra.y*.7);
  }
  float visibility=1;
  if(Fog.x>.5) {

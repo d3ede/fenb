@@ -143,7 +143,7 @@ int main(int argc, char **argv) {
     projection._34 = 1;
     projection._43 = -.1f * projection._33;
     bool water = false, occlude = false, flatBackground = false, depthEnabled = true, fixedCurtainTime = false;
-    int layers = 1;
+    int layers = 1, precedingEffects = 0;
     DWORD fade = 0x80ff8040;
     bool nativeBlend = true;
     auto setup = [&] {
@@ -201,6 +201,15 @@ int main(int argc, char **argv) {
         sfx.observe();
         d->SetRenderState(D3DRS_ZWRITEENABLE, FALSE);
         d->BeginScene();
+        // Populate the real draw budget without rasterizing unrelated effects on the aura.
+        if(enhance && precedingEffects) {
+            auto hidden=world;hidden._41+=10000;d->SetTransform(D3DTS_WORLD,&hidden);
+            for(int i=0;i<precedingEffects;++i) {
+                if(!sfx.begin(settings,false,canSnapshot))break;
+                d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP,2,quad,sizeof(V));sfx.end(true);
+            }
+            d->SetTransform(D3DTS_WORLD,&world);
+        }
         bool applied = enhance && sfx.begin(settings, water, canSnapshot);
         if (applied && fixedCurtainTime) {
             float screen[4]{};
@@ -403,6 +412,9 @@ int main(int argc, char **argv) {
                 brighter+=((auraOn[i]>>16)&255)+((auraOn[i]>>8)&255)+(auraOn[i]&255) >
                           ((auraOff[i]>>16)&255)+((auraOff[i]>>8)&255)+(auraOff[i]&255)+6;
             CHECK(brighter>100);
+            precedingEffects=240;CHECK(render(true));
+            CHECK(Difference(auraOn,Read(d))==0); // Crowds must not fade equipment glow.
+            precedingEffects=0;
             fade=0; render(false); const auto fadedAura=Read(d);
             CHECK(render(true) && Difference(fadedAura,Read(d))==0);
             Save(auraOff,L"build/sfx-aura-boost-off.bmp"); Save(auraOn,L"build/sfx-aura-boost-on.bmp");
