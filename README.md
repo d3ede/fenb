@@ -122,6 +122,8 @@ The combined `LICENSES.txt` preserves FENB and third-party license notices. If t
 
 **Updating:** open the panel to check for a new version, or choose **FENB updates** in the **…** menu. Download the update, close the game when prompted, wait for the completion message, then launch normally. The panel uses Windows PowerShell in the background and needs Internet access and write access to the game folder. Your `FENB.ini` and `FENB-presets/` are preserved. **Restore previous version** schedules a rollback after exit; installation errors trigger automatic restoration. Manual updates remain available by replacing the DLL with the game closed. See [update and recovery details](docs/RENDERING.md#panel-updates-and-recovery).
 
+**Upgrading from 0.4a or earlier:** replace the DLL manually once to install the panel updater introduced in 0.5a. Keep your existing configuration and custom profiles.
+
 **Uninstalling:** close the game and remove FENB's `d3d9.dll`. Restore the original DLL if you backed one up. Your configuration and profiles can be kept for later.
 
 ## Hotkeys

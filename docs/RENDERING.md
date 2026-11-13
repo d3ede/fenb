@@ -1,4 +1,4 @@
-# FENB 0.4a
+# FENB 0.5a
 
 FENB is a graphics mod for Flyff, inspired by ENBSeries. It uses a Windows x86 Direct3D 9 proxy, C++20, precompiled shaders and a native Dear ImGui settings panel.
 
@@ -22,9 +22,9 @@ The built-in list displays **Default / Основной**, **Default (Low-end PC
 
 Particle processing and detailed effect quality default to off in the shipped configuration and all built-ins. Low-end PC differs from Default only by disabling SSAO. Potato retains the default color, sky, brightness adaptation and tone balance, keeps bloom at quarter dimensions and uses FXAA instead of SMAA. It disables SSAO, sun rays, fog, DoF, local lighting, WaterFX and refractive water footsteps. This avoids optional water/depth and lighting work while retaining the main color and exposure treatment; atmospheric effects and native water differ visibly. Hardware MSAA remains a separate user choice, so the profile cannot guarantee a particular FPS gain.
 
-All seven are compiled into the DLL; the default image settings come from `config/FENB.ini`, with named variations in `config/builtins.json`. `node tools/embed-presets.mjs` regenerates `src/generated/presets.hpp`, and both build paths keep it in sync. No shipped `.ini` is added under **My profiles**. Custom files remain independently supported. Image-profile changes preserve the master switch, language, hardware/FPS choices and local time/weather controls. Modified built-ins retain their translated name with an asterisk, and can be saved as a custom profile. Updating the DLL preserves an existing configuration's saved effect switches; select a built-in or change the switches manually to use the new defaults.
+**Default (Blue Water)** and **Default (Cyan Water)** add contrasting water treatments while retaining the default image settings. All nine profiles are compiled into the DLL; the default image settings come from `config/FENB.ini`, with named variations in `config/builtins.json`. `node tools/embed-presets.mjs` regenerates `src/generated/presets.hpp`, and both build paths keep it in sync. No shipped `.ini` is added under **My profiles**. Custom files remain independently supported. Image-profile changes preserve the master switch, language, hardware/FPS choices and local time/weather controls. Modified built-ins retain their translated name with an asterisk, and can be saved as a custom profile. Updating the DLL preserves an existing configuration's saved effect switches; select a built-in or change the switches manually to use the new defaults.
 
-The lower-left corner shows the public version, **0.4a**, followed by save status. Public versions use the form `digit.digitletter`; suffixes run from `a` through `h`, then the minor number increases.
+The lower-left corner shows the public version, **0.5a**, followed by save status. Public versions use the form `digit.digitletter`; suffixes run from `a` through `h`, then the minor number increases.
 
 The optional panel cursor acquires a balanced negative Windows cursor-display count. Late native SetCursor calls cannot display a second cursor; closing the panel, losing focus and device recovery release that ownership.
 
@@ -176,7 +176,7 @@ The ZIP contains exactly four files at its root: `d3d9.dll`, the shipped
 The packager verifies each archived payload against its source with SHA-256.
 It never includes the rest of `dist/`, so preview/test executables, logs,
 captures, old DLLs and custom profiles cannot enter through a directory glob.
-All seven built-in profiles are embedded; no presets folder is shipped. After
+All nine built-in profiles are embedded; no presets folder is shipped. After
 tests finish, the packager recopies `config/FENB.ini` to avoid shipping settings
 temporarily saved by the native fixtures. Shared `dist/` output is not an input.
 

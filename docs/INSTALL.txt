@@ -23,7 +23,7 @@ Installation
 5. Choose English or Русский in the language selector. English is the
    default. Select a built-in profile or adjust the effects yourself.
 
-No installer, separate shaders or font files are needed. All seven built-in
+No installer, separate shaders or font files are needed. All nine built-in
 profiles are included in the DLL. FENB-presets stores your custom profiles;
 it is not included in the archive and is created when needed.
 
@@ -35,6 +35,9 @@ Changes save automatically; Ctrl + S saves immediately.
 
 Updating
 --------
+Upgrading from 0.4a or earlier requires a manual DLL replacement once;
+the panel updater is first included in 0.5a.
+
 Open the panel for a new-version notice, or select FENB updates in the ...
 menu. Download the update, close the game when prompted, wait for the
 completion message, then launch normally. Windows PowerShell, Internet
@@ -83,7 +86,7 @@ FENB — графический мод для Flyff, вдохновлённый 
 5. Выберите English или Русский в переключателе языка. По умолчанию выбран
    английский. Выберите встроенный профиль или настройте эффекты вручную.
 
-Установщик, отдельные шейдеры и файлы шрифтов не нужны. Все семь встроенных
+Установщик, отдельные шейдеры и файлы шрифтов не нужны. Все девять встроенных
 профилей находятся в DLL. Папка FENB-presets хранит ваши собственные профили;
 она не входит в архив и создаётся при необходимости.
 
@@ -95,6 +98,9 @@ Shift + Enter: открыть или закрыть панель.
 
 Обновление
 ----------
+При переходе с 0.4a или более ранней версии один раз замените DLL вручную:
+обновление из панели впервые включено в 0.5a.
+
 Откройте панель для уведомления о новой версии или выберите «Обновления
 FENB» в меню «...». Скачайте обновление, закройте игру по предложению,
 дождитесь сообщения о завершении и запустите игру обычным способом.
