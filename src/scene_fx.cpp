@@ -839,7 +839,14 @@ bool SceneFX::beginSurfaceMask() {
     device_->SetVertexShader(surfaceVS_); device_->SetPixelShader(surfaceMaskPS_);
     for(auto key:{D3DRS_ZENABLE,D3DRS_ZWRITEENABLE,D3DRS_ALPHATESTENABLE,D3DRS_FOGENABLE,
                   D3DRS_STENCILENABLE,D3DRS_SCISSORTESTENABLE,D3DRS_SRGBWRITEENABLE,
-                  D3DRS_SEPARATEALPHABLENDENABLE,D3DRS_CLIPPLANEENABLE}) device_->SetRenderState(key,FALSE);
+                  D3DRS_CLIPPLANEENABLE}) device_->SetRenderState(key,FALSE);
+    // The mask's alpha is accumulated coverage, not source-alpha squared. Depth and
+    // roughness are divided by this coverage when the completed mask is sampled.
+    device_->SetRenderState(D3DRS_SEPARATEALPHABLENDENABLE,TRUE);
+    device_->SetRenderState(D3DRS_SRCBLENDALPHA,D3DBLEND_ONE);
+    device_->SetRenderState(D3DRS_DESTBLENDALPHA,D3DBLEND_INVSRCALPHA);
+    device_->SetRenderState(D3DRS_BLENDOPALPHA,D3DBLENDOP_ADD);
+    for(int i=0;i<4;++i)device_->SetRenderState(D3DRENDERSTATETYPE(D3DRS_WRAP0+i),0);
     device_->SetRenderState(D3DRS_SRCBLEND,D3DBLEND_SRCALPHA);
     device_->SetRenderState(D3DRS_DESTBLEND,D3DBLEND_INVSRCALPHA);
     device_->SetRenderState(D3DRS_BLENDOP,D3DBLENDOP_ADD);

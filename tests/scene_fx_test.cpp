@@ -265,7 +265,7 @@ int main(int argc, char **argv) {
     DWORD emitterStage1 = D3DTOP_DISABLE, emitterStage1Argument = D3DTA_CURRENT;
     bool surfaceFixture = false, surfaceGrass = false, atlasGrass = false, surfacePattern = false;
     unsigned surfaceTiles=1, surfaceUnknownTiles=0;
-    bool surfaceBuffered=true;
+    bool surfaceBuffered=true, surfaceBlend=false, surfaceBadNormals=false;
     bool surfaceVerticesReady=false, surfaceVerticesGrass=false;
     Com<IDirect3DVertexBuffer9> surfaceVertices;
     Com<IDirect3DTexture9> paving;
@@ -279,6 +279,13 @@ int main(int argc, char **argv) {
     Com<IDirect3DTexture9> unknownPaving;
     CHECK(SUCCEEDED(d->CreateTexture(2,2,1,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,unknownPaving.out(),nullptr)));
     DWORD unknownPavingTag=4;unknownPaving->SetPrivateData(EmitterTag,&unknownPavingTag,4,0);
+    Com<IDirect3DTexture9> surfaceCoverage;
+    CHECK(SUCCEEDED(d->CreateTexture(1,1,1,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,surfaceCoverage.out(),nullptr)));
+    auto setSurfaceCoverage=[&](BYTE alpha) {
+        D3DLOCKED_RECT coverage{};if(FAILED(surfaceCoverage->LockRect(0,&coverage,nullptr,0)))return false;
+        *(DWORD*)coverage.pBits=(DWORD(alpha)<<24)|0xffffff;surfaceCoverage->UnlockRect(0);return true;
+    };
+    CHECK(setSurfaceCoverage(255));
     struct Vertex {
         float x, y, z;
         DWORD color;
@@ -392,9 +399,19 @@ int main(int argc, char **argv) {
             if(surfaceFixture) {
                 struct PavingVertex {float x,y,z,nx,ny,nz,u,v,u1,v1;};
                 std::vector<PavingVertex> maskFloor;
-                for(const auto &v:floor)maskFloor.push_back({v.x,v.y,v.z,0,1,0,
+                for(const auto &v:floor)maskFloor.push_back({v.x,v.y,v.z,surfaceBadNormals && v.x>0?.3f:0.f,1,0,
                     atlasGrass?.9f:.3f,atlasGrass?.77f:.3f,0,0});
                 d->SetFVF(0x212); d->SetTexture(0,paving);
+                if(surfaceBlend) {
+                    d->SetRenderState(D3DRS_ALPHABLENDENABLE,TRUE);
+                    d->SetRenderState(D3DRS_SRCBLEND,D3DBLEND_SRCALPHA);
+                    d->SetRenderState(D3DRS_DESTBLEND,D3DBLEND_INVSRCALPHA);
+                    d->SetTexture(1,surfaceCoverage);
+                    d->SetTextureStageState(1,D3DTSS_ALPHAOP,D3DTOP_SELECTARG1);
+                    d->SetTextureStageState(1,D3DTSS_ALPHAARG1,D3DTA_TEXTURE);
+                    d->SetTextureStageState(1,D3DTSS_TEXCOORDINDEX,1);
+                    d->SetTextureStageState(1,D3DTSS_TEXTURETRANSFORMFLAGS,0);
+                }
                 if(surfaceBuffered) {
                     if(!surfaceVertices.p && FAILED(d->CreateVertexBuffer(UINT(maskFloor.size()*sizeof(PavingVertex)),
                         D3DUSAGE_WRITEONLY,0x212,D3DPOOL_MANAGED,surfaceVertices.out(),nullptr)))return false;
@@ -438,6 +455,10 @@ int main(int argc, char **argv) {
                     });
                     paving->SetPrivateData(EmitterTag,&pavingTag,4,0);
                     d->SetRenderState(D3DRS_ALPHABLENDENABLE,FALSE);
+                }
+                if(surfaceBlend) {
+                    d->SetRenderState(D3DRS_ALPHABLENDENABLE,FALSE);
+                    d->SetTexture(1,nullptr);d->SetTextureStageState(1,D3DTSS_ALPHAOP,D3DTOP_DISABLE);
                 }
                 d->SetFVF(D3DFVF_XYZ|D3DFVF_DIFFUSE);d->SetTexture(0,nullptr);
             }
@@ -918,6 +939,39 @@ int main(int argc, char **argv) {
         return maximum;
     };
     CHECK(maximumDelta(pavingOff,pavingOn)>10);
+    // Native terrain can first introduce paving with partial blend-map coverage.
+    // Coverage changes reflectance, never the receiver depth or the reflected silhouette.
+    surfaceBlend=true;
+    unsigned previousBlue=0;unsigned long long previousEnergy=0;
+    for(BYTE coverage:{BYTE(64),BYTE(128),BYTE(192),BYTE(255)}) {
+        CHECK(setSurfaceCoverage(coverage));CHECK(render());const auto partial=Read(d);
+        unsigned blue=0;unsigned long long energy=0;
+        for(UINT y=145;y<H;++y)for(UINT x=0;x<W;++x) {
+            const auto a=pavingOff[y*W+x],b=partial[y*W+x];
+            blue+=int(b&255)>int(a&255)+2 && int((a>>16)&255)>int((b>>16)&255)+1;
+            if(int(b&255)>int(a&255))energy+=int(b&255)-int(a&255);
+        }
+        printf("Blended paving coverage %u: reflected pixels=%u, energy=%llu\n",unsigned(coverage),blue,energy);
+        CHECK(blue>200 && blue>=previousBlue && energy>previousEnergy);previousBlue=blue;previousEnergy=energy;
+        CHECK(partial[12*W+12]==pavingOff[12*W+12]);
+        if(coverage==128)CHECK(Save(partial,L"build/surface-blended-paving.bmp"));
+        if(coverage==255) {
+            printf("Opaque/fully blended paving delta: %u\n",maximumDelta(partial,pavingOn));
+            CHECK(maximumDelta(partial,pavingOn)<=(pp.MultiSampleType?32u:1u));
+        }
+    }
+    surfaceBlend=false;
+    // Smoothed artist normals must not cut holes in an otherwise flat paving triangle.
+    surfaceBuffered=false;surfaceBadNormals=true;CHECK(render());
+    CHECK(maximumDelta(pavingOn,Read(d))<=(pp.MultiSampleType?16u:1u));surfaceBadNormals=false;
+    sceneOffset={7000,100,3300};CHECK(render());const auto offsetStone=Read(d);
+    unsigned offsetBlue=0;
+    for(UINT y=145;y<H;++y)for(UINT x=0;x<W;++x) {
+        const auto a=pavingOff[y*W+x],b=offsetStone[y*W+x];
+        offsetBlue+=int(b&255)>int(a&255)+4 && int((a>>16)&255)>int((b>>16)&255)+2;
+    }
+    CHECK(offsetBlue>reflectedBlue*9/10);
+    sceneOffset={};
     surfaceBuffered=false;CHECK(render());
     CHECK(maximumDelta(pavingOn,Read(d))<=(pp.MultiSampleType?16u:1u));
     surfaceBuffered=true;

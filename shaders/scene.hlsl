@@ -470,17 +470,21 @@ float4 FXAA(float2 uv:TEXCOORD0):COLOR0 {
 }
 
 struct SurfaceInput {float3 position:POSITION;float3 normal:NORMAL;float2 uv:TEXCOORD0;float2 blendUV:TEXCOORD1;};
-struct SurfaceOutput {float4 position:POSITION;float2 blendUV:TEXCOORD0;float depth:TEXCOORD1;float3 normal:TEXCOORD2;float2 materialUV:TEXCOORD3;};
+struct SurfaceOutput {float4 position:POSITION;float2 blendUV:TEXCOORD0;float depth:TEXCOORD1;float3 world:TEXCOORD2;float2 materialUV:TEXCOORD3;};
 SurfaceOutput SurfaceVS(SurfaceInput i) {
  SurfaceOutput o;
  float4 p=mul(float4(i.position,1),SkyWorld);
  float4 v=mul(p,SkyView);
  o.position=mul(v,SkyProjection); o.depth=v.z;
- o.normal=mul(i.normal,(float3x3)SkyWorld); o.blendUV=i.blendUV;o.materialUV=i.uv;
+ // Interpolate camera-relative coordinates so large map offsets cannot quantize
+ // derivatives into blocky or zero-length plane normals near the camera.
+ o.world=mul(v.xyz,transpose((float3x3)SkyView)); o.blendUV=i.blendUV;o.materialUV=i.uv;
  return o;
 }
-float4 SurfaceMaskPS(float2 blendUV:TEXCOORD0,float depth:TEXCOORD1,float3 normal:TEXCOORD2,float2 materialUV:TEXCOORD3):COLOR0 {
- clip(normalize(normal).y-.995); // Only near-horizontal paving, not walls or sloped terrain.
+float4 SurfaceMaskPS(float2 blendUV:TEXCOORD0,float depth:TEXCOORD1,float3 world:TEXCOORD2,float2 materialUV:TEXCOORD3):COLOR0 {
+ // Authored smooth normals can cross the ground cutoff inside a flat triangle.
+ // Classify its actual plane instead; walls and slopes remain excluded.
+ clip(abs(normalize(cross(ddx(world),ddy(world))).y)-.995);
  // This verified plaza atlas also contains a planter's grass patch. Its material
  // response must follow the sampled atlas region rather than the entire texture.
  if(Camera.w>.5 && materialUV.x>.805 && materialUV.y>.69 && materialUV.y<.86)clip(-1);
@@ -499,7 +503,10 @@ float4 SurfaceReflectionPS(float2 uv:TEXCOORD0):COLOR0 {
  float4 base=tex2D(Image,uv),material=tex2Dlod(AO,float4(DepthUV(uv),0,0));
  float raw=RawDepth(uv),z=Z(uv);
  // The replay records receiver depth. Later characters, water and props cannot inherit it.
- if(material.r<.001 || raw>=.999999)return base;
+ if(material.r<.001 || material.a<.0001 || raw>=.999999)return base;
+ // RGB stores alpha-weighted terrain layers; alpha stores their accumulated coverage.
+ // Normalize depth/roughness, while reflectance must retain its native blend coverage.
+ material.gb/=material.a;
  float2 dx=float2(Texel.x,0),dy=float2(0,Texel.y);
  // A copied MSAA depth sample lies within the pixel, while the non-MSAA replay samples
  // its center. Admit that subpixel slope difference, never an arbitrary foreground depth.
