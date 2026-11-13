@@ -510,6 +510,61 @@ void ProfilePicker(Runtime &r, float width) {
     }
     ImGui::PopStyleVar(2);
 }
+void WaterReflectionControls(Runtime &runtime) {
+    auto &s=runtime.settings;
+    const Settings defaults;
+    bool reset=false,always=true;
+    auto comboRow=[&](UiText title,const char *id,int &value,const char *const *names,int count) {
+        auto p=ImGui::GetCursorScreenPos();float width=ImGui::GetContentRegionAvail().x;
+        TextAt(ImGui::GetWindowDrawList(),{p.x,p.y+5},Tr(title));
+        ImGui::SetCursorScreenPos({p.x+146,p.y+2});ImGui::SetNextItemWidth(width-171);
+        bool changed=Combo(id,&value,names,count);
+        ImGui::SetCursorScreenPos(p);ImGui::Dummy({width,RowHeight});return changed;
+    };
+    if(Section("water-reflection-method",Tr(UiText::WaterReflections),always,reset,false)) {
+        if(reset)s.resetWaterReflections();
+        ImGui::BeginDisabled(!s.water || !s.enabled);
+        int method=s.waterReflectionMethod<0?(s.waterSSRQuality?2:1):s.waterReflectionMethod;
+        const char *methods[]={Tr(UiText::ReflectionSkyOnly),Tr(UiText::ReflectionPerformance),Tr(UiText::ReflectionQuality)};
+        if(comboRow(UiText::ReflectionMethod,"##waterReflectionMethod",method,methods,3)) {
+            s.waterReflectionMethod=method;s.waterSSRQuality=method==2;s.waterRaySteps=0;
+        }
+        Row(UiText::SkyReflection,Tr(UiText::SkyReflectionHelp),s.waterSky,0,1,defaults.waterSky,"%.2f",.05f);
+        ImGui::BeginDisabled(method==0);
+        Row(UiText::WorldReflections,Tr(UiText::WorldReflectionsHelp),s.waterSSR,0,1,defaults.waterSSR,"%.2f",.05f);
+        int resolution=s.waterReflectionResolution==50?0:s.waterReflectionResolution==75?1:2;
+        const char *resolutions[]={"50%","75%","100%"};
+        if(comboRow(UiText::ReflectionResolution,"##waterReflectionResolution",resolution,resolutions,3))
+            s.waterReflectionResolution=resolution==0?50:resolution==1?75:100;
+        ImGui::EndDisabled();ImGui::EndDisabled();
+    } else if(reset)s.resetWaterReflections();
+    const bool traceOpen=Section("water-reflection-trace",Tr(UiText::ReflectionTrace),always,reset,false,false);
+        if(reset) {
+            s.waterRaySteps=0;s.waterRefinementSteps=defaults.waterRefinementSteps;
+            s.waterTraceDistance=defaults.waterTraceDistance;s.waterTraceBias=defaults.waterTraceBias;
+            s.waterTraceThickness=defaults.waterTraceThickness;s.waterReflectionConfidence=defaults.waterReflectionConfidence;
+            s.waterSoftFallback=defaults.waterSoftFallback;
+        }
+    if(traceOpen) {
+        ImGui::BeginDisabled(!s.water || !s.enabled || s.waterReflectionMethod==0);
+        const float automatic=(s.waterReflectionMethod<0?s.waterSSRQuality!=0:s.waterReflectionMethod==2)?48.f:24.f;
+        float steps=s.waterRaySteps?float(s.waterRaySteps):automatic,before=steps;
+        Row(UiText::ReflectionSteps,Tr(UiText::ReflectionStepsHelp),steps,8,64,automatic,"%.0f",1);
+        if(steps!=before)s.waterRaySteps=int(std::round(steps));
+        float refinements=float(s.waterRefinementSteps);
+        Row(UiText::ReflectionRefinements,Tr(UiText::ReflectionRefinementsHelp),refinements,4,16,12,"%.0f",1);
+        s.waterRefinementSteps=int(std::round(refinements));
+        Row(UiText::Distance,Tr(UiText::ReflectionDistanceHelp),s.waterTraceDistance,16,512,defaults.waterTraceDistance,"%.0f",16);
+        Row(UiText::ReflectionBias,Tr(UiText::ReflectionBiasHelp),s.waterTraceBias,.01f,.5f,defaults.waterTraceBias,"%.3f",.01f);
+        Row(UiText::ReflectionThickness,Tr(UiText::ReflectionThicknessHelp),s.waterTraceThickness,.5f,3,defaults.waterTraceThickness,"%.2f",.05f);
+        Row(UiText::ReflectionConfidence,Tr(UiText::ReflectionConfidenceHelp),s.waterReflectionConfidence,0,.75f,defaults.waterReflectionConfidence,"%.2f",.05f);
+        auto p=ImGui::GetCursorScreenPos();float width=ImGui::GetContentRegionAvail().x;
+        TextAt(ImGui::GetWindowDrawList(),{p.x,p.y+5},Tr(UiText::ReflectionSoftFallback));
+        ImGui::SetCursorScreenPos({p.x+width-38,p.y+4});SquareSwitch("water-soft-fallback",s.waterSoftFallback);
+        ImGui::SetCursorScreenPos(p);ImGui::Dummy({width,RowHeight});
+        ImGui::EndDisabled();
+    }
+}
 void SceneControls(Runtime &runtime) {
     auto &s = runtime.settings;
     auto status = runtime.sceneStatus();
@@ -891,7 +946,7 @@ void DrawPanel(Runtime &r, const PanelBranding &branding) {
         const float w = ImGui::CalcTextSize(label).x+20;
         ImGui::SetCursorPos({tabX,7});
         if (ImGui::InvisibleButton(i ? "world-tab" : "image-tab",{w,32},ImGuiButtonFlags_EnableNav)) r.editorPage=i?4:0;
-        const bool selected = i ? r.editorPage==4 : r.editorPage<4;
+        const bool selected = i ? r.editorPage==4 : r.editorPage<4 || r.editorPage==6;
         if (ImGui::IsItemHovered()) d->AddRectFilled({origin.x+tabX,origin.y+7},{origin.x+tabX+w,origin.y+39},Raised,2);
         TextAt(d,{origin.x+tabX+10,origin.y+15},label,selected?Lavender:Muted,13);
         if(selected) d->AddRectFilled({origin.x+tabX+10,origin.y+37},{origin.x+tabX+w-10,origin.y+39},Accent,1);
@@ -1061,6 +1116,11 @@ void DrawPanel(Runtime &r, const PanelBranding &branding) {
         draw->AddLine({back.x + 6, back.y + 13}, {back.x + 10, back.y + 17}, Muted);
         ImGui::SetCursorScreenPos(back);
         ImGui::Dummy({280, 34});
+        const auto reflectionLink=ImGui::GetCursorScreenPos();
+        const float reflectionWidth=ImGui::GetContentRegionAvail().x;
+        if(ImGui::InvisibleButton("water-reflections",{reflectionWidth,30},ImGuiButtonFlags_EnableNav))r.editorPage=6;
+        TextAt(draw,{reflectionLink.x+12,reflectionLink.y+7},Tr(UiText::WaterReflections),Text,13);
+        TextAt(draw,{reflectionLink.x+reflectionWidth-44,reflectionLink.y+7},"→",Muted);
         bool expanded = Section("waterMotion", Tr(UiText::Surface), s.water, reset);
         if (reset)
             s.resetWaterSurface();
@@ -1104,18 +1164,9 @@ void DrawPanel(Runtime &r, const PanelBranding &branding) {
                 "%.2f", .05f);
             Row(UiText::ShoreTransition, Tr(UiText::ShoreTransitionHelp), s.waterShore, .05f, 3,
                 defaults.waterShore, "%.2f", .05f);
-            Row(UiText::WorldReflections, Tr(UiText::WorldReflectionsHelp), s.waterSSR, 0, 1,
-                defaults.waterSSR, "%.2f", .05f);
             auto p = ImGui::GetCursorScreenPos();
             float width = ImGui::GetContentRegionAvail().x;
-            TextAt(ImGui::GetWindowDrawList(), {p.x, p.y + 5}, Tr(UiText::SSRQuality));
-            ImGui::SetCursorScreenPos({p.x + 146, p.y + 2});
-            ImGui::SetNextItemWidth(width - 171);
             const char *qualities[] = {Tr(UiText::Economical), Tr(UiText::Detailed)};
-            Combo("##waterSSRQuality", &s.waterSSRQuality, qualities, 2);
-            Tip(Tr(UiText::SSRQualityHelp));
-            ImGui::SetCursorScreenPos(p);
-            ImGui::Dummy({width, RowHeight});
             Row(UiText::Caustics, Tr(UiText::CausticsHelp), s.waterCaustics, 0, 2, defaults.waterCaustics,
                 "%.2f", .05f);
             Row(UiText::Dispersion, Tr(UiText::DispersionHelp), s.waterDispersion, 0, 1,
@@ -1138,6 +1189,16 @@ void DrawPanel(Runtime &r, const PanelBranding &branding) {
             r.editorPage = 0;
         ImGui::Dummy({0, 8});
         SceneControls(r);
+    }
+    if (r.editorPage == 6) {
+        const auto back=ImGui::GetCursorScreenPos();
+        auto *draw=ImGui::GetWindowDrawList();
+        if(ImGui::InvisibleButton("back",{86,26},ImGuiButtonFlags_EnableNav))r.editorPage=1;
+        TextAt(draw,{back.x+20,back.y+6},Tr(UiText::Back),ImGui::IsItemHovered()?Text:Muted,14);
+        draw->AddLine({back.x+10,back.y+9},{back.x+6,back.y+13},Muted);
+        draw->AddLine({back.x+6,back.y+13},{back.x+10,back.y+17},Muted);
+        ImGui::SetCursorScreenPos(back);ImGui::Dummy({280,34});
+        WaterReflectionControls(r);
     }
     if (r.editorPage == 3) {
         if (ImGui::Button(Label(UiText::BackButton).c_str()))

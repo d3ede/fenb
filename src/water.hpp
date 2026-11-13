@@ -31,8 +31,13 @@ class WaterFX {
     Com<IDirect3DVertexShader9> vs_;
     Com<IDirect3DPixelShader9> ps_;
     Com<IDirect3DPixelShader9> reflectionPS_;
+    Com<IDirect3DPixelShader9> reflectionColorPS_;
+    Com<IDirect3DTexture9> reflectionHits_;
+    Com<IDirect3DSurface9> reflectionHitSurface_;
     Com<IDirect3DTexture9> reflection_;
     Com<IDirect3DSurface9> reflectionSurface_;
+    UINT reflectionWidth_ = 0, reflectionHeight_ = 0;
+    bool reflectionSoft_ = true;
     bool traceReady_ = false, reflectionCleared_ = false;
     Com<IDirect3DTexture9> normals_;
     size_t normalBytes_ = 0;
@@ -93,12 +98,15 @@ class WaterFX {
         if (!refraction) {
             reflectionSurface_.out();
             reflection_.out();
+            reflectionHitSurface_.out(); reflectionHits_.out();
             sceneSurface_.out();
             scene_.out();
         }
     }
     size_t bytes() const {
-        return ((scene_.p ? 1 : 0) + (reflection_.p ? 1 : 0)) * size_t(sceneWidth_) * sceneHeight_ * 4 +
+        return (scene_.p ? size_t(sceneWidth_) * sceneHeight_ * 4 : 0) +
+               (reflection_.p ? size_t(reflectionWidth_) * reflectionHeight_ * 4 : 0) +
+               (reflectionHits_.p ? size_t(reflectionWidth_) * reflectionHeight_ * 8 : 0) +
                (environment_.p ? 128 * 128 * 4 * 6 : 0) + depth_.bytes() + normalBytes_ +
                (caustics_.p ? size_t(causticWidth_) * causticHeight_ * 4 : 0);
     }

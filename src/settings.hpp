@@ -22,6 +22,11 @@ struct Settings {
     float waterRefraction = .35f, waterTexture = .05f;
     float waterDepth = 1.f, waterShore = .6f, waterSSR = .65f;
     int waterSSRQuality = 0;
+    int waterReflectionMethod = -1, waterReflectionResolution = 100, waterRaySteps = 0;
+    int waterRefinementSteps = 12;
+    float waterTraceDistance = 512.f, waterTraceBias = .06f, waterTraceThickness = 1.f;
+    float waterReflectionConfidence = 0.f;
+    bool waterSoftFallback = true;
     float waterCaustics = 0.f, waterDispersion = .15f;
     int waterCausticScale = 4;
 #define SCENE_BOOL(g, m, k, d) bool m = d;
@@ -56,4 +61,5 @@ struct Settings {
     void resetWater();
     void resetWaterSurface();
     void resetWaterScene();
+    void resetWaterReflections();
 };

@@ -23,6 +23,8 @@ float4 Trace : register(c17); // steps, world-distance budget, normal map, scale
 float4 BodyAmbient : register(c18);
 float4 BodyDiffuse : register(c19);
 float4 Subsurface : register(c20);
+float4 ReflectionControl : register(c21); // ray start, depth tolerance, confidence floor, refinements
+float4 ReflectionTarget : register(c22); // inverse trace dimensions
 
 float DepthZ(float2 uv) {
     float z=tex2Dlod(SceneDepth,float4(uv,0,0)).r;
@@ -51,6 +53,9 @@ float4 WaterPS(float2 uv:TEXCOORD0,float3 relative:TEXCOORD1,float3 normal:TEXCO
     float surface=smoothstep(.45,.85,geometric.y);
     float3 planeNormal=mul(float4(geometric,0),View).xyz;
     float4 worldReflection=Optics.w>0?tex2Dlod(SceneReflection,float4((pixel+.5)*Screen.xy,0,0)):0;
+    // The reflection target stores premultiplied radiance. Linear reconstruction can fade
+    // unsupported hits into sky without interpolating black into otherwise valid colors.
+    worldReflection.rgb/=max(.0001,worldReflection.a);
     // Crossed, domain-warped wave bands break the old regular horizontal comb.
     float firstLOD=clamp(log2(max(1,footprint*128*.109)),0,7);
     float2 first=tex2Dlod(WaterNormals,float4(p*.065+t*float2(.011,.007),0,firstLOD)).rg*2-1;

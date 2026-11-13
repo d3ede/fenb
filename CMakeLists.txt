@@ -34,9 +34,10 @@ foreach(stage IN ITEMS vs ps)
     COMMAND shaderc "${CMAKE_CURRENT_SOURCE_DIR}/shaders/water_${stage}.hlsl" "${CMAKE_CURRENT_BINARY_DIR}/generated/water_${stage}.hpp" "Water${entry_suffix}" "${stage}_3_0"
     DEPENDS shaderc "shaders/water_${stage}.hlsl")
 endforeach()
-add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/generated/reflection_ps.hpp"
+add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/generated/reflection_ps.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/reflection_color_ps.hpp"
   COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/generated"
   COMMAND shaderc "${CMAKE_CURRENT_SOURCE_DIR}/shaders/reflection_ps.hlsl" "${CMAKE_CURRENT_BINARY_DIR}/generated/reflection_ps.hpp" ReflectionPS ps_3_0
+  COMMAND shaderc "${CMAKE_CURRENT_SOURCE_DIR}/shaders/reflection_ps.hlsl" "${CMAKE_CURRENT_BINARY_DIR}/generated/reflection_color_ps.hpp" ReflectionColorPS ps_3_0
   DEPENDS shaderc shaders/reflection_ps.hlsl shaders/water_ps.hlsl)
 add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/generated/caustics.hpp"
   COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/generated"
@@ -49,7 +50,7 @@ add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/generated/scene_shaders.h
   DEPENDS shaderc shaders/scene.hlsl shaders/smaa.hlsl vendor/smaa/SMAA.hlsl)
 add_library(d3d9 SHARED src/exports.cpp src/generated/exports.cpp src/proxy.cpp src/generated/proxies.cpp
   src/settings.cpp src/runtime.cpp src/effects.cpp src/water.cpp src/scene_fx.cpp src/fps_limiter.cpp src/environment.cpp src/ui.cpp
-  "${CMAKE_CURRENT_BINARY_DIR}/generated/shaders.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/reflection_ps.hpp"
+  "${CMAKE_CURRENT_BINARY_DIR}/generated/shaders.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/reflection_ps.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/reflection_color_ps.hpp"
   "${CMAKE_CURRENT_BINARY_DIR}/generated/water_vs.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/water_ps.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/caustics.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/scene_shaders.hpp"
   "${IMGUI}/imgui.cpp" "${IMGUI}/imgui_draw.cpp" "${IMGUI}/imgui_tables.cpp" "${IMGUI}/imgui_widgets.cpp"
   "${IMGUI}/backends/imgui_impl_dx9.cpp" "${IMGUI}/backends/imgui_impl_win32.cpp")
@@ -96,7 +97,7 @@ if(BUILD_TESTING)
   if(FENB_DIAGNOSTICS)
     add_executable(water-capture-test tests/water_capture_test.cpp src/pipeline_probe.cpp src/water.cpp src/scene_fx.cpp
       "${CMAKE_CURRENT_BINARY_DIR}/generated/probe_depth.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/probe_vertices_vs.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/probe_vertices_ps.hpp"
-      "${CMAKE_CURRENT_BINARY_DIR}/generated/reflection_ps.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/water_vs.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/water_ps.hpp"
+      "${CMAKE_CURRENT_BINARY_DIR}/generated/reflection_ps.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/reflection_color_ps.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/water_vs.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/water_ps.hpp"
       "${CMAKE_CURRENT_BINARY_DIR}/generated/scene_shaders.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/caustics.hpp")
     target_include_directories(water-capture-test PRIVATE "${CMAKE_CURRENT_BINARY_DIR}" src)
     target_compile_definitions(water-capture-test PRIVATE FENB_DIAGNOSTICS)
@@ -135,7 +136,7 @@ if(BUILD_TESTING)
   endif()
   add_test(NAME sfx-material COMMAND sfx-test WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
   add_executable(water-test tests/water_test.cpp src/water.cpp src/scene_fx.cpp
-    "${CMAKE_CURRENT_BINARY_DIR}/generated/reflection_ps.hpp"
+    "${CMAKE_CURRENT_BINARY_DIR}/generated/reflection_ps.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/reflection_color_ps.hpp"
     "${CMAKE_CURRENT_BINARY_DIR}/generated/water_vs.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/water_ps.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/caustics.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/scene_shaders.hpp")
   target_include_directories(water-test PRIVATE "${CMAKE_CURRENT_BINARY_DIR}" src)
   target_link_libraries(water-test PRIVATE dxguid bcrypt)
@@ -148,7 +149,7 @@ if(BUILD_TESTING)
   add_test(NAME water-material COMMAND water-test WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
   add_test(NAME water-material-msaa COMMAND water-test --msaa WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
   add_executable(water-scene-test tests/water_scene_test.cpp src/water.cpp src/scene_fx.cpp
-    "${CMAKE_CURRENT_BINARY_DIR}/generated/reflection_ps.hpp"
+    "${CMAKE_CURRENT_BINARY_DIR}/generated/reflection_ps.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/reflection_color_ps.hpp"
     "${CMAKE_CURRENT_BINARY_DIR}/generated/water_vs.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/water_ps.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/caustics.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/scene_shaders.hpp")
   target_include_directories(water-scene-test PRIVATE "${CMAKE_CURRENT_BINARY_DIR}" src)
   target_link_libraries(water-scene-test PRIVATE dxguid bcrypt)
@@ -219,7 +220,7 @@ if(BUILD_TESTING)
     "${IMGUI}/imgui.cpp" "${IMGUI}/imgui_draw.cpp" "${IMGUI}/imgui_tables.cpp" "${IMGUI}/imgui_widgets.cpp"
     "${IMGUI}/backends/imgui_impl_dx9.cpp" "${IMGUI}/backends/imgui_impl_win32.cpp")
   target_sources(runtime-test PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated/water_vs.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/water_ps.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/caustics.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/scene_shaders.hpp")
-  target_sources(runtime-test PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated/reflection_ps.hpp")
+  target_sources(runtime-test PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated/reflection_ps.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/reflection_color_ps.hpp")
   target_sources(runtime-test PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated/sfx_shaders.hpp")
   target_sources(runtime-test PRIVATE src/updater.cpp)
   target_compile_definitions(runtime-test PRIVATE FENB_UPDATER_OFFLINE_TESTS)

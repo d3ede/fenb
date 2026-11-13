@@ -201,6 +201,8 @@ int main() {
     click(610,228);CHECK(r.settings.exposure==0 && r.settings.waterOpacity==.7f);
     // Navigation preserves all WaterFX, atmosphere and AA controls.
     activate(child(),"water-settings");CHECK(r.editorPage==1);
+    activate(child(),"water-reflections");CHECK(r.editorPage==6);
+    activate(child(),"back");CHECK(r.editorPage==1);
     activate(child(),"back");CHECK(r.editorPage==0);
     activate(child(),"scene-settings");CHECK(r.editorPage==2);
     r.editorPage=0;frame();
@@ -256,17 +258,26 @@ int main() {
     CHECK(!expanded("grade") && !expanded("bloom"));
     // Render every production page and each expanded atmosphere section in both languages.
     CreateDirectoryW(L"build/ui-integrated",nullptr);
+    r.settings.water=true;
     io.AddMousePosEvent(-FLT_MAX,-FLT_MAX);frame();
     for(int language=0;language<2;++language) {
         r.settings.language=language?Language::Russian:Language::English;
         activate(panel,"menu");
         CHECK(Screenshot(d,language?L"build/ui-integrated/ru-actions.png":L"build/ui-integrated/en-actions.png"));
         ImGui::ClosePopupToLevel(0,true);frame();
-        for(int page=0;page<6;++page) {
+        for(int page=0;page<7;++page) {
             r.editorPage=page;ImGui::SetScrollY(child(),0);frame();frame();
             auto path=std::wstring(L"build/ui-integrated/")+(language?L"ru-":L"en-")+std::to_wstring(page)+L".png";
             CHECK(Screenshot(d,path.c_str()));
         }
+        r.editorPage=6;
+        auto *reflectionWindow=child();
+        reflectionWindow->StateStorage.SetBool(ImHashStr("expanded",0,reflectionWindow->GetID("water-reflection-method")),false);
+        reflectionWindow->StateStorage.SetBool(ImHashStr("expanded",0,reflectionWindow->GetID("water-reflection-trace")),true);
+        ImGui::SetScrollY(reflectionWindow,0);frame();frame();
+        CHECK(Screenshot(d,language?L"build/ui-integrated/ru-reflection-trace.png":L"build/ui-integrated/en-reflection-trace.png"));
+        reflectionWindow->StateStorage.SetBool(ImHashStr("expanded",0,reflectionWindow->GetID("water-reflection-method")),true);
+        reflectionWindow->StateStorage.SetBool(ImHashStr("expanded",0,reflectionWindow->GetID("water-reflection-trace")),false);
         r.editorPage=2;frame();
         for(const char *section:{"ssao","rays","sky","fog","dof","adaptation","lighting-balance","foliage","lighting","surface-reflections","sfx"}) {
             auto *w=child();

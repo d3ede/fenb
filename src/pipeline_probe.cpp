@@ -201,12 +201,17 @@ void PipelineProbe::water(WaterFX& water){
       case D3DPT_TRIANGLESTRIP:case D3DPT_TRIANGLEFAN:if(lastPrimitives_>65534)return;count=lastPrimitives_+2;break;default:return;}
     if(!count)return;
     auto prefix="water-"+std::to_string(waterDraws_++);
-    float vs[18*4]{},ps[21*4]{};D3DVIEWPORT9 viewport{};
-    if(FAILED(device_->GetVertexShaderConstantF(0,vs,18))||FAILED(device_->GetPixelShaderConstantF(0,ps,21))||FAILED(device_->GetViewport(&viewport)))return;
+    float vs[18*4]{},ps[23*4]{};D3DVIEWPORT9 viewport{};
+    if(FAILED(device_->GetVertexShaderConstantF(0,vs,18))||FAILED(device_->GetPixelShaderConstantF(0,ps,23))||FAILED(device_->GetViewport(&viewport)))return;
     bool mesh=readVertices(prefix+"-positions.fp32",count);
     bool constants=addBlob(prefix+"-vs.fp32",vs,sizeof(vs))&&addBlob(prefix+"-ps.fp32",ps,sizeof(ps));
+    Com<IDirect3DSurface9> nativeDepth;D3DSURFACE_DESC depthDescription{};
+    if(SUCCEEDED(device_->GetDepthStencilSurface(nativeDepth.out())) && nativeDepth.p)
+        nativeDepth->GetDesc(&depthDescription);
     std::ostringstream out;out<<"{\"kind\":\"water-replay\",\"prefix\":\""<<prefix<<"\",\"draw\":"<<draws_<<",\"type\":"<<lastType_<<",\"primitives\":"<<lastPrimitives_
-       <<",\"vertices\":"<<count<<",\"mesh\":"<<(mesh?"true":"false")<<",\"constants\":"<<(constants?"true":"false")<<",\"viewport\":["<<viewport.X<<','<<viewport.Y<<','<<viewport.Width<<','<<viewport.Height<<','<<viewport.MinZ<<','<<viewport.MaxZ<<"]}\n";
+       <<",\"vertices\":"<<count<<",\"mesh\":"<<(mesh?"true":"false")<<",\"constants\":"<<(constants?"true":"false")
+       <<",\"pixelConstants\":23,\"reflectionEncoding\":\"premultiplied-rgba\",\"nativeDepthFormat\":"<<DWORD(depthDescription.Format)
+       <<",\"viewport\":["<<viewport.X<<','<<viewport.Y<<','<<viewport.Width<<','<<viewport.Height<<','<<viewport.MinZ<<','<<viewport.MaxZ<<"]}\n";
     lines_+=out.str();lastUP_=nullptr;
 }
 void PipelineProbe::waterEnd(WaterFX& water){

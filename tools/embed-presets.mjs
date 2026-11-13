@@ -6,7 +6,9 @@ for (const [,type,key,member] of read('src/settings.cpp').matchAll(/READ_(BOOL|F
   members.set(key, {member,type});
 for (const [,type,member,key] of read('src/scene_settings.inc').matchAll(/SCENE_(BOOL|FLOAT)\(\d+,\s*(\w+),\s*"([^"]+)"/g))
   members.set(key,{member,type});
-for (const [key,member] of Object.entries({bloom_scale:'bloomScale',water_ssr_quality:'waterSSRQuality',water_caustic_scale:'waterCausticScale'}))
+for (const [key,member] of Object.entries({bloom_scale:'bloomScale',water_ssr_quality:'waterSSRQuality',water_caustic_scale:'waterCausticScale',
+ water_reflection_method:'waterReflectionMethod',water_reflection_resolution:'waterReflectionResolution',
+ water_ray_steps:'waterRaySteps',water_refinement_steps:'waterRefinementSteps'}))
   members.set(key,{member,type:'INT'});
 const base = new Map();
 let section='';

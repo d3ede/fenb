@@ -33,6 +33,8 @@ if ($LASTEXITCODE) { throw 'Water VS compilation failed' }
 & '.\build\shaderc.exe' 'shaders/water_ps.hlsl' 'src/generated/water_ps.hpp' 'WaterPS' 'ps_3_0'
 if ($LASTEXITCODE) { throw 'Water PS compilation failed' }
 & '.\build\shaderc.exe' 'shaders/reflection_ps.hlsl' 'src/generated/reflection_ps.hpp' 'ReflectionPS' 'ps_3_0'
+if ($LASTEXITCODE) { throw 'Reflection trace compilation failed' }
+& '.\build\shaderc.exe' 'shaders/reflection_ps.hlsl' 'src/generated/reflection_color_ps.hpp' 'ReflectionColorPS' 'ps_3_0'
 if ($LASTEXITCODE) { throw 'Water reflection compilation failed' }
 & '.\build\shaderc.exe' 'shaders/caustics.hlsl' 'src/generated/caustics.hpp' 'CausticFieldPS' 'ps_3_0'
 if ($LASTEXITCODE) { throw 'Caustics compilation failed' }

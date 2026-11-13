@@ -31,7 +31,18 @@ struct WaterFXFixture {
         std::vector<DWORD> pixels(desc.Width * desc.Height);
         for (UINT y = 0; y < desc.Height; ++y)
             memcpy(pixels.data() + y * desc.Width, (BYTE *)data.pBits + y * data.Pitch, desc.Width * 4);
-        read->UnlockRect(); return pixels;
+        read->UnlockRect();
+        // The production target stores premultiplied radiance so bilinear filtering
+        // cannot introduce black seams. Compare physical source colors after decoding.
+        for (auto &pixel : pixels) {
+            unsigned alpha = pixel >> 24;
+            if (!alpha) continue;
+            DWORD decoded = pixel & 0xff000000;
+            for (unsigned shift : {0u, 8u, 16u})
+                decoded |= std::min<DWORD>(255, (((pixel >> shift) & 255) * 255 + alpha / 2) / alpha) << shift;
+            pixel = decoded;
+        }
+        return pixels;
     }
 };
 namespace {
@@ -554,6 +565,8 @@ int main(int argc, char **argv) {
                     float dx=std::max({left-hx,hx-left-.19f,0.f});
                     float dy=std::max({top-hy,hy-top-.19f,0.f});
                     float sourcePixel=(hx*view._13+12*view._33+hy*view._23+view._43)/(projection._11*Width*.5f);
+                    if (!(waterT>0 && reflectionT>0 && sourcePixel>0))
+                        printf("Invalid leaf ray pixel=%u,%u rgba=%08lx waterT=%f reflectionT=%f sourcePixel=%f\n",x,y,pixel,waterT,reflectionT,sourcePixel);
                     CHECK(waterT>0 && reflectionT>0 && sourcePixel>0);
                     maximumError=std::max(maximumError,std::hypot(dx,dy)/sourcePixel);
                 }
@@ -563,6 +576,26 @@ int main(int argc, char **argv) {
                 CHECK(Save(leaves,L"build/water-leaf-reflection.bmp"));
             }
             cutoutFoliage=false;bakedScene=false;view=savedView;
+            // Each exposed mode/resolution must change the actual GPU allocation,
+            // keep visible mirror content, and release both targets in Sky Only.
+            settings.waterReflectionMethod=0;
+            CHECK(render(-2,true,true));
+            CHECK(WaterFXFixture::reflection(water,d).empty());
+            for(int method:{1,2}) for(int resolution:{50,75,100}) {
+                settings.waterReflectionMethod=method;settings.waterReflectionResolution=resolution;
+                settings.waterRaySteps=method==1?24:64;settings.waterRefinementSteps=16;
+                settings.waterTraceDistance=256;settings.waterTraceThickness=1.1f;
+                settings.waterReflectionConfidence=.1f;
+                CHECK(render(-2,true,true));
+                const auto scaled=WaterFXFixture::reflection(water,d);
+                CHECK(scaled.size()==size_t(Width*resolution/100)*(Height*resolution/100));
+                unsigned reflected=0;for(auto pixel:scaled)reflected+=(pixel>>24)>30;
+                printf("Reflection controls: mode=%d resolution=%d hits=%u\n",method,resolution,reflected);
+                CHECK(reflected>100);
+            }
+            settings.waterReflectionMethod=-1;settings.waterReflectionResolution=100;
+            settings.waterRaySteps=0;settings.waterRefinementSteps=12;settings.waterTraceDistance=512;
+            settings.waterTraceThickness=1;settings.waterReflectionConfidence=0;
         }
         settings.waterSSR = 0;
         CHECK(render(-.02f, false, false));

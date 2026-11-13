@@ -34,6 +34,15 @@ inline void ApplyBuiltInVisuals(Settings &s, int index) {
     s.waterShore = 2.350000f;
     s.waterSSR = 1.000000f;
     s.waterSSRQuality = 1;
+    s.waterReflectionMethod = -1;
+    s.waterReflectionResolution = 100;
+    s.waterRaySteps = 0;
+    s.waterRefinementSteps = 12;
+    s.waterTraceDistance = 512.000000f;
+    s.waterTraceBias = 0.060000f;
+    s.waterTraceThickness = 1.000000f;
+    s.waterReflectionConfidence = 0.000000f;
+    s.waterSoftFallback = true;
     s.waterCaustics = 0.000000f;
     s.waterDispersion = 0.150000f;
     s.waterCausticScale = 2;

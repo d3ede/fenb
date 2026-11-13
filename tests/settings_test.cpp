@@ -125,6 +125,9 @@ int main() {
     s.waterShore = 1.1f;
     s.waterSSR = .9f;
     s.waterSSRQuality = 1;
+    s.waterReflectionMethod=2;s.waterReflectionResolution=75;s.waterRaySteps=56;
+    s.waterRefinementSteps=10;s.waterTraceDistance=320;s.waterTraceBias=.08f;
+    s.waterTraceThickness=1.2f;s.waterReflectionConfidence=.15f;s.waterSoftFallback=false;
     s.preciseWaterDepth = false;
     s.msaaSamples = 4;
     s.waterDepth = .8f;
@@ -180,6 +183,13 @@ int main() {
     CHECK(!loaded.water && loaded.waterWaves == s.waterWaves && loaded.waterGlints == s.waterGlints &&
           loaded.waterOpacity == s.waterOpacity);
     CHECK(loaded.waterRefraction == s.waterRefraction && loaded.waterTexture == s.waterTexture);
+    CHECK(loaded.waterReflectionMethod==2 && loaded.waterReflectionResolution==75 && loaded.waterRaySteps==56 &&
+          loaded.waterRefinementSteps==10 && loaded.waterTraceDistance==320 && loaded.waterTraceBias==.08f &&
+          loaded.waterTraceThickness==1.2f && loaded.waterReflectionConfidence==.15f && !loaded.waterSoftFallback);
+    loaded.resetWaterReflections();
+    CHECK(loaded.waterReflectionMethod==Settings{}.waterReflectionMethod && loaded.waterRaySteps==0 &&
+          loaded.waterReflectionResolution==100 && loaded.waterSoftFallback && loaded.waterDepth==.8f);
+    loaded.waterSSR=s.waterSSR;loaded.waterSSRQuality=s.waterSSRQuality;
     CHECK(loaded.waterDepth == s.waterDepth && loaded.waterShore == s.waterShore &&
           loaded.waterSSR == s.waterSSR && loaded.waterSSRQuality == 1);
     loaded.resetWaterSurface();
@@ -201,6 +211,14 @@ int main() {
           loaded.waterTexture == Settings{}.waterTexture);
     CHECK(loaded.exposure == 0 && loaded.gamma == .5f && loaded.bloomScale == 4 && loaded.saturation == 2);
     CHECK(loaded.waterLength == 1 && loaded.waterWaves == .15f && loaded.waterOpacity == .55f);
+    CHECK(loaded.waterReflectionMethod==-1 && loaded.waterRaySteps==0 && loaded.waterReflectionResolution==100);
+    loaded.waterReflectionMethod=99;loaded.waterReflectionResolution=60;loaded.waterRaySteps=999;
+    loaded.waterRefinementSteps=-10;loaded.waterTraceDistance=-1;loaded.waterTraceBias=5;
+    loaded.waterTraceThickness=0;loaded.waterReflectionConfidence=1;
+    loaded.sanitize();
+    CHECK(loaded.waterReflectionMethod==2 && loaded.waterReflectionResolution==100 && loaded.waterRaySteps==64 &&
+          loaded.waterRefinementSteps==4 && loaded.waterTraceDistance==16 && loaded.waterTraceBias==.5f &&
+          loaded.waterTraceThickness==.5f && loaded.waterReflectionConfidence==.75f);
     CHECK(!loaded.save(L"build\\missing-directory\\config.ini"));
     Settings before = loaded;
     CHECK(!loaded.load(L"build\\missing-file.ini"));

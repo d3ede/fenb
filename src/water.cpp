@@ -4,6 +4,7 @@
 #include <generated/water_vs.hpp>
 #include <generated/water_ps.hpp>
 #include <generated/reflection_ps.hpp>
+#include <generated/reflection_color_ps.hpp>
 #include <generated/caustics.hpp>
 #include <cstring>
 
@@ -19,6 +20,7 @@ void WaterFX::invalidate() {
     reflectionPS_.out();
     reflectionSurface_.out();
     reflection_.out();
+    reflectionHitSurface_.out(); reflectionHits_.out(); reflectionColorPS_.out();
     normals_.out();
     normalBytes_ = 0;
     normalFailed_ = false;
@@ -416,7 +418,9 @@ bool WaterFX::begin(const Settings &s, UINT upStride) {
     float waves[] = {s.waterWaves, s.waterLength, s.waterSpeed, rangeFog ? 1.f : 0.f};
     float surface[] = {s.waterRipples, s.waterRippleScale, s.waterOpacity, s.waterSky};
     float sun[] = {s.waterGlints, s.waterGloss, s.waterTint, s.waterSpeed};
-    bool needScene = s.waterRefraction > 0 || s.waterDepth > 0 || s.waterSSR > 0 || s.waterCaustics > 0;
+    const float worldSSR = s.waterReflectionMethod == 0 ? 0.f : s.waterSSR;
+    reflectionSoft_ = s.waterSoftFallback;
+    bool needScene = s.waterRefraction > 0 || s.waterDepth > 0 || worldSSR > 0 || s.waterCaustics > 0;
     bool refract = needScene && captureScene();
     if (!needScene && scene_.p) {
         sceneSurface_.out();
@@ -431,29 +435,42 @@ bool WaterFX::begin(const Settings &s, UINT upStride) {
     bool perspective = std::abs(projection._34 - 1) < .001f && std::abs(projection._44) < .001f &&
                        std::abs(projection._31) + std::abs(projection._32) < .001f && projection._11 > 0 &&
                        projection._22 > 0;
-    bool depth = refract && perspective && (s.waterDepth > 0 || s.waterSSR > 0 || s.waterCaustics > 0) &&
+    bool depth = refract && perspective && (s.waterDepth > 0 || worldSSR > 0 || s.waterCaustics > 0) &&
                  depth_.capture(sceneWidth_, sceneHeight_);
     // Shore softness describes the thin contact edge, not a multi-unit band without a surface.
-    float optics[] = {depth ? 1.f : 0.f, s.waterDepth, s.waterShore * .1f, s.waterSSR};
-    traceReady_ = depth && s.waterSSR > 0;
+    float optics[] = {depth ? 1.f : 0.f, s.waterDepth, s.waterShore * .1f, worldSSR};
+    traceReady_ = depth && worldSSR > 0;
+    reflectionWidth_ = std::max(1u, sceneWidth_ * UINT(s.waterReflectionResolution) / 100);
+    reflectionHeight_ = std::max(1u, sceneHeight_ * UINT(s.waterReflectionResolution) / 100);
     if (!traceReady_) {
         reflectionSurface_.out();
         reflection_.out();
+        reflectionHitSurface_.out(); reflectionHits_.out();
     } else {
         D3DSURFACE_DESC reflectionDesc{};
         if (reflection_.p &&
             (!reflectionSurface_.p || FAILED(reflection_->GetLevelDesc(0, &reflectionDesc)) ||
-             reflectionDesc.Width != sceneWidth_ || reflectionDesc.Height != sceneHeight_)) {
+             reflectionDesc.Width != reflectionWidth_ || reflectionDesc.Height != reflectionHeight_)) {
             reflectionSurface_.out();
             reflection_.out();
+            reflectionHitSurface_.out(); reflectionHits_.out();
         }
         if ((!reflectionPS_.p &&
              FAILED(device_->CreatePixelShader(ShaderReflectionPS, reflectionPS_.out()))) ||
+            (!reflectionColorPS_.p && FAILED(device_->CreatePixelShader(ShaderReflectionColorPS, reflectionColorPS_.out()))) ||
             (!reflection_.p &&
-             (FAILED(device_->CreateTexture(sceneWidth_, sceneHeight_, 1, D3DUSAGE_RENDERTARGET,
+             (FAILED(device_->CreateTexture(reflectionWidth_, reflectionHeight_, 1, D3DUSAGE_RENDERTARGET,
                                             D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, reflection_.out(), nullptr)) ||
-              FAILED(reflection_->GetSurfaceLevel(0, reflectionSurface_.out())))))
+              FAILED(reflection_->GetSurfaceLevel(0, reflectionSurface_.out())))) ||
+            (!reflectionHits_.p &&
+             (FAILED(device_->CreateTexture(reflectionWidth_,reflectionHeight_,1,D3DUSAGE_RENDERTARGET,
+                                            D3DFMT_G32R32F,D3DPOOL_DEFAULT,reflectionHits_.out(),nullptr)) ||
+              FAILED(reflectionHits_->GetSurfaceLevel(0,reflectionHitSurface_.out())))))
+        {
             traceReady_ = false;
+            reflectionSurface_.out();reflection_.out();
+            reflectionHitSurface_.out();reflectionHits_.out();
+        }
     }
     if (!traceReady_)
         optics[3] = 0;
@@ -466,8 +483,13 @@ bool WaterFX::begin(const Settings &s, UINT upStride) {
     if (!normalMap)
         return false;
     // Cover the visible world, rather than silently truncating river-bank hits at 80 units.
-    float trace[] = {s.waterSSRQuality ? 48.f : 24.f, 512.f, normalMap ? 1.f : 0.f,
+    const bool detailedSSR = s.waterReflectionMethod < 0 ? s.waterSSRQuality != 0 : s.waterReflectionMethod == 2;
+    float trace[] = {s.waterRaySteps ? float(s.waterRaySteps) : detailedSSR ? 48.f : 24.f,
+                     s.waterTraceDistance, normalMap ? 1.f : 0.f,
                      2 * depth_.quantum() / std::max(.01f, std::abs(projection._43))};
+    float reflectionControl[] = {s.waterTraceBias,s.waterTraceThickness,s.waterReflectionConfidence,
+                                 float(s.waterRefinementSteps)};
+    float reflectionTarget[] = {1.f/reflectionWidth_,1.f/reflectionHeight_,0,0};
     D3DLIGHT9 light{};
     BOOL on = FALSE;
     bool lit = SUCCEEDED(device_->GetLight(0, &light)) && SUCCEEDED(device_->GetLightEnable(0, &on)) && on &&
@@ -549,6 +571,8 @@ bool WaterFX::begin(const Settings &s, UINT upStride) {
         FAILED(device_->SetPixelShaderConstantF(18, ambient, 1)) ||
         FAILED(device_->SetPixelShaderConstantF(19, diffuse, 1)) ||
         FAILED(device_->SetPixelShaderConstantF(20, subsurface, 1)) ||
+        FAILED(device_->SetPixelShaderConstantF(21, reflectionControl, 1)) ||
+        FAILED(device_->SetPixelShaderConstantF(22, reflectionTarget, 1)) ||
         FAILED(device_->SetTexture(1, refract ? scene_.p : nullptr)) ||
         FAILED(device_->SetTexture(2, environment ? environment_.p : nullptr)) ||
         FAILED(device_->SetTexture(3, depth ? depth_.texture() : nullptr)) ||
@@ -589,8 +613,14 @@ void WaterFX::reflect(DrawCall draw) {
         if (guard.valid()) {
             guard.isolateTargets();
             device_->GetViewport(&viewport);
+            const float sx=float(reflectionWidth_)/sceneWidth_,sy=float(reflectionHeight_)/sceneHeight_;
+            viewport.X=UINT(std::round(viewport.X*sx)); viewport.Y=UINT(std::round(viewport.Y*sy));
+            viewport.Width=std::max(1u,UINT(std::round(viewport.Width*sx)));
+            viewport.Height=std::max(1u,UINT(std::round(viewport.Height*sy)));
+            viewport.Width=std::min(viewport.Width,reflectionWidth_-viewport.X);
+            viewport.Height=std::min(viewport.Height,reflectionHeight_-viewport.Y);
             device_->SetTexture(6, nullptr);
-            if (SUCCEEDED(device_->SetRenderTarget(0, reflectionSurface_)) &&
+            if (SUCCEEDED(device_->SetRenderTarget(0, reflectionHitSurface_)) &&
                 SUCCEEDED(device_->SetViewport(&viewport)) &&
                 SUCCEEDED(device_->SetPixelShader(reflectionPS_))) {
                 device_->SetRenderState(D3DRS_ZENABLE, FALSE);
@@ -599,16 +629,27 @@ void WaterFX::reflect(DrawCall draw) {
                 device_->SetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
                 device_->SetRenderState(D3DRS_COLORWRITEENABLE, 15);
                 device_->SetRenderState(D3DRS_SCISSORTESTENABLE, FALSE);
-                if (!reflectionCleared_)
-                    reflectionCleared_ = SUCCEEDED(device_->Clear(0, nullptr, D3DCLEAR_TARGET, 0, 1, 0));
-                ok = reflectionCleared_ && SUCCEEDED(draw());
+                bool cleared=reflectionCleared_ || SUCCEEDED(device_->Clear(0,nullptr,D3DCLEAR_TARGET,0,1,0));
+                if(cleared && SUCCEEDED(draw()) &&
+                   SUCCEEDED(device_->SetRenderTarget(0,reflectionSurface_)) &&
+                   SUCCEEDED(device_->SetViewport(&viewport)) &&
+                   SUCCEEDED(device_->SetPixelShader(reflectionColorPS_)) &&
+                   SUCCEEDED(device_->SetTexture(6,reflectionHits_))) {
+                    for(auto key:{D3DSAMP_MINFILTER,D3DSAMP_MAGFILTER})
+                        device_->SetSamplerState(6,key,D3DTEXF_POINT);
+                    device_->SetSamplerState(6,D3DSAMP_ADDRESSU,D3DTADDRESS_CLAMP);
+                    device_->SetSamplerState(6,D3DSAMP_ADDRESSV,D3DTADDRESS_CLAMP);
+                    cleared=reflectionCleared_ || SUCCEEDED(device_->Clear(0,nullptr,D3DCLEAR_TARGET,0,1,0));
+                    ok=cleared && SUCCEEDED(draw());
+                    reflectionCleared_=ok;
+                }
             }
         }
     }
     if (ok) {
         device_->SetTexture(6, reflection_);
         for (auto key : {D3DSAMP_MINFILTER, D3DSAMP_MAGFILTER})
-            device_->SetSamplerState(6, key, D3DTEXF_POINT);
+            device_->SetSamplerState(6, key, reflectionSoft_ ? D3DTEXF_LINEAR : D3DTEXF_POINT);
         device_->SetSamplerState(6, D3DSAMP_MIPFILTER, D3DTEXF_NONE);
         device_->SetSamplerState(6, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
         device_->SetSamplerState(6, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);

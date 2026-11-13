@@ -70,6 +70,7 @@ int main(){
         colorPixels|=blob.name=="water-color.argb";reflectionPixels|=blob.name=="water-reflection.argb";
         finalPixels|=blob.name=="water-final.argb";uniforms|=blob.name=="water-0-vs.fp32";
         mesh|=blob.name=="water-0-positions.fp32";
+        if(blob.name=="water-0-ps.fp32") CHECK(blob.bytes.size()==23*16);
         if(blob.name=="water-reflection.argb"){
             unsigned hits=0;for(size_t i=3;i<blob.bytes.size();i+=4)hits+=blob.bytes[i]>20;
             CHECK(hits>50);

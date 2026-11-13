@@ -49,9 +49,27 @@ void Settings::resetWaterScene() {
     waterShore = d.waterShore;
     waterSSR = d.waterSSR;
     waterSSRQuality = d.waterSSRQuality;
+    waterReflectionMethod = d.waterReflectionMethod;
+    waterReflectionResolution = d.waterReflectionResolution;
+    waterRaySteps = d.waterRaySteps;
+    waterRefinementSteps = d.waterRefinementSteps;
+    waterTraceDistance = d.waterTraceDistance;
+    waterTraceBias = d.waterTraceBias;
+    waterTraceThickness = d.waterTraceThickness;
+    waterReflectionConfidence = d.waterReflectionConfidence;
+    waterSoftFallback = d.waterSoftFallback;
     waterCaustics = d.waterCaustics;
     waterDispersion = d.waterDispersion;
     waterCausticScale = d.waterCausticScale;
+}
+void Settings::resetWaterReflections() {
+    const Settings d;
+    waterSSR=d.waterSSR; waterSSRQuality=d.waterSSRQuality; waterSky=d.waterSky;
+    waterReflectionMethod=d.waterReflectionMethod; waterReflectionResolution=d.waterReflectionResolution;
+    waterRaySteps=d.waterRaySteps; waterRefinementSteps=d.waterRefinementSteps;
+    waterTraceDistance=d.waterTraceDistance; waterTraceBias=d.waterTraceBias;
+    waterTraceThickness=d.waterTraceThickness; waterReflectionConfidence=d.waterReflectionConfidence;
+    waterSoftFallback=d.waterSoftFallback;
 }
 
 void Settings::sanitize() {
@@ -94,6 +112,14 @@ void Settings::sanitize() {
     range(waterShore, .05f, 3, .6f);
     range(waterSSR, 0, 1, .65f);
     waterSSRQuality = waterSSRQuality == 1 ? 1 : 0;
+    waterReflectionMethod = std::clamp(waterReflectionMethod, -1, 2);
+    if (waterReflectionResolution != 50 && waterReflectionResolution != 75) waterReflectionResolution = 100;
+    waterRaySteps = waterRaySteps ? std::clamp(waterRaySteps, 8, 64) : 0;
+    waterRefinementSteps = std::clamp(waterRefinementSteps, 4, 16);
+    range(waterTraceDistance, 16, 512, 512);
+    range(waterTraceBias, .01f, .5f, .06f);
+    range(waterTraceThickness, .5f, 3, 1);
+    range(waterReflectionConfidence, 0, .75f, 0);
     range(waterCaustics, 0, 2, 0);
     range(waterDispersion, 0, 1, .15f);
     waterCausticScale = waterCausticScale == 2 ? 2 : 4;
@@ -180,6 +206,15 @@ bool Settings::load(const std::wstring &path) {
                                         next.waterCausticScale = number == 2 ? 2 : 4;
         if (strcmp(key, "water_ssr_quality") == 0)
             next.waterSSRQuality = number == 1 ? 1 : 0;
+        if (!strcmp(key,"water_reflection_method")) next.waterReflectionMethod=int(std::clamp(number,-1.f,2.f));
+        if (!strcmp(key,"water_reflection_resolution")) next.waterReflectionResolution=int(std::clamp(number,0.f,100.f));
+        if (!strcmp(key,"water_ray_steps")) next.waterRaySteps=int(std::clamp(number,0.f,64.f));
+        if (!strcmp(key,"water_refinement_steps")) next.waterRefinementSteps=int(std::clamp(number,4.f,16.f));
+        READ_FLOAT("water_trace_distance", waterTraceDistance)
+        READ_FLOAT("water_trace_bias", waterTraceBias)
+        READ_FLOAT("water_trace_thickness", waterTraceThickness)
+        READ_FLOAT("water_reflection_confidence", waterReflectionConfidence)
+        READ_BOOL("water_soft_fallback", waterSoftFallback)
 #undef READ_BOOL
 #undef READ_FLOAT
 #define SCENE_BOOL(g, m, k, d)                                                                               \
@@ -227,6 +262,12 @@ bool Settings::save(const std::wstring &path) const {
         waterTint, waterRefraction, waterTexture, waterDepth, waterShore, waterSSR, waterSSRQuality,
         waterCaustics, waterDispersion, waterCausticScale);
     bool ok = written > 0 && !ferror(file);
+    if (fprintf(file,"water_reflection_method=%d\nwater_reflection_resolution=%d\nwater_ray_steps=%d\n"
+                     "water_refinement_steps=%d\nwater_trace_distance=%.6f\nwater_trace_bias=%.6f\n"
+                     "water_trace_thickness=%.6f\nwater_reflection_confidence=%.6f\nwater_soft_fallback=%d\n",
+                waterReflectionMethod,waterReflectionResolution,waterRaySteps,waterRefinementSteps,
+                waterTraceDistance,waterTraceBias,waterTraceThickness,waterReflectionConfidence,waterSoftFallback)<0)
+        ok=false;
     if (fprintf(file, "\n[Interface]\ncustom_cursor=%d\ninterface_motion=%d\n",
                 customCursor, interfaceMotion) < 0)
         ok = false;
