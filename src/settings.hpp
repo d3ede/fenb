@@ -3,7 +3,8 @@
 #include "localization.hpp"
 inline constexpr UiText BuiltInProfileNames[] = {UiText::DefaultProfile, UiText::ClearProfile,
                                                  UiText::GoldenProfile, UiText::SoftProfile,
-                                                 UiText::NightProfile};
+                                                 UiText::NightProfile, UiText::LowEndProfile,
+                                                 UiText::PotatoProfile};
 inline constexpr int BuiltInPresetCount = sizeof(BuiltInProfileNames) / sizeof(BuiltInProfileNames[0]);
 
 struct Settings {

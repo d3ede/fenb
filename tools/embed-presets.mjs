@@ -19,7 +19,7 @@ for(const line of read('config/FENB.ini').split(/\r?\n/)) {
   base.set(match[1],Number(match[2]));
 }
 const profiles=JSON.parse(read('config/builtins.json'));
-if(profiles.length!==5 || Object.keys(profiles[0].overrides).length)throw Error('Default must inherit the shipped image settings');
+if(!profiles.length || profiles[0].name!=='Default' || Object.keys(profiles[0].overrides).length)throw Error('Default must inherit the shipped image settings');
 const assignment=(key,value)=>{
   if(!base.has(key)||!Number.isFinite(value))throw Error('Invalid image override: '+key);
   const {member,type}=members.get(key);

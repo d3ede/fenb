@@ -23,7 +23,7 @@ Installation
 5. Choose English or Русский in the language selector. English is the
    default. Select a built-in profile or adjust the effects yourself.
 
-No installer, separate shaders or font files are needed. All five built-in
+No installer, separate shaders or font files are needed. All seven built-in
 profiles are included in the DLL. FENB-presets stores your custom profiles;
 it is not included in the archive and is created when needed.
 
@@ -75,7 +75,7 @@ FENB — графический мод для Flyff, вдохновлённый 
 5. Выберите English или Русский в переключателе языка. По умолчанию выбран
    английский. Выберите встроенный профиль или настройте эффекты вручную.
 
-Установщик, отдельные шейдеры и файлы шрифтов не нужны. Все пять встроенных
+Установщик, отдельные шейдеры и файлы шрифтов не нужны. Все семь встроенных
 профилей находятся в DLL. Папка FENB-presets хранит ваши собственные профили;
 она не входит в архив и создаётся при необходимости.
 
