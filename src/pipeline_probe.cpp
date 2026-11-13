@@ -8,7 +8,7 @@
 #include <iomanip>
 
 namespace {
-constexpr UINT MaxDraws=12000, MaxTextures=192, MaxShaders=96;
+constexpr UINT MaxDraws=12000, MaxTextures=768, MaxShaders=96;
 constexpr size_t MaxBytes=24*1024*1024;
 void Matrix(std::ostream& s,const D3DMATRIX& m) {
     s<<'[';for(int i=0;i<16;++i){if(i)s<<',';float v=reinterpret_cast<const float*>(&m)[i];s<<(std::isfinite(v)?v:0.f);}s<<']';
