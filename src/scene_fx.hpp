@@ -41,6 +41,21 @@ class SceneFX {
     Com<IDirect3DVertexShader9> surfaceVS_;
     Com<IDirect3DPixelShader9> surfaceMaskPS_, surfacePS_;
     bool surfaceCaptured_ = false;
+    bool surfaceMaskNeedsClear_ = true;
+    struct SurfaceCommand {
+        Com<IDirect3DVertexBuffer9> vertices;
+        Com<IDirect3DIndexBuffer9> indices;
+        Com<IDirect3DBaseTexture9> art, blendMap;
+        SurfaceDraw draw;
+        D3DMATRIX matrices[3]{};
+        float material[4]{};
+        DWORD fvf=0, cull=0, samplers[2][6]{};
+        UINT offset=0, stride=0;
+        bool blend=false;
+    };
+    std::vector<std::unique_ptr<SurfaceCommand>> surfaceCommands_;
+    bool beginSurfaceMask();
+    void applySurface(const SurfaceCommand &);
     Com<IDirect3DPixelShader9> aoPS_, rayPS_, raySourcePS_, compositePS_, lumaPS_, reducePS_, adaptPS_, skyPS_;
     Com<IDirect3DPixelShader9> dofPS_;
     Com<IDirect3DVertexShader9> skyVS_;
@@ -126,7 +141,9 @@ class SceneFX {
         }
     }
     void captureEmitter(const Settings &, DrawCall);
-    void captureSurface(const Settings &, DrawCall);
+    void captureSurface(const Settings &, DrawCall, SurfaceDraw = {});
+    void flushSurfaces();
+    bool pendingSurfaces() const { return !surfaceCommands_.empty(); }
     size_t bytes() const;
     bool depthReady() const {
         return depthReady_;

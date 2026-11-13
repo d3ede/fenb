@@ -1,5 +1,6 @@
 #include "common.hpp"
 #include "settings.hpp"
+#include "scene_tags.hpp"
 #include <cstdio>
 #define CHECK(x) do{if(!(x)){printf("FAIL %d: %s\n",__LINE__,#x);return 1;}}while(0)
 std::wstring Directory(){wchar_t p[32768]{};GetModuleFileNameW(nullptr,p,32768);std::wstring s(p);return s.substr(0,s.find_last_of(L"\\/")+1);}
@@ -145,9 +146,57 @@ bool Frame(IDirect3DDevice9* device,bool world,bool swapchain,bool readAfter,int
     if(readAfter&&(Pixel(device,bb,40,40)!=hud||Pixel(device,bb,200,150)!=background)){puts("Present modified HUD or applied scene effects twice");return false;}
     return true;
 }
+bool SurfaceBatchFrame(IDirect3DDevice9 *d,int mutation,std::vector<DWORD> &pixels) {
+    struct V {float x,y,z,nx,ny,nz,u,v,u1,v1;};
+    V floor[8]{};floor[4]={-4,-1,2,0,1,0,0,0,0,0};floor[5]={-4,-1,12,0,1,0,0,1,0,0};
+    floor[6]={4,-1,2,0,1,0,1,0,0,0};floor[7]={4,-1,12,0,1,0,1,1,0,0};
+    WORD indices[]={0,0,0,0,0,0,0,1,2,2,1,3};
+    Com<IDirect3DVertexBuffer9> vb;Com<IDirect3DIndexBuffer9> ib;Com<IDirect3DTexture9> texture;
+    if(FAILED(d->CreateVertexBuffer(sizeof(floor),D3DUSAGE_WRITEONLY,0x212,D3DPOOL_MANAGED,vb.out(),nullptr)) ||
+       FAILED(d->CreateIndexBuffer(sizeof(indices),D3DUSAGE_WRITEONLY,D3DFMT_INDEX16,D3DPOOL_MANAGED,ib.out(),nullptr)) ||
+       FAILED(d->CreateTexture(2,2,1,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,texture.out(),nullptr)))return false;
+    void *data=nullptr;D3DLOCKED_RECT lock{};
+    if(FAILED(vb->Lock(0,0,&data,0)))return false;memcpy(data,floor,sizeof(floor));vb->Unlock();
+    if(FAILED(ib->Lock(0,0,&data,0)))return false;memcpy(data,indices,sizeof(indices));ib->Unlock();
+    if(FAILED(texture->LockRect(0,&lock,nullptr,0)))return false;
+    for(int y=0;y<2;++y)for(int x=0;x<2;++x)((DWORD*)((BYTE*)lock.pBits+y*lock.Pitch))[x]=0xff505050;
+    texture->UnlockRect(0);DWORD tag=32;texture->SetPrivateData(EmitterTag,&tag,4,0);
+    if(FAILED(d->Clear(0,nullptr,D3DCLEAR_TARGET|D3DCLEAR_ZBUFFER,0xff202830,1,0)) || FAILED(d->BeginScene()))return false;
+    D3DMATRIX identity{};identity._11=identity._22=identity._33=identity._44=1;
+    auto projection=identity;projection._33=100.f/99.9f;projection._34=1;projection._43=-.1f*projection._33;projection._44=0;
+    d->SetTransform(D3DTS_WORLD,&identity);d->SetTransform(D3DTS_VIEW,&identity);d->SetTransform(D3DTS_PROJECTION,&projection);
+    d->SetVertexShader(nullptr);d->SetPixelShader(nullptr);d->SetFVF(0x212);
+    for(auto key:{D3DRS_LIGHTING,D3DRS_FOGENABLE,D3DRS_ALPHABLENDENABLE,D3DRS_ALPHATESTENABLE})d->SetRenderState(key,FALSE);
+    d->SetRenderState(D3DRS_ZENABLE,TRUE);d->SetRenderState(D3DRS_ZWRITEENABLE,TRUE);d->SetRenderState(D3DRS_ZFUNC,D3DCMP_LESSEQUAL);
+    d->SetRenderState(D3DRS_CULLMODE,D3DCULL_NONE);d->SetTexture(0,texture);
+    d->SetTextureStageState(0,D3DTSS_COLOROP,D3DTOP_SELECTARG1);d->SetTextureStageState(0,D3DTSS_COLORARG1,D3DTA_TEXTURE);
+    d->SetTextureStageState(0,D3DTSS_TEXCOORDINDEX,0);d->SetTextureStageState(0,D3DTSS_TEXTURETRANSFORMFLAGS,0);
+    d->SetTextureStageState(1,D3DTSS_COLOROP,D3DTOP_DISABLE);
+    d->SetStreamSource(0,vb,0,sizeof(V));d->SetIndices(ib);
+    if(FAILED(d->DrawIndexedPrimitive(D3DPT_TRIANGLELIST,4,0,4,6,2)))return false;
+    // These native proxy writes must flush the old geometry/coverage before mutation.
+    if(mutation==1){if(FAILED(vb->Lock(0,0,&data,0)))return false;for(auto &v:floor)v.x+=100;memcpy(data,floor,sizeof(floor));vb->Unlock();}
+    if(mutation==2){if(FAILED(ib->Lock(0,0,&data,0)))return false;memset(data,0,sizeof(indices));ib->Unlock();}
+    if(mutation==3){if(FAILED(texture->LockRect(0,&lock,nullptr,0)))return false;
+        for(int y=0;y<2;++y)for(int x=0;x<2;++x)((DWORD*)((BYTE*)lock.pBits+y*lock.Pitch))[x]=0xff000000;texture->UnlockRect(0);}
+    struct C {float x,y,z;DWORD color;};C wall[]={{-.7f,-1,6,0xff1030d0},{.7f,-1,6,0xff1030d0},{-.7f,1,6,0xff1030d0},{.7f,1,6,0xff1030d0}};
+    d->SetTexture(0,nullptr);d->SetFVF(D3DFVF_XYZ|D3DFVF_DIFFUSE);
+    d->SetTextureStageState(0,D3DTSS_COLORARG1,D3DTA_DIFFUSE);d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP,2,wall,sizeof(C));
+    struct U{float x,y,z,w;DWORD color;};U hud[]={{8,8,0,1,0xff40a0e0},{40,8,0,1,0xff40a0e0},{8,28,0,1,0xff40a0e0},{40,28,0,1,0xff40a0e0}};
+    d->SetFVF(D3DFVF_XYZRHW|D3DFVF_DIFFUSE);d->SetRenderState(D3DRS_ZENABLE,FALSE);
+    d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP,2,hud,sizeof(U));d->EndScene();
+    Com<IDirect3DSurface9> bb,resolved,read;d->GetBackBuffer(0,0,D3DBACKBUFFER_TYPE_MONO,bb.out());D3DSURFACE_DESC desc{};bb->GetDesc(&desc);
+    if(FAILED(d->CreateRenderTarget(320,240,desc.Format,D3DMULTISAMPLE_NONE,0,FALSE,resolved.out(),nullptr)) ||
+       FAILED(d->StretchRect(bb,nullptr,resolved,nullptr,D3DTEXF_NONE)) ||
+       FAILED(d->CreateOffscreenPlainSurface(320,240,desc.Format,D3DPOOL_SYSTEMMEM,read.out(),nullptr)) ||
+       FAILED(d->GetRenderTargetData(resolved,read)) || FAILED(read->LockRect(&lock,nullptr,D3DLOCK_READONLY)))return false;
+    pixels.resize(320*240);for(int y=0;y<240;++y)memcpy(pixels.data()+y*320,(BYTE*)lock.pBits+y*lock.Pitch,320*4);read->UnlockRect();
+    return SUCCEEDED(d->Present(nullptr,nullptr,nullptr,nullptr));
+}
 int main(){
     auto path=Directory()+L"FENB.ini";Settings saved;saved.load(path);Settings s;s.openOnStart=false;s.exposure=2;s.bloomStrength=1;s.smaa=true;
-    s.fog=true;s.fogStart=0;s.fogDensity=.03f;s.fogFalloff=0;s.save(path);
+    s.fog=true;s.fogStart=0;s.fogDensity=.03f;s.fogFalloff=0;
+    s.surfaceReflections=true;s.surfaceStrength=1;s.surfaceRoughness=.2f;s.save(path);
     struct Restore{Settings settings;std::wstring path;~Restore(){settings.save(path);}}restore{saved,path};
     WNDCLASSW wc{};wc.lpfnWndProc=DefWindowProcW;wc.hInstance=GetModuleHandleW(nullptr);wc.lpszClassName=L"FENBHudTest";RegisterClassW(&wc);
     HWND window=CreateWindowW(wc.lpszClassName,L"HUD test",WS_OVERLAPPEDWINDOW,0,0,320,240,nullptr,nullptr,wc.hInstance,nullptr);
@@ -167,6 +216,19 @@ int main(){
             CHECK(OverlayFrame(device,arrow,true,true));CHECK(OverlayFrame(device,arrow,false,true));
         }
         arrow.out();
+        std::vector<DWORD> buffered;CHECK(SurfaceBatchFrame(device,0,buffered));
+        unsigned reflected=0;for(int y=145;y<195;++y)for(int x=100;x<220;++x) {
+            const auto p=buffered[y*320+x];reflected+=(p&255)>((p>>16)&255)+8;
+        }
+        printf("Native proxy buffered reflection pixels: %u\n",reflected);CHECK(reflected>20);
+        CHECK((buffered[12*320+12]&0xffffff)==0x40a0e0);
+        for(int mutation:{1,2,3}) {
+            std::vector<DWORD> modified;CHECK(SurfaceBatchFrame(device,mutation,modified));unsigned difference=0;
+            for(size_t i=0;i<buffered.size();++i)for(int shift:{0,8,16})difference=std::max(difference,
+                unsigned(abs(int((buffered[i]>>shift)&255)-int((modified[i]>>shift)&255))));
+            printf("Buffered surface write barrier: mutation=%d, delta=%u\n",mutation,difference);
+            CHECK(difference<=(msaa?32u:1u));
+        }
         CHECK(SUCCEEDED(device->Reset(&pp)));CHECK(Frame(device,true,false,!msaa));
         printf("PASS: HUD exact RGB preserved, world graded once, UI-only skipped, Reset, MSAA=%d\n",msaa);
     }

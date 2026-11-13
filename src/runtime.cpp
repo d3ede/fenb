@@ -233,7 +233,7 @@ void Runtime::resetFrame() {
     water_->beginFrame(waterEnabled && (settings.waterRefraction > 0 || settings.waterDepth > 0 ||
                                         settings.waterSSR > 0 || settings.waterCaustics > 0),
                        (waterEnabled && settings.waterSky > 0) ||
-                           (settings.enabled && settings.fog && !compare),
+                           (settings.enabled && (settings.fog || settings.surfaceReflections) && !compare),
                        waterEnabled &&
                            (settings.waterDepth > 0 || settings.waterSSR > 0 || settings.waterCaustics > 0),
                        waterEnabled && settings.waterCaustics > 0);
@@ -267,12 +267,12 @@ void Runtime::beforeWaterDraw(UINT upStride, DrawCall draw) {
 }
 void Runtime::environmentDraw(D3DPRIMITIVETYPE type, UINT start, UINT count) {
     if (lost_ || hudStarted_ || !settings.enabled ||
-        (!(settings.water && settings.waterSky > 0) && !settings.sky && !settings.fog) || compare || vertexShaderActive_ ||
+        (!(settings.water && settings.waterSky > 0) && !settings.sky && !settings.fog && !settings.surfaceReflections) || compare || vertexShaderActive_ ||
         !fvfKnown_ || drawFVF_ != 0x142 || !sceneBackbuffer_ || drawTarget_ != sceneBackbuffer_)
         return;
-    if ((settings.water && settings.waterSky > 0) || settings.fog) {
+    if ((settings.water && settings.waterSky > 0) || settings.fog || settings.surfaceReflections) {
         water_->captureEnvironment(type, start, count, &effects_->sceneFX(), &settings);
-        if (settings.fog)
+        if (settings.fog || settings.surfaceReflections)
             effects_->sceneFX().skyEnvironment(water_->skyEnvironment());
     }
     Com<IDirect3DBaseTexture9> texture;
@@ -287,14 +287,22 @@ void Runtime::afterWaterDraw(bool up, bool indexed) {
     effects_->sceneFX().endFoliage();
     water_->end(up, indexed);
 }
-void Runtime::emitterDraw(DrawCall draw) {
+void Runtime::emitterDraw(DrawCall draw, SurfaceDraw geometry) {
     if (lost_ || !settings.enabled || compare || vertexShaderActive_ ||
         !sceneBackbuffer_ || drawTarget_ != sceneBackbuffer_)
         return;
     if (settings.localLighting)
         effects_->sceneFX().captureEmitter(settings, draw);
     if (settings.surfaceReflections && !hudStarted_)
-        effects_->sceneFX().captureSurface(settings, draw);
+        effects_->sceneFX().captureSurface(settings, draw, geometry);
+}
+void Runtime::surfaceBarrier() {
+    auto &scene=effects_->sceneFX();
+    if(lost_ || !scene.pendingSurfaces())return;
+    const bool ownScene=!inScene_;
+    if(ownScene && FAILED(device_->BeginScene()))return;
+    scene.flushSurfaces();
+    if(ownScene)device_->EndScene();
 }
 void Runtime::beforeDraw(UINT primitives, UINT vertices) {
     // Cache setters: do not query every DX9 state on thousands of world draws.

@@ -88,7 +88,7 @@ struct SceneFXFixture {
     }
 };
 namespace {
-constexpr UINT W = 640, H = 400;
+UINT W = 640, H = 400;
 std::vector<DWORD> Read(IDirect3DDevice9 *d) {
     Com<IDirect3DSurface9> rt, read, resolved;
     d->GetRenderTarget(0, rt.out());
@@ -155,7 +155,9 @@ bool LoadMaterial(IDirect3DDevice9 *d,const wchar_t *path,Com<IDirect3DTexture9>
     FreeLibrary(module);return ok;
 }
 } // namespace
-int main(int argc, char **) {
+int main(int argc, char **argv) {
+    const bool surfaceBenchmark=argc>1 && !strcmp(argv[1],"--surface-benchmark");
+    if(surfaceBenchmark){W=1920;H=1080;}
     WNDCLASSW wc{};
     wc.lpfnWndProc = DefWindowProcW;
     wc.hInstance = GetModuleHandleW(nullptr);
@@ -175,7 +177,7 @@ int main(int argc, char **) {
     pp.SwapEffect = D3DSWAPEFFECT_DISCARD;
     pp.EnableAutoDepthStencil = TRUE;
     pp.AutoDepthStencilFormat = D3DFMT_D24X8;
-    if (argc > 1)
+    if (argc > 1 && !surfaceBenchmark)
         pp.MultiSampleType = D3DMULTISAMPLE_8_SAMPLES;
     Com<IDirect3DDevice9> d;
     CHECK(SUCCEEDED(
@@ -261,7 +263,11 @@ int main(int argc, char **) {
     std::array<float, 3> sceneOffset{};
     // Native building light maps can leave stage 1 selecting the unchanged stage-0 result.
     DWORD emitterStage1 = D3DTOP_DISABLE, emitterStage1Argument = D3DTA_CURRENT;
-    bool surfaceFixture = false, surfaceGrass = false, atlasGrass = false;
+    bool surfaceFixture = false, surfaceGrass = false, atlasGrass = false, surfacePattern = false;
+    unsigned surfaceTiles=1, surfaceUnknownTiles=0;
+    bool surfaceBuffered=true;
+    bool surfaceVerticesReady=false, surfaceVerticesGrass=false;
+    Com<IDirect3DVertexBuffer9> surfaceVertices;
     Com<IDirect3DTexture9> paving;
     CHECK(SUCCEEDED(d->CreateTexture(2,2,1,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,paving.out(),nullptr)));
     CHECK(SUCCEEDED(paving->LockRect(0,&lock,nullptr,0)));
@@ -270,6 +276,9 @@ int main(int argc, char **) {
     paving->UnlockRect(0);
     DWORD pavingTag=32;
     paving->SetPrivateData(EmitterTag,&pavingTag,4,0);
+    Com<IDirect3DTexture9> unknownPaving;
+    CHECK(SUCCEEDED(d->CreateTexture(2,2,1,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,unknownPaving.out(),nullptr)));
+    DWORD unknownPavingTag=4;unknownPaving->SetPrivateData(EmitterTag,&unknownPavingTag,4,0);
     struct Vertex {
         float x, y, z;
         DWORD color;
@@ -386,9 +395,38 @@ int main(int argc, char **) {
                 for(const auto &v:floor)maskFloor.push_back({v.x,v.y,v.z,0,1,0,
                     atlasGrass?.9f:.3f,atlasGrass?.77f:.3f,0,0});
                 d->SetFVF(0x212); d->SetTexture(0,paving);
-                fx.sceneFX().captureSurface(settings,[&] {
-                    return d->DrawPrimitiveUP(D3DPT_TRIANGLELIST,UINT(maskFloor.size()/3),maskFloor.data(),sizeof(PavingVertex));
-                });
+                if(surfaceBuffered) {
+                    if(!surfaceVertices.p && FAILED(d->CreateVertexBuffer(UINT(maskFloor.size()*sizeof(PavingVertex)),
+                        D3DUSAGE_WRITEONLY,0x212,D3DPOOL_MANAGED,surfaceVertices.out(),nullptr)))return false;
+                    if(!surfaceVerticesReady || surfaceVerticesGrass!=atlasGrass) {
+                        void *data=nullptr;
+                        if(FAILED(surfaceVertices->Lock(0,0,&data,0)))return false;
+                        memcpy(data,maskFloor.data(),maskFloor.size()*sizeof(PavingVertex));surfaceVertices->Unlock();
+                        surfaceVerticesReady=true;surfaceVerticesGrass=atlasGrass;
+                    }
+                    d->SetStreamSource(0,surfaceVertices,0,sizeof(PavingVertex));
+                }
+                for(unsigned tile=0;tile<surfaceTiles;++tile) {
+                    const UINT first=UINT(maskFloor.size()/3)*tile/surfaceTiles;
+                    const UINT end=UINT(maskFloor.size()/3)*(tile+1)/surfaceTiles;
+                    fx.sceneFX().captureSurface(settings,[&] {
+                        return surfaceBuffered?d->DrawPrimitive(D3DPT_TRIANGLELIST,first*3,end-first):
+                            d->DrawPrimitiveUP(D3DPT_TRIANGLELIST,end-first,maskFloor.data()+first*3,sizeof(PavingVertex));
+                    },surfaceBuffered?SurfaceDraw{D3DPT_TRIANGLELIST,first*3,end-first}:SurfaceDraw{});
+                }
+                if(surfaceUnknownTiles) {
+                    d->SetTexture(0,unknownPaving);
+                    const UINT triangles=UINT(maskFloor.size()/3);
+                    for(unsigned tile=0;tile<surfaceUnknownTiles;++tile) {
+                        const UINT first=triangles*tile/surfaceUnknownTiles;
+                        const UINT end=triangles*(tile+1)/surfaceUnknownTiles;
+                        fx.sceneFX().captureSurface(settings,[&] {
+                            return surfaceBuffered?d->DrawPrimitive(D3DPT_TRIANGLELIST,first*3,end-first):
+                                d->DrawPrimitiveUP(D3DPT_TRIANGLELIST,end-first,maskFloor.data()+first*3,sizeof(PavingVertex));
+                        },surfaceBuffered?SurfaceDraw{D3DPT_TRIANGLELIST,first*3,end-first}:SurfaceDraw{});
+                    }
+                    d->SetTexture(0,paving);
+                }
                 if(surfaceGrass) {
                     // An opaque grass layer on the same depth plane must erase paving response.
                     DWORD unknown=4;paving->SetPrivateData(EmitterTag,&unknown,4,0);
@@ -412,7 +450,14 @@ int main(int argc, char **) {
                     v.color = 0xffc0c0c0;
             if (surfaceFixture)
                 for (auto &v : wall) v.color=0xff2060d0;
-            if(!planeOnly)d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, wall, sizeof(Vertex));
+            if(!planeOnly) {
+                if(surfacePattern)for(int stripe=0;stripe<12;++stripe) {
+                    const float left=-2+stripe/3.f,right=left+1/3.f;
+                    const DWORD color=stripe&1?0xff1030e0:0xffd0a030;
+                    Vertex band[]={{left,0,18,color},{right,0,18,color},{left,7,18,color},{right,7,18,color}};
+                    d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP,2,band,sizeof(Vertex));
+                }else d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, wall, sizeof(Vertex));
+            }
             if (foreground) {
                 Vertex character[] = {{-.35f, 0, 3, 0xff506070},
                                       {.35f, 0, 3, 0xff506070},
@@ -503,6 +548,24 @@ int main(int argc, char **) {
         d->EndScene();
         return ok;
     };
+    if(surfaceBenchmark) {
+        surfaceFixture=true;surfaceTiles=28;surfaceUnknownTiles=1800;
+        settings.surfaceStrength=1;settings.surfaceDistance=100;settings.surfaceRoughness=.65f;
+        Com<IDirect3DQuery9> fence;CHECK(SUCCEEDED(d->CreateQuery(D3DQUERYTYPE_EVENT,fence.out())));
+        auto flush=[&] {fence->Issue(D3DISSUE_END);const auto start=GetTickCount64();
+            while(fence->GetData(nullptr,0,D3DGETDATA_FLUSH)==S_FALSE){if(GetTickCount64()-start>5000)return false;Sleep(0);}return true;};
+        LARGE_INTEGER frequency{};QueryPerformanceFrequency(&frequency);
+        for(bool detailed:{false,true})for(float yaw:{0.f,.8f,-.65f})for(bool enabled:{false,true}) {
+            cameraYaw=yaw;settings.sceneQuality=detailed;settings.surfaceReflections=enabled;
+            for(int i=0;i<4;++i)CHECK(render());CHECK(flush());
+            LARGE_INTEGER start{},end{};QueryPerformanceCounter(&start);
+            for(int i=0;i<16;++i)CHECK(render());CHECK(flush());QueryPerformanceCounter(&end);
+            printf("SURFACE BENCH quality=%d yaw=%.2f enabled=%d: %.3f ms/frame (1080p, 28 paving + 1800 terrain draws)\n",
+                detailed,yaw,enabled,double(end.QuadPart-start.QuadPart)*1000/frequency.QuadPart/16);
+            if(enabled)CHECK(SceneFXFixture::surfaceMaskMaximum(fx.sceneFX(),d)==0);
+        }
+        return 0;
+    }
     CHECK(render());
     auto original = Read(d);
     CHECK(original.size() == W * H);
@@ -855,6 +918,20 @@ int main(int argc, char **) {
         return maximum;
     };
     CHECK(maximumDelta(pavingOff,pavingOn)>10);
+    surfaceBuffered=false;CHECK(render());
+    CHECK(maximumDelta(pavingOn,Read(d))<=(pp.MultiSampleType?16u:1u));
+    surfaceBuffered=true;
+    surfacePattern=true;settings.surfaceRoughness=0;CHECK(render());const auto sharpStone=Read(d);
+    settings.surfaceRoughness=1;CHECK(render());const auto roughStone=Read(d);
+    CHECK(Difference(sharpStone,roughStone)>100);
+    CHECK(Save(sharpStone,L"build/surface-polished.bmp"));CHECK(Save(roughStone,L"build/surface-rough.bmp"));
+    surfacePattern=false;settings.surfaceRoughness=.5f;
+    planeOnly=true;horizonCube=true;settings.surfaceStrength=0;CHECK(render());const auto dryStone=Read(d);
+    settings.surfaceStrength=1;CHECK(render());const auto skyStone=Read(d);
+    CHECK(Difference(dryStone,skyStone)>500);
+    CHECK(skyStone[50*W+20]==dryStone[50*W+20] && skyStone[12*W+12]==dryStone[12*W+12]);
+    CHECK(Save(skyStone,L"build/surface-sky-gloss.bmp"));
+    planeOnly=false;horizonCube=false;
     surfaceGrass=true; CHECK(render());
     printf("Grass reflection mismatch pixels: %u, mask maximum: %.0f\n",Difference(pavingOff,Read(d)),
            SceneFXFixture::surfaceMaskMaximum(fx.sceneFX(),d));

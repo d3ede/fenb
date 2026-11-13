@@ -75,11 +75,14 @@ void SceneFX::beginFrame() {
     skyApplied_ = sunOnScreen_ = false;
     skyBackdropReady_ = false;
     surfaceCaptured_ = false;
+    surfaceMaskNeedsClear_ = true;
+    surfaceCommands_.clear();
     lights_ = emitterDraws_ = 0;
     ++sourceFrame_;
     depth_.beginFrame(true);
 }
 void SceneFX::invalidate() {
+    surfaceCommands_.clear();
     surfaceMask_.clear(); surfaceOutput_.clear();
     surfaceVS_.out(); surfaceMaskPS_.out(); surfacePS_.out();
     smaa_.invalidate();
@@ -128,6 +131,7 @@ void SceneFX::invalidate() {
     beginFrame();
 }
 void SceneFX::releasePost() {
+    surfaceCommands_.clear();
     surfaceMask_.clear(); surfaceOutput_.clear(); surfaceCaptured_ = false;
     skyEnvironment_.out();
     smaa_.invalidate();
@@ -277,7 +281,8 @@ bool SceneFX::prepare(UINT width, UINT height, const Settings &s) {
     if (!s.smaa)
         smaa_.invalidate();
     const bool geometry = s.ssao || s.sunRays || s.fog || s.dof || s.localLighting || s.surfaceReflections;
-    if (!s.surfaceReflections) {
+    if (!s.surfaceReflections || s.surfaceStrength<=0) {
+        surfaceCommands_.clear();
         surfaceMask_.clear(); surfaceOutput_.clear(); surfaceCaptured_ = false;
     }
     if (!s.localLighting) {
@@ -373,6 +378,7 @@ bool SceneFX::antialias(IDirect3DTexture9 *input, IDirect3DSurface9 *target, con
     return pass(borrowed, fxaaPS_, input);
 }
 IDirect3DTexture9 *SceneFX::process(IDirect3DTexture9 *input, const Settings &s) {
+    flushSurfaces();
     PointSampler localSampler(device_, 4);
     PointSampler aoSampler(device_, 2);
     PointSampler skySampler(device_, 5);
@@ -473,9 +479,15 @@ IDirect3DTexture9 *SceneFX::process(IDirect3DTexture9 *input, const Settings &s)
         float control[] = {s.surfaceStrength, s.surfaceRoughness, s.surfaceDistance,
                            s.sceneQuality ? 40.f : 24.f};
         device_->SetPixelShaderConstantF(56, control, 1);
+        float light[]={viewSun[0],viewSun[1],viewSun[2],sunValid_ && dir[1]>0 ? Daylight(sun_.Diffuse) : 0.f};
+        float environment[]={skyEnvironment_.p?1.f:0.f,0,0,0};
+        device_->SetPixelShaderConstantF(57,light,1);
+        device_->SetPixelShaderConstantF(58,environment,1);
+        device_->SetTexture(7,skyEnvironment_);
         PointSampler maskSampler(device_, 2);
         if (pass(surfaceOutput_, surfacePS_, input, depth_.texture(), surfaceMask_.texture))
             input = surfaceOutput_.texture;
+        device_->SetTexture(7,nullptr);
     }
     device_->SetPixelShaderConstantF(20, positions_[0], 8);
     device_->SetPixelShaderConstantF(28, colors_[0], 8);
@@ -726,11 +738,18 @@ void SceneFX::beginFoliage(const Settings &s) {
     device_->SetRenderState(D3DRS_AMBIENT, brighter);
     foliageActive_ = true;
 }
-void SceneFX::captureSurface(const Settings &s, DrawCall draw) {
+void SceneFX::captureSurface(const Settings &s, DrawCall draw, SurfaceDraw geometry) {
     if (!s.surfaceReflections || s.surfaceStrength <= 0 || !camera_) return;
     DWORD fvf=0,z=0,write=0,test=0,blend=0,src=0,dst=0;
     device_->GetFVF(&fvf);
     if (fvf != 0x112 && fvf != 0x212) return; // Rigid mesh / native two-UV terrain only.
+    Com<IDirect3DBaseTexture9> texture;
+    if(FAILED(device_->GetTexture(0,texture.out())) || !texture.p || texture->GetType()!=D3DRTYPE_TEXTURE) return;
+    emissive(static_cast<IDirect3DTexture9 *>(texture.p));
+    DWORD tag=0,size=4;
+    texture->GetPrivateData(EmitterTag,&tag,&size);
+    unsigned kind=tag&512?3:tag&64?2:tag&32?1:0;
+    if(!kind && (fvf!=0x212 || !surfaceCaptured_)) return;
     device_->GetRenderState(D3DRS_ZENABLE,&z);
     device_->GetRenderState(D3DRS_ZWRITEENABLE,&write);
     device_->GetRenderState(D3DRS_ALPHATESTENABLE,&test);
@@ -750,12 +769,6 @@ void SceneFX::captureSurface(const Settings &s, DrawCall draw) {
     for(int row=0;row<4;++row)for(int col=0;col<4;++col)
         if(std::abs(matrices[2].m[row][col]-projection_.m[row][col])>.00001f ||
            (row<3 && col<3 && std::abs(matrices[1].m[row][col]-view_.m[row][col])>.00001f)) return;
-    Com<IDirect3DBaseTexture9> texture;
-    if(FAILED(device_->GetTexture(0,texture.out())) || !texture.p || texture->GetType()!=D3DRTYPE_TEXTURE) return;
-    emissive(static_cast<IDirect3DTexture9 *>(texture.p));
-    DWORD tag=0,size=4;
-    texture->GetPrivateData(EmitterTag,&tag,&size);
-    unsigned kind=tag&512?3:tag&64?2:tag&32?1:0;
     // Unknown terrain layers erase reflectivity through their native blend coverage. This
     // prevents a grass layer over the same depth plane from inheriting the underlying tile.
     if(!kind && (fvf!=0x212 || !surfaceCaptured_)) return;
@@ -784,27 +797,84 @@ void SceneFX::captureSurface(const Settings &s, DrawCall draw) {
        FAILED(device_->GetViewport(&vp)) || vp.X!=viewport_.X || vp.Y!=viewport_.Y ||
        vp.Width!=viewport_.Width || vp.Height!=viewport_.Height ||
        !surfaceMask_.make(device_,desc.Width,desc.Height,D3DFMT_A16B16G16R16F)) return;
-    StateGuard state(device_);
-    if(!state.valid()) return;
-    state.isolateTargets();
-    if(FAILED(device_->SetRenderTarget(0,surfaceMask_.surface))) return;
-    if(!surfaceCaptured_ && FAILED(device_->Clear(0,nullptr,D3DCLEAR_TARGET,0,1,0))) return;
-    device_->SetViewport(&vp);
-    device_->SetVertexShader(surfaceVS_); device_->SetPixelShader(surfaceMaskPS_);
-    device_->SetVertexShaderConstantF(0,&matrices[0].m[0][0],12);
+    auto command=std::make_unique<SurfaceCommand>();
+    command->draw=geometry; command->fvf=fvf; command->blend=blend!=0;
+    memcpy(command->matrices,matrices,sizeof(matrices));
     float material[]={kind>=2?.8f:kind==1?.55f:0.f,kind>=2?.4f:.8f,blendMap?1.f:0.f,kind==3?1.f:0.f};
-    device_->SetPixelShaderConstantF(0,material,1);
+    memcpy(command->material,material,sizeof(material));
+    command->art.p=texture.p;texture->AddRef();
+    if(blendMap)device_->GetTexture(1,command->blendMap.out());
+    device_->GetRenderState(D3DRS_CULLMODE,&command->cull);
+    const D3DSAMPLERSTATETYPE samplerKeys[]={D3DSAMP_MINFILTER,D3DSAMP_MAGFILTER,D3DSAMP_ADDRESSU,D3DSAMP_ADDRESSV,D3DSAMP_MIPFILTER,D3DSAMP_MAXANISOTROPY};
+    for(DWORD sampler=0;sampler<2;++sampler)for(int i=0;i<6;++i)
+        device_->GetSamplerState(sampler,samplerKeys[i],&command->samplers[sampler][i]);
+    D3DSURFACE_DESC coverage{};
+    const bool stableCoverage=!command->blendMap.p || (command->blendMap->GetType()==D3DRTYPE_TEXTURE &&
+        SUCCEEDED(static_cast<IDirect3DTexture9*>(command->blendMap.p)->GetLevelDesc(0,&coverage)) &&
+        !(coverage.Usage&D3DUSAGE_RENDERTARGET));
+    if(stableCoverage && geometry.primitives && SUCCEEDED(device_->GetStreamSource(0,command->vertices.out(),&command->offset,&command->stride)) &&
+       command->vertices.p && (!geometry.indexed ||
+           (SUCCEEDED(device_->GetIndices(command->indices.out())) && command->indices.p))) {
+        // Retain GPU resources, never the borrowed DrawCall closure. Native resource
+        // writes flush this batch before changing the referenced geometry or coverage.
+        if(surfaceCommands_.size()>=256)flushSurfaces();
+        surfaceCommands_.push_back(std::move(command));
+        surfaceCaptured_=true;
+        return;
+    }
+    // UP pointers cease to be valid when the intercepted call returns.
+    flushSurfaces();
+    StateGuard state(device_);if(!state.valid())return;state.isolateTargets();
+    if(!beginSurfaceMask())return;
+    applySurface(*command);
+    if(SUCCEEDED(draw()))surfaceCaptured_=true;
+}
+bool SceneFX::beginSurfaceMask() {
+    if(!surfaceMask_.surface.p || FAILED(device_->SetRenderTarget(0,surfaceMask_.surface)))return false;
+    if(surfaceMaskNeedsClear_) {
+        if(FAILED(device_->Clear(0,nullptr,D3DCLEAR_TARGET,0,1,0)))return false;
+        surfaceMaskNeedsClear_=false;
+    }
+    device_->SetViewport(&viewport_);
+    device_->SetVertexShader(surfaceVS_); device_->SetPixelShader(surfaceMaskPS_);
     for(auto key:{D3DRS_ZENABLE,D3DRS_ZWRITEENABLE,D3DRS_ALPHATESTENABLE,D3DRS_FOGENABLE,
                   D3DRS_STENCILENABLE,D3DRS_SCISSORTESTENABLE,D3DRS_SRGBWRITEENABLE,
                   D3DRS_SEPARATEALPHABLENDENABLE,D3DRS_CLIPPLANEENABLE}) device_->SetRenderState(key,FALSE);
-    device_->SetRenderState(D3DRS_ALPHABLENDENABLE,blend);
     device_->SetRenderState(D3DRS_SRCBLEND,D3DBLEND_SRCALPHA);
     device_->SetRenderState(D3DRS_DESTBLEND,D3DBLEND_INVSRCALPHA);
     device_->SetRenderState(D3DRS_BLENDOP,D3DBLENDOP_ADD);
     device_->SetRenderState(D3DRS_COLORWRITEENABLE,15);
     device_->SetRenderState(D3DRS_MULTISAMPLEMASK,0xffffffff);
     device_->SetRenderState(D3DRS_FILLMODE,D3DFILL_SOLID);
-    if(SUCCEEDED(draw())) surfaceCaptured_=true;
+    return true;
+}
+void SceneFX::applySurface(const SurfaceCommand &command) {
+    device_->SetFVF(command.fvf);
+    device_->SetTexture(0,command.art);device_->SetTexture(1,command.blendMap);
+    device_->SetVertexShaderConstantF(0,&command.matrices[0].m[0][0],12);
+    device_->SetPixelShaderConstantF(0,command.material,1);
+    device_->SetRenderState(D3DRS_ALPHABLENDENABLE,command.blend);
+    device_->SetRenderState(D3DRS_CULLMODE,command.cull);
+    const D3DSAMPLERSTATETYPE keys[]={D3DSAMP_MINFILTER,D3DSAMP_MAGFILTER,D3DSAMP_ADDRESSU,D3DSAMP_ADDRESSV,D3DSAMP_MIPFILTER,D3DSAMP_MAXANISOTROPY};
+    for(DWORD sampler=0;sampler<2;++sampler)for(int i=0;i<6;++i)
+        device_->SetSamplerState(sampler,keys[i],command.samplers[sampler][i]);
+}
+void SceneFX::flushSurfaces() {
+    if(surfaceCommands_.empty())return;
+    StateGuard state(device_);
+    if(state.valid()) {
+        state.isolateTargets();
+        if(beginSurfaceMask())for(const auto &command:surfaceCommands_) {
+            applySurface(*command);
+            device_->SetStreamSource(0,command->vertices,command->offset,command->stride);
+            const auto &draw=command->draw;
+            if(draw.indexed) {
+                device_->SetIndices(command->indices);
+                device_->DrawIndexedPrimitive(draw.type,draw.baseVertex,draw.minVertex,draw.vertices,draw.first,draw.primitives);
+            }else device_->DrawPrimitive(draw.type,draw.first,draw.primitives);
+        }
+    }
+    surfaceCommands_.clear();
 }
 void SceneFX::captureEmitter(const Settings &s, DrawCall draw) {
     if (!s.localLighting || !camera_ || emitterDraws_ >= 96)

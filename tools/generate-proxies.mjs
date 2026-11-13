@@ -48,11 +48,17 @@ for (const [,type,parent,body] of definitions) {
         before+=`if (${count}) runtime_->beforeDraw(${count},${vertices}); `;
         if(name==='DrawPrimitive') before+=`if (${count}) runtime_->environmentDraw(${names[0]},${names[1]},${count});`;
         before=before.trimEnd()+`\n#ifdef FENB_DIAGNOSTICS\n        runtime_->captureDraw("${name}",${names[0]},${count},${vertices},${stride},${data},${first});\n#endif\n        `;
-        before+=`if (${count} && (runtime_->settings.localLighting || runtime_->settings.surfaceReflections)) runtime_->emitterDraw([&](){return ${call};}); `;
+        const geometry=name==='DrawPrimitive'?`{${names[0]},${names[1]},${count}}`:
+          name==='DrawIndexedPrimitive'?`{${names[0]},${names[4]},${count},${names[2]},${names[3]},${names[1]},true}`:'{}';
+        before+=`if (${count} && (runtime_->settings.localLighting || runtime_->settings.surfaceReflections)) runtime_->emitterDraw([&](){return ${call};},${geometry}); `;
         before+=`if (${count}) runtime_->beforeWaterDraw(${stride},[&](){return ${call};}); `;
         after+=`runtime_->afterWaterDraw(${up},${up&&indexed}); `;
       }
       if(type==='IDirect3DTexture9'&&name==='UnlockRect')after+='if(SUCCEEDED(hr)) InvalidateWaterTag(real_); ';
+      if(['Lock','LockRect','LockBox'].includes(name) && !device && !root && !swap)
+        before+=`if (!(${names.at(-1)} & D3DLOCK_READONLY)) { auto* rt=RuntimeFor(owner_); if(rt) rt->surfaceBarrier(); } `;
+      if(name==='GetDC' && type==='IDirect3DSurface9')before+='auto* rt=RuntimeFor(owner_); if(rt) rt->surfaceBarrier(); ';
+      if(device && ['UpdateSurface','UpdateTexture','ProcessVertices','ColorFill','StretchRect'].includes(name))before+='runtime_->surfaceBarrier(); ';
       if(type==='IDirect3DSurface9'&&name==='UnlockRect')after+='if(SUCCEEDED(hr)) InvalidateWaterSurface(real_); ';
       if(device&&name==='UpdateSurface')after+=`if(SUCCEEDED(hr)) InvalidateWaterSurface(Unwrap(${names[2]})); `;
       if(device&&name==='UpdateTexture')after+=`if(SUCCEEDED(hr)) InvalidateWaterTag(Unwrap(${names[1]})); `;

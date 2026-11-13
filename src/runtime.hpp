@@ -85,7 +85,8 @@ class Runtime {
     void environmentDraw(D3DPRIMITIVETYPE type, UINT start, UINT count);
     void beforeWaterDraw(UINT upStride, DrawCall);
     void afterWaterDraw(bool up = false, bool indexed = false);
-    void emitterDraw(DrawCall);
+    void emitterDraw(DrawCall, SurfaceDraw = {});
+    void surfaceBarrier();
     void drawFVF(DWORD value) {
         drawFVF_ = value;
         fvfKnown_ = true;

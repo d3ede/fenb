@@ -7,6 +7,8 @@ sampler2D SkyBackdrop : register(s5);
 sampler2D MeanSky : register(s6);
 samplerCUBE Atmosphere : register(s7);
 float4 SurfaceControls : register(c56); // strength, roughness, trace distance, steps
+float4 SurfaceLight : register(c57); // view-space directional light, daylight
+float4 SurfaceEnvironment : register(c58); // captured sky available
 float4 Camera : register(c0);
 float4 Viewport : register(c1);
 float4 Texel : register(c2);
@@ -482,7 +484,13 @@ float4 SurfaceMaskPS(float2 blendUV:TEXCOORD0,float depth:TEXCOORD1,float3 norma
  // This verified plaza atlas also contains a planter's grass patch. Its material
  // response must follow the sampled atlas region rather than the entire texture.
  if(Camera.w>.5 && materialUV.x>.805 && materialUV.y>.69 && materialUV.y<.86)clip(-1);
- return float4(Camera.xy,depth,Camera.z>.5?tex2D(Depth,blendUV).a:1);
+ float2 response=Camera.xy;
+ if(response.x>0) {
+  float grain=dot(tex2D(Image,materialUV).rgb,float3(.2126,.7152,.0722));
+  response.x*=lerp(.4,1,smoothstep(.12,.65,grain));
+  response.y=saturate(response.y+(1-grain)*.12);
+ }
+ return float4(response,depth,Camera.z>.5?tex2D(Depth,blendUV).a:1);
 }
 float2 SurfaceProject(float3 p) {
  return (p.xy*Camera.xy/p.z*float2(.5,-.5)+.5)*Viewport.zw+Viewport.xy+Texel.xy*.5;
@@ -516,7 +524,7 @@ float4 SurfaceReflectionPS(float2 uv:TEXCOORD0):COLOR0 {
   if(RawDepth(at)<.999999 && delta>=0 && previousDelta<0 &&
      length((at-uv)/Texel.xy)>3) {
    float lo=previousT,hi=t;
-   [loop]for(int refine=0;refine<5;++refine) {
+   [loop]for(int refine=0;refine<8;++refine) {
     float mid=(lo+hi)*.5; float3 candidate=origin+direction*mid;
     float2 st=SurfaceProject(candidate);
     if(candidate.z>Z(st))hi=mid;else lo=mid;
@@ -528,23 +536,41 @@ float4 SurfaceReflectionPS(float2 uv:TEXCOORD0):COLOR0 {
    float spread=max(abs(Z(at+dx)-depth),abs(Z(at-dx)-depth));
    spread=max(spread,max(abs(Z(at+dy)-depth),abs(Z(at-dy)-depth)));
    if(RawDepth(at)<.999999 && dz<tolerance && spread<max(.12,depth*.01)) {
-    found=saturate(1-dz/tolerance);hit=at;hitZ=depth;
+    found=saturate(1-dz/(tolerance*3));hit=at;hitZ=depth;
    }
    break;
   }
   previousT=t;previousDelta=delta;
  }
- if(found<=0)return base;
- float edge=min(min(hit.x-Viewport.x,hit.y-Viewport.y),min(Viewport.x+Viewport.z-hit.x,Viewport.y+Viewport.w-hit.y));
- float rough=saturate(material.g*SurfaceControls.y*1.5),radius=1+rough*5;
- float3 reflection=tex2Dlod(Image,float4(hit,0,0)).rgb;float weight=1;
- [loop]for(int tap=0;tap<4;++tap) {
-  float2 at=hit+Kernel(tap)*Texel.xy*radius;
-  float w=exp(-abs(Z(at)-hitZ)/max(.03,hitZ*.002));
-  reflection+=tex2Dlod(Image,float4(at,0,0)).rgb*w;weight+=w;
+ float rough=saturate(material.g*SurfaceControls.y),radius=.5+rough*rough*18;
+ float fresnel=.05+.95*pow(1-saturate(dot(n,normalize(-p))),5);
+ float polish=saturate(material.r*SurfaceControls.x);
+ float3 environment=base.rgb;
+ if(SurfaceEnvironment.x>.5) {
+  float3 worldRay=mul(direction,transpose((float3x3)View));
+  environment=texCUBElod(Atmosphere,float4(worldRay,0)).rgb;
+  float3 broad=texCUBElod(Atmosphere,float4(normalize(lerp(worldRay,float3(0,1,0),rough*.7)),0)).rgb;
+  environment=lerp(environment,broad,rough*.7);
  }
- reflection/=weight;
- float fresnel=.15+.65*pow(1-saturate(dot(n,normalize(-p))),5);
- float amount=min(.45,material.r*SurfaceControls.x*fresnel)*found*saturate(edge/.04);
- return float4(lerp(base.rgb,reflection,amount),base.a);
+ float3 reflection=environment;
+ if(found>0) {
+  float edge=min(min(hit.x-Viewport.x,hit.y-Viewport.y),min(Viewport.x+Viewport.z-hit.x,Viewport.y+Viewport.w-hit.y));
+  float3 sum=tex2Dlod(Image,float4(hit,0,0)).rgb*2;float weight=2;
+  [loop]for(int tap=0;tap<8;++tap) {
+   float2 at=hit+Kernel(tap)*Texel.xy*radius*sqrt((tap+.5)/8);
+   float w=exp(-abs(Z(at)-hitZ)/max(.03,hitZ*.002));
+   sum+=tex2Dlod(Image,float4(at,0,0)).rgb*w;weight+=w;
+  }
+  reflection=lerp(environment,sum/weight,found*saturate(edge/.025));
+ }
+ // Environment is a restrained clear-coat fallback, not a fabricated object hit.
+ float amount=polish*lerp(.55,.95,fresnel)*(1-rough*.25);
+ float3 rgb=lerp(base.rgb,reflection,amount);
+ if(SurfaceLight.w>0) {
+  float3 light=normalize(SurfaceLight.xyz);
+  float alignment=saturate(dot(direction,light));
+  float highlight=pow(alignment,lerp(256,8,rough*rough));
+  rgb+=SunColor.rgb*highlight*SurfaceLight.w*polish*.55*saturate(dot(n,light));
+ }
+ return float4(saturate(rgb),base.a);
 }
