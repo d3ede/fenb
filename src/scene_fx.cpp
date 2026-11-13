@@ -604,9 +604,9 @@ bool SceneFX::emissive(IDirect3DTexture9 *texture) {
     for (auto &known : FoliageHashes)
         if (!memcmp(digest, known, 32))
             tag |= 2;
-    for (auto &known : SunFlareHashes)
-        if (!memcmp(digest, known, 32))
-            tag |= 8;
+    for (auto &known : SunIdentities)
+        if (!memcmp(digest, known.hash, 32))
+            tag |= known.disc ? 128 : 8;
     for (auto &known : OverlayHashes)
         if (!memcmp(digest, known, 32))
             tag |= 16;
@@ -630,7 +630,8 @@ void SceneFX::beginFlare(const Settings &s) {
     device_->GetRenderState(D3DRS_ALPHABLENDENABLE, &blend);
     device_->GetRenderState(D3DRS_SRCBLEND, &src);
     device_->GetRenderState(D3DRS_DESTBLEND, &dst);
-    if (z || write || !blend || src != D3DBLEND_SRCALPHA || dst != D3DBLEND_INVSRCALPHA)
+    if (write || !blend || (src != D3DBLEND_SRCALPHA && src != D3DBLEND_ONE) ||
+        (dst != D3DBLEND_INVSRCALPHA && dst != D3DBLEND_ONE))
         return;
     Com<IDirect3DBaseTexture9> base;
     Com<IDirect3DPixelShader9> ps;
@@ -640,8 +641,10 @@ void SceneFX::beginFlare(const Settings &s) {
     auto *texture = static_cast<IDirect3DTexture9 *>(base.p);
     emissive(texture);
     DWORD tag = 0, size = 4;
-    if (FAILED(texture->GetPrivateData(EmitterTag, &tag, &size)) || !(tag & 8) || !programs())
+    if (FAILED(texture->GetPrivateData(EmitterTag, &tag, &size)) || !(tag & (8|128)) || !programs())
         return;
+    const bool disc=(tag&128)!=0;
+    if ((!disc && z) || (disc && s.sunHalo<=0)) return;
     D3DMATRIX matrices[3]{};
     if (FAILED(device_->GetTransform(D3DTS_WORLD, &matrices[0])) ||
         FAILED(device_->GetTransform(D3DTS_VIEW, &matrices[1])) ||
@@ -651,13 +654,20 @@ void SceneFX::beginFlare(const Settings &s) {
     if (!guard->valid())
         return;
     skyState_ = std::move(guard);
-    float control[] = {s.sunHalo * .12f, 0, 0, 0};
+    // A real sun disc gets a bright core; screen-centred lens ghosts remain subtle.
+    // Never turn every native lens element into a second visible sun.
+    float control[] = {disc ? s.sunHalo : s.sunHalo * .12f, disc ? 1.f : 0.f, 0, 0};
     float layout[] = {0, 0, 0, 0};
     device_->SetVertexShader(skyVS_);
     device_->SetVertexShaderConstantF(0, &matrices[0].m[0][0], 12);
     device_->SetVertexShaderConstantF(16, layout, 1);
     device_->SetPixelShaderConstantF(0, control, 1);
     device_->SetRenderState(D3DRS_FOGENABLE, FALSE);
+    if(disc) {
+        device_->SetRenderState(D3DRS_SRCBLEND,D3DBLEND_SRCALPHA);
+        device_->SetRenderState(D3DRS_DESTBLEND,D3DBLEND_ONE);
+        device_->SetRenderState(D3DRS_ALPHATESTENABLE,FALSE);
+    }
     device_->SetPixelShader(flarePS_);
 }
 void SceneFX::beginFoliage(const Settings &s) {

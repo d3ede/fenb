@@ -357,13 +357,25 @@ float4 SkyPS(float2 uv:TEXCOORD0,float3 direction:TEXCOORD1,float4 color:COLOR0)
     gradient*=luminance/max(.01,dot(gradient,weights));
     float3 rgb=lerp(source.rgb,gradient,Camera.x*.65*blue);
     rgb=lerp(rgb,luminance.xxx,pow(1-height,4)*Camera.x*.08*blue);
-    float halo=pow(saturate(dot(d,normalize(Eye.xyz+float3(0,.000001,0)))),128)*Camera.w*Eye.w;
-    rgb+=SunColor.rgb*halo;
+    float facing=saturate(dot(d,normalize(Eye.xyz+float3(0,.000001,0))));
+    // Analytic angular falloff avoids the low-resolution disc and hard ring edges.
+    // It belongs to the native sky pass, so opaque world geometry occludes it.
+    float halo=(pow(facing,96)*.22+pow(facing,640)*.8)*Camera.w*Eye.w;
+    float angularPixel=fwidth(facing);
+    float core=smoothstep(.99955-angularPixel,.99994+angularPixel,facing)*saturate(Camera.w*3)*Eye.w;
+    rgb=lerp(rgb,float3(1,.96,.85),core);
+    rgb+=lerp(float3(1,.87,.66),saturate(SunColor.rgb*2),.35)*halo;
     return float4(saturate(rgb),source.a);
 }
 float4 FlarePS(float2 uv:TEXCOORD0,float4 color:COLOR0):COLOR0 {
     float2 p=(uv-.5)*2;
     float radius=dot(p,p);
+    if(Camera.y>.5) {
+        float core=1-smoothstep(.16,.25,radius);
+        float aureole=exp(-radius*5)*pow(saturate(1-radius),2);
+        float energy=(core*saturate(Camera.x*4)+aureole*Camera.x*.65)*color.a;
+        return float4(float3(1,.94,.79)*color.rgb,saturate(energy));
+    }
     float halo=exp(-radius*7)*pow(saturate(1-radius),2);
     float brightness=dot(color.rgb,float3(.2126,.7152,.0722));
     return float4(float3(1,.91,.76)*brightness,halo*color.a*Camera.x);

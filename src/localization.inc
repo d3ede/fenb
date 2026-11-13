@@ -81,7 +81,7 @@ UI_TEXT(HorizonHelp, "Width of the bright band along the horizon.", "Ширин�
 UI_TEXT(Clouds, "Clouds", "Облака")
 UI_TEXT(CloudsHelp, "Contrast of the original clouds, preserving their transparency.", "Контраст исходных облаков, с сохранением их прозрачности.")
 UI_TEXT(SunHalo, "Sun halo", "Ореол солнца")
-UI_TEXT(SunHaloHelp, "Soft glow in the direction of the sun.", "Мягкое свечение в направлении солнца.")
+UI_TEXT(SunHaloHelp, "Brightness of the sun core and its soft halo. Does not amplify native lens rings.", "Яркость ядра солнца и мягкого ореола. Не усиливает старые круги бликов.")
 UI_TEXT(Fog, "Fog", "Туман")
 UI_TEXT(Density, "Density", "Плотность")
 UI_TEXT(FogDensityHelp, "Additional aerial perspective based on distance and height.", "Дополнительная воздушная перспектива по расстоянию и высоте.")

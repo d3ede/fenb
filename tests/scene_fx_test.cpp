@@ -1113,6 +1113,16 @@ int main(int argc, char **) {
     CHECK((softFlare[(H / 2 + 150) * W + 160] & 0xffffff) == 0x203040);
     CHECK(flareFrame(true, 0));
     CHECK((Read(d)[H / 2 * W + W / 2] & 0xffffff) == 0x203040);
+    // The real sun disc is deliberately distinct from the rainbow lens ghosts.
+    DWORD sunDiscTag=128;
+    emitter->SetPrivateData(EmitterTag,&sunDiscTag,4,0);
+    CHECK(flareFrame(true,.3f));
+    auto sunDisc=Read(d);
+    CHECK(Luma(sunDisc[H/2*W+W/2])>Luma(softFlare[H/2*W+W/2])+50);
+    CHECK((sunDisc[(H/2+150)*W+160]&0xffffff)==0x203040);
+    CHECK(Save(sunDisc,L"build/scene-sun-disc.bmp"));
+    CHECK(flareFrame(true,0));auto nativeDisc=Read(d);
+    CHECK(flareFrame(false,0));CHECK(nativeDisc==Read(d));
     DWORD unknownTag = 4;
     emitter->SetPrivateData(EmitterTag, &unknownTag, 4, 0);
     CHECK(flareFrame(true, 1));

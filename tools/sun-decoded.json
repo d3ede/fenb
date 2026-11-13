@@ -37,6 +37,13 @@
   {
     "file": "Weather/lenzflare_008.tga",
     "sha256": "3a895b9db47cbb50cdd714d9b8bdf2755406ec518bbc2c1ac8b446ce43a28e6c",
-    "rawHash": "7ea446eae10df21dd0a8f0a532809f4138987408db953aa76289379e5d0ae642"
+    "rawHash": "7ea446eae10df21dd0a8f0a532809f4138987408db953aa76289379e5d0ae642",
+    "kind": "disc"
+  },
+  {
+    "file": "Weather/sundisk.bmp",
+    "sha256": "6d92f4cf628b3ef6092c401c810a88198696710730596c15608ac4c9c9eefddb",
+    "rawHash": "e078073a78e1fcf5aa2d27995c32edd1e3c8acf5991e2cbfb2d0bb363d155f9d",
+    "kind": "disc"
   }
 ]
