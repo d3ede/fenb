@@ -9,9 +9,13 @@ for(const item of JSON.parse(fs.readFileSync(new URL('./surface-materials.json',
  const data=fs.readFileSync(path.join(root,item.file));
  if(crypto.createHash('sha256').update(data).digest('hex')!==item.sourceHash)
   throw Error('Changed surface asset: '+item.file);
- const w=data.readUInt32LE(16),h=data.readUInt32LE(12),four=data.toString('ascii',84,88);
- const size=four==='DXT1'?Math.ceil(w/4)*Math.ceil(h/4)*8:/DXT[35]/.test(four)?Math.ceil(w/4)*Math.ceil(h/4)*16:w*h*data.readUInt32LE(88)/8;
- identities.set(crypto.createHash('sha256').update(data.subarray(128,128+size)).digest('hex'),item.kind);
+ if(data.toString('ascii',0,4)==='DDS '){
+  const w=data.readUInt32LE(16),h=data.readUInt32LE(12),four=data.toString('ascii',84,88);
+  const size=four==='DXT1'?Math.ceil(w/4)*Math.ceil(h/4)*8:/DXT[35]/.test(four)?Math.ceil(w/4)*Math.ceil(h/4)*16:w*h*data.readUInt32LE(88)/8;
+  identities.set(crypto.createHash('sha256').update(data.subarray(128,128+size)).digest('hex'),item.kind);
+ }else if(path.extname(item.file).toLowerCase()!=='.tga')throw Error('Unsupported surface asset: '+item.file);
+ // Non-DDS artwork is identified by its verified decoded upload, never by
+ // interpreting image-file bytes as a DDS header or hashing a misleading prefix.
  identities.set(item.sha256,item.kind);
 }
 let out='#pragma once\nstruct SurfaceIdentity { unsigned char hash[32]; unsigned kind; };\ninline constexpr SurfaceIdentity SurfaceIdentities[] = {\n';

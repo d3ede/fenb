@@ -868,15 +868,31 @@ int main(int argc, char **) {
     // Its planter grass shares one texture with the paving and must remain matte.
     Com<IDirect3DTexture9> syntheticPaving;
     syntheticPaving.p=paving.p;syntheticPaving->AddRef();
-    for(const wchar_t *name:{L"Obj_NewFlsenCent01.dds",L"Obj_NewFlEastCent01.dds",L"Obj_NewFlNorthCent01.dds"}) {
-        auto path=std::wstring(L"X:/Games/Homesickness/Model/Texture/")+name;
+    for(const wchar_t *name:{L"Model/Texture/Obj_NewFlsenCent01.dds",L"Model/Texture/Obj_NewFlEastCent01.dds",
+                            L"Model/Texture/Obj_NewFlNorthCent01.dds",L"World/Texture/5da3e18d.tga"}) {
+        auto path=std::wstring(L"X:/Games/Homesickness/")+name;
         if(GetFileAttributesW(path.c_str())==INVALID_FILE_ATTRIBUTES)continue;
         CHECK(LoadMaterial(d,path.c_str(),paving));
         settings.surfaceStrength=1;CHECK(render());
         DWORD actualTag=0,size=4;
-        CHECK(SUCCEEDED(paving->GetPrivateData(EmitterTag,&actualTag,&size)) && (actualTag&(64|512)));
+        CHECK(SUCCEEDED(paving->GetPrivateData(EmitterTag,&actualTag,&size)) && (actualTag&(32|64|512)));
         CHECK(SceneFXFixture::surfaceMaskMaximum(fx.sceneFX(),d)>0);
         CHECK(maximumDelta(pavingOff,Read(d))>10);
+        if(std::wcsstr(name,L".tga")) {
+            const float roughness=settings.surfaceRoughness;
+            for(float rough:{0.f,.55f,1.f}) {
+                settings.surfaceRoughness=rough;CHECK(render());
+                CHECK(SceneFXFixture::surfaceMaskMaximum(fx.sceneFX(),d)>0);
+                const auto road=Read(d);unsigned blue=0;
+                for(UINT y=145;y<H;++y)for(UINT x=0;x<W;++x) {
+                    const DWORD a=pavingOff[y*W+x],b=road[y*W+x];
+                    blue+=int(b&255)>int(a&255)+4 && int((a>>16)&255)>int((b>>16)&255)+2;
+                }
+                printf("Actual TGA road reflection: roughness=%.2f, blue pixels=%u\n",rough,blue);
+                CHECK(blue>100);
+            }
+            settings.surfaceRoughness=roughness;
+        }
         if(actualTag&512) {
             atlasGrass=true;CHECK(render());
             CHECK(SceneFXFixture::surfaceMaskMaximum(fx.sceneFX(),d)==0);

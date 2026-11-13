@@ -64,5 +64,11 @@
     "sourceHash": "a28a1b0b6382576df74f8efcf18e56776879ede1aa1d6530ccc906c732e618f7",
     "sha256": "2d1a81ef15647b70d8200e31c2c38ec1a64db31f3eadd1e03aa82104b1df4259",
     "kind": 3
+  },
+  {
+    "file": "World/Texture/5da3e18d.tga",
+    "sourceHash": "ef584d6cf18da3d76ee2ca1e1907cc0d3d1f2e9dd4cf53b7a05a219bcb350e7f",
+    "sha256": "70c1953606406a1999b3ee67f7833ef148a04479a05d9d18712726a94495abb0",
+    "kind": 1
   }
 ]
