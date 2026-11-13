@@ -223,8 +223,6 @@ inline void ApplyBuiltInVisuals(Settings &s, int index) {
     s.sunRays = false;
     s.fog = false;
     s.dof = false;
-    s.adaptation = false;
-    s.lightingBalance = false;
     s.localLighting = false;
     s.water = false;
     s.sfxWake = 0.000000f;

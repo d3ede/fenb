@@ -391,7 +391,7 @@ void ProfilePicker(Runtime &r, float width) {
         ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, ImVec2(0, .5f));
         ImGui::PushStyleColor(ImGuiCol_Separator, ImVec4(.19f, .20f, .22f, 1));
         ImGui::SeparatorText(Tr(UiText::BuiltInProfiles));
-        for (int i = 0; i < BuiltInPresetCount; ++i)
+        for (int i : BuiltInProfileOrder)
             if (ImGui::Selectable(Label(presets[i]).c_str(), matching == i && r.selectedProfile.empty(), 0,
                                   {0, 24})) {
                 s.preset(i);

@@ -47,7 +47,7 @@
   }},
   {"name": "Default (Potato)", "overrides": {
     "ssao": 0, "sun_rays": 0, "fog": 0, "dof": 0,
-    "adaptation": 0, "lighting_balance": 0, "local_lighting": 0,
+    "local_lighting": 0,
     "water": 0, "sfx_wake": 0, "water_caustics": 0,
     "smaa": 0, "fxaa": 1, "bloom_scale": 4
   }}

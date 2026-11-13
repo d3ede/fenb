@@ -6,6 +6,8 @@ inline constexpr UiText BuiltInProfileNames[] = {UiText::DefaultProfile, UiText:
                                                  UiText::NightProfile, UiText::LowEndProfile,
                                                  UiText::PotatoProfile};
 inline constexpr int BuiltInPresetCount = sizeof(BuiltInProfileNames) / sizeof(BuiltInProfileNames[0]);
+// Display order is independent of persistent preset identities.
+inline constexpr int BuiltInProfileOrder[] = {0, 5, 6, 1, 2, 3, 4};
 
 struct Settings {
     bool enabled = true, bloom = true, color = true;

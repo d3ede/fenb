@@ -262,6 +262,9 @@ int main() {
     io.AddMousePosEvent(-FLT_MAX,-FLT_MAX);frame();
     for(int language=0;language<2;++language) {
         r.settings.language=language?Language::Russian:Language::English;
+        click(360,96);frame();
+        CHECK(Screenshot(d,language?L"build/ui-integrated/ru-profile-order.png":L"build/ui-integrated/en-profile-order.png"));
+        ImGui::ClosePopupToLevel(0,true);frame();
         activate(panel,"menu");
         CHECK(Screenshot(d,language?L"build/ui-integrated/ru-actions.png":L"build/ui-integrated/en-actions.png"));
         ImGui::ClosePopupToLevel(0,true);frame();

@@ -261,6 +261,16 @@ int main() {
     CHECK(shipped == builtIn && builtIn.matchingPreset() == 0);
     CHECK(!strcmp(Translate(Language::English, BuiltInProfileNames[0]), "Default"));
     CHECK(!strcmp(Translate(Language::Russian, BuiltInProfileNames[0]), "Основной"));
+    CHECK(BuiltInProfileOrder[0]==0 && BuiltInProfileNames[BuiltInProfileOrder[1]]==UiText::LowEndProfile &&
+          BuiltInProfileNames[BuiltInProfileOrder[2]]==UiText::PotatoProfile);
+    unsigned ordered=0;for(int index:BuiltInProfileOrder)ordered|=1u<<index;
+    CHECK(ordered==(1u<<BuiltInPresetCount)-1);
+    Settings potato;potato.preset(6);
+    CHECK(potato.adaptation==builtIn.adaptation && potato.lightingBalance==builtIn.lightingBalance &&
+          potato.adaptationKey==builtIn.adaptationKey && potato.lightingBalanceStrength==builtIn.lightingBalanceStrength);
+    CHECK(potato.exposure==builtIn.exposure && potato.gamma==builtIn.gamma && potato.contrast==builtIn.contrast &&
+          potato.saturation==builtIn.saturation && potato.temperature==builtIn.temperature && potato.tint==builtIn.tint &&
+          potato.shadows==builtIn.shadows && potato.highlights==builtIn.highlights && potato.bloomStrength==builtIn.bloomStrength);
     for (int index = 0; index < BuiltInPresetCount; ++index) {
         Settings controls;
         controls.enabled = false;
