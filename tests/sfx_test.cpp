@@ -349,9 +349,11 @@ int main(int argc, char **argv) {
     occlude = false;
     // Use a real rune material as well as the synthetic ring: detailed quality must
     // change sampling without fading the native additive effect into translucent smoke.
-    for (const wchar_t *material : {L"sfx_SklAssCheAccura01.dds", L"obj_skylighting02.dds"})
+    for (const wchar_t *material : {L"sfx_SklAssCheAccura01.dds", L"obj_skylighting02.dds",
+                                   L"sfx_EffectEnchant.dds", L"sfx_buffpet01-01.dds"})
       if (FILE *file = _wfopen((std::wstring(L"X:/Games/Homesickness/SFX/Texture/") + material).c_str(), L"rb")) {
         const bool curtain = std::wcsstr(material, L"skylighting") != nullptr;
+        const bool aura = std::wcsstr(material, L"Enchant") || std::wcsstr(material, L"buffpet");
         depthEnabled = !curtain; fixedCurtainTime = curtain;
         DWORD header[32]{};
         CHECK(fread(header, 1, 128, file) == 128);
@@ -377,6 +379,7 @@ int main(int argc, char **argv) {
         render(false); auto runeNative = Read(d);
         settings.sfxIntensity = settings.sfxSaturation = 1;
         settings.sfxGlow = settings.sfxSoftness = 0;
+        settings.sfxAura = 0;
         CHECK(render(true) && Difference(runeNative, Read(d)) == 0);
         settings = Settings{};
         settings.sfx = true;
@@ -385,9 +388,25 @@ int main(int argc, char **argv) {
         settings.sceneQuality = true;
         CHECK(render(true)); auto detailed = Read(d);
         CHECK(Difference(economical, detailed) > 100 && nativeBlend);
-        Save(runeNative, curtain ? L"build/sfx-aurora-native.bmp" : L"build/sfx-rune-native.bmp");
-        Save(economical, curtain ? L"build/sfx-aurora-economical.bmp" : L"build/sfx-rune-economical.bmp");
-        Save(detailed, curtain ? L"build/sfx-aurora-detailed.bmp" : L"build/sfx-rune-detailed.bmp");
+        Save(runeNative, aura ? L"build/sfx-aura-native.bmp" : curtain ? L"build/sfx-aurora-native.bmp" : L"build/sfx-rune-native.bmp");
+        Save(economical, aura ? L"build/sfx-aura-economical.bmp" : curtain ? L"build/sfx-aurora-economical.bmp" : L"build/sfx-rune-economical.bmp");
+        Save(detailed, aura ? L"build/sfx-aura-detailed.bmp" : curtain ? L"build/sfx-aurora-detailed.bmp" : L"build/sfx-rune-detailed.bmp");
+        if (aura) {
+            DWORD actualKind=0, size=4;
+            CHECK(SUCCEEDED(texture->GetPrivateData(SfxTag,&actualKind,&size)) && actualKind==6);
+            settings.sceneQuality=false; settings.sfxAura=0;
+            CHECK(render(true)); const auto auraOff=Read(d);
+            settings.sfxAura=1; CHECK(render(true)); const auto auraOn=Read(d);
+            CHECK(Difference(auraOff,auraOn)>100 && sfx.bytes()==0);
+            unsigned brighter=0;
+            for(size_t i=0;i<auraOn.size();++i)
+                brighter+=((auraOn[i]>>16)&255)+((auraOn[i]>>8)&255)+(auraOn[i]&255) >
+                          ((auraOff[i]>>16)&255)+((auraOff[i]>>8)&255)+(auraOff[i]&255)+6;
+            CHECK(brighter>100);
+            fade=0; render(false); const auto fadedAura=Read(d);
+            CHECK(render(true) && Difference(fadedAura,Read(d))==0);
+            Save(auraOff,L"build/sfx-aura-boost-off.bmp"); Save(auraOn,L"build/sfx-aura-boost-on.bmp");
+        }
         Drop(texture.p); texture.p = previous.p; previous.p = nullptr;
         settings = savedSettings; world = id; fade = 0x80ff8040;
         depthEnabled = true; fixedCurtainTime = false;

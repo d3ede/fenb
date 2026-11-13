@@ -36,14 +36,16 @@ int main() {
         Settings particles;
         particles.sfx = false;
         particles.sfxIntensity = 8;
+        particles.sfxAura = 4;
         particles.sfxWake = -1;
         particles.sfxGlow = std::numeric_limits<float>::quiet_NaN();
         particles.sanitize();
-        CHECK(particles.sfxIntensity == 2 && particles.sfxWake == 0 &&
+        CHECK(particles.sfxIntensity == 2 && particles.sfxAura == 2 && particles.sfxWake == 0 &&
               particles.sfxGlow == Settings{}.sfxGlow);
         particles.language = Language::Russian;
         particles.resetSceneSection(11);
         CHECK(!particles.sfx && particles.sfxIntensity == Settings{}.sfxIntensity &&
+              particles.sfxAura == Settings{}.sfxAura &&
               particles.sfxWake == 0 && particles.language == Language::Russian);
         particles.resetWaterSurface();
         CHECK(particles.sfxWake == Settings{}.sfxWake && !particles.sfx);

@@ -136,6 +136,8 @@ Diagnostic schema 2 also records a replay bundle from the first captured water f
 
 Local-light source positions use a camera-near FP16 atlas origin. Moving more than 256 world units from that origin invalidates the previous source history and rebases the next capture, including after distant map teleports; this does not require toggling the effect. Exact known Flaris window, quest-office, machinery and sign light maps can supply emission, including verified ARGB8 uploads and native texture stages that only forward CURRENT unchanged. Other multitexture operations, lit/opaque geometry and arbitrary bright textures remain excluded. These sources illuminate depth-reconstructed scene surfaces as unshadowed local lights; this is not a replacement for light-space shadow maps.
 
+Recognized refinement textures, pet-bead auras and elemental weapon materials use a separate aura pixel shader under Particle processing. `sfx_aura` controls colored midtone energy and a small material-local halo while retaining native vertex fading, blend mode, geometry and animation. It adds no scene snapshot, particle replay or full-screen blur. Zero removes the additional aura treatment; the particle master switch restores the native pass. Detailed quality also reconstructs magnified aura texture sampling. These changes affect only the local modded client.
+
 The DLL belongs beside `Neuz.exe`. Keep an existing `FENB.ini` when updating. A running game keeps its already loaded DLL and must be restarted to load a replacement.
 
 ### Local release packaging

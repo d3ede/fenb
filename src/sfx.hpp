@@ -11,7 +11,7 @@ class SfxFX {
     IDirect3DDevice9 *device_;
     BCRYPT_ALG_HANDLE hash_ = nullptr;
     Com<IDirect3DVertexShader9> vs_;
-    Com<IDirect3DPixelShader9> ps_;
+    Com<IDirect3DPixelShader9> ps_, auraPS_;
     Com<IDirect3DTexture9> background_;
     Com<IDirect3DSurface9> backgroundSurface_;
     UINT width_ = 0, height_ = 0;
@@ -123,6 +123,7 @@ class SfxFX {
         end();
         vs_.out();
         ps_.out();
+        auraPS_.out();
         backgroundSurface_.out();
         background_.out();
         width_ = height_ = 0;
@@ -272,7 +273,8 @@ class SfxFX {
         if (wake && (s.sfxWake <= 0 || (!snapshot_ && !canSnapshot) || !snapshotWorld()))
             return false;
         if ((!vs_.p && FAILED(device_->CreateVertexShader(ShaderSfxVS, vs_.out()))) ||
-            (!ps_.p && FAILED(device_->CreatePixelShader(ShaderSfxPS, ps_.out()))))
+            (kind == 6 ? (!auraPS_.p && FAILED(device_->CreatePixelShader(ShaderAuraPS, auraPS_.out()))) :
+                         (!ps_.p && FAILED(device_->CreatePixelShader(ShaderSfxPS, ps_.out())))))
             return false;
         if (!saveState(wake))
             return false;
@@ -335,8 +337,9 @@ class SfxFX {
         memcpy(&c[9][2], &start, 4);
         memcpy(&c[9][3], &end, 4);
         memcpy(c[10], &density, 4);
+        c[10][1] = kind == 6 ? s.sfxAura : 0;
         device_->SetVertexShader(vs_);
-        device_->SetPixelShader(ps_);
+        device_->SetPixelShader(kind == 6 ? auraPS_.p : ps_.p);
         device_->SetVertexShaderConstantF(0, &clip.m[0][0], 4);
         device_->SetVertexShaderConstantF(4, &uv.m[0][0], 4);
         device_->SetVertexShaderConstantF(8, &worldView.m[0][0], 4);

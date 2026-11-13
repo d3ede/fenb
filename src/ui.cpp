@@ -640,6 +640,7 @@ void SceneControls(Runtime &runtime) {
     }
     if (section("sfx", Tr(UiText::SpellEffects), s.sfx, 11)) {
         ImGui::BeginDisabled(!s.sfx || !s.enabled);
+        Row(UiText::AuraGlow, Tr(UiText::AuraGlowHelp), s.sfxAura, 0, 2, defaults.sfxAura,"%.2f",.05f);
         Row(UiText::Strength, Tr(UiText::SfxIntensityHelp), s.sfxIntensity, .5f, 2, defaults.sfxIntensity,"%.2f",.05f);
         Row(UiText::SfxGlow, Tr(UiText::SfxGlowHelp), s.sfxGlow, 0, 1, defaults.sfxGlow,"%.2f",.05f);
         Row(UiText::Saturation, Tr(UiText::SaturationHelp), s.sfxSaturation, .5f, 1.5f, defaults.sfxSaturation,"%.2f",.05f);

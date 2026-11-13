@@ -56,7 +56,7 @@ float4 ReconstructArt(float2 uv,float2 low,float2 high) {
 float4 SfxPS(float2 uv:TEXCOORD0,float fogDepth:TEXCOORD1,float4 color:COLOR0,float2 pixel:VPOS):COLOR0 {
  float2 low=Bounds.xy+Texel.xy*.5,high=max(low,Bounds.zw-Texel.xy*.5);
  float2 materialUV=uv;
- bool curtain=Texel.z>4.5;
+ bool curtain=Texel.z==5;
  bool styled=Style.x!=1 || Style.y>0 || Style.z!=1 || Style.w>0;
  if(curtain && Style.y>0) {
   float flow=sin(uv.y*4.4+Screen.w*.13+sin(uv.x*8));
@@ -105,6 +105,39 @@ float4 SfxPS(float2 uv:TEXCOORD0,float fogDepth:TEXCOORD1,float4 color:COLOR0,fl
   // never replace the game's blend with Screen or remap every faint layer through a shoulder.
   rgb/=max(1,max(rgb.r,max(rgb.g,rgb.b)));
   original.rgb=lerp(original.rgb,rgb,Texel.w);
+ }
+ float visibility=1;
+ if(Fog.x>.5) {
+  if(Fog.y>2.5)visibility=saturate((Fog.w-fogDepth)/max(.001,Fog.w-Fog.z));
+  else if(Fog.y>1.5)visibility=exp(-pow(FogExtra.x*fogDepth,2));
+  else visibility=exp(-FogExtra.x*fogDepth);
+ }
+ original.rgb=lerp(FogColor.rgb,original.rgb,visibility);
+ return original;
+}
+// Equipment refinement, pet beads and elemental weapon auras have a dedicated, cheaper
+// shader. Native alpha, material animation and additive blending remain unchanged.
+float4 AuraPS(float2 uv:TEXCOORD0,float fogDepth:TEXCOORD1,float4 color:COLOR0):COLOR0 {
+ float4 original=Native(tex2D(Art,uv),color);
+ if(Style.x!=1 || Style.y>0 || Style.z!=1 || Style.w>0 || FogExtra.y>0) {
+ if(AlphaStage.w>.5 && max(length(ddx(uv)/Texel.xy),length(ddy(uv)/Texel.xy))<1.2)
+  original=lerp(original,Native(ReconstructArt(uv,Bounds.xy+Texel.xy*.5,Bounds.zw-Texel.xy*.5),color),Texel.w*.65);
+ float peak=max(original.r,max(original.g,original.b));
+ float3 hue=saturate(original.rgb/max(.001,peak));
+ float3 rich=hue*lerp(1,hue,saturate((Style.z-1)*2+.2*FogExtra.y));
+ float energy=lerp(peak,sqrt(max(0,peak)),saturate(FogExtra.y)*.45);
+ float gain=max(1,Style.x)*(1+FogExtra.y*.65);
+ float3 rgb=rich*energy*gain;
+ // Keep a colored core and a restrained halo inside the native aura geometry.
+ if(Style.y>0) {
+  float2 delta=Texel.xy*1.5,dx=ddx(uv),dy=ddy(uv);
+  float3 sum=Native(tex2Dgrad(Art,uv+float2(delta.x,0),dx,dy),color).rgb;
+  sum+=Native(tex2Dgrad(Art,uv-float2(delta.x,0),dx,dy),color).rgb;
+  sum+=Native(tex2Dgrad(Art,uv+float2(0,delta.y),dx,dy),color).rgb;
+  sum+=Native(tex2Dgrad(Art,uv-float2(0,delta.y),dx,dy),color).rgb;
+  rgb+=sum*(Style.y*.08)*(1-saturate(peak));
+ }
+ original.rgb=lerp(original.rgb,rgb,Texel.w);
  }
  float visibility=1;
  if(Fog.x>.5) {

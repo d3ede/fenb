@@ -2241,37 +2241,37 @@
     "file": "SFX/Texture/fly_weaponfx_elect_color_1.dds",
     "sha256": "cbd935db06d73d94b59246f8c0b0f316b57cda04dea1abc83d47b6e918ba8146",
     "rawHash": "b636b3ce841951a048ba13315b3888444e257d85a5e04ce51988ab779379ea92",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/fly_weaponfx_fire_color_1.dds",
     "sha256": "466c7744407be7e4f4247f02a9dde8b7d791e45587676f17a5e97431357f2be8",
     "rawHash": "11d8f8b687599a0523a79cde5de1b721b328f3884873f39fbab9d6292280668c",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/fly_weaponfx_fire_color_sec.dds",
     "sha256": "e1f6fbdaa92e7cf2c8b755967a3f529152e83b7da882a823db69e4743e92c7e3",
     "rawHash": "f60e90b6cfa8e29ef0ede648dd5c277e041f6a03db4234f4378a4f5dc61fe1bf",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/fly_weaponfx_green_color_sec.dds",
     "sha256": "c84ec81b884fdfe19baa43c10f98a570a1331047115f5d70be6c39a15a4d0760",
     "rawHash": "04c1c81952b67b2afb2e89481cbe62963708859b229f533afeac9336d2fe3b71",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/fly_weaponfx_ground_color_1.dds",
     "sha256": "9fd4e1d1f8cb26c14176cbdf44f13e214260aae4f1934588a09952853695e4ce",
     "rawHash": "90d83c34bea0841353cd0630c781c95a9c16a909f11718e426d0a50ec323a50d",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/fly_weaponfx_ground_color_sec.dds",
     "sha256": "85c77eabbc30fb68486218dce2ee2cee3d11cc2ff70ff97002cd9df4fabcbb71",
     "rawHash": "3e5cc4f96209e96c23735b1f532f9e7db6d2ccaa441ffb5354be847303437f78",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/fly_weaponfx_water01.dds",
@@ -2289,25 +2289,25 @@
     "file": "SFX/Texture/fly_weaponfx_water_color_1.dds",
     "sha256": "6603dbd896c7875f13176caa30ed8539686d189dda96d8e777b3d2385ba8d7a6",
     "rawHash": "e7a6c8f864077c79aae5db29ba142cd688c635f613a6038bbac74a086caadfe9",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/fly_weaponfx_water_color_sec.dds",
     "sha256": "77c61113ecfe23bc6e938f3ee68798dc2b6653ed23a537831f3f3e998231376f",
     "rawHash": "7078edf77d3b2eaf7ddb48013d31ecaed8c9d00ef86e894cc8bc97da99e421bc",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/fly_weaponfx_white_color_1.dds",
     "sha256": "53960633bb278a0bd9bdbeb7428257b388eb3ae75e0a87fd8bef99ff6b9014f4",
     "rawHash": "8421b8e9c01803e31a663d15fa4d283b77107fbb046d0686a0a966066f818d9c",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/fly_weaponfx_white_color_sec.dds",
     "sha256": "a27dd6056cae059fe27afcf7a1177f4502e834ffdf2ccb88332648ddd980b8fc",
     "rawHash": "3b61ef3f8c7d2c1e2ba4e543b90e6eb052f0eca07daeb42c485fd9e0ded3c89e",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/fly_weaponfx_wind01.dds",
@@ -2325,13 +2325,13 @@
     "file": "SFX/Texture/fly_weaponfx_wind_color_1.dds",
     "sha256": "07af6e34c2266f0578ffb7814284d43a18ff2560b015ad73f4e24fe8cd0197e4",
     "rawHash": "1c1f4c7419654c259230b366027c364b9bbdda8bf53992c3ffc4f1b1f48d19ed",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/fly_weaponfx_yellow_color_sec.dds",
     "sha256": "1dfedd07ad43f73d5cb48f8528f082d30ef19be72990e5ef2fde2643990f9527",
     "rawHash": "70b7510c5c5aadae90da99c8aa137680881a32d5e1956e49a226ac65a907aa54",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/fly_weapon_two_fx_blue_color_sec.dds",
@@ -3681,43 +3681,43 @@
     "file": "SFX/Texture/sfx_buffpet01-01.dds",
     "sha256": "6caf1b451391c0b4a7eb2522593e4e28ea29e9189ff3a1361195340b6c38140a",
     "rawHash": "ea37383101f07c2360d614af5a0bb36168ad1bee69dded5231aa4f8dbbb4f0ac",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_buffpet01-02.dds",
     "sha256": "f2f6d106d9813a2f0302fed4662a9897900cbe8ccf9d499216473402b2f3a24a",
     "rawHash": "508880c9264383257c1a6d859832ed19dcf420fd767a3f49daf7bf5e1031c435",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_buffpet02-01.dds",
     "sha256": "b12340b709afd88b79e80c0f8c4ab85fdba0590f121d56bcc8d2a09e8fc2c2e5",
     "rawHash": "d325aa94d1a09f5ce57546c92ff2549d8c29df9dafd37fd224249cef46384f2f",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_buffpet02-02.dds",
     "sha256": "0fd20fe28a63199c13190971a4c222af7c4bf0ad460af5e260f706528ddf537f",
     "rawHash": "32dff55f68dea99d5a58307494bcb36dd19fbbe8aabe2c33b4d18234e587b7e4",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_buffpet03-01.dds",
     "sha256": "204abb3808bc5f94d5766ae72e0d346cd250e7657a8c9c3951bb231352f2717f",
     "rawHash": "1a9681cef5138b11d607d68c18d27f1f418fe870e0dee6432f12ccb30a61a70a",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_buffpet03-02.dds",
     "sha256": "727c27264eed7159bacd205f579d16704da1153b9673883d56de4f221d0a3f47",
     "rawHash": "a5f6f99499944d41b90b39e1fa176129365d90f5a0a0c506d3d6d1f2619e21c0",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_buffpet03-03.dds",
     "sha256": "90c7c5d7018d4f10e5f9a9475d8b1c28a368af4c440add4040339e9725b521f8",
     "rawHash": "8aff1961110223bad508d0f9cf576f5752f634d1d527247830810abdc97da591",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_buff_green_smoke.dds",
@@ -4461,43 +4461,43 @@
     "file": "SFX/Texture/sfx_EffectEnchant.dds",
     "sha256": "60d527c8a169e273b45e3bbd79105e6988df89912fb2ab6b656aab9afc4dd6cc",
     "rawHash": "f464b268e24187f204363f2b4aaa27facaeb11ceea0c83fcf908835ab3fb1069",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_EffectEnchant_black.dds",
     "sha256": "752ff07f35c4747fb8c0d85588e598b577775790fbee9c901baa24c1451fe53a",
     "rawHash": "b05b517177946999cb50450a3adf85f6d6a75bde07cebcfc66d1a59a4c9c1756",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_EffectEnchant_gold.dds",
     "sha256": "084566ff72239f433349e21d3945ee88bdfb4b91e4a717b48f9747bee233044f",
     "rawHash": "82cd0e9f31bf68c7240e562d88c01046fb417b295be76bf85e677938b424f7fa",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_EffectEnchant_green.dds",
     "sha256": "f003880f66e5f4df1850621def027e861e94b4507e23ead555e20470985d5946",
     "rawHash": "87b7720f83deddaf09723d7ff352128190bac4adf8d6ed35b2aeda12c8fb61cb",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_EffectEnchant_purple.dds",
     "sha256": "a413c49e1dfeee20651c66b16d8db84b4105e46da5e16d507a7053dc0b70fd20",
     "rawHash": "2b5f071a245852b195f3a663ee7bec7f93ffb168edfad161af5e460297f114cc",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_EffectEnchant_red.dds",
     "sha256": "95617d47645aabc33b1721d44ea6d681166160b9f51a97e6d771bf220c2f9831",
     "rawHash": "a2becec96b88bb32dede242afc0f8a8050618c4cdc234f491e08b057c14a50bd",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_EffectEnchant_white.dds",
     "sha256": "9a1b0358b9fed39c30f5d751ebc060664e07c7c8fa286e8d60aa5044dcdcf4dc",
     "rawHash": "f7b1b133048c9409fca58957263765bc9b4b21d44b781148d721584f6e187173",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_EffEveMagicBomb01-1.dds",
@@ -5649,247 +5649,247 @@
     "file": "SFX/Texture/sfx_ItemEarth.dds",
     "sha256": "3ebc925e1ebb1841c6988510ac17c525f9209c88b5556847177293fc5698f8ce",
     "rawHash": "cdd143a11f4a86ba511e80ee5b6da0d7f90e95f49d34dbbb3d15d8b5bcf97182",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemEarth01-0001.dds",
     "sha256": "c6d75f51dc2d143a4e955a44145f493339b0da193dbc89c0e3caa84d1eef0516",
     "rawHash": "bc68bad082cbd09a3895b187e4b6c18d845de07a00ac74f9d79cc29bf40fede7",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemEarth01-0002.dds",
     "sha256": "c1a882616f3ffa2bab546f0c8b7d533fe2ab27583053e1104fd8d334f312e8f6",
     "rawHash": "04b82cca4de4d68f468e7109c87704aaee6d2258c73b78805de65d68e9bce7d8",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemEarth01-0003.dds",
     "sha256": "9c06d6276e0c970772fdc697904f2f6d917d67743786ec2e987046abe244ab6b",
     "rawHash": "e1f5db03e5ca57d49898155a04c0977f87638655fc9602a8361275bdcd6eab84",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemEarth01-0004.dds",
     "sha256": "dcac904157cf864752ae54bbefb91c5f15e3a5c7a8a7de7e271bada12dd3f25f",
     "rawHash": "c30e1cbdbc95e56978981bbff6378030c848af70db7778abd32920db51068f90",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemEarth01-0005.dds",
     "sha256": "c03d83c71d4885f7884a2cf7e9e0109e8fd3154235a7b6ca7706a8995ff8832a",
     "rawHash": "edf2724d3f7c13a96cd19aeb30fd2ad24588e0c77d3420c120b7df1816067d7e",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemEarth01-0006.dds",
     "sha256": "94b250653ae8e824aa8c6888c43f4ed1dce1cc0533fe9576f96a09198f463e17",
     "rawHash": "b03d11b0ca092f906fab46fe57779097646f167ed3890c71df91a4f1b088329d",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemEarth01-0007.dds",
     "sha256": "48dfd4c7464bdc4d700d621b89e9d92cb6798daf92597891643971268f179364",
     "rawHash": "816d83140c0e8821e643dc2e58128cacc53ab308a625dfd2b6029f79f7b7ca89",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemEarth01-0008.dds",
     "sha256": "78281be473419354fb85f9815888dcb341705d9f0bc1e6122a72fff1420faff5",
     "rawHash": "151fd72d851ddb3f88e0420b5445ed51d9ec50835a5e658e8e0ecae7102e0478",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemEarth01-0009.dds",
     "sha256": "1914540206f647846fb6946193d1c7205c40e944d388ebee4193ee7fc57645a5",
     "rawHash": "176df230ad72fedb4a8b2fda41d640da13c1617e6fb8ea66145afff5884e0772",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemEarth01-0010.dds",
     "sha256": "2f90fe76ba215493e6cebbf72845a24fd497e3df5060456943498874836d449c",
     "rawHash": "40669452eab089c1c23e2dc8bda12e2c611fde7f76ad3a34e49faf137fdcfb55",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemEarth01-0011.dds",
     "sha256": "cf75c81b1a9a1ad16143d55aa6d14a5e96614d5b836800f72b99ff96e62db3e2",
     "rawHash": "6d1753cd7a74514291eede41b78d4b9cdff1150b54079694658f4fd1ab5c4363",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemEarth01-0012.dds",
     "sha256": "113d32ad270c67468b7bd0e703c65c27f3b54564a05cde77dc746f6eea9f9b6d",
     "rawHash": "794e253a51e67772afdc2baad879249e287cfb2605b33a83370b3198200133b2",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemEarth01-0013.dds",
     "sha256": "cd640d383ba7be3cd2b405721ec7bc93517c81fb8a0c4b19cf1b673fe7c19a95",
     "rawHash": "fa6e97c4b1cb939b686c7472270a6de7ac269889a535a321456b817640c04766",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemEarth01-0014.dds",
     "sha256": "68ab33778e2fa3d2b7169a30f489c98bf237d3883d5523f4db0aeccfaf2bfbb0",
     "rawHash": "8851575593d3fbf36028d8ea0c15b99d86ca3157a942f464648f2013d4da2eeb",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemEarth01-0015.dds",
     "sha256": "ae3c1a89e8716893f703a6dcaae9e39b05affd5cd110c5b0eda39e8da35b307e",
     "rawHash": "7d3424be3097fc69ff72eb2b3e1c10a9684de729796e5e0b89b69f92f1c0e16a",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemEarth01-0016.dds",
     "sha256": "40b43597a52a1df0a833fd3df1af99734e1ab0be52003bbae05dfb9a4f69519a",
     "rawHash": "62228df2e3abc82b08872a154d6951823f5bdd5560a6943187a9ec33841ab133",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemEarth01-0017.dds",
     "sha256": "05cae7007b889d68908f709b035fc34acc5c5b06709f960e95dcf2a261acc231",
     "rawHash": "facd6c7d5697622794d70a613659159b857c60690af7b3efcd7f6e1dd1c30b21",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemEarth01-0018.dds",
     "sha256": "e73ce3584cb25959433170d017d0b0cd774de444a4842460611437e3900fe64a",
     "rawHash": "881b85bde7bfb8690117efeaec06dcb53e0dd6e4f4df3cc7c3a3bb754b441998",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemEarth01-0019.dds",
     "sha256": "1fa111045397ba024bd8381d8c5b23adf0e8bf43b4254fa7aba50e656c944931",
     "rawHash": "afc6bfa4272298f4cb6159b22613772716db6d83717887d62d8794f27da81186",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemEarth01-0020.dds",
     "sha256": "dd91483fc8da8de58e8d68f4cca34a5ffdc0bbc117cd0af19e165004987b78d3",
     "rawHash": "f936e99fdbd67371233d0eeb5fc100ff00dafc3894d4488fd65f9fb657b56f1a",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemEarth01-0021.dds",
     "sha256": "79c1c10d97fe53b9ef85d34caea15861f4f07d7d0d76be15e6dbde80c4102d74",
     "rawHash": "7aaf6be1243a1a5602a13e68a54aec0254b20e3e2d51da76e1c0c723c6259734",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemEarth01-0022.dds",
     "sha256": "228238c6ae651950af21ff1a830429d1accb522d1c72d4da1487ee10a7edad76",
     "rawHash": "dbf0df3043088bb922abe13838c1442b3a99a8ec7ae8cf06e79536f73bcc2f37",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemEarth01-0023.dds",
     "sha256": "24a73baf4129f188e2d13de10b60e48da83e4e97153cdf3236dfe88d0e3cee24",
     "rawHash": "6167a156f39d82ba2f78a4ec897e59aa34d2273d0de73fb5c757d9a2d924d826",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemEarth01-0024.dds",
     "sha256": "806d0fc22b8ef07ab10ed00590655ef3aa7a3dc94c1c6cdf0c2603a5f413b7f2",
     "rawHash": "411099fc288421c1b599b76bad8466bd5b901b66eb2770285185fae867a010a5",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemEarth01-0025.dds",
     "sha256": "a7e1062c7cfc47374ffc78be87b3c3052b93369f9910f7f68323ee3b0f240943",
     "rawHash": "42592241efb569959bb25cea1d2bf9a0fa4cfc9f0e3c0b4cb97b73e7dea279f3",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemEarth01-0026.dds",
     "sha256": "75ec9e2571a91073711f288d7d6f61f27636a42373e1327e5f4cb9c4d534ba84",
     "rawHash": "3b2d21ab578a2efd6b980fa202a96170b26461521439bd3d7cd2a00b050b3ab5",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemEarth01-0027.dds",
     "sha256": "69ddccbea7eb1b556b23ae118e03b5bdf010aa7ef2cdb1ea71ad24b19addbef7",
     "rawHash": "278e55f30ab49523f1debba9d4e0218ddd9bea75c62cd4d3f932334efa7e190a",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemEarth01-0028.dds",
     "sha256": "660a4b37d76381191ca9759b8a7b0771d0c70e04887bb6cc140f354339d4163b",
     "rawHash": "d832ece094563d2abdf26e1da502e7b548821854723d21e0f44e76daaf8fc039",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemEarth01-0029.dds",
     "sha256": "1914bc00107a0da8f60f3923782a7f36c9ad4cb815ab027c79bcdd9f71058a7d",
     "rawHash": "899c7157c20270f36b91b6aac716eec47ea60a9e6e50dfdda4dbefce9ed18d69",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemEarth01-0030.dds",
     "sha256": "3bf716737f9fcd942001e407c6ada51ee76179f40bf0e9e2c3745ae9be402a50",
     "rawHash": "4b266681efcb4f0831bcc8d9aa881120b1b4fc1e3d44c0c5cf82962b2eb5ab0e",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemEarth01-0031.dds",
     "sha256": "6daf6b917ab5906c931206a30554500a4f5a024e55968e2bd7374856e9d44d38",
     "rawHash": "7fdd1f59eca4d05c5910005eec103ef5e40b67471085246dc4f18866f32743d7",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemEarth01-0032.dds",
     "sha256": "64894287e567f378ef617389d92592c4b86ff8703302d7019b3cc67cc336a3ca",
     "rawHash": "1d05b961b4382beb69e80aeb777eab7b207ef1d4f65a0848266e026cc7b526be",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemEarth01-0033.dds",
     "sha256": "d24acfea2620177dcf6e35e1968310a3a6e38d9c433cd49f332e17078b075ba1",
     "rawHash": "695c6e368e4fed62177ed1746873e2083d5dffd8ce28cf841bc6a5a3d8c7dede",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemEarth01-0034.dds",
     "sha256": "2a9ca6f0f04c46309f53c6b7ca91a292c69fb7b712c7d5ac54fb2f1015501900",
     "rawHash": "edd9a4b43c706ccd208bbfb1db473c92d55828bce22e8d6ad1a0e3b245ded53b",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemEarth01-0035.dds",
     "sha256": "e5044a05ef669f1314d347e8d9e8316231300ca8c5d9f0807b71f8bdc07bd672",
     "rawHash": "74f4cf06c288c18cd544e12700acf921156d13e0bf166db20deda223e83e0d53",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_itemearth06advUL.dds",
     "sha256": "05563f32d4805eb7371a27c8fdaa45f11dc453dbb79e15fde7a1b72d820a8c33",
     "rawHash": "ea74fde3c39ca20ff598bb0367b0fc43d808f3c73008bd0c3185df9e785d2f3a",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_itemearth07advUL.dds",
     "sha256": "ab84b186040d662a9e3eeabd74cbf8adceff999ee98942fbb5d3cd82b6b17025",
     "rawHash": "cc020904fed9276a7e6c3cef14229bdbda44c9f66941b289a5733bcd4c6bb85f",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_itemearth08advUL.dds",
     "sha256": "d369a82bc85ce40d1408df5ce5a19430ef3d8da9278b37de39fb0f2c88dba12c",
     "rawHash": "f3fb6a0620bc7ebde44e3f31f6053fb538de54421decf49dd2aa79622ce70d58",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_itemearth09advUL.dds",
     "sha256": "aba7940caa19ed0838f8c5e78ff21d3f8eb7b764fce432ac963ea1b7ebd88985",
     "rawHash": "ed3a3ffc2988750eed3aeab8207fe06b66ce6e263e02e29ab6b4a7fc89809c78",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_itemearth10advUL.dds",
     "sha256": "301692067ad2bb684051f75295a5eae58f0169908a8dca9e535bd30d41967754",
     "rawHash": "21f3594d1541022b0dd2bc65ada19aaa32d6beb1fd4559ba88dfd74e23e01f1c",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemElec.dds",
@@ -5931,235 +5931,235 @@
     "file": "SFX/Texture/sfx_ItemFire.dds",
     "sha256": "53769caaf232f7811bf53f768519b94daf4b750dbf8170d352818d54d75d0bcc",
     "rawHash": "7302bc49ee73fb2fd2f12fbda75b1012e92dc8597f1b93a8ddc8a8ea6e185260",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemFire01-01.dds",
     "sha256": "728d7f29c754992bdc4cb624cf8b5f47c0115765f654b80d04f5c6d29138b0d4",
     "rawHash": "f70e829da4e2790b4f25e918e6baee36484adfa502ed9dc8c879b67496d26c0b",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemFire01-02.dds",
     "sha256": "441c8b42d4de9bbcbb0028594cbeb929b5262c6f6ad2cc495b6c1ae2ea1991aa",
     "rawHash": "4eaf5e01668ad6137e045b075c453938537436c45c59f92793c4f6eb08d510c0",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemFire01-03.dds",
     "sha256": "fdd7d6d3b052cebab3ec81c1f7328906225302e8099c01cd1859862f706e563c",
     "rawHash": "67446241f9ccd31ddfca011f3310fb8fb150958f6e31c231b94b2d818ee0f714",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemFire01-04.dds",
     "sha256": "49f8ff1175eb23aa5a3e39def28b9d0a3b259828f8978607d578f60aacca68aa",
     "rawHash": "ae69b9cbf8822f63143fcb41de902adeae02570437dbe342c36403c30340fde8",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemFire01-05.dds",
     "sha256": "82e5def77b2d94941333b68540c5ffdcab329d9117f1491c4491eff942baefe7",
     "rawHash": "13a7606856ea6ac9eaad17164aa02f3fc1cecf9c976b9928c537e0a8a2e1f510",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemFire01-06.dds",
     "sha256": "76e9cb4a413d8cfe38016e590cb589fd97cacbdc3c4a177c3ff62397a2110cd2",
     "rawHash": "dfbe98383b4f9696156734a4b0c04749c7918ba5cc5abe678f1d90a3cecdb148",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemFire01-07.dds",
     "sha256": "93c39d0533d27e3f178f62739f07a5bbdd2b55752e4077dd383bde9d3258d5da",
     "rawHash": "1284c88051c597eb9bbd96139bb831891455b72152b6dfadaa4114ef15c1c0d2",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemFire01-08.dds",
     "sha256": "6bdd60be554789c527f0aff3826d10ea2db600fa175d061eb3a4ab5ff173b74b",
     "rawHash": "65080ceb99c4b5fcf9f0248c2831b664b2767b0cd481a5571287e94a8dfb99fa",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemFire01-09.dds",
     "sha256": "9dedcc124923810d7eb335672a7ae8fab44f472cfa6352174fe33eab3035ba62",
     "rawHash": "11c31b9ad73d269d536a0c1b0a7026b16d17cd8304a878b5770897eaaef1e81a",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemFire01-10.dds",
     "sha256": "8084f2a4ab160eca988dceb57b0e95b64b3947db05fef17819a71789a74cb0c7",
     "rawHash": "de70cfa737fec1caf43f411edf3afc6555f3abfe3588984117a09595b9c5405f",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemFire01-11.dds",
     "sha256": "1ae7048a66b670fe9a7bc054a54e0784d856b3c66da1860cb902c3a406954d87",
     "rawHash": "b25ed9300c4ed15058180a5a21fff46a0bb6db8ee7f9401f45fff590692320da",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemFire01-12.dds",
     "sha256": "dd13a508f813432f59bc05527d450b5c67875964bd788c3da0d8c615edf5f322",
     "rawHash": "e6a182dc7ba8f6b07db29de1ccb645b7aebb8fe3edfcc08bc11aaeb346b4f613",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemFire01-13.dds",
     "sha256": "cb0ab4242a66afb0ab2db53e61692ba50431371eb5fd05a88f3ab5abad204d19",
     "rawHash": "85aadd105dc4c543d47cd7caeccfd476db9f7a91257b6c6fb5fc2be9b1cf3e4f",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemFire01-14.dds",
     "sha256": "2954d87f02a4537f0af955f72be8f50ebe4d49b8b30fc4c6ed599a8c77c6fe47",
     "rawHash": "b445e4296b3fcaf923149860058113cb0995e771e862cec4a3a19f8154a8e017",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemFire01-15.dds",
     "sha256": "8fdec7d7c478226c8177580abe84f6c1945239085431906df2047c30f1008864",
     "rawHash": "4bc899f9b96a73767f12deaf678b1c0f2feaf2bf7d6df4b8e9419ae1db40b7bb",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemFire01-16.dds",
     "sha256": "18cc249d9dbf12e60689a1c2e7b69739d1b380356206b86d9423b9e93a485816",
     "rawHash": "37140c64263d1f6e4793018dd71c30f5f63763b2b96a9561cc85ab453a8667a0",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemFire01-17.dds",
     "sha256": "5d6472c1808254ad309247eba4140e1d00c5ea393bff66d24e2f46d9c3c4ab54",
     "rawHash": "85042ac52739310635bbbe31222d716023cf8549c0bae7d7c242e56a0c3c605e",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemFire01-18.dds",
     "sha256": "8e100f126ea50d79597770565ea57c1999e4e71eefd2174cb5df4caee17f5061",
     "rawHash": "0d7ba4fdd76069378e9244a76d99236abe9a8013c7225bf573b65dee6c292676",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemFire01-19.dds",
     "sha256": "9f5d24d917898f6c26c098621896d36967fd52779696ddc515cb2b9cee03a266",
     "rawHash": "3714840d3f87ef9cdc33da8ac966983baf87926042e5411de4d0d38c35683711",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemFire01-20.dds",
     "sha256": "1ffdfc5cbff32f35d67372bcc1a3d66d1478bb830ec5a025c264f6c539da0da5",
     "rawHash": "9bd246ef99dd7fdbb756bffbb878d5834b8832cdefbbc9a48f95b49eb311b2aa",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemFire01-21.dds",
     "sha256": "277517280c5fb509cf6bc7bbe3d583a4f4a338ae7cc08c6e24e4d46e6f77eca6",
     "rawHash": "8ea6bdf298a4ca2045499babfe6a55cf33524a021e8f38a4d59978217a1d68cb",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemFire01-22.dds",
     "sha256": "8cf015e00848a2a7d7ffdfd201177908eff2fee28206a0609887a90203ba11c1",
     "rawHash": "f86f2610509458025af129deb028e795c84576d6a30aac04d7bd2eb803ba7c85",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemFire01-23.dds",
     "sha256": "397a7e986c280d5a89d3fc6a4c97940935be2f7c43311155ceab165733270e70",
     "rawHash": "d1cc6664b73a28faef185ee4b2c1168d66e7650fc20d51574eb2a55def6538d5",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemFire01-24.dds",
     "sha256": "8785138b11b0fc5190a0b9af66485128aac63b44456989b78f56a9d7e2867e2f",
     "rawHash": "aa79e7c4a8fb3066262fc891670f09fbc92863983f8d249d8aba5d5899d93db7",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemFire01-25.dds",
     "sha256": "1c6f647c6850a02be6f9aae2dd6859808b4e465956c6d75cf01c211a12ad34f4",
     "rawHash": "cad819f6ac4a44e2db079296082e248197884d871182f0013257f90e88b3e500",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemFire01-26.dds",
     "sha256": "7db81b243cc05a6fb45abb2b962f26037f86e3250e595ca0064580432eafe29f",
     "rawHash": "092299a3de0159c05be2b8b21f36859d2555cb3125d0b3c53c0d16390688561a",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemFire01-27.dds",
     "sha256": "e08f3eada20adc983791b9f8e503e09b0fc53ae78cf8a7d3330df5b317914141",
     "rawHash": "5b8049001e7f65797100bf7faff3d6990da7cfc6ee7c861d4a29f489a7dab23e",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemFire01-28.dds",
     "sha256": "39ba5418bc2b2052c67d537735068dfaed600c67bf8769ca4387b121a2ad7e54",
     "rawHash": "63bdad8b32fcb917e6eaf69bd636a48787ccd388a467da71f6ce6bc51cb01cab",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemFire01-29.dds",
     "sha256": "4bf6ca687929aea771773e32a3cb0bb99a8213b88f96aa17e63cf994bd39722c",
     "rawHash": "b1ca209738251017a26e708c3a4842a4d9e1c4146336471dd805324af327f495",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemFire01-30.dds",
     "sha256": "91a8bfd83642e6ab1e169b1c297b92272265b7192301fc14363ba44e4b9414dc",
     "rawHash": "03de1be12a4192b707300f20600a9fcac82caaa3ec1ab471969b2586502c994f",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemFire01-31.dds",
     "sha256": "d548ac951643a35dd720811d4fca6d75ffd5ac9417b0b14e3f0202b305eaaf78",
     "rawHash": "c1909cf8af4fb33fe86267d10a807c3167a5d536a9b83f5f0fb1b72d0d7c3a34",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemFire01-32.dds",
     "sha256": "6dc81e31672e6a22cbc45d2dd0980aaad3d091c40808df3a7d7ce8ffb9e647fa",
     "rawHash": "2a134c04cde1c123fc1ab7a9d5b0756a2605483d137a02260784c80b34909396",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemFire01-33.dds",
     "sha256": "73671dcb685603aa005802332fe44735fd82aa5e345e9831cbaec58b13a6f80f",
     "rawHash": "7ce060cf946572762689293ad4543204aadd0fa7a9a9bfd39e4604abd859f827",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_itemfire06advUL.dds",
     "sha256": "289678280fd4c6e75441e5906e6350c37461dc9711678d258447564c5515bd62",
     "rawHash": "e8d9473ef7a615b1a776c0d4e74525569ca2bd12fe2af7e14aab2e354fc62ece",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_itemfire07advUL.dds",
     "sha256": "afbbf2a38ea63175055e3c156ce412a32432354cebabb3e7b0ae5166e91928ac",
     "rawHash": "d8a8e10ac83cc22d7d646123d57593800368cd4df70b08a5c64cac45ab705825",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_itemfire08advUL.dds",
     "sha256": "bd474587ae5f12ca0f493a7b78f3ebf443258b66cf244f6fd136c8ec2e164edb",
     "rawHash": "661a1fd8b18816b099593e0d1a7714ec5b278b0639f96638afa349dc26f05b8c",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_itemfire09advUL.dds",
     "sha256": "02708515ec36d1e1fd7569abd37c6b2551acaac5139fa57999e30af26b91ae3c",
     "rawHash": "e02fc3e78cde4cdc1d7e070d06d7dac66eb35a33a3ede712c5de89c5a85cb46a",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_itemfire10advUL.dds",
     "sha256": "3b24711b14c39d6d7f1e8e3edafd0d54c750f47de715361832d62a1526c00d17",
     "rawHash": "eb2350bf86a0c93d647900be0c9fb56944624ed845097b753cc60ac149db8c6b",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_itemNon10adv.dds",
@@ -6189,523 +6189,523 @@
     "file": "SFX/Texture/sfx_ItemWater.dds",
     "sha256": "b55537a94b1b5beb124cd895a2cd246b2129551d3f7ffd7f406e12491f5aa252",
     "rawHash": "b297616b6def0176705d17dd25803ccd7542f4b94e8532282c0c74e58726d235",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWater01-01.dds",
     "sha256": "49f6ff9b24c008dc281f9b5e78644c12d9398ed5af3a3160620a88edbb117b00",
     "rawHash": "97342800016dbe6647107f6c2ba0d7219a6539edc54ae075167028cc0f9ebf47",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWater01-02.dds",
     "sha256": "a16ffcd6de905dc3320a82b50679e33a130f8fa8bc42284f70911464236b89ba",
     "rawHash": "886875a02214971162cfe2ac5b1b83a4cfdc038de3ab3ec281d9b23315717998",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWater01-03.dds",
     "sha256": "b2027d8625d0b55ada696a89197ec94697e7979f49a51cf750c4ade68b150a8a",
     "rawHash": "63a3d7ec5c7219198e7f4f670653d47cedeaebb15fad8a548317e922f8c774f1",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWater01-04.dds",
     "sha256": "053eb56acd166762140f9884205a1b5eadd15fba6e033f00c1ed06f56fdfe24e",
     "rawHash": "4d6c9b8aa7689ceb24b84f15b88e4b615147bb28174281fb40e1d2523730f254",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWater01-05.dds",
     "sha256": "65cee875e4a0ae45351ace6970d70ac90733a5da9f9caad9ecbfd5df0ac61622",
     "rawHash": "bf65355d589fee1af91f1216847c4e024aefc4d27185b491cc8c631f68d828af",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWater01-06.dds",
     "sha256": "f3686852de0cebd33cd6dacd30d841b1d6258209ae8d49feb50fb5b2c2dd9d4c",
     "rawHash": "ebd2dda629149b19386dc1582e3ef658230dc7a820435524b167505c370067de",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWater01-07.dds",
     "sha256": "50785bf7c8999e220322b8d31ad792b379862eb71d53eede70956f40ca0e8795",
     "rawHash": "fa47e4a8ee0a69baff718c7996d00e597dc855520b2f74c1614e451834efc007",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWater01-08.dds",
     "sha256": "05e7be1371dd5f71a4c802e17b2258a653ed75a3938c217d9ee409f2dc0d2674",
     "rawHash": "19ed0fc4b2b5039fa7b59ab75a30b46fd0e504ace11db4cf5d36dd27610128e9",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWater01-09.dds",
     "sha256": "9dc3a5146ae3cc25125c2a75f936eb677604be81eb1fa2abf73e8656e0499668",
     "rawHash": "b7893d6d24d8b34fb373a5519792fe069f1fc537a79099eca5dbaae988b16de5",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWater01-10.dds",
     "sha256": "d8f0254a80f93e302543ce15d86c31e2c6992bb9c0d56920141fd02606e54e97",
     "rawHash": "fbd9bbcc23ee5c39a1c168163b8732298a6cb0f3d8b359c5ddb681383ef370ef",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWater01-11.dds",
     "sha256": "0fafeb55a5c01da582bd34b539ad2d2b29cdf37978a4a623800022d119430c06",
     "rawHash": "1fd05d4ff8f9eac68330cd4fc149d6310449b9d7444eaa61dc6b5491bd933ddf",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWater01-12.dds",
     "sha256": "9adb06cc783ec752e5061b91ffb8f3f75e3efd56ce80b292def1086902ba3743",
     "rawHash": "bcb45656505178e7ad3f329c7eb2932070745fca62d925ae56bab1d5d3275950",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWater01-13.dds",
     "sha256": "41da117c4f4c2e823225bc112ad2f55d68e53866ead0934e79608afee4cbed0b",
     "rawHash": "22ce7b2971dba857baf1db1721b248a0e855ae9052680c6d7346b8bae7ba7cbd",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWater01-14.dds",
     "sha256": "28d4b71c344dec884a4d3083ef9a2eb017e822ec684f8197cb14224fdd9dbb09",
     "rawHash": "5febd2f660860ee75cb5fbde1db0ca4e04769614fe06c09fd51fc17bfdb1f01f",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWater01-15.dds",
     "sha256": "89f889cf3266035b8391c95f9acbd15224ee9264a3922a9f65769588df5f8f4c",
     "rawHash": "4d7661528461408bb396247899c00bc402de5916e8196d1b0d5b4ffc6ef23e47",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWater01-16.dds",
     "sha256": "c3654289c0f90a7c0fcd828e8961014c775c535aace271c09e2adba99871f332",
     "rawHash": "2ae00c5296ee3cae15de5b27e082b37ff41e2dce711deb13b817106e0d392697",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWater01-17.dds",
     "sha256": "31e3d8d34640b86101c7e09167c582dd89c3e5b381fda4a199fd8e664bc076f1",
     "rawHash": "2746a39831290fffe5fa744563668dc08cae5a5bbc864568d0ae64204acdc53c",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWater01-18.dds",
     "sha256": "c141026c05ed61b48fc5ff7517e34113b57442736e27222c59a81f2b6d2e4277",
     "rawHash": "2ef530cf14a0b02154f2e6bc120ce5d9b4b70a09e5dd04c839033003002be087",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWater01-19.dds",
     "sha256": "430e9193d4b2be56389045ff9723c8dea78ee9149d7fb7e9d14ac9192ed74b95",
     "rawHash": "5e9dc5d3aebb6f23fb5be4b51b344bd37ee4a5585c5dd4784b8d5d0c1a1b3cf3",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWater01-20.dds",
     "sha256": "297b10d1b373c4382a8da6ca0b8bc4ad5ae2a22cbaa38d33fb9eea9730b089a0",
     "rawHash": "d6e1b52365ee26cda66c352c25fe7043627e3042ada76810c5e82e08aae8beeb",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWater01-21.dds",
     "sha256": "f2e350f620a5a72eea7d73811a1e65e95071cc579d21535b5da4d0c6c03f8692",
     "rawHash": "ba669ddd9be23c2cd8ca8fcb43228fe1a71ff48ddfd91e6c3156c6f2d46cbf0c",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWater01-22.dds",
     "sha256": "d536663e65c530bc9d07848bd5f462c2fc4df73b7a9be40edfd80c03d0e2b132",
     "rawHash": "3aedf6628e83230bbd6e8c27315aab253eac409344c229095b270536031612da",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWater01-23.dds",
     "sha256": "0bf122983c7298bad0d0dc9b223dd27baefe2a07d782f38d4f65be2b80093691",
     "rawHash": "0462dbd3166c745ebd251f8c2ae6ff5be4b8c5546cf61c7154384cec62751cda",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWater01-24.dds",
     "sha256": "cbbf88dc9f484d3db8099f13671b79fd28e3050726739412e789357948cd9fd6",
     "rawHash": "9b80afaa51c7598eece5418bb3f9e6d6bd78d3921dbe37e2be372ab6e2bff1e0",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWater01-25.dds",
     "sha256": "02cb5db731660322405ac83c3c640b0502855c185a468db361a9a3146cb2bd37",
     "rawHash": "454ac7f3458a03c0ad5961d25850b42e005dff64c1b969100d01eab339818424",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWater01-26.dds",
     "sha256": "96d209465a2c89c1a544b0b556e3ad2827e1e548596bbd160cf52567aee4ea3a",
     "rawHash": "41a8b5fd65110b6b0502791d51eb41ece11b77aee80834fc4aca910f341f9117",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWater01-27.dds",
     "sha256": "5a026ef70aa404674698245a3bf691965b05a0f1dad91c4f1f4c0b2401e91944",
     "rawHash": "f4521a40efc1623674c06de845f2ab4f2007b0cad7a703fcf6168240dceea772",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWater01-28.dds",
     "sha256": "4535fb426bea05faf7051a7317c7009288105dbb22f3cdc5558f7bc9a6c23b1b",
     "rawHash": "97a07a9ab32e338dab5f93e2235d9c2484d2d621248620ea40e8c55e1f3a455a",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWater01-29.dds",
     "sha256": "ad4a86d87fa342fcd9aed173b0452a85e1cb85061836808a2e5f474c3951793a",
     "rawHash": "2cdff161ed580a68a70791159403e8f663f6a8dcae246bc04c3e44e966e9ab8f",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWater01-30.dds",
     "sha256": "ed9a030e05391524cc174e85d68f68ee06d80623d8025c37769ffeeba552fbd5",
     "rawHash": "f4ddefe39358ad67684c2e25113514aa18d0dd1650503badd832f3d962100a8f",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWater01-31.dds",
     "sha256": "8fe5ad1e9c2c342e7c05c79a87d1d28778565761c508677c6cd1b42ebfbe7c5b",
     "rawHash": "d9d8415e2edf5febb025d7595036afe99d7cebbe19e2d7b68d8a5b22a995e92b",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWater01-32.dds",
     "sha256": "8e7bfd8fdba76653b4e84ce2e9aa54473719f7f93fdcc2903ffa056295439184",
     "rawHash": "e2155980b690937ededbe2b74dbb5d74af6ac51e1001a875a1961aa9682ba228",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWater01-33.dds",
     "sha256": "c19755d85da14ec780860d1ae293065e57d76d99d57c5a1920dccbbf9b18c981",
     "rawHash": "1a05ccc2ffa1f59926b06be51f0c13ab987ddb68d4c7b3ca6268d92a1348d646",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWater01-34.dds",
     "sha256": "2286c9926baf4c5c5b9c147c031c0fbebd732ffcb39642d2f23c8ec52a5e6ff6",
     "rawHash": "635a8d91d89c52f23c5fe54718f6b1eb750853b41e5e7507c62b12419cd0a610",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWater01-35.dds",
     "sha256": "bc26b4a2bed00c523c097aa712b790cc1fce0fd0c2c96f9c6f8cf80558ccbe84",
     "rawHash": "89a435f0c23ed3e58590e2edaa5e30420aab65980d36e8c2e65bee1d23156ca5",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWater01-36.dds",
     "sha256": "2b5766d81db6134c2276ef69c79eb5555433b0b0c7ae336c152e461855ba9ddc",
     "rawHash": "f583ba4a504e258507d8143f803ff1975cf0b4e965ce45434ef7f1f166c29fc7",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWater01-37.dds",
     "sha256": "dc938230282b10f81d0af130fd6944dda87d1ca4cad32169ba2a59dd918dc009",
     "rawHash": "6147bed1a381d0f7da5ff5953c026efb465b08d859dc0aba54be4a01a98e9822",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWater01-38.dds",
     "sha256": "ab4eff9032bfebeaec5a56e0738361f429beb1f4a9bf4b1d99d46d32ebf17719",
     "rawHash": "444535f63cfae64bda18eab2f552df25d698d7e57c59f083235cebf5d11575ae",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWater01-39.dds",
     "sha256": "0892d595cd8cc3fdb46c1f0c239b9a8dcac9c291407729881d8689ad54394691",
     "rawHash": "60c9417fbcdba91c867e99f0034a1330750058ea85f244daebe457c3e167711b",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_itemwater06advUL.dds",
     "sha256": "d8c0109a52f8644da75d3d0b17be33fc6c2865feece9f46b9dbcf71fe4fdbf03",
     "rawHash": "49463fcc022a5c4d963e609544284c39cce9c7736526856a67a051198a2b2b94",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_itemwater07advUL.dds",
     "sha256": "b25a0cb63823834ed3e80eee5f40c17aa1bccf9c1a4dac656bd5544732001a60",
     "rawHash": "17673f330c4fc34050f15a48afcd883cfa1e4fe18937338cecdda196c87e4877",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_itemwater08advUL.dds",
     "sha256": "dd2d35a439bdfdbcc67a03770309c9861ed3bb514faaaae7b37d06418e1db7ca",
     "rawHash": "8f9091506686585370aa08a990eddb667cad446ab5d4e9196b1bc041cbdfc9ea",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_itemwater09advUL.dds",
     "sha256": "14b54e46643097c60d0080d17bcd0d497115296fc432a88eda309e81451f5822",
     "rawHash": "f72424791efbd106f0d9e3240ad9afe237f4d8cc44cafd793f1a04ad31bfe348",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_itemwater10advUL.dds",
     "sha256": "e23aba93d33ea6031fb5010f402abda2fb2d246bde0e41bdd6f57ac819fa2911",
     "rawHash": "986073e8dc376a7822c37e8d7643ea3f595f37d5cfa0c337db7c17f980f62c8c",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWind.dds",
     "sha256": "4d30e9822951a86c74c2ef444eeff19c7ccbb2d58307e843f87a7df60d34775c",
     "rawHash": "a6688ae8d32303856018a6b055dba7e5bd2f614fa9c2be8a8742e01caa29756d",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWind01-10.dds",
     "sha256": "973e788db4fc868646da467d97bd9531c119999d7e8767ee008722df34aaa1d1",
     "rawHash": "46ba96e623db5604b0ba48979448e2c23b9fc9af7de7c671216fd4561b5f2064",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWind01-11.dds",
     "sha256": "280ddd99ef58251fab1e99308c6f3f8b267f7c1b19d6fa852573ffe840d51764",
     "rawHash": "1f47be3ea0fe9138687f9f47e68afdba5b80510a243ade5ce1ba4755d4994a88",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWind01-12.dds",
     "sha256": "189639192f29ab705b15814297b13f47d25c5459d7a065b3d3cfd4a84d265b5c",
     "rawHash": "2ab9ba34f6c6b4119a2668911063966e45e639cde90ac09d76b3593797366620",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWind01-13.dds",
     "sha256": "4898614f4eab10d541544dffa48fedf1885229ceaeea1c04ec318aa2b958aa91",
     "rawHash": "6de95a7350d90c11b58a05a0eb81b9b8aca1640bfd2c45f6a4f65cc1f52157ad",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWind01-14.dds",
     "sha256": "04ee4cbaaa6df8793d3abafbea26cb407531b061bcee2ada00d191165c9e9ce5",
     "rawHash": "a666eecb3d7ced0fa1111a202385db219762082b4d5bb250fdd9c0c7268beb7f",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWind01-15.dds",
     "sha256": "b5007a6d9a762f5cc66adf04dc6e199c6ced3599ab1009f60dd9590cf1111d1b",
     "rawHash": "80aa77217af593bcdc5f06b804262a6408fb3bcddf11ad5846a0d12d5b1a9e79",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWind01-16.dds",
     "sha256": "3b58b5dc8f14dd52e09ec9a6c7fad8992b950f3a455c7285ed8c482fea820aaa",
     "rawHash": "b978dfd98b3807b24800870109a38116fc57df71e84fa65f72971e1700e27bdb",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWind01-17.dds",
     "sha256": "2f9c2334b1c909074d6ce72b95c8fea765ddac9141d68c055321071be5e0b223",
     "rawHash": "e5bcc45f73c73e4189579531fa3234dd77f9e8ccfeb3fe244d70831a46be2f2d",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWind01-18.dds",
     "sha256": "f81d043a8ca1de3905d868d9bc8d3c0fd906d8aab20a7239f9dcbc1098576ee9",
     "rawHash": "7c5cc54fb6a30ac73822e30311bc3d34b5edf521a0d98a19b568b6d74e8ea82d",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWind01-19.dds",
     "sha256": "6ff443168424b3f8315e9ec74fdf405bd6486a087d3067df66efa8c86f406455",
     "rawHash": "0554f81e6c3327b26d92a1a2faea7b456cedf9fffdeae576599b83e591e7e5ea",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWind01-20.dds",
     "sha256": "a9b4fdf684f9e4512b4c4164ab5eabc2a7daf3ece9966c69256d947a80d79b51",
     "rawHash": "df9a5fdd9b0a5ce3bf5a3b591109a5c12fbfffc30f3b303f7615aaf6e0741083",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWind01-21.dds",
     "sha256": "88ceabaca4fb128a65666f350fcb5d006899f3e9d7aa244afaf1a8497cc1cab7",
     "rawHash": "5acc766c0d9991f1699d1bf47bdf540388a48b64700b82a060bf942bc837565d",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWind01-22.dds",
     "sha256": "e126cd82ef5541b9b080309179979530fedc6cee0fc583098bbe8c2b70e4dbf1",
     "rawHash": "0191c711f46787e60e986fbd109321203151b57fe2b6e21070975e1b7f6e127a",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWind01-23.dds",
     "sha256": "3bd6678a342b414d2a1a5d50e9656848dcda6c4a6d4f7776b960e8784c1cf4bd",
     "rawHash": "bf50e89036bd86f6138395b9e3c167c5e73f5956da9478063afb0021f5bf6c14",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWind01-24.dds",
     "sha256": "352a89ab1d1feb629ab741ce4e7672657188517393b931ddfe50884a710bed1e",
     "rawHash": "e7d1f383a3fb9e3cd609c22dbdc4a743d028e54586af9c90b405717c0b143325",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWind01-25.dds",
     "sha256": "0f8b12b60431af6529dbf8ba5cee4fc69197d624e11c56c6573761f6f84289be",
     "rawHash": "486e63672d5a92c4be33818b38a664d423b792333dccea9d6358cc5311eedd41",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWind01-26.dds",
     "sha256": "52d9505fb764d08e47d398a49f1ea1c6e2e2ae399273e6d57364eaaf54bf81d4",
     "rawHash": "3217100cdc45c9852165a7cb764f53e87b5c508186cb2a08141c1ff292f97999",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWind01-27.dds",
     "sha256": "a8381abe1298c87d60134ac014d93a08a1ecde646f71c755dc272f05fd302bb3",
     "rawHash": "4c9722914b1729c006492d899a32168acec87d8b8d7ec3f8cf535cc51df1bd57",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWind01-28.dds",
     "sha256": "a8d82589ba1ce28553c98532feb1024402d5efdaa99dd434df98fe52c7931e82",
     "rawHash": "9b2d27747a05d959de0b9775d4634582f9d040727add5819075791590e6cfa2b",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWind01-29.dds",
     "sha256": "06992fa4d59140f0573cc91dbf486f9f736685b4ba399c733937aa9b3dff92d6",
     "rawHash": "25e41a9f45293d163add550e59b6766a3e6c10da2d3f0f573502a3d0335672cd",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWind01-30.dds",
     "sha256": "28726f0988fe6d659627d22934299358c6ef73618fe280b3dc0e6abe086fb24a",
     "rawHash": "7595c1d13052522a80ca5ff060d4e28c4209bbd1bf2fcc5824c795952b90b72f",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWind01-31.dds",
     "sha256": "882fae6ea3bbd509acbe812c597364cb30b9a342e0b5da2a060ca1c2fddc75d2",
     "rawHash": "15f4b0b35aaf22dcbbc887b61186b9e4824602a071b7eef233dbafc4394e81d4",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWind01-32.dds",
     "sha256": "82a1ff76c3bd231379cc2c824dbc30ab816f156c48ffadaf157faa453e5fb365",
     "rawHash": "6e15c64eb00e5e600c2be8c5a2941808e43985408f1d9d414b0c6dfa5e3d9d19",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWind01-33.dds",
     "sha256": "7304cc05dc72c42c1ae9b4bf4d9c01f75c2d3c9770b759318ba1071eb02180e0",
     "rawHash": "05d34f924cd7e2d79a1cfa6ffe87a56598b2710720e020ebb2e224dd9f4f274d",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWind01-34.dds",
     "sha256": "00f9a28f8863ff07b374e37710b811835b9547e0c8abbbf67601b08b7334814b",
     "rawHash": "69aa9728536f5474602c37872a248b57354b4f9450aa9a263d4c3d095c2aae3e",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWind01-35.dds",
     "sha256": "6a20da5ba11e2357a9681272d728553695e2ea669b57ff83fee01af18832d824",
     "rawHash": "8b66e86e32071d0e4c14ae75433faa50f601d900e8303bc42864ae3d25eaf06e",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWind01-36.dds",
     "sha256": "6ab8f73e30304f152bba9a9e5dd5f4c4c2db991c8cab8356d917c3db82d5aca1",
     "rawHash": "52ae663d2d5703515f99ab9be0c737a427adc3bb19f2f3d13540efbb889fbe95",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWind01-37.dds",
     "sha256": "c814db07d14d7209bcd049d260d1a2018da1004aba1bb4c803e5966e19f68495",
     "rawHash": "beb058abf3fef4c1c64d0236b9b5c5e5dbeab7500cce469e1415f065e551f263",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWind01-38.dds",
     "sha256": "f3f92aa0ab35c56d7ed865193f20f1ce39f12f35753109bf14c363c3e2bf337d",
     "rawHash": "9bed267129903b76d64b697d3c588e63c1122658a28153327f3c247569ee98a5",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWind01-39.dds",
     "sha256": "fa21e0b3668688a3ddffe33a14a520c59d940c6ce9bf05cd434903d9e5d3cc07",
     "rawHash": "22e0f512910abd2c8567aab66893abc088d85a6f86df373270c10b85ee0ca9db",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWind01-40.dds",
     "sha256": "099074726788f31538135754c55fd8eff6a4168849cf40f144ca89f354f5d30d",
     "rawHash": "5e64b3c054a29325ffc8b89bb20638c7cc793d7930b62241d027797398269f41",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWind01-41.dds",
     "sha256": "db1f4f315bf0146ae4c687fd3947405d9f542e2b3c59cb9a1e48e43608159020",
     "rawHash": "4bb641335fcfc0cf312c08b71bc157208990b16a2934cdf4555d2cea44e13904",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWind01-42.dds",
     "sha256": "732382365a8d9e054ea17c082b645e5c1733ada8cd576468acbec400c66f635c",
     "rawHash": "eeb25d16e6b83ba09d4afc90fb6f98a1b7dde51ebc1c249eb110c98383a4a5fe",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWind01-43.dds",
     "sha256": "8a9d06aa4203c282684765aa5cd0f45ef1755c80a90083a39dc506338347aa4e",
     "rawHash": "069028f4d83e3ae5b423d967d4767e17cb778dde0fe32e5fec1b2e40a7c41a20",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWind01-44.dds",
     "sha256": "861bc6cc990dc32be07490626c36d148a5b7c401f804a69bd1d15f1df23adc79",
     "rawHash": "db5bf2a8a64ea22677bf257d3556a657f3f4debf9fa000bde4f803a73f11500f",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_ItemWind01-45.dds",
     "sha256": "d9a8d0beb2d70bc9f26ab8b30c0a0a475d08c6955db0b84f6704b3124cdacbae",
     "rawHash": "615b8960cb0b9a42cea93febf566fe2c28fcadb5ad61c603d47a9f69343d2491",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_itemwind06advUL.dds",
     "sha256": "568a0022af29cbda811ef1ff6fb6a764c71231f64d93b1b1b0c1c73377fcfbe7",
     "rawHash": "71f7e003c90952c01d6f96ca9664a1673717dfc09ad929e3f9b918eb6a066c2e",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_itemwind07advUL.dds",
     "sha256": "7c628dc389018d68fed4feb138c61f51727711e278c0c959be6927c9ef43fcb1",
     "rawHash": "a0ac73016f362165e30427d766eed3435cfdcbc5e2eece9ebc9a9f011b13b144",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_itemwind08advUL.dds",
     "sha256": "872b1734294ed641818071fa2e17aeae4aa794792c810ff5f92cd9a254bad880",
     "rawHash": "995b86f8ccfefcc34c868d5473deddf52e57a7427f2c8dbaa3300d7d58a2ee0a",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_itemwind09advUL.dds",
     "sha256": "5ec8027ed2376ff1e652961799781867ba9de9b9b8f8f5e7fb17f2f82386bf8c",
     "rawHash": "e860efdace085333a9f2011e9f92df3295bdfe2f64efcb9bb468381c7f4f9f0c",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_itemwind10advUL.dds",
     "sha256": "7f778ea8eea17d41d4d1fbe8da2934a545adc3d23ff142c12dca459ce9e42996",
     "rawHash": "8fa13159aed4f7cbf84b5181a3ab5003359be2747124484c332276fbd93ea749",
-    "kind": 1
+    "kind": 6
   },
   {
     "file": "SFX/Texture/sfx_kalgasLight01.dds",

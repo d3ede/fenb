@@ -88,6 +88,7 @@ inline void ApplyBuiltInVisuals(Settings &s, int index) {
     s.sfxGlow = 0.350000f;
     s.sfxSaturation = 1.120000f;
     s.sfxSoftness = 0.350000f;
+    s.sfxAura = 1.000000f;
     s.sfxWake = 0.700000f;
     switch(index) {
     case 1: // Clear water
