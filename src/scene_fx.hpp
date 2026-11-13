@@ -37,6 +37,10 @@ class SceneFX {
     float nativeFog_[4]{}; // enabled, start, end, range-based
     float nativeFogColor_[4]{};
     Target emitterColor_[4], emitterPosition_[4], localField_;
+    Target surfaceMask_, surfaceOutput_;
+    Com<IDirect3DVertexShader9> surfaceVS_;
+    Com<IDirect3DPixelShader9> surfaceMaskPS_, surfacePS_;
+    bool surfaceCaptured_ = false;
     Com<IDirect3DPixelShader9> aoPS_, rayPS_, raySourcePS_, compositePS_, lumaPS_, reducePS_, adaptPS_, skyPS_;
     Com<IDirect3DPixelShader9> dofPS_;
     Com<IDirect3DVertexShader9> skyVS_;
@@ -72,7 +76,8 @@ class SceneFX {
     bool programs();
     bool emissive(IDirect3DTexture9 *);
     void reduceEmitters(const Settings &);
-    bool pass(Target &, IDirect3DPixelShader9 *, IDirect3DTexture9 *, IDirect3DTexture9 * = nullptr);
+    bool pass(Target &, IDirect3DPixelShader9 *, IDirect3DTexture9 *, IDirect3DTexture9 * = nullptr,
+              IDirect3DTexture9 * = nullptr);
 
   public:
     explicit SceneFX(IDirect3DDevice9 *d) : device_(d), depth_(d), smaa_(d) {}
@@ -119,6 +124,7 @@ class SceneFX {
         }
     }
     void captureEmitter(const Settings &, DrawCall);
+    void captureSurface(const Settings &, DrawCall);
     size_t bytes() const;
     bool depthReady() const {
         return depthReady_;

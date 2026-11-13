@@ -252,11 +252,14 @@ int main() {
             CHECK(Screenshot(d,path.c_str()));
         }
         r.editorPage=2;frame();
-        for(const char *section:{"ssao","rays","sky","fog","dof","adaptation","lighting-balance","foliage","lighting","sfx"}) {
+        for(const char *section:{"ssao","rays","sky","fog","dof","adaptation","lighting-balance","foliage","lighting","surface-reflections","sfx"}) {
             auto *w=child();
-            for(const char *id:{"ssao","rays","sky","fog","dof","adaptation","lighting-balance","foliage","lighting","sfx"})
+            for(const char *id:{"ssao","rays","sky","fog","dof","adaptation","lighting-balance","foliage","lighting","surface-reflections","sfx"})
                 w->StateStorage.SetBool(ImHashStr("expanded",0,w->GetID(id)),strcmp(id,section)==0);
             ImGui::SetScrollY(w,0);frame();frame();
+            if(!strcmp(section,"sfx") || !strcmp(section,"surface-reflections")) {
+                ImGui::SetScrollY(w,w->ScrollMax.y);frame();frame();
+            }
             auto path=std::wstring(L"build/ui-integrated/")+(language?L"ru-":L"en-")+std::wstring(section,section+strlen(section))+L".png";
             CHECK(Screenshot(d,path.c_str()));
         }

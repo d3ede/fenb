@@ -4,6 +4,7 @@
 #include "generated/foliage_catalog.hpp"
 #include "generated/sun_catalog.hpp"
 #include "generated/overlay_catalog.hpp"
+#include "generated/surface_catalog.hpp"
 #include <cstring>
 namespace {
 struct PointSampler {
@@ -73,11 +74,14 @@ void SceneFX::beginFrame() {
     camera_ = depthReady_ = emitters_ = false;
     skyApplied_ = sunOnScreen_ = false;
     skyBackdropReady_ = false;
+    surfaceCaptured_ = false;
     lights_ = emitterDraws_ = 0;
     ++sourceFrame_;
     depth_.beginFrame(true);
 }
 void SceneFX::invalidate() {
+    surfaceMask_.clear(); surfaceOutput_.clear();
+    surfaceVS_.out(); surfaceMaskPS_.out(); surfacePS_.out();
     smaa_.invalidate();
     endSky();
     endFoliage();
@@ -124,6 +128,7 @@ void SceneFX::invalidate() {
     beginFrame();
 }
 void SceneFX::releasePost() {
+    surfaceMask_.clear(); surfaceOutput_.clear(); surfaceCaptured_ = false;
     skyEnvironment_.out();
     smaa_.invalidate();
     depth_.invalidate();
@@ -165,11 +170,11 @@ size_t SceneFX::bytes() const {
         n += t.bytes();
     for (auto &t : emitterPosition_)
         n += t.bytes();
-    return n + localField_.bytes();
+    return n + localField_.bytes() + surfaceMask_.bytes() + surfaceOutput_.bytes();
 }
 void SceneFX::observe(const Settings &s) {
     if (camera_ || (!s.ssao && !s.sunRays && !s.fog && !s.dof && !s.localLighting && !s.lightingBalance &&
-                    s.nightFoliage <= 0))
+                    s.nightFoliage <= 0 && !s.surfaceReflections))
         return;
     DWORD z = 0;
     device_->GetRenderState(D3DRS_ZWRITEENABLE, &z);
@@ -271,7 +276,10 @@ bool SceneFX::prepare(UINT width, UINT height, const Settings &s) {
     }
     if (!s.smaa)
         smaa_.invalidate();
-    const bool geometry = s.ssao || s.sunRays || s.fog || s.dof || s.localLighting;
+    const bool geometry = s.ssao || s.sunRays || s.fog || s.dof || s.localLighting || s.surfaceReflections;
+    if (!s.surfaceReflections) {
+        surfaceMask_.clear(); surfaceOutput_.clear(); surfaceCaptured_ = false;
+    }
     if (!s.localLighting) {
         for (auto &t : emitterColor_)
             t.clear();
@@ -327,13 +335,14 @@ bool SceneFX::prepare(UINT width, UINT height, const Settings &s) {
         return false;
     return true;
 }
-bool SceneFX::pass(Target &t, IDirect3DPixelShader9 *ps, IDirect3DTexture9 *image, IDirect3DTexture9 *depth) {
+bool SceneFX::pass(Target &t, IDirect3DPixelShader9 *ps, IDirect3DTexture9 *image, IDirect3DTexture9 *depth,
+                   IDirect3DTexture9 *mask) {
     for (DWORD i = 0; i < 7; ++i)
         device_->SetTexture(i, nullptr);
     D3DVIEWPORT9 vp{0, 0, t.width, t.height, 0, 1};
     if (FAILED(device_->SetRenderTarget(0, t.surface)) || FAILED(device_->SetViewport(&vp)) ||
         FAILED(device_->SetPixelShader(ps)) || FAILED(device_->SetTexture(0, image)) ||
-        FAILED(device_->SetTexture(1, depth)))
+        FAILED(device_->SetTexture(1, depth)) || FAILED(device_->SetTexture(2, mask)))
         return false;
     struct V {
         float x, y, z, w, u, v;
@@ -454,6 +463,16 @@ IDirect3DTexture9 *SceneFX::process(IDirect3DTexture9 *input, const Settings &s)
         reduceEmitters(s);
     c[19][3] = s.localLighting && (emitters_ || lights_) && localField_.texture.p ? 1.f : 0.f;
     device_->SetPixelShaderConstantF(0, c[0], 20);
+    if (s.surfaceReflections && surfaceCaptured_ && s.surfaceStrength > 0 &&
+        (surfacePS_.p || SUCCEEDED(device_->CreatePixelShader(ShaderSurfaceReflectionPS, surfacePS_.out()))) &&
+        surfaceOutput_.make(device_, output_.width, output_.height)) {
+        float control[] = {s.surfaceStrength, s.surfaceRoughness, s.surfaceDistance,
+                           s.sceneQuality ? 40.f : 24.f};
+        device_->SetPixelShaderConstantF(56, control, 1);
+        PointSampler maskSampler(device_, 2);
+        if (pass(surfaceOutput_, surfacePS_, input, depth_.texture(), surfaceMask_.texture))
+            input = surfaceOutput_.texture;
+    }
     device_->SetPixelShaderConstantF(20, positions_[0], 8);
     device_->SetPixelShaderConstantF(28, colors_[0], 8);
     device_->SetPixelShaderConstantF(36, attenuation_[0], 8);
@@ -591,6 +610,9 @@ bool SceneFX::emissive(IDirect3DTexture9 *texture) {
     for (auto &known : OverlayHashes)
         if (!memcmp(digest, known, 32))
             tag |= 16;
+    for (auto &known : SurfaceIdentities)
+        if (!memcmp(digest, known.hash, 32))
+            tag |= known.kind == 1 ? 32 : 64;
     if (!tag)
         tag = 4;
     texture->SetPrivateData(EmitterTag, &tag, 4, 0);
@@ -689,6 +711,86 @@ void SceneFX::beginFoliage(const Settings &s) {
     device_->SetMaterial(&material);
     device_->SetRenderState(D3DRS_AMBIENT, brighter);
     foliageActive_ = true;
+}
+void SceneFX::captureSurface(const Settings &s, DrawCall draw) {
+    if (!s.surfaceReflections || s.surfaceStrength <= 0 || !camera_) return;
+    DWORD fvf=0,z=0,write=0,test=0,blend=0,src=0,dst=0;
+    device_->GetFVF(&fvf);
+    if (fvf != 0x112 && fvf != 0x212) return; // Rigid mesh / native two-UV terrain only.
+    device_->GetRenderState(D3DRS_ZENABLE,&z);
+    device_->GetRenderState(D3DRS_ZWRITEENABLE,&write);
+    device_->GetRenderState(D3DRS_ALPHATESTENABLE,&test);
+    device_->GetRenderState(D3DRS_ALPHABLENDENABLE,&blend);
+    device_->GetRenderState(D3DRS_SRCBLEND,&src);
+    device_->GetRenderState(D3DRS_DESTBLEND,&dst);
+    if (!z || !write || test || (blend && (fvf!=0x212 || src!=D3DBLEND_SRCALPHA ||
+                                                          dst!=D3DBLEND_INVSRCALPHA))) return;
+    Com<IDirect3DVertexShader9> vs;
+    Com<IDirect3DPixelShader9> ps;
+    device_->GetVertexShader(vs.out()); device_->GetPixelShader(ps.out());
+    if(vs.p || ps.p) return;
+    D3DMATRIX matrices[3]{};
+    device_->GetTransform(D3DTS_WORLD,matrices);
+    device_->GetTransform(D3DTS_VIEW,matrices+1);
+    device_->GetTransform(D3DTS_PROJECTION,matrices+2);
+    for(int row=0;row<4;++row)for(int col=0;col<4;++col)
+        if(std::abs(matrices[2].m[row][col]-projection_.m[row][col])>.00001f ||
+           (row<3 && col<3 && std::abs(matrices[1].m[row][col]-view_.m[row][col])>.00001f)) return;
+    Com<IDirect3DBaseTexture9> texture;
+    if(FAILED(device_->GetTexture(0,texture.out())) || !texture.p || texture->GetType()!=D3DRTYPE_TEXTURE) return;
+    emissive(static_cast<IDirect3DTexture9 *>(texture.p));
+    DWORD tag=0,size=4;
+    texture->GetPrivateData(EmitterTag,&tag,&size);
+    unsigned kind=tag&64?2:tag&32?1:0;
+    // Unknown terrain layers erase reflectivity through their native blend coverage. This
+    // prevents a grass layer over the same depth plane from inheriting the underlying tile.
+    if(!kind && (fvf!=0x212 || !surfaceCaptured_)) return;
+    DWORD alphaOp=0,alphaArg=0,coordinate=0,transform=0;
+    bool blendMap=false;
+    if(blend) {
+        device_->GetTextureStageState(1,D3DTSS_ALPHAOP,&alphaOp);
+        if(alphaOp!=D3DTOP_DISABLE) {
+            if(alphaOp!=D3DTOP_SELECTARG1 && alphaOp!=D3DTOP_SELECTARG2) return;
+            device_->GetTextureStageState(1,alphaOp==D3DTOP_SELECTARG1?D3DTSS_ALPHAARG1:D3DTSS_ALPHAARG2,&alphaArg);
+            if(alphaArg!=D3DTA_CURRENT && alphaArg!=D3DTA_TEXTURE) return;
+            blendMap=alphaArg==D3DTA_TEXTURE;
+        }
+        if(blendMap) {
+            device_->GetTextureStageState(1,D3DTSS_TEXCOORDINDEX,&coordinate);
+            device_->GetTextureStageState(1,D3DTSS_TEXTURETRANSFORMFLAGS,&transform);
+            if(coordinate!=1 || transform) return;
+        }
+    }
+    if((!surfaceVS_.p && FAILED(device_->CreateVertexShader(ShaderSurfaceVS,surfaceVS_.out()))) ||
+       (!surfaceMaskPS_.p && FAILED(device_->CreatePixelShader(ShaderSurfaceMaskPS,surfaceMaskPS_.out())))) return;
+    Com<IDirect3DSurface9> target;
+    D3DSURFACE_DESC desc{};
+    D3DVIEWPORT9 vp{};
+    if(FAILED(device_->GetRenderTarget(0,target.out())) || FAILED(target->GetDesc(&desc)) ||
+       FAILED(device_->GetViewport(&vp)) || vp.X!=viewport_.X || vp.Y!=viewport_.Y ||
+       vp.Width!=viewport_.Width || vp.Height!=viewport_.Height ||
+       !surfaceMask_.make(device_,desc.Width,desc.Height,D3DFMT_A16B16G16R16F)) return;
+    StateGuard state(device_);
+    if(!state.valid()) return;
+    state.isolateTargets();
+    if(FAILED(device_->SetRenderTarget(0,surfaceMask_.surface))) return;
+    if(!surfaceCaptured_ && FAILED(device_->Clear(0,nullptr,D3DCLEAR_TARGET,0,1,0))) return;
+    device_->SetViewport(&vp);
+    device_->SetVertexShader(surfaceVS_); device_->SetPixelShader(surfaceMaskPS_);
+    device_->SetVertexShaderConstantF(0,&matrices[0].m[0][0],12);
+    float material[]={kind==2?.8f:kind==1?.55f:0.f,kind==2?.4f:.8f,blendMap?1.f:0.f,0};
+    device_->SetPixelShaderConstantF(0,material,1);
+    for(auto key:{D3DRS_ZENABLE,D3DRS_ZWRITEENABLE,D3DRS_ALPHATESTENABLE,D3DRS_FOGENABLE,
+                  D3DRS_STENCILENABLE,D3DRS_SCISSORTESTENABLE,D3DRS_SRGBWRITEENABLE,
+                  D3DRS_SEPARATEALPHABLENDENABLE,D3DRS_CLIPPLANEENABLE}) device_->SetRenderState(key,FALSE);
+    device_->SetRenderState(D3DRS_ALPHABLENDENABLE,blend);
+    device_->SetRenderState(D3DRS_SRCBLEND,D3DBLEND_SRCALPHA);
+    device_->SetRenderState(D3DRS_DESTBLEND,D3DBLEND_INVSRCALPHA);
+    device_->SetRenderState(D3DRS_BLENDOP,D3DBLENDOP_ADD);
+    device_->SetRenderState(D3DRS_COLORWRITEENABLE,15);
+    device_->SetRenderState(D3DRS_MULTISAMPLEMASK,0xffffffff);
+    device_->SetRenderState(D3DRS_FILLMODE,D3DFILL_SOLID);
+    if(SUCCEEDED(draw())) surfaceCaptured_=true;
 }
 void SceneFX::captureEmitter(const Settings &s, DrawCall draw) {
     if (!s.localLighting || !camera_ || emitterDraws_ >= 96)

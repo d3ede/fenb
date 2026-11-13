@@ -23,6 +23,17 @@ struct SceneFXFixture {
     static bool hasSkyBackdrop(const SceneFX &fx) {
         return fx.skyBackdrop_.texture.p != nullptr;
     }
+    static float surfaceMaskMaximum(SceneFX &fx,IDirect3DDevice9 *d) {
+        Com<IDirect3DSurface9> read;
+        if(FAILED(d->CreateOffscreenPlainSurface(fx.surfaceMask_.width,fx.surfaceMask_.height,
+            D3DFMT_A16B16G16R16F,D3DPOOL_SYSTEMMEM,read.out(),nullptr)) ||
+           FAILED(d->GetRenderTargetData(fx.surfaceMask_.surface,read)))return -1;
+        D3DLOCKED_RECT lock{};if(FAILED(read->LockRect(&lock,nullptr,D3DLOCK_READONLY)))return -1;
+        unsigned maximum=0;
+        for(UINT y=0;y<fx.surfaceMask_.height;++y)for(UINT x=0;x<fx.surfaceMask_.width;++x)
+            maximum=std::max(maximum,unsigned(((unsigned short *)((BYTE *)lock.pBits+y*lock.Pitch))[x*4]));
+        read->UnlockRect();return float(maximum);
+    }
     static std::array<float, 3> sourcePosition(SceneFX &fx, IDirect3DDevice9 *d) {
         Com<IDirect3DSurface9> read;
         if (FAILED(d->CreateOffscreenPlainSurface(8, 4, D3DFMT_A16B16G16R16F, D3DPOOL_SYSTEMMEM, read.out(),
@@ -235,6 +246,15 @@ int main(int argc, char **) {
     std::array<float, 3> sceneOffset{};
     // Native building light maps can leave stage 1 selecting the unchanged stage-0 result.
     DWORD emitterStage1 = D3DTOP_DISABLE, emitterStage1Argument = D3DTA_CURRENT;
+    bool surfaceFixture = false, surfaceGrass = false;
+    Com<IDirect3DTexture9> paving;
+    CHECK(SUCCEEDED(d->CreateTexture(2,2,1,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,paving.out(),nullptr)));
+    CHECK(SUCCEEDED(paving->LockRect(0,&lock,nullptr,0)));
+    for(int y=0;y<2;++y)for(int x=0;x<2;++x)
+        ((DWORD *)((BYTE *)lock.pBits+y*lock.Pitch))[x]=0xff808080;
+    paving->UnlockRect(0);
+    DWORD pavingTag=32;
+    paving->SetPrivateData(EmitterTag,&pavingTag,4,0);
     struct Vertex {
         float x, y, z;
         DWORD color;
@@ -345,6 +365,28 @@ int main(int argc, char **) {
                         floor.push_back(v);
                 }
             d->DrawPrimitiveUP(D3DPT_TRIANGLELIST, UINT(floor.size() / 3), floor.data(), sizeof(Vertex));
+            if(surfaceFixture) {
+                struct PavingVertex {float x,y,z,nx,ny,nz,u,v,u1,v1;};
+                std::vector<PavingVertex> maskFloor;
+                for(const auto &v:floor)maskFloor.push_back({v.x,v.y,v.z,0,1,0,v.x,v.z,0,0});
+                d->SetFVF(0x212); d->SetTexture(0,paving);
+                fx.sceneFX().captureSurface(settings,[&] {
+                    return d->DrawPrimitiveUP(D3DPT_TRIANGLELIST,UINT(maskFloor.size()/3),maskFloor.data(),sizeof(PavingVertex));
+                });
+                if(surfaceGrass) {
+                    // An opaque grass layer on the same depth plane must erase paving response.
+                    DWORD unknown=4;paving->SetPrivateData(EmitterTag,&unknown,4,0);
+                    d->SetRenderState(D3DRS_ALPHABLENDENABLE,TRUE);
+                    d->SetRenderState(D3DRS_SRCBLEND,D3DBLEND_SRCALPHA);
+                    d->SetRenderState(D3DRS_DESTBLEND,D3DBLEND_INVSRCALPHA);
+                    fx.sceneFX().captureSurface(settings,[&] {
+                        return d->DrawPrimitiveUP(D3DPT_TRIANGLELIST,UINT(maskFloor.size()/3),maskFloor.data(),sizeof(PavingVertex));
+                    });
+                    paving->SetPrivateData(EmitterTag,&pavingTag,4,0);
+                    d->SetRenderState(D3DRS_ALPHABLENDENABLE,FALSE);
+                }
+                d->SetFVF(D3DFVF_XYZ|D3DFVF_DIFFUSE);d->SetTexture(0,nullptr);
+            }
             Vertex wall[] = {{-2, 0, 18, 0xff948674},
                              {2, 0, 18, 0xff948674},
                              {-2, 7, 18, 0xff948674},
@@ -352,6 +394,8 @@ int main(int argc, char **) {
             if (balanceScene)
                 for (auto &v : wall)
                     v.color = 0xffc0c0c0;
+            if (surfaceFixture)
+                for (auto &v : wall) v.color=0xff2060d0;
             if(!planeOnly)d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, wall, sizeof(Vertex));
             if (foreground) {
                 Vertex character[] = {{-.35f, 0, 3, 0xff506070},
@@ -732,6 +776,43 @@ int main(int argc, char **) {
     emit = occluded = false;
     nativePoint = true;
     disableEffect(6);
+    surfaceFixture=true;
+    // Keep the same color-resolve path for MSAA when comparing the optional reflection.
+    settings.surfaceReflections=true; settings.surfaceStrength=0; CHECK(render()); const auto pavingOff=Read(d);
+    settings.surfaceReflections=true; settings.surfaceStrength=1; settings.surfaceRoughness=.5f;
+    CHECK(render()); const auto pavingOn=Read(d);
+    printf("Paving reflection pixels: %u\n",Difference(pavingOff,pavingOn));
+    CHECK(Difference(pavingOff,pavingOn)>100);
+    unsigned reflectedBlue=0;
+    for(UINT y=145;y<H;++y)for(UINT x=0;x<W;++x) {
+        const auto a=pavingOff[y*W+x],b=pavingOn[y*W+x];
+        reflectedBlue+=int(b&255)>int(a&255)+4 && int((a>>16)&255)>int((b>>16)&255)+2;
+    }
+    printf("Blue object reflected on paving: %u pixels\n",reflectedBlue);
+    CHECK(reflectedBlue>200); // Native MSAA resolve differences alone cannot satisfy this.
+    CHECK(pavingOn[12*W+12]==pavingOff[12*W+12]);
+    CHECK(pavingOn[50*W+20]==pavingOff[50*W+20]);
+    CHECK(Save(pavingOff,L"build/surface-reflections-off.bmp"));
+    CHECK(Save(pavingOn,L"build/surface-reflections-on.bmp"));
+    auto maximumDelta=[](const auto &a,const auto &b) {
+        unsigned maximum=0;
+        for(size_t i=0;i<a.size();++i)for(unsigned shift:{0u,8u,16u})
+            maximum=std::max(maximum,unsigned(std::abs(int((a[i]>>shift)&255)-int((b[i]>>shift)&255))));
+        return maximum;
+    };
+    CHECK(maximumDelta(pavingOff,pavingOn)>10);
+    surfaceGrass=true; CHECK(render());
+    printf("Grass reflection mismatch pixels: %u, mask maximum: %.0f\n",Difference(pavingOff,Read(d)),
+           SceneFXFixture::surfaceMaskMaximum(fx.sceneFX(),d));
+    CHECK(Save(Read(d),L"build/surface-grass.bmp"));
+    CHECK(SceneFXFixture::surfaceMaskMaximum(fx.sceneFX(),d)==0);
+    // Hardware MSAA resolves can vary by one coverage step at checkerboard edges after
+    // switching away from the native multisampled target. No reflection may remain.
+    CHECK(maximumDelta(pavingOff,Read(d))<=(pp.MultiSampleType?32u:0u));
+    surfaceGrass=false;
+    settings.surfaceStrength=0;CHECK(render());
+    CHECK(maximumDelta(pavingOff,Read(d))<=(pp.MultiSampleType?32u:0u));
+    settings.surfaceReflections=false; surfaceFixture=false;
     settings.fxaa = true;
     CHECK(render());
     auto antialias = Read(d);
@@ -1038,11 +1119,15 @@ int main(int argc, char **) {
     auto unknownFlare = Read(d);
     CHECK(flareFrame(false, 1));
     CHECK(unknownFlare == Read(d));
+    surfaceFixture=true; settings.surfaceReflections=true; settings.surfaceStrength=1;
+    CHECK(render());
+    CHECK(SceneFXFixture::surfaceMaskMaximum(fx.sceneFX(),d)>0);
     fx.invalidate();
     CHECK(fx.bytes() == 0);
     CHECK(SUCCEEDED(d->Reset(&pp)));
     settings.fog = true;
     CHECK(render());
+    CHECK(SceneFXFixture::surfaceMaskMaximum(fx.sceneFX(),d)>0);
     fx.invalidate();
     DestroyWindow(window);
     puts("PASS: depth SSAO, fog, DoF, sun occlusion, native point-light receiver shading, GPU exposure, HUD, "

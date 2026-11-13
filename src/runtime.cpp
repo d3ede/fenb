@@ -286,9 +286,12 @@ void Runtime::afterWaterDraw(bool up, bool indexed) {
 }
 void Runtime::emitterDraw(DrawCall draw) {
     if (lost_ || !settings.enabled || compare || vertexShaderActive_ ||
-        !settings.localLighting || !sceneBackbuffer_ || drawTarget_ != sceneBackbuffer_)
+        !sceneBackbuffer_ || drawTarget_ != sceneBackbuffer_)
         return;
-    effects_->sceneFX().captureEmitter(settings, draw);
+    if (settings.localLighting)
+        effects_->sceneFX().captureEmitter(settings, draw);
+    if (settings.surfaceReflections && !hudStarted_)
+        effects_->sceneFX().captureSurface(settings, draw);
 }
 void Runtime::beforeDraw(UINT primitives, UINT vertices) {
     // Cache setters: do not query every DX9 state on thousands of world draws.

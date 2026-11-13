@@ -90,6 +90,10 @@ inline void ApplyBuiltInVisuals(Settings &s, int index) {
     s.sfxSoftness = 0.350000f;
     s.sfxAura = 1.000000f;
     s.sfxWake = 0.700000f;
+    s.surfaceReflections = false;
+    s.surfaceStrength = 0.550000f;
+    s.surfaceRoughness = 0.650000f;
+    s.surfaceDistance = 50.000000f;
     switch(index) {
     case 1: // Clear water
     s.bloomStrength = 0.100000f;

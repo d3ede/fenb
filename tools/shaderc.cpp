@@ -16,12 +16,12 @@ int main(int argc, char** argv) {
     auto fail=[&](int status){fclose(output);DeleteFileA(temporary.c_str());return status;};
     fprintf(output, "#pragma once\n#include <windows.h>\n");
     const char* entries[] = {"Bright", "Blur", "Composite"};
-    const char* sceneEntries[]={"SceneAO","SceneRays","SceneComposite","Luminance","Reduce","Adapt","SkyVS","SkyPS","FlarePS","EmitterVS","EmitterPS","EmitterSum","EmitterLighting","FXAA","SkyMean","SceneRaySource","SceneDoF"};
+    const char* sceneEntries[]={"SceneAO","SceneRays","SceneComposite","Luminance","Reduce","Adapt","SkyVS","SkyPS","FlarePS","EmitterVS","EmitterPS","EmitterSum","EmitterLighting","FXAA","SkyMean","SceneRaySource","SceneDoF","SurfaceVS","SurfaceMaskPS","SurfaceReflectionPS"};
     const char* smaaEntries[]={"SMAAEdges","SMAAWeights","SMAABlend"};
     const char* sfxEntries[]={"SfxVS","SfxPS","AuraPS"};
     const bool sfx=argc==4 && !strcmp(argv[3],"sfx");
     const bool smaa=argc==4 && !strcmp(argv[3],"smaa");
-    const int count=argc==5?1:sfx?3:smaa?3:argc==4?17:3;
+    const int count=argc==5?1:sfx?3:smaa?3:argc==4?20:3;
     for (int index=0;index<count;++index) {
         const char* entry=argc==5?argv[3]:sfx?sfxEntries[index]:smaa?smaaEntries[index]:argc==4?sceneEntries[index]:entries[index];
         ID3DBlob* code = nullptr; ID3DBlob* error = nullptr;

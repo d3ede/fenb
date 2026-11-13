@@ -638,6 +638,18 @@ void SceneControls(Runtime &runtime) {
                 notice(UiText::LightNotDetected);
         }
     }
+    if (section("surface-reflections", Tr(UiText::SurfaceReflections), s.surfaceReflections, 13)) {
+        ImGui::BeginDisabled(!s.surfaceReflections || !s.enabled);
+        Row(UiText::Strength, Tr(UiText::SurfaceStrengthHelp), s.surfaceStrength, 0, 1,
+            defaults.surfaceStrength,"%.2f",.05f);
+        Row(UiText::SurfaceRoughness, Tr(UiText::SurfaceRoughnessHelp), s.surfaceRoughness, 0, 1,
+            defaults.surfaceRoughness,"%.2f",.05f);
+        Row(UiText::Distance, Tr(UiText::SurfaceDistanceHelp), s.surfaceDistance, 5, 100,
+            defaults.surfaceDistance,"%.0f",5);
+        ImGui::EndDisabled();
+        if (s.enabled && s.surfaceReflections && !status.depth)
+            notice(UiText::SceneDepthUnavailable);
+    }
     if (section("sfx", Tr(UiText::SpellEffects), s.sfx, 11)) {
         ImGui::BeginDisabled(!s.sfx || !s.enabled);
         Row(UiText::AuraGlow, Tr(UiText::AuraGlowHelp), s.sfxAura, 0, 2, defaults.sfxAura,"%.2f",.05f);

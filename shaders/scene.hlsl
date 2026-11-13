@@ -6,6 +6,7 @@ sampler2D LocalField : register(s4);
 sampler2D SkyBackdrop : register(s5);
 sampler2D MeanSky : register(s6);
 samplerCUBE Atmosphere : register(s7);
+float4 SurfaceControls : register(c56); // strength, roughness, trace distance, steps
 float4 Camera : register(c0);
 float4 Viewport : register(c1);
 float4 Texel : register(c2);
@@ -452,4 +453,83 @@ float4 FXAA(float2 uv:TEXCOORD0):COLOR0 {
     float3 b=a*.5+(tex2D(Image,uv-direction*.5).rgb+tex2D(Image,uv+direction*.5).rgb)*.25;
     float l=Luma(b);float3 smooth=l<lo||l>hi?a:b;
     return float4(lerp(center,smooth,Viewport.x),original.a);
+}
+
+struct SurfaceInput {float3 position:POSITION;float3 normal:NORMAL;float2 uv:TEXCOORD0;float2 blendUV:TEXCOORD1;};
+struct SurfaceOutput {float4 position:POSITION;float2 blendUV:TEXCOORD0;float depth:TEXCOORD1;float3 normal:TEXCOORD2;};
+SurfaceOutput SurfaceVS(SurfaceInput i) {
+ SurfaceOutput o;
+ float4 p=mul(float4(i.position,1),SkyWorld);
+ float4 v=mul(p,SkyView);
+ o.position=mul(v,SkyProjection); o.depth=v.z;
+ o.normal=mul(i.normal,(float3x3)SkyWorld); o.blendUV=i.blendUV;
+ return o;
+}
+float4 SurfaceMaskPS(float2 blendUV:TEXCOORD0,float depth:TEXCOORD1,float3 normal:TEXCOORD2):COLOR0 {
+ clip(normalize(normal).y-.995); // Only near-horizontal paving, not walls or sloped terrain.
+ return float4(Camera.xy,depth,Camera.z>.5?tex2D(Depth,blendUV).a:1);
+}
+float2 SurfaceProject(float3 p) {
+ return (p.xy*Camera.xy/p.z*float2(.5,-.5)+.5)*Viewport.zw+Viewport.xy+Texel.xy*.5;
+}
+float4 SurfaceReflectionPS(float2 uv:TEXCOORD0):COLOR0 {
+ float4 base=tex2D(Image,uv),material=tex2Dlod(AO,float4(DepthUV(uv),0,0));
+ float raw=RawDepth(uv),z=Z(uv);
+ // The replay records receiver depth. Later characters, water and props cannot inherit it.
+ if(material.r<.001 || raw>=.999999)return base;
+ float2 dx=float2(Texel.x,0),dy=float2(0,Texel.y);
+ // A copied MSAA depth sample lies within the pixel, while the non-MSAA replay samples
+ // its center. Admit that subpixel slope difference, never an arbitrary foreground depth.
+ float footprint=max(min(abs(Z(uv-dx)-z),abs(Z(uv+dx)-z)),
+                     min(abs(Z(uv-dy)-z),abs(Z(uv+dy)-z)));
+ if(abs(material.b-z)>max(.012,z*.0015)+min(.25,footprint*.65))return base;
+ float3 p=Point(uv,material.b);
+ // The material replay accepts horizontal surfaces only. Their geometry normal avoids
+ // differentiating quantized or multisample-resolved depth into a noisy mirror direction.
+ float3 n=normalize(View[1].xyz);
+ float3 direction=reflect(normalize(p),n),origin=p+n*.035;
+ float previousT=0,previousDelta=-1,found=0,hitZ=0;
+ float2 hit=0;
+ [loop]for(int i=0;i<40;++i) {
+  if(i>=SurfaceControls.w)break;
+  float f=(i+1)/SurfaceControls.w,t=.08+f*f*SurfaceControls.z;
+  float3 q=origin+direction*t;
+  if(q.z<=.05)break;
+  float2 at=SurfaceProject(q);
+  if(any(at<Viewport.xy+Texel.xy*2)||any(at>Viewport.xy+Viewport.zw-Texel.xy*2))break;
+  float depth=Z(at),delta=q.z-depth;
+  if(RawDepth(at)<.999999 && delta>=0 && previousDelta<0 &&
+     length((at-uv)/Texel.xy)>3) {
+   float lo=previousT,hi=t;
+   [loop]for(int refine=0;refine<5;++refine) {
+    float mid=(lo+hi)*.5; float3 candidate=origin+direction*mid;
+    float2 st=SurfaceProject(candidate);
+    if(candidate.z>Z(st))hi=mid;else lo=mid;
+   }
+   q=origin+direction*hi;at=SurfaceProject(q);depth=Z(at);
+   float tolerance=max(.025,depth*.0015);
+   float dz=abs(q.z-depth);
+   // Reject unsupported crossings and thin foliage silhouettes, rather than stretching them.
+   float spread=max(abs(Z(at+dx)-depth),abs(Z(at-dx)-depth));
+   spread=max(spread,max(abs(Z(at+dy)-depth),abs(Z(at-dy)-depth)));
+   if(RawDepth(at)<.999999 && dz<tolerance && spread<max(.12,depth*.01)) {
+    found=saturate(1-dz/tolerance);hit=at;hitZ=depth;
+   }
+   break;
+  }
+  previousT=t;previousDelta=delta;
+ }
+ if(found<=0)return base;
+ float edge=min(min(hit.x-Viewport.x,hit.y-Viewport.y),min(Viewport.x+Viewport.z-hit.x,Viewport.y+Viewport.w-hit.y));
+ float rough=saturate(material.g*SurfaceControls.y*1.5),radius=1+rough*5;
+ float3 reflection=tex2Dlod(Image,float4(hit,0,0)).rgb;float weight=1;
+ [loop]for(int tap=0;tap<4;++tap) {
+  float2 at=hit+Kernel(tap)*Texel.xy*radius;
+  float w=exp(-abs(Z(at)-hitZ)/max(.03,hitZ*.002));
+  reflection+=tex2Dlod(Image,float4(at,0,0)).rgb*w;weight+=w;
+ }
+ reflection/=weight;
+ float fresnel=.15+.65*pow(1-saturate(dot(n,normalize(-p))),5);
+ float amount=min(.45,material.r*SurfaceControls.x*fresnel)*found*saturate(edge/.04);
+ return float4(lerp(base.rgb,reflection,amount),base.a);
 }

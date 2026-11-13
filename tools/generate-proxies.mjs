@@ -48,7 +48,7 @@ for (const [,type,parent,body] of definitions) {
         before+=`if (${count}) runtime_->beforeDraw(${count},${vertices}); `;
         if(name==='DrawPrimitive') before+=`if (${count}) runtime_->environmentDraw(${names[0]},${names[1]},${count});`;
         before=before.trimEnd()+`\n#ifdef FENB_DIAGNOSTICS\n        runtime_->captureDraw("${name}",${names[0]},${count},${vertices},${stride},${data},${first});\n#endif\n        `;
-        before+=`if (${count} && runtime_->settings.localLighting) runtime_->emitterDraw([&](){return ${call};}); `;
+        before+=`if (${count} && (runtime_->settings.localLighting || runtime_->settings.surfaceReflections)) runtime_->emitterDraw([&](){return ${call};}); `;
         before+=`if (${count}) runtime_->beforeWaterDraw(${stride},[&](){return ${call};}); `;
         after+=`runtime_->afterWaterDraw(${up},${up&&indexed}); `;
       }

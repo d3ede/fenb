@@ -1,0 +1,50 @@
+[
+  {
+    "file": "World/Texture/brick_MaFl01_new.dds",
+    "sourceHash": "aa3dcdd6d067b16600c140befaa72910528992e7d5a7b0d81c05a1a8b56595c3",
+    "sha256": "c4f5aaf9ff9965336ceb98bf8bc6ece2b2ac109b8474a227332070af39b831a1",
+    "kind": 1
+  },
+  {
+    "file": "World/Texture/brick_MaFl01.dds",
+    "sourceHash": "79fdbf03af90b47828de741635eb5795482893a768f1c9c59405ff094f38db24",
+    "sha256": "3a326c374573cd78f6e5426dd2f40f95b2482bcc49b9661f2bfe40ae79782cae",
+    "kind": 1
+  },
+  {
+    "file": "World/Texture/brick_MaSa01.dds",
+    "sourceHash": "8268643cfca1b954d67c7f631e38fe1c1331e0aa46c34d944beae93d7204dfc7",
+    "sha256": "d58fdae13b5ddc38e5515e4af0cc7e356b96e7863ea6704eebbb97fd659e2717",
+    "kind": 1
+  },
+  {
+    "file": "World/Texture/brick_MaSa02.dds",
+    "sourceHash": "bcad08b35950810a1694b71f9663ba7a5d20254e32b71b8f3bd393d2b029fe36",
+    "sha256": "6e04e9f29821666db417a222ec1f6c6249954faadbf16051ac1d50c852e27a51",
+    "kind": 1
+  },
+  {
+    "file": "World/Texture/brick_RiGarden01.dds",
+    "sourceHash": "9f2a20f124bc4726c331912ce2dfffd73e8241cc394978807f32e7e1245dfc59",
+    "sha256": "eaf58bd32fc7074fae74961ca28190ff8d17541f807ff5d637fd93c626f60019",
+    "kind": 1
+  },
+  {
+    "file": "World/Texture/brick-MaMa01.dds",
+    "sourceHash": "e0cf0d14429d29c22b0653e5b0e662c54e77bbe7d77ae7a9b5c19523ba7ed82a",
+    "sha256": "4f96a533445dd30ba33475a10c07279c2be90ea1fa7cfffb56ba93bc970c1b80",
+    "kind": 1
+  },
+  {
+    "file": "World/Texture/MaFlPrStone01.dds",
+    "sourceHash": "a5ecb294ee8c717e4f851a3e87cb5361566e72643a614ff3a315ebe47fa64fdb",
+    "sha256": "aabba855c5016a8c8aaba4cc874ee971fb84379074701227c0fc4bb780460a0f",
+    "kind": 2
+  },
+  {
+    "file": "World/Texture/MaFlPrStone02.dds",
+    "sourceHash": "ea0a914160fff1bd9b609fb5ec2ee78b85a40ef8f05f291c758add24a0b729b5",
+    "sha256": "9214b9c1edbe37f2096f12a1dbbca3803f29545a69477c223069182318298e2e",
+    "kind": 2
+  }
+]

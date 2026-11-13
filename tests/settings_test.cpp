@@ -141,6 +141,10 @@ int main() {
     s.dof = true;
     s.adaptation = true;
     s.localLighting = true;
+    s.surfaceReflections = true;
+    s.surfaceStrength = .7f;
+    s.surfaceRoughness = .8f;
+    s.surfaceDistance = 65;
     s.aoStrength = .8f;
     s.fogDensity = .008f;
     s.focusDistance = 48;
@@ -159,6 +163,14 @@ int main() {
           loaded.nightFoliage == .55f);
     CHECK(loaded.ssao && loaded.sunRays && loaded.sky && loaded.fog && loaded.dof && loaded.adaptation &&
           loaded.localLighting);
+    CHECK(loaded.surfaceReflections && loaded.surfaceStrength==.7f && loaded.surfaceRoughness==.8f &&
+          loaded.surfaceDistance==65);
+    loaded.surfaceStrength=2; loaded.surfaceRoughness=-1; loaded.surfaceDistance=1000;
+    loaded.sanitize();
+    CHECK(loaded.surfaceStrength==1 && loaded.surfaceRoughness==0 && loaded.surfaceDistance==100);
+    loaded.resetSceneSection(13);
+    CHECK(loaded.surfaceReflections && loaded.surfaceStrength==Settings{}.surfaceStrength &&
+          loaded.surfaceRoughness==Settings{}.surfaceRoughness && loaded.surfaceDistance==Settings{}.surfaceDistance);
     CHECK(loaded.aoStrength == .8f && loaded.fogDensity == .008f && loaded.focusDistance == 48 &&
           loaded.maxEV == .7f);
     loaded.resetSceneSection(0);
