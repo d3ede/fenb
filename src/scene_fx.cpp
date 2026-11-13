@@ -293,9 +293,13 @@ bool SceneFX::prepare(UINT width, UINT height, const Settings &s) {
     float life[8][4]{};
     for (unsigned i = 0; i < 32; ++i) {
         const auto age = now - sources_[i].seen;
-        if (s.localLighting && sources_[i].key && age < 500) {
+        const auto lifetime = sources_[i].lifetime();
+        if (s.localLighting && sources_[i].key && age < lifetime) {
             emitters_ = true;
-            life[i / 4][i % 4] = std::clamp((500.f - float(age)) / 400.f, 0.f, 1.f);
+            // Static windows and world lamps survive short native visibility gaps. Moving
+            // particle emitters retain their short lifetime to avoid trails of stale lights.
+            life[i / 4][i % 4] = std::clamp(float(lifetime - age) /
+                (sources_[i].persistent ? 500.f : 400.f), 0.f, 1.f);
         }
     }
     device_->SetPixelShaderConstantF(44, life[0], 8);
@@ -599,8 +603,8 @@ bool SceneFX::emissive(IDirect3DTexture9 *texture) {
         return false;
     tag = 0;
     for (auto &known : EmitterHashes)
-        if (!memcmp(digest, known, 32))
-            tag |= 1;
+        if (!memcmp(digest, known.hash, 32))
+            tag |= 1 | (known.persistent ? 256 : 0);
     for (auto &known : FoliageHashes)
         if (!memcmp(digest, known, 32))
             tag |= 2;
@@ -612,7 +616,7 @@ bool SceneFX::emissive(IDirect3DTexture9 *texture) {
             tag |= 16;
     for (auto &known : SurfaceIdentities)
         if (!memcmp(digest, known.hash, 32))
-            tag |= known.kind == 1 ? 32 : 64;
+            tag |= known.kind == 1 ? 32 : known.kind == 3 ? 512 : 64;
     if (!tag)
         tag = 4;
     texture->SetPrivateData(EmitterTag, &tag, 4, 0);
@@ -751,7 +755,7 @@ void SceneFX::captureSurface(const Settings &s, DrawCall draw) {
     emissive(static_cast<IDirect3DTexture9 *>(texture.p));
     DWORD tag=0,size=4;
     texture->GetPrivateData(EmitterTag,&tag,&size);
-    unsigned kind=tag&64?2:tag&32?1:0;
+    unsigned kind=tag&512?3:tag&64?2:tag&32?1:0;
     // Unknown terrain layers erase reflectivity through their native blend coverage. This
     // prevents a grass layer over the same depth plane from inheriting the underlying tile.
     if(!kind && (fvf!=0x212 || !surfaceCaptured_)) return;
@@ -788,7 +792,7 @@ void SceneFX::captureSurface(const Settings &s, DrawCall draw) {
     device_->SetViewport(&vp);
     device_->SetVertexShader(surfaceVS_); device_->SetPixelShader(surfaceMaskPS_);
     device_->SetVertexShaderConstantF(0,&matrices[0].m[0][0],12);
-    float material[]={kind==2?.8f:kind==1?.55f:0.f,kind==2?.4f:.8f,blendMap?1.f:0.f,0};
+    float material[]={kind>=2?.8f:kind==1?.55f:0.f,kind>=2?.4f:.8f,blendMap?1.f:0.f,kind==3?1.f:0.f};
     device_->SetPixelShaderConstantF(0,material,1);
     for(auto key:{D3DRS_ZENABLE,D3DRS_ZWRITEENABLE,D3DRS_ALPHATESTENABLE,D3DRS_FOGENABLE,
                   D3DRS_STENCILENABLE,D3DRS_SCISSORTESTENABLE,D3DRS_SRGBWRITEENABLE,
@@ -828,6 +832,8 @@ void SceneFX::captureEmitter(const Settings &s, DrawCall draw) {
     if (FAILED(device_->GetTexture(0, base.out())) || !base.p || base->GetType() != D3DRTYPE_TEXTURE ||
         !emissive(static_cast<IDirect3DTexture9 *>(base.p)))
         return;
+    DWORD emitterTag = 0, tagSize = sizeof(emitterTag);
+    base->GetPrivateData(EmitterTag, &emitterTag, &tagSize);
     // Native glows may be submitted after nameplates. They feed the next frame's cached lights;
     // 3D portraits and overlays with a different camera must never supply scene emitters.
     D3DMATRIX nativeView{}, nativeProjection{};
@@ -916,7 +922,7 @@ void SceneFX::captureEmitter(const Settings &s, DrawCall draw) {
     // Native glow layers move slightly around one bulb as the billboard faces the camera.
     for (unsigned i = 0; i < 32; ++i) {
         const float distance = distanceSquared(sources_[i].anchor, &world._41);
-        if (sources_[i].key == key && distance < nearest && now - sources_[i].seen < 500) {
+        if (sources_[i].key == key && distance < nearest && now - sources_[i].seen < sources_[i].lifetime()) {
             slot = i; nearest = distance;
         }
     }
@@ -924,7 +930,7 @@ void SceneFX::captureEmitter(const Settings &s, DrawCall draw) {
         return; // One light per bulb/material, not one light per halo layer.
     if (slot == 32)
         for (unsigned i = 0; i < 32; ++i)
-            if (!sources_[i].key || now - sources_[i].seen >= 500) { slot = i; break; }
+            if (!sources_[i].key || now - sources_[i].seen >= sources_[i].lifetime()) { slot = i; break; }
     if (slot == 32) {
         float farthest = 0;
         unsigned replacement = 32;
@@ -999,6 +1005,7 @@ void SceneFX::captureEmitter(const Settings &s, DrawCall draw) {
     if (SUCCEEDED(draw())) {
         emitters_ = true;
         sources_[slot] = {key, now, sourceFrame_};
+        sources_[slot].persistent = (emitterTag & 256) != 0;
         for (int i = 0; i < 3; ++i) sources_[slot].anchor[i] = world.m[3][i] + sourceOrigin_[i];
         ++emitterDraws_;
     }

@@ -46,5 +46,23 @@
     "sourceHash": "ea0a914160fff1bd9b609fb5ec2ee78b85a40ef8f05f291c758add24a0b729b5",
     "sha256": "9214b9c1edbe37f2096f12a1dbbca3803f29545a69477c223069182318298e2e",
     "kind": 2
+  },
+  {
+    "file": "Model/Texture/Obj_NewFlEastCent01.dds",
+    "sourceHash": "5c5209a4666da2538089297510bb3de8547d185589443049fe5559af6163e46c",
+    "sha256": "f158408d2da984ba2151781ad92028bf2d6f5b9a69ab75b61ad2fc86996aa564",
+    "kind": 2
+  },
+  {
+    "file": "Model/Texture/Obj_NewFlNorthCent01.dds",
+    "sourceHash": "39bac83ed9f19d26fc7644729b23d168896fb097b861a01d690a29a4b28c132d",
+    "sha256": "e6104dd25772d3f8873ace816f363c31c46ff5779ca19520db1278078dccc57c",
+    "kind": 2
+  },
+  {
+    "file": "Model/Texture/Obj_NewFlsenCent01.dds",
+    "sourceHash": "a28a1b0b6382576df74f8efcf18e56776879ede1aa1d6530ccc906c732e618f7",
+    "sha256": "2d1a81ef15647b70d8200e31c2c38ec1a64db31f3eadd1e03aa82104b1df4259",
+    "kind": 3
   }
 ]

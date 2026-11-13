@@ -468,17 +468,20 @@ float4 FXAA(float2 uv:TEXCOORD0):COLOR0 {
 }
 
 struct SurfaceInput {float3 position:POSITION;float3 normal:NORMAL;float2 uv:TEXCOORD0;float2 blendUV:TEXCOORD1;};
-struct SurfaceOutput {float4 position:POSITION;float2 blendUV:TEXCOORD0;float depth:TEXCOORD1;float3 normal:TEXCOORD2;};
+struct SurfaceOutput {float4 position:POSITION;float2 blendUV:TEXCOORD0;float depth:TEXCOORD1;float3 normal:TEXCOORD2;float2 materialUV:TEXCOORD3;};
 SurfaceOutput SurfaceVS(SurfaceInput i) {
  SurfaceOutput o;
  float4 p=mul(float4(i.position,1),SkyWorld);
  float4 v=mul(p,SkyView);
  o.position=mul(v,SkyProjection); o.depth=v.z;
- o.normal=mul(i.normal,(float3x3)SkyWorld); o.blendUV=i.blendUV;
+ o.normal=mul(i.normal,(float3x3)SkyWorld); o.blendUV=i.blendUV;o.materialUV=i.uv;
  return o;
 }
-float4 SurfaceMaskPS(float2 blendUV:TEXCOORD0,float depth:TEXCOORD1,float3 normal:TEXCOORD2):COLOR0 {
+float4 SurfaceMaskPS(float2 blendUV:TEXCOORD0,float depth:TEXCOORD1,float3 normal:TEXCOORD2,float2 materialUV:TEXCOORD3):COLOR0 {
  clip(normalize(normal).y-.995); // Only near-horizontal paving, not walls or sloped terrain.
+ // This verified plaza atlas also contains a planter's grass patch. Its material
+ // response must follow the sampled atlas region rather than the entire texture.
+ if(Camera.w>.5 && materialUV.x>.805 && materialUV.y>.69 && materialUV.y<.86)clip(-1);
  return float4(Camera.xy,depth,Camera.z>.5?tex2D(Depth,blendUV).a:1);
 }
 float2 SurfaceProject(float3 p) {

@@ -7,17 +7,19 @@ const files=['Model/Texture/Obj_MaFlRe01-light.dds','Model/Texture/Obj_MaFlHo01-
  'Model/Texture/Obj_MaFlReq-light.dds','Model/Texture/obj_MaFlPrGe01-light.dds',
  'Model/Texture/Obj_MaCoPrSkySign03-light.dds',
  'SFX/Texture/sfx_genlight01-1.dds','SFX/Texture/sfx_genlodelight01-1.dds',
- 'SFX/Texture/sfx_light01.dds','SFX/Texture/sfx_light02.dds','SFX/Texture/obj_magiclight.dds'];
-let out='#pragma once\ninline constexpr unsigned char EmitterHashes[][32] = {\n';
+ 'SFX/Texture/sfx_light01.dds','SFX/Texture/sfx_light02.dds','SFX/Texture/obj_magiclight.dds',
+ 'SFX/Texture/obj_GenLight01.dds'];
+const persistent=file=>file.toLowerCase().startsWith('model/') || /obj_genlight01\.dds$/i.test(file);
+let out='#pragma once\nstruct EmitterIdentity { unsigned char hash[32]; bool persistent; };\ninline constexpr EmitterIdentity EmitterHashes[] = {\n';
 const hashes=new Set(),rawHashes={};
 for(const file of files){const b=fs.readFileSync(path.join(root,file));const w=b.readUInt32LE(16),h=b.readUInt32LE(12),four=b.toString('ascii',84,88);
  const size=four==='DXT1'?Math.ceil(w/4)*Math.ceil(h/4)*8:/DXT[35]/.test(four)?Math.ceil(w/4)*Math.ceil(h/4)*16:w*h*b.readUInt32LE(88)/8;
- const hash=crypto.createHash('sha256').update(b.subarray(128,128+size)).digest('hex');rawHashes[file]=hash;if(hashes.has(hash))continue;hashes.add(hash);
- out+='// '+file+'\n{'+hash.match(/../g).map(x=>'0x'+x).join(',')+'},\n';
+ const hash=crypto.createHash('sha256').update(b.subarray(128,128+size)).digest('hex');rawHashes[file.toLowerCase()]=hash;if(hashes.has(hash))continue;hashes.add(hash);
+ out+='// '+file+'\n{{'+hash.match(/../g).map(x=>'0x'+x).join(',')+'},'+persistent(file)+'},\n';
 }
 for(const item of JSON.parse(fs.readFileSync(new URL('./emitter-decoded.json',import.meta.url),'utf8'))){
- if(rawHashes[item.file]!==item.rawHash||hashes.has(item.sha256))continue;
- hashes.add(item.sha256);out+='// '+item.file+' (D3DX ARGB8 upload)\n{'+item.sha256.match(/../g).map(x=>'0x'+x).join(',')+'},\n';
+ if(rawHashes[item.file.toLowerCase()]!==item.rawHash||hashes.has(item.sha256))continue;
+ hashes.add(item.sha256);out+='// '+item.file+' (D3DX ARGB8 upload)\n{{'+item.sha256.match(/../g).map(x=>'0x'+x).join(',')+'},'+persistent(item.file)+'},\n';
 }
 fs.writeFileSync('src/generated/emitter_catalog.hpp',out+'};\n');console.log('Generated '+hashes.size+' exact emissive-material identities');
 out='#pragma once\ninline constexpr unsigned char FoliageHashes[][32] = {\n';const seen=new Set();

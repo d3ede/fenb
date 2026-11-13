@@ -58,5 +58,35 @@
     "file": "Model/Texture/Obj_MaCoPrSkySign03-light.dds",
     "rawHash": "12b00107fe68ca6f08f4dedccb42d7f915e7b5d2dd071e4ee45af8a2e927627d",
     "sha256": "9f48046132e6ed50f5afb30ae708efaedf2146d022a765e9c4d83b10f6e49520"
+  },
+  {
+    "file": "SFX/Texture/obj_magiclight.dds",
+    "rawHash": "38ea5be20b5b6a07934b8000a57215d2cbea4693a0a303ebe79adbd821db63b7",
+    "sha256": "c00fc7676d45ba647ceedd0c24f6591586d07ef1d6e4e8f630dc15757b240e35"
+  },
+  {
+    "file": "SFX/Texture/sfx_GenLight01-1.dds",
+    "rawHash": "1d7656ba10b4553c61257731ea78e7b40727f3d06fbc220841630123d39185e6",
+    "sha256": "36b21d171fc9553acf60601e6c27d36791f131e65b5300dfd937cc0949fdf039"
+  },
+  {
+    "file": "SFX/Texture/sfx_GenLodeLight01-1.dds",
+    "rawHash": "8e38cb11fd6f64926204a0a57234f87ce7990be5aab11d6173d2f0cbf7561faa",
+    "sha256": "5f0d9ecb0801a036284e9782f8f5d36b5549e909426f58d30bbd8f06c740aa4d"
+  },
+  {
+    "file": "SFX/Texture/sfx_light01.dds",
+    "rawHash": "87816d488ebd7793570173443005895489c93e2528e0cd0007f6c7a470d7c42d",
+    "sha256": "74f1da36275d426a1e3b9fb91cb553807a7968f0c6c44007004467b12b968cc5"
+  },
+  {
+    "file": "SFX/Texture/sfx_light02.dds",
+    "rawHash": "8c6b3f8986e01f02ee4b6a50214e2886f5e4f5c19793c5e79fe248ba9dac3a85",
+    "sha256": "967b2ca42a160c8bca14b47cb7fb7fa416f2867b339dbb5d5ba2c3a29236ad2f"
+  },
+  {
+    "file": "SFX/Texture/obj_GenLight01.dds",
+    "rawHash": "7e989526467dcfec849e83fc93b81b54952650ec6e9049b0f480f6d14b39b773",
+    "sha256": "1df4057a3df782cb9771252d9e3eb7aa3d11437b7bec59b61b4d0acd467b09ac"
   }
 ]

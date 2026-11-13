@@ -17,6 +17,9 @@ void Log(const char *s) {
     puts(s);
 }
 struct SceneFXFixture {
+    static void ageSources(SceneFX &fx, ULONGLONG milliseconds) {
+        for(auto &source:fx.sources_) if(source.key) source.seen-=milliseconds;
+    }
     static unsigned sourceCount(const SceneFX &fx) {
         unsigned count=0;for(const auto &source:fx.sources_)count+=source.key!=0;return count;
     }
@@ -139,6 +142,18 @@ unsigned Difference(const std::vector<DWORD> &a, const std::vector<DWORD> &b) {
 int Luma(DWORD p) {
     return int(p & 255) + int((p >> 8) & 255) + int((p >> 16) & 255);
 }
+// Optional local-asset verification reproduces the client's D3DX ARGB8 uploads.
+// The shipping DLL has no D3DX dependency and no client artwork is copied into Git.
+bool LoadMaterial(IDirect3DDevice9 *d,const wchar_t *path,Com<IDirect3DTexture9> &texture) {
+    HMODULE module=LoadLibraryExW(L"d3dx9_43.dll",nullptr,LOAD_LIBRARY_SEARCH_SYSTEM32);
+    if(!module)return false;
+    using Load=HRESULT(WINAPI *)(IDirect3DDevice9 *,LPCWSTR,UINT,UINT,UINT,DWORD,D3DFORMAT,
+                                D3DPOOL,DWORD,DWORD,D3DCOLOR,void *,void *,IDirect3DTexture9 **);
+    auto load=reinterpret_cast<Load>(GetProcAddress(module,"D3DXCreateTextureFromFileExW"));
+    const bool ok=load && SUCCEEDED(load(d,path,0xffffffff,0xffffffff,1,0,D3DFMT_A8R8G8B8,
+        D3DPOOL_MANAGED,1,1,0,nullptr,nullptr,texture.out()));
+    FreeLibrary(module);return ok;
+}
 } // namespace
 int main(int argc, char **) {
     WNDCLASSW wc{};
@@ -246,7 +261,7 @@ int main(int argc, char **) {
     std::array<float, 3> sceneOffset{};
     // Native building light maps can leave stage 1 selecting the unchanged stage-0 result.
     DWORD emitterStage1 = D3DTOP_DISABLE, emitterStage1Argument = D3DTA_CURRENT;
-    bool surfaceFixture = false, surfaceGrass = false;
+    bool surfaceFixture = false, surfaceGrass = false, atlasGrass = false;
     Com<IDirect3DTexture9> paving;
     CHECK(SUCCEEDED(d->CreateTexture(2,2,1,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,paving.out(),nullptr)));
     CHECK(SUCCEEDED(paving->LockRect(0,&lock,nullptr,0)));
@@ -368,7 +383,8 @@ int main(int argc, char **) {
             if(surfaceFixture) {
                 struct PavingVertex {float x,y,z,nx,ny,nz,u,v,u1,v1;};
                 std::vector<PavingVertex> maskFloor;
-                for(const auto &v:floor)maskFloor.push_back({v.x,v.y,v.z,0,1,0,v.x,v.z,0,0});
+                for(const auto &v:floor)maskFloor.push_back({v.x,v.y,v.z,0,1,0,
+                    atlasGrass?.9f:.3f,atlasGrass?.77f:.3f,0,0});
                 d->SetFVF(0x212); d->SetTexture(0,paving);
                 fx.sceneFX().captureSurface(settings,[&] {
                     return d->DrawPrimitiveUP(D3DPT_TRIANGLELIST,UINT(maskFloor.size()/3),maskFloor.data(),sizeof(PavingVertex));
@@ -678,6 +694,44 @@ int main(int argc, char **) {
     }
     cameraYaw = 0;
     CHECK(render());
+    // Real captured ARGB8 lamp and window identities, without seeding private tags.
+    Com<IDirect3DTexture9> syntheticEmitter;
+    syntheticEmitter.p=emitter.p;syntheticEmitter->AddRef();
+    for(const wchar_t *name:{L"SFX/Texture/obj_GenLight01.dds",L"SFX/Texture/sfx_light02.dds",
+                            L"Model/Texture/Obj_MaFlReq-light.dds"}) {
+        auto path=std::wstring(L"X:/Games/Homesickness/")+name;
+        if(GetFileAttributesW(path.c_str())==INVALID_FILE_ATTRIBUTES)continue;
+        settings.localLighting=false;CHECK(render());
+        CHECK(LoadMaterial(d,path.c_str(),emitter));
+        settings.localLighting=true;CHECK(render());
+        DWORD actualTag=0,size=4;
+        CHECK(SUCCEEDED(emitter->GetPrivateData(EmitterTag,&actualTag,&size)) && (actualTag&1));
+        CHECK(SceneFXFixture::sourceCount(fx.sceneFX())==1);
+        const float active=SceneFXFixture::lightMaximum(fx.sceneFX(),d);
+        CHECK(active>.001f);
+        if(actualTag&256) {
+            emit=false;SceneFXFixture::ageSources(fx.sceneFX(),700);
+            CHECK(render());const float held=SceneFXFixture::lightMaximum(fx.sceneFX(),d);
+            CHECK(std::abs(held-active)<.015f);
+            for(float yaw:{-.65f,.8f}) {cameraYaw=yaw;CHECK(render());
+                CHECK(SceneFXFixture::lightMaximum(fx.sceneFX(),d)>.001f);}
+            cameraYaw=0;
+            SceneFXFixture::ageSources(fx.sceneFX(),5000);CHECK(render());
+            const auto expired=Read(d);
+            settings.localLighting=false;CHECK(render());
+            const auto disabled=Read(d);unsigned expiredDelta=0;
+            for(size_t i=0;i<expired.size();++i)for(int shift:{0,8,16})
+                expiredDelta=std::max(expiredDelta,unsigned(abs(int((expired[i]>>shift)&255)-int((disabled[i]>>shift)&255))));
+            printf("Expired static light: mismatch=%u, maximum delta=%u\n",Difference(expired,disabled),expiredDelta);
+            CHECK(expiredDelta<=(pp.MultiSampleType?32u:1u));
+            settings.localLighting=true;
+            emit=true;
+        }
+        printf("Actual lamp/window upload recognized; persistent=%d, light=%.3f\n",bool(actualTag&256),active);
+    }
+    settings.localLighting=false;CHECK(render());Drop(emitter.p);
+    emitter.p=syntheticEmitter.p;emitter->AddRef();
+    settings.localLighting=true;CHECK(render());
     const float directEmission = SceneFXFixture::lightMaximum(fx.sceneFX(), d);
     settings.localLighting = false; CHECK(render());
     emitterStage1 = D3DTOP_SELECTARG1;
@@ -810,6 +864,26 @@ int main(int argc, char **) {
     // switching away from the native multisampled target. No reflection may remain.
     CHECK(maximumDelta(pavingOff,Read(d))<=(pp.MultiSampleType?32u:0u));
     surfaceGrass=false;
+    // Current Flaris plaza model atlases must be recognized independently of terrain.
+    // Its planter grass shares one texture with the paving and must remain matte.
+    Com<IDirect3DTexture9> syntheticPaving;
+    syntheticPaving.p=paving.p;syntheticPaving->AddRef();
+    for(const wchar_t *name:{L"Obj_NewFlsenCent01.dds",L"Obj_NewFlEastCent01.dds",L"Obj_NewFlNorthCent01.dds"}) {
+        auto path=std::wstring(L"X:/Games/Homesickness/Model/Texture/")+name;
+        if(GetFileAttributesW(path.c_str())==INVALID_FILE_ATTRIBUTES)continue;
+        CHECK(LoadMaterial(d,path.c_str(),paving));
+        settings.surfaceStrength=1;CHECK(render());
+        DWORD actualTag=0,size=4;
+        CHECK(SUCCEEDED(paving->GetPrivateData(EmitterTag,&actualTag,&size)) && (actualTag&(64|512)));
+        CHECK(SceneFXFixture::surfaceMaskMaximum(fx.sceneFX(),d)>0);
+        CHECK(maximumDelta(pavingOff,Read(d))>10);
+        if(actualTag&512) {
+            atlasGrass=true;CHECK(render());
+            CHECK(SceneFXFixture::surfaceMaskMaximum(fx.sceneFX(),d)==0);
+            atlasGrass=false;
+        }
+    }
+    Drop(paving.p);paving.p=syntheticPaving.p;paving->AddRef();
     settings.surfaceStrength=0;CHECK(render());
     CHECK(maximumDelta(pavingOff,Read(d))<=(pp.MultiSampleType?32u:0u));
     settings.surfaceReflections=false; surfaceFixture=false;

@@ -55,6 +55,8 @@ class SceneFX {
         ULONGLONG seen = 0;
         unsigned frame = 0;
         float anchor[3]{};
+        bool persistent = false;
+        ULONGLONG lifetime() const { return persistent ? 5000 : 500; }
     };
     SourceSlot sources_[32]{};
     unsigned sourceFrame_ = 0;
