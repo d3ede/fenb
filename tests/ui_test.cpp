@@ -176,6 +176,12 @@ int main() {
     activate(panel,"language-ru");CHECK(r.settings.language==Language::Russian);
     activate(panel,"language-en");CHECK(r.settings.language==Language::English);
     CHECK(child());
+    auto expanded=[&](const char *id) {
+        return child()->StateStorage.GetBool(ImHashStr("expanded",0,child()->GetID(id)),false);
+    };
+    CHECK(!expanded("grade") && !expanded("bloom"));
+    ImGui::ActivateItemByID(ImHashStr("heading",0,child()->GetID("grade")));frame();frame();
+    CHECK(expanded("grade"));
     // Actual track gestures, held double-click reset, steps and typed values.
     const float rowY=261;
     r.settings.exposure=.8f;frame();
@@ -238,6 +244,11 @@ int main() {
         activate(popup,id.c_str());CHECK(r.settings.matchingPreset()==i);
         CHECK(r.settings.language==Language::Russian && !r.settings.customCursor && !r.settings.interfaceMotion);
     }
+    r.editorPage=0;frame();
+    child()->StateStorage.SetBool(ImHashStr("expanded",0,child()->GetID("grade")),true);
+    child()->StateStorage.SetBool(ImHashStr("expanded",0,child()->GetID("bloom")),true);
+    r.collapseImageSections=true;frame();frame();
+    CHECK(!expanded("grade") && !expanded("bloom"));
     // Render every production page and each expanded atmosphere section in both languages.
     CreateDirectoryW(L"build/ui-integrated",nullptr);
     io.AddMousePosEvent(-FLT_MAX,-FLT_MAX);frame();

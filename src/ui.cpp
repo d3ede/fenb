@@ -878,6 +878,14 @@ void DrawPanel(Runtime &r, const PanelBranding &branding) {
     ImGui::PopFont();
     ImGui::SetCursorPos({16, 91 + headerExtra});
     ImGui::BeginChild("adjustments", {size.x - 32, size.y - 130 - headerExtra}, ImGuiChildFlags_None);
+    if (r.collapseImageSections) {
+        for (const char *id : {"grade", "bloom"}) {
+            ImGui::PushID(id);
+            ImGui::GetStateStorage()->SetBool(ImGui::GetID("expanded"), false);
+            ImGui::PopID();
+        }
+        r.collapseImageSections = false;
+    }
     const Settings defaults;
     bool reset = false;
     if (r.editorPage == 0) {
@@ -911,7 +919,7 @@ void DrawPanel(Runtime &r, const PanelBranding &branding) {
         ImGui::SetCursorScreenPos(waterPos);
         ImGui::Dummy({waterWidth, 30});
         ImGui::Dummy({0, 2});
-        bool expanded = Section("grade", Tr(UiText::ColorCorrection), s.color, reset);
+        bool expanded = Section("grade", Tr(UiText::ColorCorrection), s.color, reset, true, false);
         if (reset)
             s.resetColor();
         if (expanded) {
@@ -929,7 +937,7 @@ void DrawPanel(Runtime &r, const PanelBranding &branding) {
             ImGui::EndDisabled();
         }
         ImGui::Dummy({0, 4});
-        expanded = Section("bloom", "Bloom", s.bloom, reset);
+        expanded = Section("bloom", "Bloom", s.bloom, reset, true, false);
         if (reset)
             s.resetBloom();
         if (expanded) {
