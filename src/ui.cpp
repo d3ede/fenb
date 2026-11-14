@@ -956,12 +956,27 @@ void DrawPanel(Runtime &r, const PanelBranding &branding) {
     // On small displays move language controls onto a second header row.
     const bool narrow = tabX > size.x-230;
     const float languageY = narrow ? 43.f : 8.f;
-    for(int i=0;i<2;++i) {
-        ImGui::SetCursorPos({narrow ? 16+i*31.f : size.x-230+i*31.f,languageY});
-        if(ImGui::InvisibleButton(i?"language-ru":"language-en",{28,27},ImGuiButtonFlags_EnableNav)) s.language=i?Language::Russian:Language::English;
-        auto p=ImGui::GetItemRectMin();
-        TextAt(d,{p.x+5,p.y+8},i?"RU":"EN",int(s.language==Language::Russian)==i?Text:Muted,11);
+    ImGui::SetCursorPos({narrow ? 16.f : size.x-230,languageY});
+    ImGui::PushFont(nullptr, 12);
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(5,8));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8,6));
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(7,6));
+    ImGui::SetNextItemWidth(62);
+    ImGui::SetNextWindowSizeConstraints({160,0},{240,FLT_MAX});
+    if (BeginCombo("##language", Tr(UiText::LanguageShort))) {
+        for (std::size_t i=0;i<LanguageCount;++i) {
+            ImGui::PushID(LanguageCodes[i]);
+            const bool selected = LanguageIndex(s.language)==i;
+            if (ImGui::Selectable((std::string(LanguageNames[i])+"###option").c_str(),selected))
+                s.language=static_cast<Language>(i);
+            if (selected) ImGui::SetItemDefaultFocus();
+            ImGui::PopID();
+        }
+        ImGui::EndCombo();
     }
+    ImGui::PopStyleVar(3);
+    ImGui::PopFont();
+    Tip(Tr(UiText::LanguageTab));
     uiLanguage=s.language;
     ImGui::SetCursorPos({size.x-152,narrow?46.f:14.f});
     SquareSwitch("master",s.enabled,{28,18});

@@ -89,15 +89,25 @@ int main() {
     CHECK(s.language == Language::English);
     for (int i = 1; i < static_cast<int>(UiText::Count); ++i) {
         auto text = static_cast<UiText>(i);
-        auto en = Translate(Language::English, text), ru = Translate(Language::Russian, text);
+        auto en = Translate(Language::English, text);
+        for (std::size_t language = 0; language < LanguageCount; ++language) {
+            auto translated = Translate(static_cast<Language>(language), text);
 #ifndef FENB_DIAGNOSTICS
-        if(text==UiText::CaptureFrames || text==UiText::CapturePending){
-            CHECK(!*en && !*ru);continue;
-        }
+            if(text==UiText::CaptureFrames || text==UiText::CapturePending){
+                CHECK(!*translated);continue;
+            }
 #endif
-        CHECK(*en && *ru);
-        CHECK(MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, en, -1, nullptr, 0) > 0);
-        CHECK(MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, ru, -1, nullptr, 0) > 0);
+            CHECK(*translated);
+            CHECK(MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, translated, -1, nullptr, 0) > 0);
+            // Localized printf substitutions must retain their types and ordering.
+            const char *original = en, *localized = translated;
+            while ((original = strchr(original, '%'))) {
+                localized = strchr(localized, '%');
+                CHECK(localized && original[1] == localized[1]);
+                ++original; ++localized;
+            }
+            CHECK(!strchr(localized, '%'));
+        }
     }
     s.language = Language::Russian;
     CHECK(!s.unlockFps);
@@ -253,6 +263,21 @@ int main() {
     CHECK(loaded.save(path));
     s.language = Language::Russian;
     CHECK(s.load(path) && s.language == Language::English);
+    for (std::size_t i = 0; i < LanguageCount; ++i) {
+        Settings localized;
+        localized.language = static_cast<Language>(i);
+        localized.sanitize();
+        CHECK(localized.language == static_cast<Language>(i));
+        CHECK(localized.save(path));
+        CHECK(loaded.load(path) && loaded.language == localized.language);
+        for (int preset = 0; preset < BuiltInPresetCount; ++preset) {
+            loaded.preset(preset);
+            CHECK(loaded.language == localized.language);
+        }
+        loaded.resetSceneSection(0); loaded.resetWater();
+        CHECK(loaded.language == localized.language);
+    }
+    CHECK(!strcmp(Translate(static_cast<Language>(-1), UiText::Profile), "Profile"));
     Settings shipped;
     CHECK(shipped.load(L"config/FENB.ini"));
     Settings builtIn;

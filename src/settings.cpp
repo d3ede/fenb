@@ -86,8 +86,7 @@ void Settings::sanitize() {
     range(radius, .5f, 4, 1.6f);
     bloomScale = bloomScale == 2 ? 2 : 4;
     panelPage = std::clamp(panelPage, 0, 3);
-    if (language != Language::Russian)
-        language = Language::English;
+    language = static_cast<Language>(LanguageIndex(language));
     range(exposure, -2, 2, 0);
     range(contrast, .5f, 1.5f, 1);
     range(saturation, 0, 2, 1);
@@ -152,7 +151,9 @@ bool Settings::load(const std::wstring &path) {
         if (sscanf(line, " %79[^= \t] = %79s", key, value) != 2)
             continue;
         if (!strcmp(key, "language")) {
-            next.language = !strcmp(value, "ru") ? Language::Russian : Language::English;
+            next.language = Language::English;
+            for (std::size_t i = 0; i < LanguageCount; ++i)
+                if (!strcmp(value, LanguageCodes[i])) next.language = static_cast<Language>(i);
             continue;
         }
         char *end = nullptr;
@@ -255,7 +256,7 @@ bool Settings::save(const std::wstring &path) const {
         "6f\nwater_tint=%.6f\nwater_refraction=%.6f\nwater_texture=%.6f\nwater_depth=%.6f\n"
         "water_shore=%.6f\nwater_ssr=%.6f\nwater_ssr_quality=%d\nwater_caustics=%.6f\nwater_dispersion=%."
         "6f\nwater_caustic_scale=%d\n",
-        enabled, openOnStart, panelPage, language == Language::Russian ? "ru" : "en", unlockFps,
+        enabled, openOnStart, panelPage, LanguageCodes[LanguageIndex(language)], unlockFps,
         preciseWaterDepth, bloom, bloomStrength, threshold, knee, radius, bloomScale, color, exposure,
         contrast, saturation, temperature, tint, gamma, shadows, highlights, water, waterWaves, waterLength,
         waterSpeed, waterRipples, waterRippleScale, waterOpacity, waterSky, waterGlints, waterGloss,

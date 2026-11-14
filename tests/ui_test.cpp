@@ -178,8 +178,15 @@ int main() {
     // Header controls retain stable IDs independent of language and subpage titles.
     activate(panel,"world-tab");CHECK(r.editorPage==4);
     activate(panel,"image-tab");CHECK(r.editorPage==0);
-    activate(panel,"language-ru");CHECK(r.settings.language==Language::Russian);
-    activate(panel,"language-en");CHECK(r.settings.language==Language::English);
+    for (std::size_t i : {1u, 2u, 3u, 0u}) {
+        activate(panel,"##language");
+        CHECK(!ImGui::GetCurrentContext()->OpenPopupStack.empty());
+        auto *languagePopup=ImGui::GetCurrentContext()->OpenPopupStack.back().Window;
+        auto option=ImHashStr("###option",0,ImHashStr(LanguageCodes[i],0,languagePopup->IDStack.back()));
+        ImGui::ActivateItemByID(option);frame();frame();
+        CHECK(r.settings.language==static_cast<Language>(i));
+        CHECK(ImGui::GetCurrentContext()->OpenPopupStack.empty());
+    }
     CHECK(child());
     auto expanded=[&](const char *id) {
         return child()->StateStorage.GetBool(ImHashStr("expanded",0,child()->GetID(id)),false);
@@ -227,10 +234,13 @@ int main() {
     r.save();Settings saved;CHECK(saved.load(r.configPath));
     CHECK(!saved.customCursor && !saved.interfaceMotion);
     // Reset all and preset loads preserve appearance, language and client controls.
-    r.settings.language=Language::Russian;r.settings.exposure=.4f;frame();
-    activate(panel,"reset-all");
-    CHECK(r.settings.language==Language::Russian && !r.settings.customCursor && !r.settings.interfaceMotion);
-    CHECK(r.settings.exposure==0);
+    for (std::size_t i=0;i<LanguageCount;++i) {
+        r.settings.language=static_cast<Language>(i);r.settings.exposure=.4f;frame();
+        activate(panel,"reset-all");
+        CHECK(r.settings.language==static_cast<Language>(i) && !r.settings.customCursor && !r.settings.interfaceMotion);
+        CHECK(r.settings.exposure==0);
+    }
+    r.settings.language=Language::Russian;
     r.editorPage=0;frame();
     activate(panel,"+###create-profile");
     CHECK(ImGui::IsPopupOpen("saveProfile",ImGuiPopupFlags_AnyPopupId));
@@ -256,21 +266,25 @@ int main() {
     child()->StateStorage.SetBool(ImHashStr("expanded",0,child()->GetID("bloom")),true);
     r.collapseImageSections=true;frame();frame();
     CHECK(!expanded("grade") && !expanded("bloom"));
-    // Render every production page and each expanded atmosphere section in both languages.
+    // Render every production page and each expanded atmosphere section in every supported language.
     CreateDirectoryW(L"build/ui-integrated",nullptr);
     r.settings.water=true;
     io.AddMousePosEvent(-FLT_MAX,-FLT_MAX);frame();
-    for(int language=0;language<2;++language) {
-        r.settings.language=language?Language::Russian:Language::English;
+    for(int language=0;language<static_cast<int>(LanguageCount);++language) {
+        r.settings.language=static_cast<Language>(language);
+        const std::wstring locale(LanguageCodes[language],LanguageCodes[language]+2);
+        activate(panel,"##language");frame();
+        CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-language.png").c_str()));
+        ImGui::ClosePopupToLevel(0,true);frame();
         click(360,96);frame();
-        CHECK(Screenshot(d,language?L"build/ui-integrated/ru-profile-order.png":L"build/ui-integrated/en-profile-order.png"));
+        CHECK(Screenshot(d,((L"build/ui-integrated/"+locale+L"-profile-order.png").c_str())));
         ImGui::ClosePopupToLevel(0,true);frame();
         activate(panel,"menu");
-        CHECK(Screenshot(d,language?L"build/ui-integrated/ru-actions.png":L"build/ui-integrated/en-actions.png"));
+        CHECK(Screenshot(d,((L"build/ui-integrated/"+locale+L"-actions.png").c_str())));
         ImGui::ClosePopupToLevel(0,true);frame();
         for(int page=0;page<7;++page) {
             r.editorPage=page;ImGui::SetScrollY(child(),0);frame();frame();
-            auto path=std::wstring(L"build/ui-integrated/")+(language?L"ru-":L"en-")+std::to_wstring(page)+L".png";
+            auto path=std::wstring(L"build/ui-integrated/")+(locale+L"-")+std::to_wstring(page)+L".png";
             CHECK(Screenshot(d,path.c_str()));
         }
         r.editorPage=6;
@@ -278,7 +292,7 @@ int main() {
         reflectionWindow->StateStorage.SetBool(ImHashStr("expanded",0,reflectionWindow->GetID("water-reflection-method")),false);
         reflectionWindow->StateStorage.SetBool(ImHashStr("expanded",0,reflectionWindow->GetID("water-reflection-trace")),true);
         ImGui::SetScrollY(reflectionWindow,0);frame();frame();
-        CHECK(Screenshot(d,language?L"build/ui-integrated/ru-reflection-trace.png":L"build/ui-integrated/en-reflection-trace.png"));
+        CHECK(Screenshot(d,((L"build/ui-integrated/"+locale+L"-reflection-trace.png").c_str())));
         reflectionWindow->StateStorage.SetBool(ImHashStr("expanded",0,reflectionWindow->GetID("water-reflection-method")),true);
         reflectionWindow->StateStorage.SetBool(ImHashStr("expanded",0,reflectionWindow->GetID("water-reflection-trace")),false);
         r.editorPage=2;frame();
@@ -290,28 +304,34 @@ int main() {
             if(!strcmp(section,"sfx") || !strcmp(section,"surface-reflections")) {
                 ImGui::SetScrollY(w,w->ScrollMax.y);frame();frame();
             }
-            auto path=std::wstring(L"build/ui-integrated/")+(language?L"ru-":L"en-")+std::wstring(section,section+strlen(section))+L".png";
+            auto path=std::wstring(L"build/ui-integrated/")+(locale+L"-")+std::wstring(section,section+strlen(section))+L".png";
             CHECK(Screenshot(d,path.c_str()));
         }
         io.DisplaySize={334,600};r.centerPanel=true;r.editorPage=0;frame();frame();
-        CHECK(Screenshot(d,language?L"build/ui-integrated/ru-narrow.png":L"build/ui-integrated/en-narrow.png"));
+        CHECK(Screenshot(d,((L"build/ui-integrated/"+locale+L"-narrow.png").c_str())));
+        activate(panel,"##language");frame();
+        CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-language-narrow.png").c_str()));
+        CHECK(ImGui::GetCurrentContext()->OpenPopupStack.back().Window->Pos.x>=0);
+        ImGui::ClosePopupToLevel(0,true);frame();
         io.DisplaySize={800,600};r.centerPanel=true;frame();frame();
     }
     r.editorPage=4;r.settings.enabled=false;r.settings.timeOverride=true;r.settings.timeMinutes=1110;frame();
     mouse(400,168,true);auto firstTime=r.settings.timeMinutes;
     mouse(480,168,true);CHECK(r.settings.timeMinutes!=firstTime);mouse(480,168,false);
     click(590,168);input("07:45");CHECK(r.settings.timeMinutes==465);
-    for(int language=0;language<2;++language){
-        r.settings.language=language?Language::Russian:Language::English;frame();frame();
-        CHECK(Screenshot(d,language?L"build/ui-integrated/ru-time-without-effects.png":L"build/ui-integrated/en-time-without-effects.png"));
+    for(int language=0;language<static_cast<int>(LanguageCount);++language){
+        r.settings.language=static_cast<Language>(language);
+        const std::wstring locale(LanguageCodes[language],LanguageCodes[language]+2);frame();frame();
+        CHECK(Screenshot(d,((L"build/ui-integrated/"+locale+L"-time-without-effects.png").c_str())));
     }
     DeleteFileW((ModuleDirectory()+L"FENB-presets\\Тест воды.ini").c_str());
     // Production modal: stable translated IDs, one notification per version,
     // download-in-background -> restart prompt, and narrow-screen wrapping.
     r.editorPage=0;
     r.settings.enabled=true;
-    for(int language=0;language<2;++language) {
-        r.settings.language=language?Language::Russian:Language::English;
+    for(int language=0;language<static_cast<int>(LanguageCount);++language) {
+        r.settings.language=static_cast<Language>(language);
+        const std::wstring locale(LanguageCodes[language],LanguageCodes[language]+2);
         r.updateNotified.clear();
         UpdateTestAccess::set(r.updater,UpdateState::Available,"0.4c");
         frame();frame();
@@ -319,26 +339,26 @@ int main() {
         CHECK(modal && modal->WasActive);
         for(int settle=0;settle<30;++settle) frame(); // Inspect the fully faded modal backdrop.
         CHECK(std::abs(modal->Pos.x+modal->Size.x*.5f-(panel->Pos.x+panel->Size.x*.5f))<2);
-        auto path=std::wstring(L"build/ui-integrated/")+(language?L"ru-update.png":L"en-update.png");
+        auto path=std::wstring(L"build/ui-integrated/")+(locale+L"-update.png");
         CHECK(Screenshot(d,path.c_str()));
         auto later="###text-"+std::to_string(static_cast<int>(UiText::UpdateLater));
         activate(modal,later.c_str());frame();CHECK(!modal->WasActive);
         frame();CHECK(!modal->WasActive);
         UpdateTestAccess::set(r.updater,UpdateState::Ready,"0.4c");frame();frame();
         CHECK(modal->WasActive);
-        path=std::wstring(L"build/ui-integrated/")+(language?L"ru-update-restart.png":L"en-update-restart.png");
+        path=std::wstring(L"build/ui-integrated/")+(locale+L"-update-restart.png");
         CHECK(Screenshot(d,path.c_str()));
         io.DisplaySize={360,400};frame();frame();
         CHECK(modal->Pos.x>=0 && modal->Pos.x+modal->Size.x<=360);
         CHECK(modal->Pos.y>=0 && modal->Pos.y+modal->Size.y<=400);
-        path=std::wstring(L"build/ui-integrated/")+(language?L"ru-update-narrow.png":L"en-update-narrow.png");
+        path=std::wstring(L"build/ui-integrated/")+(locale+L"-update-narrow.png");
         CHECK(Screenshot(d,path.c_str()));
         activate(modal,later.c_str());
         io.DisplaySize={800,600};frame();
         UpdateTestAccess::set(r.updater,UpdateState::Installed,"0.4b",true);
         r.updateDialog=true;frame();frame();
         CHECK(modal->WasActive);
-        path=std::wstring(L"build/ui-integrated/")+(language?L"ru-update-rollback.png":L"en-update-rollback.png");
+        path=std::wstring(L"build/ui-integrated/")+(locale+L"-update-rollback.png");
         CHECK(Screenshot(d,path.c_str()));
         activate(modal,later.c_str());
         UpdateTestAccess::set(r.updater,UpdateState::Idle);
