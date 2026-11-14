@@ -20,8 +20,9 @@ Installation
 3. Copy d3d9.dll and FENB.ini beside Neuz.exe in the game folder.
    Keep LICENSES.txt with the installed files; INSTALL.txt is this guide.
 4. Launch the game normally. Press Shift + Enter to open the FENB panel.
-5. Choose English or Русский in the language selector. English is the
-   default. Select a built-in profile or adjust the effects yourself.
+5. Choose English, Русский, Español or Português (Brasil) in the language
+   dropdown. English is the default. Select a built-in profile or adjust
+   the effects yourself.
 
 No installer, separate shaders or font files are needed. All nine built-in
 profiles are included in the DLL. FENB-presets stores your custom profiles;
@@ -83,8 +84,9 @@ FENB — графический мод для Flyff, вдохновлённый 
    эта инструкция.
 4. Запустите игру обычным способом. Нажмите Shift + Enter, чтобы открыть
    панель FENB.
-5. Выберите English или Русский в переключателе языка. По умолчанию выбран
-   английский. Выберите встроенный профиль или настройте эффекты вручную.
+5. Выберите English, Русский, Español или Português (Brasil) в списке языков.
+   По умолчанию выбран английский. Выберите встроенный профиль или настройте
+   эффекты вручную.
 
 Установщик, отдельные шейдеры и файлы шрифтов не нужны. Все девять встроенных
 профилей находятся в DLL. Папка FENB-presets хранит ваши собственные профили;
