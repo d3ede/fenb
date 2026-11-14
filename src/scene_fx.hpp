@@ -48,7 +48,7 @@ class SceneFX {
         Com<IDirect3DBaseTexture9> art, blendMap;
         SurfaceDraw draw;
         D3DMATRIX matrices[3]{};
-        float material[4]{};
+        float material[4]{}, depth[4]{};
         DWORD fvf=0, cull=0, samplers[2][6]{};
         UINT offset=0, stride=0;
         bool blend=false;

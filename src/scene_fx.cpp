@@ -802,6 +802,11 @@ void SceneFX::captureSurface(const Settings &s, DrawCall draw, SurfaceDraw geome
     memcpy(command->matrices,matrices,sizeof(matrices));
     float material[]={kind>=2?.8f:kind==1?.55f:0.f,kind>=2?.4f:.8f,blendMap?1.f:0.f,kind==3?1.f:0.f};
     memcpy(command->material,material,sizeof(material));
+    command->depth[0]=matrices[2]._43;
+    DWORD depthBias=0,slopeBias=0;
+    device_->GetRenderState(D3DRS_DEPTHBIAS,&depthBias);
+    device_->GetRenderState(D3DRS_SLOPESCALEDEPTHBIAS,&slopeBias);
+    memcpy(command->depth+1,&depthBias,4);memcpy(command->depth+2,&slopeBias,4);
     command->art.p=texture.p;texture->AddRef();
     if(blendMap)device_->GetTexture(1,command->blendMap.out());
     device_->GetRenderState(D3DRS_CULLMODE,&command->cull);
@@ -860,6 +865,7 @@ void SceneFX::applySurface(const SurfaceCommand &command) {
     device_->SetTexture(0,command.art);device_->SetTexture(1,command.blendMap);
     device_->SetVertexShaderConstantF(0,&command.matrices[0].m[0][0],12);
     device_->SetPixelShaderConstantF(0,command.material,1);
+    device_->SetPixelShaderConstantF(59,command.depth,1);
     device_->SetRenderState(D3DRS_ALPHABLENDENABLE,command.blend);
     device_->SetRenderState(D3DRS_CULLMODE,command.cull);
     const D3DSAMPLERSTATETYPE keys[]={D3DSAMP_MINFILTER,D3DSAMP_MAGFILTER,D3DSAMP_ADDRESSU,D3DSAMP_ADDRESSV,D3DSAMP_MIPFILTER,D3DSAMP_MAXANISOTROPY};

@@ -9,6 +9,7 @@ samplerCUBE Atmosphere : register(s7);
 float4 SurfaceControls : register(c56); // strength, roughness, trace distance, steps
 float4 SurfaceLight : register(c57); // view-space directional light, daylight
 float4 SurfaceEnvironment : register(c58); // captured sky available
+float4 SurfaceDepth : register(c59); // projection _43, native depth bias, native slope-scale bias
 float4 Camera : register(c0);
 float4 Viewport : register(c1);
 float4 Texel : register(c2);
@@ -494,7 +495,14 @@ float4 SurfaceMaskPS(float2 blendUV:TEXCOORD0,float depth:TEXCOORD1,float3 world
   response.x*=lerp(.4,1,smoothstep(.12,.65,grain));
   response.y=saturate(response.y+(1-grain)*.12);
  }
- return float4(response,depth,Camera.z>.5?tex2D(Depth,blendUV).a:1);
+ // Native raster depth includes polygon bias; the material replay stores linear
+ // depth and must apply the same offset before comparing against the game Z buffer.
+ // Differentiate _43/z directly to avoid cancellation near an NDC depth of one.
+ float projected=SurfaceDepth.x/depth;
+ float slope=max(abs(ddx(projected)),abs(ddy(projected)));
+ float offset=SurfaceDepth.y+SurfaceDepth.z*slope;
+ float receiver=depth/max(.000001,1+offset*depth/SurfaceDepth.x);
+ return float4(response,receiver,Camera.z>.5?tex2D(Depth,blendUV).a:1);
 }
 float2 SurfaceProject(float3 p) {
  return (p.xy*Camera.xy/p.z*float2(.5,-.5)+.5)*Viewport.zw+Viewport.xy+Texel.xy*.5;
@@ -508,15 +516,19 @@ float4 SurfaceReflectionPS(float2 uv:TEXCOORD0):COLOR0 {
  // Normalize depth/roughness, while reflectance must retain its native blend coverage.
  material.gb/=material.a;
  float2 dx=float2(Texel.x,0),dy=float2(0,Texel.y);
- // A copied MSAA depth sample lies within the pixel, while the non-MSAA replay samples
- // its center. Admit that subpixel slope difference, never an arbitrary foreground depth.
- float footprint=max(min(abs(Z(uv-dx)-z),abs(Z(uv+dx)-z)),
-                     min(abs(Z(uv-dy)-z),abs(Z(uv+dy)-z)));
- if(abs(material.b-z)>max(.012,z*.0015)+min(.25,footprint*.65))return base;
- float3 p=Point(uv,material.b);
+ float3 n=normalize(View[1].xyz),ray=Point(uv,1);
+ // Resolve depth may come from any MSAA sample inside this pixel. Bound that
+ // range using the replayed plane, not neighboring foreground/background depths.
+ // A fixed world-space tolerance cuts the far end of grazing paving into bands.
+ float center=dot(ray,n),span=dot(abs(n.xy),Texel.xy/(Camera.xy*Viewport.zw));
+ if(abs(center)<=span)return base;
+ float plane=material.b*center;
+ float za=plane/(center-span),zb=plane/(center+span);
+ float precision=max(.012,material.b*.0015);
+ if(z<min(za,zb)-precision || z>max(za,zb)+precision)return base;
+ float3 p=ray*material.b;
  // The material replay accepts horizontal surfaces only. Their geometry normal avoids
  // differentiating quantized or multisample-resolved depth into a noisy mirror direction.
- float3 n=normalize(View[1].xyz);
  float3 direction=reflect(normalize(p),n),origin=p+n*.035;
  float previousT=0,previousDelta=-1,found=0,hitZ=0;
  float2 hit=0;

@@ -213,7 +213,8 @@ int main(int argc, char **argv) {
     DWORD tag = 1;
     emitter->SetPrivateData(EmitterTag, &tag, 4, 0); // Synthetic recognized source.
     bool emit = false, nativePoint = true, occluded = false, foreground = false;
-    float cameraYaw = 0;
+    float cameraYaw = 0, cameraHeight = 4;
+    bool cameraOrbit = false;
     bool planeOnly = false, moonBackdrop = false;
     bool nativeFogScene = false, horizonCube = false, hostilePostState = false, swapHudDepth = false;
     Com<IDirect3DCubeTexture9> fogSky;
@@ -266,6 +267,7 @@ int main(int argc, char **argv) {
     bool surfaceFixture = false, surfaceGrass = false, atlasGrass = false, surfacePattern = false;
     unsigned surfaceTiles=1, surfaceUnknownTiles=0;
     bool surfaceBuffered=true, surfaceBlend=false, surfaceBadNormals=false;
+    float surfaceDepthBias=0, surfaceSlopeBias=0;
     bool surfaceVerticesReady=false, surfaceVerticesGrass=false;
     Com<IDirect3DVertexBuffer9> surfaceVertices;
     Com<IDirect3DTexture9> paving;
@@ -299,10 +301,10 @@ int main(int argc, char **argv) {
         for (int axis = 0; axis < 3; ++axis) sceneWorld.m[3][axis] = sceneOffset[axis];
         d->SetTransform(D3DTS_WORLD, &sceneWorld);
         D3DMATRIX currentView = view;
-        if (cameraYaw != 0) {
+        if (cameraYaw != 0 || cameraOrbit) {
             // Orbit around the receiver while keeping the world and emissive geometry fixed.
             float ex = std::sin(cameraYaw) * 12, ez = 4 - std::cos(cameraYaw) * 12;
-            float zx = -ex, zy = -4, zz = 4 - ez;
+            float zx = -ex, zy = -cameraHeight, zz = 4 - ez;
             float length = std::sqrt(zx * zx + zy * zy + zz * zz);
             zx /= length;
             zy /= length;
@@ -325,8 +327,8 @@ int main(int argc, char **argv) {
                            zz,
                            0,
                            -ex * xx - ez * xz,
-                           -ex * yx - 4 * yy - ez * yz,
-                           -ex * zx - 4 * zy - ez * zz,
+                           -ex * yx - cameraHeight * yy - ez * yz,
+                           -ex * zx - cameraHeight * zy - ez * zz,
                            1};
         }
         for (int axis = 0; axis < 3; ++axis)
@@ -339,6 +341,10 @@ int main(int argc, char **argv) {
         d->SetRenderState(D3DRS_LIGHTING, FALSE);
         d->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
         d->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
+        DWORD depthBias=0;memcpy(&depthBias,&surfaceDepthBias,4);
+        d->SetRenderState(D3DRS_DEPTHBIAS,depthBias);
+        DWORD slopeBias=0;memcpy(&slopeBias,&surfaceSlopeBias,4);
+        d->SetRenderState(D3DRS_SLOPESCALEDEPTHBIAS,slopeBias);
         d->SetRenderState(D3DRS_FOGENABLE, FALSE);
         if (nativeFogScene) {
             float start = 0, end = 30; DWORD startBits = 0, endBits = 0;
@@ -962,8 +968,10 @@ int main(int argc, char **argv) {
     }
     surfaceBlend=false;
     // Smoothed artist normals must not cut holes in an otherwise flat paving triangle.
+    // Native MSAA color resolves may differ by one 8-sample coverage step at grid edges.
+    const unsigned pavingResolveTolerance=pp.MultiSampleType?32u:1u;
     surfaceBuffered=false;surfaceBadNormals=true;CHECK(render());
-    CHECK(maximumDelta(pavingOn,Read(d))<=(pp.MultiSampleType?16u:1u));surfaceBadNormals=false;
+    CHECK(maximumDelta(pavingOn,Read(d))<=pavingResolveTolerance);surfaceBadNormals=false;
     sceneOffset={7000,100,3300};CHECK(render());const auto offsetStone=Read(d);
     unsigned offsetBlue=0;
     for(UINT y=145;y<H;++y)for(UINT x=0;x<W;++x) {
@@ -973,7 +981,7 @@ int main(int argc, char **argv) {
     CHECK(offsetBlue>reflectedBlue*9/10);
     sceneOffset={};
     surfaceBuffered=false;CHECK(render());
-    CHECK(maximumDelta(pavingOn,Read(d))<=(pp.MultiSampleType?16u:1u));
+    CHECK(maximumDelta(pavingOn,Read(d))<=pavingResolveTolerance);
     surfaceBuffered=true;
     surfacePattern=true;settings.surfaceRoughness=0;CHECK(render());const auto sharpStone=Read(d);
     settings.surfaceRoughness=1;CHECK(render());const auto roughStone=Read(d);
@@ -985,6 +993,43 @@ int main(int argc, char **argv) {
     CHECK(Difference(dryStone,skyStone)>500);
     CHECK(skyStone[50*W+20]==dryStone[50*W+20] && skyStone[12*W+12]==dryStone[12*W+12]);
     CHECK(Save(skyStone,L"build/surface-sky-gloss.bmp"));
+    // An empty, horizontal receiver cannot reflect its own paving. Changing the
+    // search range must leave the captured-sky fallback intact at overhead angles.
+    cameraOrbit=true;cameraYaw=.3f;
+    for(bool detailed:{false,true})for(const auto bias:std::array<std::array<float,2>,5>{{
+        {0,0},{-.0000005f,0},{-.000001f,0},{0,-1},{0,1}}})for(float elevation:{4.f,12.f,35.f,65.f,120.f,180.f}) {
+        cameraHeight=elevation;surfaceDepthBias=bias[0];surfaceSlopeBias=bias[1];settings.sceneQuality=detailed;
+        settings.surfaceStrength=0;CHECK(render());const auto bareStone=Read(d);settings.surfaceStrength=1;
+        settings.surfaceDistance=0;CHECK(render());const auto skyOnlyStone=Read(d);
+        settings.surfaceDistance=50;CHECK(render());const auto tracedStone=Read(d);
+        printf("Overhead paving height %.0f bias=%.7f slope=%.1f detailed=%d: range mismatch=%u, delta=%u\n",elevation,bias[0],bias[1],detailed,
+            Difference(skyOnlyStone,tracedStone),maximumDelta(skyOnlyStone,tracedStone));
+        unsigned untouched=0,interior=0;
+        for(UINT y=4;y+4<H;++y)for(UINT x=4;x+4<W;++x) {
+            const size_t at=y*W+x;
+            if((bareStone[at]&0xffffff)!=0x808080 || (bareStone[at-4]&0xffffff)!=0x808080 ||
+               (bareStone[at+4]&0xffffff)!=0x808080 || (bareStone[at-4*W]&0xffffff)!=0x808080 ||
+               (bareStone[at+4*W]&0xffffff)!=0x808080)continue;
+            ++interior;untouched+=(tracedStone[at]&0xffffff)==0x808080;
+        }
+        printf("Overhead paving coverage: unchanged=%u / %u interior pixels\n",untouched,interior);
+        CHECK(Save(tracedStone,L"build/surface-overhead.bmp"));
+        if(!pp.MultiSampleType && !detailed && bias[0]==-.000001f && !bias[1] && elevation==180)
+            CHECK(Save(tracedStone,L"build/surface-overhead-fixed.bmp"));
+        CHECK(maximumDelta(skyOnlyStone,tracedStone)<=(pp.MultiSampleType?32u:1u));
+        CHECK(interior>100 && untouched<interior/50);
+    }
+    cameraOrbit=false;cameraYaw=0;cameraHeight=4;surfaceDepthBias=surfaceSlopeBias=0;settings.surfaceDistance=50;settings.sceneQuality=false;
+    foreground=true;settings.surfaceStrength=0;CHECK(render());const auto nativeBody=Read(d);
+    settings.surfaceStrength=1;CHECK(render());const auto reflectedGround=Read(d);unsigned bodyPixels=0;
+    for(UINT y=1;y+1<H;++y)for(UINT x=1;x+1<W;++x) {
+        const size_t at=y*W+x;
+        if((nativeBody[at]&0xffffff)!=0x506070 || (nativeBody[at-1]&0xffffff)!=0x506070 ||
+           (nativeBody[at+1]&0xffffff)!=0x506070 || (nativeBody[at-W]&0xffffff)!=0x506070 ||
+           (nativeBody[at+W]&0xffffff)!=0x506070)continue;
+        ++bodyPixels;CHECK((reflectedGround[at]&0xffffff)==0x506070);
+    }
+    CHECK(bodyPixels>50);foreground=false;
     planeOnly=false;horizonCube=false;
     surfaceGrass=true; CHECK(render());
     printf("Grass reflection mismatch pixels: %u, mask maximum: %.0f\n",Difference(pavingOff,Read(d)),
