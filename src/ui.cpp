@@ -2,6 +2,7 @@
 #include "runtime.hpp"
 #include "version.hpp"
 #include "ui_branding.hpp"
+#include "ui_fonts.hpp"
 #include "generated/ui_logo.hpp"
 #include "generated/ui_cursor.hpp"
 #include <cstdio>
@@ -9,6 +10,7 @@
 namespace {
 thread_local Language uiLanguage = Language::English;
 thread_local bool uiMotion = true;
+thread_local ImFont *uiEmphasis = nullptr;
 const char *Tr(UiText text) {
     return Translate(uiLanguage, text);
 }
@@ -19,13 +21,14 @@ constexpr ImU32 Background = IM_COL32(29, 30, 33, 255), Raised = IM_COL32(35, 36
 constexpr ImU32 Line = IM_COL32(54, 56, 61, 255), Text = IM_COL32(221, 223, 227, 255);
 constexpr ImU32 Muted = IM_COL32(143, 147, 155, 255), Accent = IM_COL32(171, 157, 204, 255);
 constexpr ImU32 Purple = IM_COL32(144, 116, 177, 255), Lavender = IM_COL32(190, 171, 213, 255);
-constexpr float RowHeight = 28;
+constexpr float RowHeight = 28, ParameterInset = 28;
 ImU32 Opacity(ImU32 color) {
     auto a = static_cast<ImU32>((color >> 24) * ImGui::GetStyle().Alpha);
     return (color & 0x00ffffff) | (a << 24);
 }
-void TextAt(ImDrawList *draw, ImVec2 p, const char *text, ImU32 color = Text, float size = 15) {
-    draw->AddText(ImGui::GetFont(), size, {std::floor(p.x), std::floor(p.y)}, Opacity(color), text);
+void TextAt(ImDrawList *draw, ImVec2 p, const char *text, ImU32 color = Text, float size = 15,
+            ImFont *font = nullptr) {
+    draw->AddText(font ? font : ImGui::GetFont(), size, {std::floor(p.x), std::floor(p.y)}, Opacity(color), text);
 }
 float Animate(const char *id, float target) {
     auto *state = ImGui::GetStateStorage();
@@ -197,12 +200,14 @@ void Row(UiText label, const char *help, float &value, float low, float high, fl
     auto p = ImGui::GetCursorScreenPos();
     float width = ImGui::GetContentRegionAvail().x;
     auto *d = ImGui::GetWindowDrawList();
-    const float trackX = std::min(191.f, width * .38f), inputX = width - 120,
+    constexpr float labelInset = ParameterInset;
+    const float trackX = std::min(191.f, width * .38f) + labelInset, inputX = width - 120,
                 trackWidth = std::max(20.f, inputX - trackX - 10);
-    ImGui::InvisibleButton("label", {trackX - 8, RowHeight});
+    ImGui::SetCursorScreenPos({p.x + labelInset, p.y});
+    ImGui::InvisibleButton("label", {trackX - labelInset - 8, RowHeight});
     Tip(help);
-    d->PushClipRect(p, {p.x + trackX - 8, p.y + RowHeight}, true);
-    TextAt(d, {p.x, p.y + 6}, Tr(label), Text, 13);
+    d->PushClipRect({p.x + labelInset, p.y}, {p.x + trackX - 8, p.y + RowHeight}, true);
+    TextAt(d, {p.x + labelInset, p.y + 6}, Tr(label), Text, 13);
     d->PopClipRect();
     ImGui::SetCursorScreenPos({p.x + trackX, p.y});
     ImGui::InvisibleButton("track", {trackWidth, RowHeight}, ImGuiButtonFlags_EnableNav);
@@ -321,7 +326,7 @@ bool Section(const char *id, const char *title, bool &enabled, bool &reset, bool
         return ImVec2(p.x + 12 + x * cs - y * sn, p.y + 15 + x * sn + y * cs);
     };
     d->AddTriangleFilled(arrow(-3, -4), arrow(4, 0), arrow(-3, 4), Opacity(c));
-    TextAt(d, {p.x + 28, p.y + 8}, title, Text, 13);
+    TextAt(d, {p.x + ParameterInset, p.y + 8}, title, Text, 13, uiEmphasis);
     ImGui::SetCursorScreenPos({p.x + width - 66, p.y + 6});
     reset = ImGui::InvisibleButton("reset-section", {22, 18}, ImGuiButtonFlags_EnableNav);
     ResetGlyph(d, ImGui::GetItemRectMin(), ImGui::IsItemHovered() ? Text : Muted);
@@ -376,10 +381,15 @@ void ProfilePicker(Runtime &r, float width) {
     auto &s = r.settings;
     const auto rowOrigin = ImGui::GetCursorScreenPos();
     const float actionSize = ImGui::GetFrameHeight();
+    ImGui::SetCursorScreenPos({rowOrigin.x + 12, rowOrigin.y});
+    ImGui::PushFont(uiEmphasis, 13);
     ImGui::AlignTextToFramePadding();
-    ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(Muted), "%s", Tr(UiText::Profile));
-    ImGui::SameLine(88);
-    ImGui::SetNextItemWidth(width - 164);
+    ImGui::TextColored(ImGui::ColorConvertU32ToFloat4(Accent), "%s", Tr(UiText::Profile));
+    const float labelRight = ImGui::GetItemRectMax().x;
+    ImGui::PopFont();
+    const float pickerX = labelRight + 12;
+    ImGui::SetCursorScreenPos({pickerX, rowOrigin.y});
+    ImGui::SetNextItemWidth(ImGui::GetWindowPos().x + width - 76 - pickerX);
     const auto &presets = BuiltInProfileNames;
     bool createRequested = false;
     int matching = MatchingPreset(s);
@@ -524,7 +534,7 @@ void WaterReflectionControls(Runtime &runtime) {
     bool reset=false,always=true;
     auto comboRow=[&](UiText title,const char *id,int &value,const char *const *names,int count) {
         auto p=ImGui::GetCursorScreenPos();float width=ImGui::GetContentRegionAvail().x;
-        TextAt(ImGui::GetWindowDrawList(),{p.x,p.y+5},Tr(title));
+        TextAt(ImGui::GetWindowDrawList(),{p.x+ParameterInset,p.y+5},Tr(title),Text,13);
         ImGui::SetCursorScreenPos({p.x+146,p.y+2});ImGui::SetNextItemWidth(width-171);
         bool changed=Combo(id,&value,names,count);
         ImGui::SetCursorScreenPos(p);ImGui::Dummy({width,RowHeight});return changed;
@@ -567,7 +577,7 @@ void WaterReflectionControls(Runtime &runtime) {
         Row(UiText::ReflectionThickness,Tr(UiText::ReflectionThicknessHelp),s.waterTraceThickness,.5f,3,defaults.waterTraceThickness,"%.2f",.05f);
         Row(UiText::ReflectionConfidence,Tr(UiText::ReflectionConfidenceHelp),s.waterReflectionConfidence,0,.75f,defaults.waterReflectionConfidence,"%.2f",.05f);
         auto p=ImGui::GetCursorScreenPos();float width=ImGui::GetContentRegionAvail().x;
-        TextAt(ImGui::GetWindowDrawList(),{p.x,p.y+5},Tr(UiText::ReflectionSoftFallback));
+        TextAt(ImGui::GetWindowDrawList(),{p.x+ParameterInset,p.y+5},Tr(UiText::ReflectionSoftFallback),Text,13);
         ImGui::SetCursorScreenPos({p.x+width-38,p.y+4});SquareSwitch("water-soft-fallback",s.waterSoftFallback);
         ImGui::SetCursorScreenPos(p);ImGui::Dummy({width,RowHeight});
         ImGui::EndDisabled();
@@ -726,7 +736,7 @@ void SceneControls(Runtime &runtime) {
     ImGui::Spacing();
     auto qualityPos = ImGui::GetCursorScreenPos();
     float qualityWidth = ImGui::GetContentRegionAvail().x;
-    TextAt(ImGui::GetWindowDrawList(), {qualityPos.x, qualityPos.y + 5}, Tr(UiText::SceneQuality));
+    TextAt(ImGui::GetWindowDrawList(), {qualityPos.x + 12, qualityPos.y + 5}, Tr(UiText::SceneQuality),Text,13);
     ImGui::SetCursorScreenPos({qualityPos.x + qualityWidth - 38, qualityPos.y + 4});
     SquareSwitch("sceneQuality", s.sceneQuality);
     ImGui::SetCursorScreenPos(qualityPos);
@@ -933,6 +943,7 @@ void DrawPanel(Runtime &r, const PanelBranding &branding) {
     const Settings before = s;
     uiLanguage = s.language;
     uiMotion = s.interfaceMotion;
+    uiEmphasis = PanelEmphasisFont();
     if (r.centerPanel) r.updater.menuOpened(s.language);
     r.updater.poll();
     ImVec2 size{std::max(310.f, std::min(560.f, io.DisplaySize.x - 24)),
@@ -948,7 +959,7 @@ void DrawPanel(Runtime &r, const PanelBranding &branding) {
     auto *d = ImGui::GetWindowDrawList();
     const float brandEnd = HeaderBrand(d, origin, size.x, branding);
     float tabX = brandEnd + 2;
-    ImGui::PushFont(nullptr, 13);
+    ImGui::PushFont(uiEmphasis, 13);
     for (int i=0;i<2;++i) {
         const char *label = Tr(i ? UiText::WorldTab : UiText::Image);
         const float w = ImGui::CalcTextSize(label).x+20;
@@ -990,7 +1001,7 @@ void DrawPanel(Runtime &r, const PanelBranding &branding) {
     SquareSwitch("master",s.enabled,{28,18});
     const auto master = ImGui::GetItemRectMin();
     Tip(Tr(UiText::MasterHelp));
-    TextAt(d,{origin.x+size.x-118,std::floor(master.y+9-11*.5f)},Tr(UiText::Effects),Muted,11);
+    TextAt(d,{origin.x+size.x-118,std::floor(master.y+9-13*.5f)},Tr(UiText::Effects),Muted,13,uiEmphasis);
     ImGui::SetCursorPos({size.x - 57, 8});
     if (ImGui::InvisibleButton("menu", {24, 24}, ImGuiButtonFlags_EnableNav))
         ImGui::OpenPopup("actions");
@@ -1059,13 +1070,13 @@ void DrawPanel(Runtime &r, const PanelBranding &branding) {
         navDraw->AddLine(p, {p.x + waterWidth, p.y}, Line);
         if (ImGui::InvisibleButton("scene-settings", {waterWidth, 30}, ImGuiButtonFlags_EnableNav))
             r.editorPage = 2;
-        TextAt(navDraw, {p.x + 12, p.y + 7}, Tr(UiText::LightAtmosphere), Text, 13);
+        TextAt(navDraw, {p.x + 12, p.y + 7}, Tr(UiText::LightAtmosphere), Text, 13, uiEmphasis);
         NavigationArrow(navDraw, p, waterWidth, ImGui::IsItemHovered() ? Text : Muted);
         p = ImGui::GetCursorScreenPos();
         navDraw->AddLine(p, {p.x + waterWidth, p.y}, Line);
         if (ImGui::InvisibleButton("aa-settings", {waterWidth, 30}, ImGuiButtonFlags_EnableNav))
             r.editorPage = 3;
-        TextAt(navDraw, {p.x + 12, p.y + 7}, Tr(UiText::Antialiasing), Text, 13);
+        TextAt(navDraw, {p.x + 12, p.y + 7}, Tr(UiText::Antialiasing), Text, 13, uiEmphasis);
         NavigationArrow(navDraw, p, waterWidth, ImGui::IsItemHovered() ? Text : Muted);
         ImGui::Dummy({0, 0});
         auto waterPos = ImGui::GetCursorScreenPos();
@@ -1073,7 +1084,7 @@ void DrawPanel(Runtime &r, const PanelBranding &branding) {
         if (ImGui::InvisibleButton("water-settings", {waterWidth - 48, 30}, ImGuiButtonFlags_EnableNav))
             r.editorPage = 1;
         ImU32 navColor = ImGui::IsItemHovered() ? Text : Muted;
-        TextAt(navDraw, {waterPos.x + 12, waterPos.y + 7}, "WaterFX", Text, 13);
+        TextAt(navDraw, {waterPos.x + 12, waterPos.y + 7}, "WaterFX", Text, 13, uiEmphasis);
         NavigationArrow(navDraw, waterPos, waterWidth, navColor);
         ImGui::SetCursorScreenPos({waterPos.x + waterWidth - 38, waterPos.y + 6});
         SquareSwitch("waterMain", s.water);
@@ -1112,7 +1123,7 @@ void DrawPanel(Runtime &r, const PanelBranding &branding) {
             Row(UiText::Radius, Tr(UiText::BloomRadiusHelp), s.radius, .5f, 4, defaults.radius);
             auto p = ImGui::GetCursorScreenPos();
             float width = ImGui::GetContentRegionAvail().x;
-            TextAt(ImGui::GetWindowDrawList(), {p.x, p.y + 5}, Tr(UiText::Quality));
+            TextAt(ImGui::GetWindowDrawList(), {p.x + ParameterInset, p.y + 5}, Tr(UiText::Quality),Text,13);
             ImGui::SetCursorScreenPos({p.x + 146, p.y + 2});
             ImGui::SetNextItemWidth(width - 146 - 25);
             ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(.14f, .15f, .17f, 1));
@@ -1192,7 +1203,7 @@ void DrawPanel(Runtime &r, const PanelBranding &branding) {
             Row(UiText::Dispersion, Tr(UiText::DispersionHelp), s.waterDispersion, 0, 1,
                 defaults.waterDispersion, "%.2f", .05f);
             p = ImGui::GetCursorScreenPos();
-            TextAt(ImGui::GetWindowDrawList(), {p.x, p.y + 5}, Tr(UiText::CausticQuality));
+            TextAt(ImGui::GetWindowDrawList(), {p.x + ParameterInset, p.y + 5}, Tr(UiText::CausticQuality),Text,13);
             ImGui::SetCursorScreenPos({p.x + 146, p.y + 2});
             ImGui::SetNextItemWidth(width - 171);
             int causticQuality = s.waterCausticScale == 2 ? 1 : 0;

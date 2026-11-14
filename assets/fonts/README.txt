@@ -1,4 +1,8 @@
 FENB-UI.ttf is a static, subsetted build of Inter (weight 450, optical size 14).
+It remains embedded as the fallback for the production panel, which loads Tahoma
+from the Windows Fonts directory. Tahoma is not bundled or redistributed.
+Both fonts use a normal text role and a second role with moderately strengthened
+glyph coverage (RasterizerMultiply 1.35), rather than a separate Semibold face.
 Source: https://github.com/google/fonts/tree/main/ofl/inter
 License: SIL Open Font License 1.1; see OFL.txt.
 The embedded subset includes Latin, Cyrillic, punctuation and UI symbols.

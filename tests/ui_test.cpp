@@ -3,7 +3,7 @@
 #include "imgui.h"
 #include "imgui_internal.h"
 #include "backends/imgui_impl_dx9.h"
-#include "generated/ui_font.hpp"
+#include "ui_fonts.hpp"
 #include <gdiplus.h>
 #include <cstdio>
 #define CHECK(x)                                                                                             \
@@ -92,6 +92,14 @@ struct UpdateTestAccess {
 };
 int main() {
     CreateDirectoryW(ModuleDirectory().c_str(), nullptr);
+    // The embedded fallback must remain usable without a Windows font file.
+    ImGui::CreateContext();
+    auto fallback = LoadPanelFonts(L"build/runtime-test-data/missing-ui-font.ttf");
+    CHECK(fallback.regular && fallback.emphasis && fallback.regular != fallback.emphasis);
+    for (auto *font : {fallback.regular, fallback.emphasis})
+        for (ImWchar glyph : {ImWchar('A'), ImWchar(0x416), ImWchar(0xf1), ImWchar(0xe7), ImWchar(0xe3)})
+            CHECK(font->GetFontBaked(13)->FindGlyphNoFallback(glyph));
+    ImGui::DestroyContext();
     WNDCLASSW wc{};
     wc.lpfnWndProc = DefWindowProcW;
     wc.hInstance = GetModuleHandleW(nullptr);
@@ -122,10 +130,8 @@ int main() {
     io.DisplaySize = {800, 600};
     io.DeltaTime = .06f;
     io.ConfigInputTrickleEventQueue = false;
-    ImFontConfig font{};
-    font.FontDataOwnedByAtlas = false;
-    io.Fonts->AddFontFromMemoryTTF((void *)UI_FONT, sizeof(UI_FONT), 15, &font,
-                                   io.Fonts->GetGlyphRangesCyrillic());
+    const auto fonts = LoadPanelFonts();
+    CHECK(fonts.regular && fonts.emphasis && fonts.regular != fonts.emphasis);
     CHECK(ImGui_ImplDX9_Init(d));
     const PanelBranding *activeBranding = nullptr;
     auto frame = [&]() {
@@ -282,6 +288,17 @@ int main() {
         activate(panel,"menu");
         CHECK(Screenshot(d,((L"build/ui-integrated/"+locale+L"-actions.png").c_str())));
         ImGui::ClosePopupToLevel(0,true);frame();
+        io.AddMousePosEvent(-FLT_MAX,-FLT_MAX);
+        r.editorPage=0;frame();
+        child()->StateStorage.SetBool(ImHashStr("expanded",0,child()->GetID("grade")),true);
+        frame();frame();
+        CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-grade.png").c_str()));
+        child()->StateStorage.SetBool(ImHashStr("expanded",0,child()->GetID("grade")),false);
+        child()->StateStorage.SetBool(ImHashStr("expanded",0,child()->GetID("bloom")),true);
+        frame();frame();
+        CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-bloom.png").c_str()));
+        child()->StateStorage.SetBool(ImHashStr("expanded",0,child()->GetID("bloom")),false);
+        frame();
         for(int page=0;page<7;++page) {
             r.editorPage=page;ImGui::SetScrollY(child(),0);frame();frame();
             auto path=std::wstring(L"build/ui-integrated/")+(locale+L"-")+std::to_wstring(page)+L".png";

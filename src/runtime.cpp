@@ -2,7 +2,7 @@
 #include "backends/imgui_impl_dx9.h"
 #include "backends/imgui_impl_win32.h"
 #include "effects.hpp"
-#include "generated/ui_font.hpp"
+#include "ui_fonts.hpp"
 #include "imgui.h"
 #include "state_guard.hpp"
 #include "water.hpp"
@@ -158,14 +158,7 @@ bool Runtime::initUI() {
     io.IniFilename = nullptr;
     io.LogFilename = nullptr;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_NoMouseCursorChange;
-    // The subset font lives in mapped read-only DLL data, without a duplicate heap copy.
-    ImFontConfig font{};
-    font.FontDataOwnedByAtlas = false;
-    font.OversampleH = 2;
-    font.OversampleV = 1;
-    if (!io.Fonts->AddFontFromMemoryTTF(const_cast<unsigned char *>(UI_FONT), sizeof(UI_FONT), 15, &font,
-                                        io.Fonts->GetGlyphRangesCyrillic()))
-        io.Fonts->AddFontDefault();
+    LoadPanelFonts();
     bool ok = ImGui_ImplWin32_Init(window_);
     if (ok)
         ok = ImGui_ImplDX9_Init(device_);

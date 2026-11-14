@@ -1,4 +1,4 @@
-# FENB 0.5c
+# FENB 0.5d
 
 FENB is a graphics mod for Flyff, inspired by ENBSeries. It uses a Windows x86 Direct3D 9 proxy, C++20, precompiled shaders and a native Dear ImGui settings panel.
 
@@ -8,7 +8,7 @@ FENB is a graphics mod for Flyff, inspired by ENBSeries. It uses a Windows x86 D
 - **Effects** enables or disables all FENB rendering. Color correction, Bloom and WaterFX also have individual switches.
 - **Right Shift + F12** toggles the master effects switch immediately, with or without the panel. Repeated keydown messages do not toggle it repeatedly; the chord is not forwarded to the game. Left Shift + F12 and ordinary F12 retain their native behavior.
 - **World**, between the image page and **Language**, opens local time and weather controls. Each section has an independent enable switch: off follows the game. Drag the time slider in one-minute steps, type `HH:MM`, or use the arrows. **Freeze time** holds the selected hour; otherwise it advances at the native clock's pace. Time remains active and editable with image effects disabled, including comparison mode and **Right Shift + F12**. Weather offers **Clear**, **Rain** and **Snow**, with a live precipitation-intensity slider. Both overrides default to off; weather continues to respect the master effects switch.
-- **Language**, after **World**, switches between **English** (first and default) and **Русский** immediately. In narrow panels the selector reads **EN** or **RU**. The choice is saved as `language=en` or `language=ru` in `[General]` of `FENB.ini`; profiles and effect resets preserve it. Older configurations without this key use English. Custom profile names and filenames stay unchanged.
+- The language dropdown switches between **English** (first and default), **Русский**, **Español** and **Português (Brasil)** immediately. Its compact caption reads **EN**, **RU**, **ES** or **PT**. The choice is saved as `language=en`, `ru`, `es` or `pt` in `[General]` of `FENB.ini`; profiles and effect resets preserve it. Older configurations without this key use English. Custom profile names and filenames stay unchanged.
 - Drag a slider, double-click its track to reset it, or click the number to type. The small arrow buttons use a parameter-specific step. The reset icon is shown for changed values.
 - Edits save automatically to `FENB.ini`. **Ctrl + S** saves immediately.
 - **Create…** beside the profile selector, or **Create profile…** inside its dropdown, saves the current settings under a name. Type the name and press **Save**; the profile appears in the selector. For a loaded custom profile the toolbar offers **Save…**. Existing names require the explicit **Replace profile** button. Files live in `FENB-presets`; compatible `.ini` files can also be copied into that folder.
@@ -28,7 +28,9 @@ Blue Water and Cyan Water add contrasting water treatments while retaining the d
 
 All nine profiles are compiled into the DLL; the default image settings come from `config/FENB.ini`, with named variations in `config/builtins.json`. `node tools/embed-presets.mjs` regenerates `src/generated/presets.hpp`, and both build paths keep it in sync. No shipped `.ini` is added under **My profiles**. Custom files remain independently supported. Image-profile changes preserve the master switch, language, hardware/FPS choices and local time/weather controls. Modified built-ins retain their translated name with an asterisk, and can be saved as a custom profile. Updating the DLL preserves an existing configuration's saved effect switches; select a built-in or change the switches manually to use the new defaults.
 
-The lower-left corner shows the public version, **0.5c**, followed by save status. Public versions use the form `digit.digitletter`; suffixes run from `a` through `h`, then the minor number increases.
+The lower-left corner shows the public version, **0.5d**, followed by save status. Public versions use the form `digit.digitletter`; suffixes run from `a` through `h`, then the minor number increases.
+
+The panel uses Windows Tahoma with regular text and moderately strengthened headings. The Profile label uses the muted violet accent and aligns with page navigation, with a short gap before the selection field. Parameter rows are inset under their section titles; numeric inputs and reset controls retain their right-side columns. The Effects caption is 13 px. Tahoma is loaded from the Windows Fonts directory and is not distributed with FENB. If it is unavailable, the embedded, SIL OFL-licensed Inter subset provides both text roles.
 
 The optional panel cursor acquires a balanced negative Windows cursor-display count. Late native SetCursor calls cannot display a second cursor; closing the panel, losing focus and device recovery release that ownership.
 
