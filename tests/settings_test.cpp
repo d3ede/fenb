@@ -286,8 +286,11 @@ int main() {
     CHECK(shipped == builtIn && builtIn.matchingPreset() == 0);
     CHECK(!strcmp(Translate(Language::English, BuiltInProfileNames[0]), "Default"));
     CHECK(!strcmp(Translate(Language::Russian, BuiltInProfileNames[0]), "Основной"));
-    CHECK(BuiltInProfileOrder[0]==0 && BuiltInProfileNames[BuiltInProfileOrder[1]]==UiText::LowEndProfile &&
-          BuiltInProfileNames[BuiltInProfileOrder[2]]==UiText::PotatoProfile);
+    CHECK(BuiltInProfileOrder[0]==0 && BuiltInProfileNames[BuiltInProfileOrder[1]]==UiText::HighEndProfile &&
+          BuiltInProfileNames[BuiltInProfileOrder[2]]==UiText::LowEndProfile &&
+          BuiltInProfileNames[BuiltInProfileOrder[3]]==UiText::PotatoProfile &&
+          BuiltInProfileNames[BuiltInProfileOrder[4]]==UiText::BlueWaterProfile &&
+          BuiltInProfileNames[BuiltInProfileOrder[5]]==UiText::CyanWaterProfile);
     unsigned ordered=0;for(int index:BuiltInProfileOrder)ordered|=1u<<index;
     CHECK(ordered==(1u<<BuiltInPresetCount)-1);
     Settings blueWater;blueWater.preset(7);
@@ -304,6 +307,22 @@ int main() {
     CHECK(potato.exposure==builtIn.exposure && potato.gamma==builtIn.gamma && potato.contrast==builtIn.contrast &&
           potato.saturation==builtIn.saturation && potato.temperature==builtIn.temperature && potato.tint==builtIn.tint &&
           potato.shadows==builtIn.shadows && potato.highlights==builtIn.highlights && potato.bloomStrength==builtIn.bloomStrength);
+    Settings highEnd;highEnd.preset(1);
+    CHECK(highEnd.ssao && highEnd.sunRays && highEnd.sky && highEnd.fog && highEnd.dof &&
+          highEnd.adaptation && highEnd.localLighting && highEnd.lightingBalance && highEnd.smaa);
+    CHECK(highEnd.sceneQuality && highEnd.sfx && highEnd.surfaceReflections &&
+          highEnd.water && highEnd.waterReflectionMethod==2 && highEnd.waterRaySteps==48 &&
+          highEnd.waterReflectionResolution==100 && highEnd.waterRefinementSteps==12 && highEnd.waterCaustics>0);
+    CHECK(highEnd.exposure==builtIn.exposure && highEnd.temperature==builtIn.temperature &&
+          highEnd.waterWaves==builtIn.waterWaves && highEnd.waterTint==builtIn.waterTint);
+    for (int index : {2,3,4}) {
+        Settings tone;tone.preset(index);
+        CHECK(tone.exposure>=0 && tone.exposure<=.1f && tone.saturation>=.94f && tone.saturation<=1.04f &&
+              tone.contrast>=.97f && tone.contrast<=1.05f && std::abs(tone.temperature)<=.25f &&
+              tone.highlights<=0 && tone.shadows>=0);
+        tone.resetColor();auto defaultWithoutColor=builtIn;defaultWithoutColor.resetColor();
+        CHECK(tone==defaultWithoutColor); // Color looks retain Default water, effects and quality.
+    }
     for (int index = 0; index < BuiltInPresetCount; ++index) {
         Settings controls;
         controls.enabled = false;
