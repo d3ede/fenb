@@ -6,6 +6,8 @@
 #include "native_camera.hpp"
 #include "native_app.hpp"
 #include "native_hybrid.hpp"
+#include "visual_camera.hpp"
+#include "visual_mover.hpp"
 #if __has_include("native_sfx_follow.hpp")
 #include "native_sfx_follow.hpp"
 #define FENB_BINDING_SFX 1
@@ -59,9 +61,36 @@ bool identical(const std::vector<Region> &before) {
     return ok;
 }
 struct Adapter { const char *name;bool (*install)();void (*uninstall)(); };
+bool presentationRoundTrip(HMODULE image) {
+    client_detail::Image initial(image);
+    const auto cameraBinding=presentation_detail::camera(initial);
+    const auto moverBinding=presentation_detail::mover(initial);
+    if(!cameraBinding || !moverBinding || cameraBinding.player!=moverBinding.player)return false;
+    for(int cycle=0;cycle<2;++cycle) {
+        visual_animation::install(image);
+        const bool animation=visual_animation::enabled;
+        const bool camera=visual_camera::install(image),mover=visual_mover::install(image);
+        std::printf("Presentation cycle %d: animation=%d camera=%d mover=%d\n",cycle+1,animation,camera,mover);
+        visual_mover::uninstall();visual_camera::uninstall();visual_animation::uninstall();
+        if(!animation || !camera || !mover)return false;
+    }
+    // An ABI mismatch must still reject the image without installing a subset.
+    client_detail::Image scan(image);const auto binding=presentation_detail::animation(scan);
+    if(!binding)return false;
+    auto *table=reinterpret_cast<void **>(reinterpret_cast<unsigned char *>(image)+binding.table);
+    auto *entry=static_cast<unsigned char *>(table[0]);
+    DWORD protection=0,ignored=0;
+    if(!VirtualProtect(entry,1,PAGE_EXECUTE_READWRITE,&protection))return false;
+    const auto original=*entry;*entry=0xcc;
+    visual_animation::install(image);const bool rejected=!visual_animation::enabled;
+    visual_animation::uninstall();*entry=original;
+    if(!VirtualProtect(entry,1,protection,&ignored))return false;
+    return rejected;
+}
 }
 int wmain(int argc,wchar_t **argv) {
-    if(argc!=2) { std::fprintf(stderr,"Usage: native-binding-test.exe <Homesickness PE copy>\n");return 2; }
+    const bool presentationOnly=argc==3 && !wcscmp(argv[2],L"--presentation");
+    if(argc!=2 && !presentationOnly) { std::fprintf(stderr,"Usage: native-binding-test.exe <Homesickness PE copy> [--presentation]\n");return 2; }
     auto image=LoadLibraryExW(argv[1],nullptr,DONT_RESOLVE_DLL_REFERENCES);
     if(!image) { std::fprintf(stderr,"Could not map supplied PE: Windows error %lu\n",GetLastError());return 3; }
     native_patch::imageOverride=image;
@@ -71,6 +100,12 @@ int wmain(int argc,wchar_t **argv) {
     if(snapshot(image).empty()) { std::fprintf(stderr,"Could not materialize mapped PE\n");native_patch::imageOverride=nullptr;FreeLibrary(image);return 4; }
     const auto before=snapshot(image);
     if(before.empty()) { std::fprintf(stderr,"Could not snapshot mapped PE\n");native_patch::imageOverride=nullptr;FreeLibrary(image);return 4; }
+    if(presentationOnly) {
+        const bool ok=presentationRoundTrip(image) && identical(before);
+        native_patch::imageOverride=nullptr;FreeLibrary(image);
+        if(ok)std::puts("PASS: presentation adapters relocated, ABI rejection retained, every mapped byte and protection restored; no game callback executed.");
+        return ok?0:1;
+    }
     auto *imageBytes=reinterpret_cast<unsigned char *>(image);
     unsigned char previewCompare[7],previewNullBranch[2];
     std::memcpy(previewCompare,imageBytes+0xdabd5,sizeof(previewCompare));
@@ -107,6 +142,7 @@ int wmain(int argc,wchar_t **argv) {
         ok=ok && previewFlowPreserved();
         native_hybrid::uninstall();if(!identical(before)) ok=false;
     }
+    if(ok)ok=presentationRoundTrip(image) && identical(before);
     native_patch::imageOverride=nullptr;FreeLibrary(image);
     if(!ok) return 1;
     std::puts("All native bindings installed twice on an entrypoint-free PE mapping and restored every mapped byte and page protection. No native game callback was executed.");

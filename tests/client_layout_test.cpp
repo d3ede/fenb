@@ -90,6 +90,9 @@ int main() {
         CHECK(VirtualProtect(image + 0x1000, 0xf000, PAGE_EXECUTE_READ, &old));
         CHECK(VirtualProtect(image + 0x10000, 0x10000, PAGE_READONLY, &old));
         auto found = client_detail::Discover((HMODULE)image);
+        client_detail::Image tableScan((HMODULE)image);
+        CHECK(tableScan.table(5,expected.move)==expected.vtable);
+        CHECK(tableScan.table(6,expected.render)==expected.vtable);
         CHECK(found.environment() && found.gate == expected.gate &&
               found.application == expected.application && found.clock == expected.clock &&
               found.initFall == expected.initFall && found.sky == expected.sky &&

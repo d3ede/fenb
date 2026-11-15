@@ -1,6 +1,7 @@
 #pragma once
 #include "common.hpp"
 #include "client_layout.hpp"
+#include "presentation_binding.hpp"
 #include "visual_transform.hpp"
 #include "presentation_clock.hpp"
 #include <array>
@@ -191,18 +192,14 @@ inline bool replace(void **slot,void *expected,void *value) {
     VirtualProtect(slot,sizeof(void *),protection,&ignored);
     return old==expected;
 }
-inline void install() {
+inline void install(HMODULE image=GetModuleHandleW(nullptr)) {
     if(enabled) return;
-    auto image=GetModuleHandleW(nullptr);
     client_detail::Image scan(image);
-    // This first prototype deliberately rejects other model ABIs.
-    if(!scan.bytes(0x367640,"55 8B EC 83 E4 F0 81 EC 28 02 00 00 A1 ?? ?? ?? ?? 33 C4 89 84 24 24 02") ||
-       !scan.bytes(0x368500,"55 8B EC 53 56 8B F1 57 83 BE 08 01 00 00 00 0F 84 E5 00 00 00")) return;
+    const auto binding=presentation_detail::animation(scan);
+    if(!binding)return;
     auto *base=reinterpret_cast<unsigned char *>(image);
-    auto **table=reinterpret_cast<void **>(base+0x7b7fbc);
-    if(table[0]!=base+0x367640 || table[2]!=base+0x368500) return;
-    auto **destructor=reinterpret_cast<void **>(base+0x7b7f70);
-    if(*destructor!=base+0x365f30) return;
+    auto **table=reinterpret_cast<void **>(base+binding.table);
+    auto **destructor=reinterpret_cast<void **>(base+binding.destroyTable);
     originalDestroy=reinterpret_cast<Destroy>(*destructor);
     originalRender=reinterpret_cast<Render>(table[0]); originalMove=reinterpret_cast<Move>(table[2]);
     if(!replace(table,reinterpret_cast<void *>(originalRender),reinterpret_cast<void *>(&renderHook))) return;

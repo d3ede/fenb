@@ -123,6 +123,24 @@ class Image {
         }
         return true;
     }
+    DWORD table(unsigned slot,DWORD function,const char *firstMethod=nullptr) const {
+        if(!function || !section(function,1,IMAGE_SCN_MEM_EXECUTE))return 0;
+        DWORD result=0;
+        for(const auto &s:sections_) {
+            if(!(s.flags&IMAGE_SCN_MEM_READ) || (s.flags&(IMAGE_SCN_MEM_EXECUTE|IMAGE_SCN_MEM_WRITE)))continue;
+            for(DWORD at=slot*4;at+4<=s.size;at+=4) {
+                DWORD pointer=0;memcpy(&pointer,s.bytes.data()+at,4);
+                if(relative(pointer)!=function)continue;
+                if(firstMethod) {
+                    const DWORD first=relative(value(s.rva+at-slot*4));
+                    if(!first || !bytes(first,firstMethod))continue;
+                }
+                if(result)return 0; // A shared/ambiguous method cannot identify its owner.
+                result=s.rva+at-slot*4;
+            }
+        }
+        return result;
+    }
     Layout discover() const {
         Layout l;
         l.gate = find("83 3D ?? ?? ?? ?? 00 8B 3D ?? ?? ?? ?? 74 36 FF D7 8B 0D ?? ?? ?? ?? 2B 0D ?? ?? ?? "

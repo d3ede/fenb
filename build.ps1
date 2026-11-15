@@ -1,4 +1,4 @@
-param([switch]$Tests,[switch]$Diagnostics,[string]$OutputDirectory,[string]$NativeTestImage)
+param([switch]$Tests,[switch]$Diagnostics,[string]$OutputDirectory,[string]$NativeTestImage,[string]$NativePresentationTestImage)
 $ErrorActionPreference='Stop'
 Set-Location -LiteralPath $PSScriptRoot
 $toolchain=Get-ChildItem -LiteralPath '.tools' -Directory -Filter 'llvm-mingw-*-ucrt-x86_64' | Sort-Object Name -Descending | Select-Object -First 1
@@ -72,6 +72,10 @@ if ($Tests) {
             & $testBinary $NativeTestImage
         } else { & $testBinary }
         if($LASTEXITCODE){throw "$nativeTest test failed"}
+    }
+    if($NativePresentationTestImage) {
+        & './build/native-binding-test.exe' $NativePresentationTestImage '--presentation'
+        if($LASTEXITCODE){throw 'Presentation binding tests failed'}
     }
     & $cxx '-std=c++20' '-O2' '-static' '-Isrc' 'tests/settings_test.cpp' 'src/settings.cpp' '-o' 'build/settings-test.exe'
     if ($LASTEXITCODE) { throw 'Settings test build failed' }

@@ -228,22 +228,20 @@ inline void __fastcall transformHook(void *p,void *,void *device,void *world) {
     applied=visual;
     pending=p;
 }
-inline bool install() {
+inline bool install(HMODULE image=GetModuleHandleW(nullptr)) {
     if(active) return true;
     if(!visual_animation::enabled) return false;
-    auto image=GetModuleHandleW(nullptr); client_detail::Image scan(image);
-    if(!scan.bytes(0x385cb0,"55 8B EC 83 EC 2C A1 ?? ?? ?? ?? 33 C5 89 45 FC 53 8B D9 56 8B 75 08 57") ||
-       !scan.bytes(0x386050,"55 8B EC 83 E4 F0 81 EC 98 00 00 00 A1 ?? ?? ?? ?? 33 C4")) return false;
+    client_detail::Image scan(image);
+    const auto binding=presentation_detail::camera(scan);if(!binding)return false;
     auto *base=reinterpret_cast<unsigned char *>(image);
-    auto **table=reinterpret_cast<void **>(base+0x7b8cf4);
-    if(table[0]!=base+0x386050 || table[1]!=base+0x385cb0) return false;
+    auto **table=reinterpret_cast<void **>(base+binding.table);
     originalProcess=reinterpret_cast<Process>(table[0]); originalTransform=reinterpret_cast<Transform>(table[1]);
     if(!visual_animation::replace(table,reinterpret_cast<void *>(originalProcess),reinterpret_cast<void *>(&processHook))) return false;
     if(!visual_animation::replace(table+1,reinterpret_cast<void *>(originalTransform),reinterpret_cast<void *>(&transformHook))) {
         visual_animation::replace(table,reinterpret_cast<void *>(&processHook),reinterpret_cast<void *>(originalProcess)); return false;
     }
-    entries=table; cameraVectors=reinterpret_cast<float *>(base+0x9709d0);
-    nativePlayer=reinterpret_cast<void **>(base+0x842168);active=true;
+    entries=table; cameraVectors=reinterpret_cast<float *>(base+binding.vectors);
+    nativePlayer=reinterpret_cast<void **>(base+binding.player);active=true;
     Log("FPS camera: current-time target/input presentation enabled; native collision and simulation retained.");
     return true;
 }

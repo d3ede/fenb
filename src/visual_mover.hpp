@@ -165,14 +165,11 @@ inline void *__fastcall destroyHook(void *p,void *,unsigned flags) {
     }
     return originalDestroy(p,flags);
 }
-inline bool install() {
+inline bool install(HMODULE image=GetModuleHandleW(nullptr)) {
     if(active) return true;
     if(!visual_animation::enabled) return false;
-    auto image=GetModuleHandleW(nullptr);client_detail::Image scan(image);
-    if(!scan.bytes(0x3098d0,"55 8B EC 6A FF 68 ?? ?? ?? ?? 64 A1 00 00 00 00 50 81 EC D0 01 00 00") ||
-       !scan.bytes(0x325470,"55 8B EC 81 EC 04 02 00 00 A1 ?? ?? ?? ?? 33 C5 89 45 FC 56 8B 75 08 57")) return false;
-    auto *base=reinterpret_cast<unsigned char *>(image);auto **table=reinterpret_cast<void **>(base+0x7b5054);
-    if(table[0]!=base+0x306c10 || table[6]!=base+0x3098d0 || table[9]!=base+0x325470) return false;
+    client_detail::Image scan(image);const auto binding=presentation_detail::mover(scan);if(!binding)return false;
+    auto *base=reinterpret_cast<unsigned char *>(image);auto **table=reinterpret_cast<void **>(base+binding.table);
     originalDestroy=reinterpret_cast<Destroy>(table[0]);originalProcess=reinterpret_cast<Process>(table[6]);originalRender=reinterpret_cast<Render>(table[9]);
     struct Patch { int slot; void *native,*hook; };
     Patch patches[]={{0,reinterpret_cast<void *>(originalDestroy),reinterpret_cast<void *>(&destroyHook)},
@@ -185,7 +182,7 @@ inline bool install() {
         }
         ++installed;
     }
-    entries=table;activePlayerSlot=reinterpret_cast<void **>(base+0x842168);active=true;
+    entries=table;activePlayerSlot=reinterpret_cast<void **>(base+binding.player);active=true;
     Log("FPS current-time presentation: shared mover/name pose and guarded native restoration installed.");return true;
 }
 inline void uninstall() {
