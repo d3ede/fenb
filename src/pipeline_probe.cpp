@@ -29,14 +29,14 @@ std::string PipelineProbe::digest(const void* data,size_t rowBytes,UINT rows,UIN
 void PipelineProbe::begin(){
     active_=true;requested_=false;frame_=draws_=totalDraws_=0;truncated_=false;started_=GetTickCount();
     lines_.clear();lines_.reserve(1024*1024);textures_.clear();shaders_.clear();blobs_.clear();
-    replayBytes_=0;waterDraws_=0;waterSource_=waterFinished_=false;lastUP_=nullptr;lastApi_.clear();
+    replayBytes_=0;waterDraws_=0;waterSource_=waterFinished_=false;surfaceFrames_=0;lastUP_=nullptr;lastApi_.clear();
     BCryptOpenAlgorithmProvider(&hashAlgorithm_,BCRYPT_SHA256_ALGORITHM,nullptr,0);
     D3DCAPS9 caps{};device_->GetDeviceCaps(&caps);
     D3DDEVICE_CREATION_PARAMETERS creation{};device_->GetCreationParameters(&creation);
     Com<IDirect3D9> root;device_->GetDirect3D(root.out());D3DDISPLAYMODE mode{};
     if(root.p)root->GetAdapterDisplayMode(creation.AdapterOrdinal,&mode);
     std::ostringstream out;
-    out<<"{\"kind\":\"header\",\"schema\":2,\"pid\":"<<GetCurrentProcessId()<<",\"vertexShaderVersion\":"<<caps.VertexShaderVersion
+    out<<"{\"kind\":\"header\",\"schema\":2,\"mode\":\""<<(surfaceOnly_?"surface":"pipeline")<<"\",\"pid\":"<<GetCurrentProcessId()<<",\"vertexShaderVersion\":"<<caps.VertexShaderVersion
        <<",\"pixelShaderVersion\":"<<caps.PixelShaderVersion<<",\"maxVSConstants\":"<<caps.MaxVertexShaderConst
        <<",\"maxRTs\":"<<caps.NumSimultaneousRTs<<",\"creationFlags\":"<<creation.BehaviorFlags<<",\"depthTextureFormats\":[";
     DWORD formats[]={MAKEFOURCC('I','N','T','Z'),MAKEFOURCC('D','F','2','4'),MAKEFOURCC('R','A','W','Z')};
@@ -66,7 +66,12 @@ void PipelineProbe::boundary(){
     if(active_){++frame_;if(frame_>=3)finish(false);}
     if(!active_){
         DWORD now=GetTickCount();
-        if(now-checked_>1000){checked_=now;auto marker=ModuleDirectory()+L"FENB-capture.request";if(GetFileAttributesW(marker.c_str())!=INVALID_FILE_ATTRIBUTES){DeleteFileW(marker.c_str());requested_=true;}}
+        if(now-checked_>1000){
+            checked_=now;auto marker=ModuleDirectory()+L"FENB-capture.request";
+            if(GetFileAttributesW(marker.c_str())!=INVALID_FILE_ATTRIBUTES){DeleteFileW(marker.c_str());request();}
+            marker=ModuleDirectory()+L"FENB-surface.request";
+            if(GetFileAttributesW(marker.c_str())!=INVALID_FILE_ATTRIBUTES){DeleteFileW(marker.c_str());requestSurface();}
+        }
         if(requested_)begin();
     }
 }
@@ -109,12 +114,15 @@ bool PipelineProbe::addBlob(const std::string& name,const void* data,size_t byte
     Blob blob;blob.name=name;blob.bytes.resize(bytes);memcpy(blob.bytes.data(),data,bytes);
     replayBytes_+=bytes;blobs_.push_back(std::move(blob));return true;
 }
-bool PipelineProbe::readSurface(IDirect3DSurface9* source,const std::string& name){
+bool PipelineProbe::readSurface(IDirect3DSurface9* source,const std::string& name,const RECT* crop){
     D3DSURFACE_DESC d{};
     if(!source||FAILED(source->GetDesc(&d)))return false;
-    UINT pixelBytes=d.Format==D3DFMT_A32B32G32R32F?16:4;
-    if(d.Format!=D3DFMT_R32F&&d.Format!=D3DFMT_A32B32G32R32F&&d.Format!=D3DFMT_A8R8G8B8&&d.Format!=D3DFMT_X8R8G8B8)return false;
-    size_t bytes=size_t(d.Width)*d.Height*pixelBytes;
+    UINT pixelBytes=d.Format==D3DFMT_A32B32G32R32F?16:d.Format==D3DFMT_A16B16G16R16F?8:4;
+    if(d.Format!=D3DFMT_R32F&&d.Format!=D3DFMT_A32B32G32R32F&&d.Format!=D3DFMT_A16B16G16R16F&&d.Format!=D3DFMT_A8R8G8B8&&d.Format!=D3DFMT_X8R8G8B8)return false;
+    RECT area=crop?*crop:RECT{0,0,LONG(d.Width),LONG(d.Height)};
+    if(area.left<0 || area.top<0 || area.right>LONG(d.Width) || area.bottom>LONG(d.Height) || area.right<=area.left || area.bottom<=area.top)return false;
+    UINT width=UINT(area.right-area.left),height=UINT(area.bottom-area.top);
+    size_t bytes=size_t(width)*height*pixelBytes;
     if(bytes>64*1024*1024-replayBytes_){truncated_=true;return false;}
     Com<IDirect3DSurface9> resolve,read;
     if(d.MultiSampleType!=D3DMULTISAMPLE_NONE){
@@ -126,9 +134,11 @@ bool PipelineProbe::readSurface(IDirect3DSurface9* source,const std::string& nam
        FAILED(device_->GetRenderTargetData(source,read)))return false;
     D3DLOCKED_RECT lock{};if(FAILED(read->LockRect(&lock,nullptr,D3DLOCK_READONLY)))return false;
     std::vector<unsigned char> pixels(bytes);bool ok=lock.Pitch>=int(d.Width*pixelBytes);
-    if(ok)for(UINT y=0;y<d.Height;++y)memcpy(pixels.data()+size_t(y)*d.Width*pixelBytes,(BYTE*)lock.pBits+size_t(y)*lock.Pitch,d.Width*pixelBytes);
+    if(ok)for(UINT y=0;y<height;++y)memcpy(pixels.data()+size_t(y)*width*pixelBytes,
+        (BYTE*)lock.pBits+size_t(y+area.top)*lock.Pitch+size_t(area.left)*pixelBytes,width*pixelBytes);
     read->UnlockRect();if(!ok||!addBlob(name,pixels.data(),pixels.size()))return false;
-    std::ostringstream out;out<<"{\"kind\":\"water-image\",\"file\":\""<<name<<"\",\"width\":"<<d.Width<<",\"height\":"<<d.Height<<",\"format\":"<<DWORD(d.Format)<<",\"pixelBytes\":"<<pixelBytes<<"}\n";lines_+=out.str();return true;
+    std::ostringstream out;out<<"{\"kind\":\""<<(name.starts_with("surface-")?"surface-image":"water-image")<<"\",\"file\":\""<<name<<"\",\"width\":"<<width<<",\"height\":"<<height<<",\"format\":"<<DWORD(d.Format)<<",\"pixelBytes\":"<<pixelBytes
+        <<",\"x\":"<<area.left<<",\"y\":"<<area.top<<",\"sourceWidth\":"<<d.Width<<",\"sourceHeight\":"<<d.Height<<"}\n";lines_+=out.str();return true;
 }
 namespace {
 void ProbeTarget(IDirect3DDevice9* d,IDirect3DSurface9* target,UINT w,UINT h){
@@ -142,7 +152,7 @@ void ProbeTarget(IDirect3DDevice9* d,IDirect3DSurface9* target,UINT w,UINT h){
     d->SetTexture(0,nullptr);
 }
 }
-void PipelineProbe::readDepth(IDirect3DTexture9* source){
+void PipelineProbe::readDepth(IDirect3DTexture9* source,const std::string& name,const RECT* crop){
     D3DSURFACE_DESC desc{};if(!source||FAILED(source->GetLevelDesc(0,&desc)))return;
     if(size_t(desc.Width)*desc.Height*4>64*1024*1024-replayBytes_){truncated_=true;return;}
     StateGuard guard(device_);Com<IDirect3DTexture9> target;Com<IDirect3DSurface9> surface;Com<IDirect3DPixelShader9> ps;
@@ -155,7 +165,29 @@ void PipelineProbe::readDepth(IDirect3DTexture9* source){
     device_->SetSamplerState(0,D3DSAMP_ADDRESSU,D3DTADDRESS_CLAMP);device_->SetSamplerState(0,D3DSAMP_ADDRESSV,D3DTADDRESS_CLAMP);
     struct V{float x,y,z,w,u,v;};float w=float(desc.Width),h=float(desc.Height);
     V quad[]={{-.5f,-.5f,0,1,0,0},{w-.5f,-.5f,0,1,1,0},{-.5f,h-.5f,0,1,0,1},{w-.5f,h-.5f,0,1,1,1}};
-    if(SUCCEEDED(device_->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP,2,quad,sizeof(V))))readSurface(surface,"water-depth.r32f");
+    if(SUCCEEDED(device_->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP,2,quad,sizeof(V))))readSurface(surface,name,crop);
+}
+void PipelineProbe::surface(IDirect3DTexture9* before,IDirect3DTexture9* mask,IDirect3DTexture9* depth,IDirect3DSurface9* after){
+    if(!active_ || !surfaceOnly_ || frame_>=3 || (surfaceFrames_&(1u<<frame_)) || !before || !mask || !depth || !after)return;
+    surfaceFrames_|=1u<<frame_;
+    D3DSURFACE_DESC desc{};if(FAILED(after->GetDesc(&desc)))return;
+    // Three bounded lower-center crops retain native pixel coordinates and precision.
+    UINT width=std::min(960u,desc.Width),height=std::min(640u,desc.Height);
+    LONG x=LONG((desc.Width-width)/2),y=LONG((desc.Height-height)*2/3);
+    RECT crop{x,y,x+LONG(width),y+LONG(height)};
+    auto prefix="surface-"+std::to_string(frame_);
+    float constants[60*4]{};
+    bool uniforms=SUCCEEDED(device_->GetPixelShaderConstantF(0,constants,60)) &&
+        addBlob(prefix+"-ps.fp32",constants,sizeof(constants));
+    Com<IDirect3DSurface9> input,material;
+    bool color=SUCCEEDED(before->GetSurfaceLevel(0,input.out()))&&readSurface(input,prefix+"-before.argb",&crop);
+    bool receiver=SUCCEEDED(mask->GetSurfaceLevel(0,material.out()))&&readSurface(material,prefix+"-mask.rgba16f",&crop);
+    readDepth(depth,prefix+"-depth.r32f",&crop);
+    bool result=readSurface(after,prefix+"-after.argb",&crop);
+    std::ostringstream out;out<<"{\"kind\":\"surface-frame\",\"frame\":"<<frame_<<",\"prefix\":\""<<prefix
+        <<"\",\"uniforms\":"<<(uniforms?"true":"false")<<",\"color\":"<<(color?"true":"false")
+        <<",\"mask\":"<<(receiver?"true":"false")<<",\"result\":"<<(result?"true":"false")<<"}\n";
+    lines_+=out.str();
 }
 bool PipelineProbe::readVertices(const std::string& name,UINT count){
     if(lastUP_){
@@ -190,7 +222,7 @@ bool PipelineProbe::readVertices(const std::string& name,UINT count){
     device_->SetStreamSourceFreq(0,freq[0]);device_->SetStreamSourceFreq(1,freq[1]);return ok;
 }
 void PipelineProbe::water(WaterFX& water){
-    if(!active_||frame_!=0||!water.state_||lastApi_.empty())return;
+    if(!active_||surfaceOnly_||frame_!=0||!water.state_||lastApi_.empty())return;
     if(waterDraws_>=32){truncated_=true;return;}
     if(!waterSource_){
         waterSource_=true;readSurface(water.sceneSurface_,"water-color.argb");readDepth(water.depth_.texture());
@@ -215,7 +247,7 @@ void PipelineProbe::water(WaterFX& water){
     lines_+=out.str();lastUP_=nullptr;
 }
 void PipelineProbe::waterEnd(WaterFX& water){
-    if(!active_||frame_!=0||!waterSource_||waterFinished_)return;waterFinished_=true;
+    if(!active_||surfaceOnly_||frame_!=0||!waterSource_||waterFinished_)return;waterFinished_=true;
     StateGuard guard(device_);if(!guard.valid())return;
     readSurface(water.reflectionSurface_,"water-reflection.argb");
     Com<IDirect3DSurface9> bb;if(SUCCEEDED(device_->GetRenderTarget(0,bb.out())))readSurface(bb,"water-final.argb");

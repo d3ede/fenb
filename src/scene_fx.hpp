@@ -5,6 +5,9 @@
 #include <bcrypt.h>
 #include "scene_tags.hpp"
 #include "smaa.hpp"
+#ifdef FENB_DIAGNOSTICS
+class PipelineProbe;
+#endif
 
 // GPU-only depth optics. All targets and camera samples are scoped to one device/main frame.
 class SceneFX {
@@ -25,6 +28,9 @@ class SceneFX {
         }
     };
     IDirect3DDevice9 *device_;
+#ifdef FENB_DIAGNOSTICS
+    PipelineProbe *probe_ = nullptr;
+#endif
     DepthCopy depth_;
     Com<IDirect3DSurface9> worldDepth_;
     Smaa smaa_;
@@ -97,6 +103,9 @@ class SceneFX {
               IDirect3DTexture9 * = nullptr);
 
   public:
+#ifdef FENB_DIAGNOSTICS
+    void setProbe(PipelineProbe *probe) { probe_=probe; }
+#endif
     explicit SceneFX(IDirect3DDevice9 *d) : device_(d), depth_(d), smaa_(d) {}
     ~SceneFX() {
         invalidate();

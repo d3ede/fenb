@@ -6,6 +6,9 @@
 #include "generated/overlay_catalog.hpp"
 #include "generated/surface_catalog.hpp"
 #include <cstring>
+#ifdef FENB_DIAGNOSTICS
+#include "pipeline_probe.hpp"
+#endif
 namespace {
 struct PointSampler {
     IDirect3DDevice9 *device;
@@ -485,8 +488,12 @@ IDirect3DTexture9 *SceneFX::process(IDirect3DTexture9 *input, const Settings &s)
         device_->SetPixelShaderConstantF(58,environment,1);
         device_->SetTexture(7,skyEnvironment_);
         PointSampler maskSampler(device_, 2);
-        if (pass(surfaceOutput_, surfacePS_, input, depth_.texture(), surfaceMask_.texture))
+        if (pass(surfaceOutput_, surfacePS_, input, depth_.texture(), surfaceMask_.texture)) {
+#ifdef FENB_DIAGNOSTICS
+            if(probe_)probe_->surface(input,surfaceMask_.texture,depth_.texture(),surfaceOutput_.surface);
+#endif
             input = surfaceOutput_.texture;
+        }
         device_->SetTexture(7,nullptr);
     }
     device_->SetPixelShaderConstantF(20, positions_[0], 8);

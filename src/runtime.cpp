@@ -49,6 +49,7 @@ Runtime::Runtime(IDirect3DDevice9 *device)
     configTime_ = FileTime(configPath);
 #ifdef FENB_DIAGNOSTICS
     probe_ = std::make_unique<PipelineProbe>(device);
+    effects_->sceneFX().setProbe(probe_.get());
 #endif
 }
 Runtime::~Runtime() {
@@ -56,6 +57,7 @@ Runtime::~Runtime() {
     updateCursor(false);
     resetFrame();
 #ifdef FENB_DIAGNOSTICS
+    effects_->sceneFX().setProbe(nullptr);
     probe_.reset();
 #endif
     if (dirty_)

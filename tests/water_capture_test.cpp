@@ -11,6 +11,9 @@ struct PipelineProbeFixture {
     static bool vertices(PipelineProbe& p,UINT count){return p.readVertices("test-positions.fp32",count);}
     static bool payload(PipelineProbe& p,size_t bytes){unsigned char zero=0;return p.addBlob("rejected.bin",&zero,bytes);}
     static void exhaustDraws(PipelineProbe& p){p.draws_=12000;}
+    static bool crop(PipelineProbe& p,IDirect3DSurface9* s,const RECT& r){return p.readSurface(s,"surface-crop.rgba16f",&r);}
+    static void allowPoll(PipelineProbe& p){p.checked_=GetTickCount()-1001;}
+    static bool surfaceMode(PipelineProbe& p){return p.active_&&p.surfaceOnly_;}
 };
 int main(){
     CreateDirectoryW(L"build\\water-capture-test",nullptr);
@@ -82,6 +85,38 @@ int main(){
     CHECK(PipelineProbeFixture::blobs(probe).size()==blobCount);
     CHECK(!PipelineProbeFixture::payload(probe,65*1024*1024));
     probe.boundary();probe.boundary();probe.boundary();
+    CHECK(PipelineProbeFixture::blobs(probe).empty());
+    Com<IDirect3DTexture9> surfaceColor,surfaceMask;
+    Com<IDirect3DSurface9> colorTarget,maskTarget,originalTarget;
+    CHECK(SUCCEEDED(device->CreateTexture(320,240,1,D3DUSAGE_RENDERTARGET,D3DFMT_A8R8G8B8,D3DPOOL_DEFAULT,surfaceColor.out(),nullptr)));
+    CHECK(SUCCEEDED(device->CreateTexture(320,240,1,D3DUSAGE_RENDERTARGET,D3DFMT_A16B16G16R16F,D3DPOOL_DEFAULT,surfaceMask.out(),nullptr)));
+    CHECK(SUCCEEDED(surfaceColor->GetSurfaceLevel(0,colorTarget.out()))&&SUCCEEDED(surfaceMask->GetSurfaceLevel(0,maskTarget.out())));
+    device->GetRenderTarget(0,originalTarget.out());
+    device->SetDepthStencilSurface(nullptr);device->SetRenderTarget(0,colorTarget);
+    CHECK(SUCCEEDED(device->Clear(0,nullptr,D3DCLEAR_TARGET,0xff205080,1,0)));
+    device->SetRenderTarget(0,maskTarget);CHECK(SUCCEEDED(device->Clear(0,nullptr,D3DCLEAR_TARGET,0xff102030,1,0)));
+    device->SetRenderTarget(0,originalTarget);
+    const auto marker=ModuleDirectory()+L"FENB-surface.request";
+    FILE* request=_wfopen(marker.c_str(),L"wb");CHECK(request);fclose(request);
+    PipelineProbeFixture::allowPoll(probe);probe.boundary();
+    CHECK(PipelineProbeFixture::surfaceMode(probe)&&GetFileAttributesW(marker.c_str())==INVALID_FILE_ATTRIBUTES);
+    CHECK(PipelineProbeFixture::crop(probe,maskTarget,RECT{5,7,15,17}));
+    CHECK(PipelineProbeFixture::blobs(probe).back().bytes.size()==10*10*8);
+    CHECK(!PipelineProbeFixture::crop(probe,maskTarget,RECT{-1,0,15,17}));
+    for(int frame=0;frame<3;++frame) {
+        const auto previous=PipelineProbeFixture::blobs(probe).size();
+        CHECK(SUCCEEDED(device->BeginScene()));
+        device->SetPixelShaderConstantF(0,constants,1);
+        probe.surface(surfaceColor,surfaceMask,depth.texture(),colorTarget);
+        CHECK(PipelineProbeFixture::blobs(probe).size()==previous+5);
+        probe.surface(surfaceColor,surfaceMask,depth.texture(),colorTarget);
+        CHECK(PipelineProbeFixture::blobs(probe).size()==previous+5);
+        device->GetPixelShaderConstantF(0,values,1);CHECK(!memcmp(values,constants,16));
+        const auto &mask=PipelineProbeFixture::blobs(probe)[previous+2];
+        CHECK(mask.bytes.size()==320*240*8);
+        unsigned short alpha=0;memcpy(&alpha,mask.bytes.data()+6,2);CHECK(alpha==0x3c00);
+        CHECK(SUCCEEDED(device->EndScene()));probe.boundary();
+    }
     CHECK(PipelineProbeFixture::blobs(probe).empty());
     DestroyWindow(window);puts("PASS: write-only GPU vertex extraction with native offsets, exact R32F depth, state restoration, bounds and cleanup");
     return 0;
