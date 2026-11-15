@@ -476,6 +476,9 @@ IDirect3DTexture9 *SceneFX::process(IDirect3DTexture9 *input, const Settings &s)
         reduceEmitters(s);
     c[19][3] = s.localLighting && (emitters_ || lights_) && localField_.texture.p ? 1.f : 0.f;
     device_->SetPixelShaderConstantF(0, c[0], 20);
+    float depthPrecision[]={depth_.quantum(),s.surfaceReflections && surfaceCaptured_?1.f:0.f,
+                            depth_.quantum()/std::max(.000001f,std::abs(projection_._43)),0};
+    device_->SetPixelShaderConstantF(60,depthPrecision,1);
     if (s.surfaceReflections && surfaceCaptured_ && s.surfaceStrength > 0 &&
         (surfacePS_.p || SUCCEEDED(device_->CreatePixelShader(ShaderSurfaceReflectionPS, surfacePS_.out()))) &&
         surfaceOutput_.make(device_, output_.width, output_.height)) {
@@ -512,6 +515,8 @@ IDirect3DTexture9 *SceneFX::process(IDirect3DTexture9 *input, const Settings &s)
         device_->SetTexture(1, depth_.texture());
         device_->SetTexture(2, emitterPosition_[3].texture);
         device_->SetTexture(3, emitterColor_[3].texture);
+        PointSampler receivers(device_,5);
+        device_->SetTexture(5,depthPrecision[1]>.5f?surfaceMask_.texture.p:nullptr);
         struct V {
             float x, y, z, w, u, v;
         };

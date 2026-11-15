@@ -62,7 +62,8 @@ struct SceneFXFixture {
     static IDirect3DVertexShader9 *skyProgram(SceneFX &fx) {
         return fx.skyVS_;
     }
-    static float lightMaximum(SceneFX &fx, IDirect3DDevice9 *d) {
+    static float lightMaximum(SceneFX &fx, IDirect3DDevice9 *d,
+                              float expectedAlpha=-1,float *normalError=nullptr) {
         Com<IDirect3DSurface9> read;
         if (FAILED(d->CreateOffscreenPlainSurface(fx.localField_.width, fx.localField_.height,
                                                   D3DFMT_A16B16G16R16F, D3DPOOL_SYSTEMMEM, read.out(),
@@ -77,12 +78,26 @@ struct SceneFXFixture {
             int e = (h >> 10) & 31;
             return (h & 0x8000 ? -1.f : 1.f) * (e ? std::ldexp(1 + v, e - 15) : std::ldexp(v, -14));
         };
+        auto energy=[&](UINT x,UINT y) {
+            auto *pixel=(unsigned short *)((BYTE *)lock.pBits+y*lock.Pitch)+x*4;
+            return half(pixel[0])+half(pixel[1])+half(pixel[2]);
+        };
         float maximum = 0;
+        unsigned normalSamples=0;
         for (UINT y = 0; y < fx.localField_.height; ++y)
             for (UINT x = 0; x < fx.localField_.width; ++x) {
                 auto *p = (unsigned short *)((BYTE *)lock.pBits + y * lock.Pitch) + x * 4;
                 maximum = std::max(maximum, half(p[0]) + half(p[1]) + half(p[2]));
+                // MSAA silhouette samples may cover geometry outside the single-sample
+                // material mask. Measure the plane's normal inside its lit interior.
+                if(normalError && x>1 && y>1 && x+2<fx.localField_.width && y+2<fx.localField_.height &&
+                   energy(x,y)>.05f && energy(x-2,y)>.05f && energy(x+2,y)>.05f &&
+                   energy(x,y-2)>.05f && energy(x,y+2)>.05f) {
+                    ++normalSamples;
+                    *normalError=std::max(*normalError,std::abs(half(p[3])-expectedAlpha));
+                }
             }
+        if(normalError && normalSamples<100)*normalError=1;
         read->UnlockRect();
         return maximum;
     }
@@ -177,8 +192,12 @@ int main(int argc, char **argv) {
     pp.SwapEffect = D3DSWAPEFFECT_DISCARD;
     pp.EnableAutoDepthStencil = TRUE;
     pp.AutoDepthStencilFormat = D3DFMT_D24X8;
-    if (argc > 1 && !surfaceBenchmark)
-        pp.MultiSampleType = D3DMULTISAMPLE_8_SAMPLES;
+    bool surfaceOnly=false;
+    for(int i=1;i<argc;++i) {
+        if(!strcmp(argv[i],"--depth16"))pp.AutoDepthStencilFormat=D3DFMT_D16;
+        if(!strcmp(argv[i],"--msaa"))pp.MultiSampleType=D3DMULTISAMPLE_8_SAMPLES;
+        if(!strcmp(argv[i],"--surface-tests"))surfaceOnly=true;
+    }
     Com<IDirect3DDevice9> d;
     CHECK(SUCCEEDED(
         root->CreateDevice(0, D3DDEVTYPE_HAL, window, D3DCREATE_HARDWARE_VERTEXPROCESSING, &pp, d.out())));
@@ -268,6 +287,7 @@ int main(int argc, char **argv) {
     unsigned surfaceTiles=1, surfaceUnknownTiles=0, surfaceLayers=1;
     bool surfaceBuffered=true, surfaceBlend=false, surfaceBadNormals=false, surfaceGradient=false;
     bool surfaceInvisibleLayer=false;
+    bool pavingChecker=false;
     float surfaceDepthBias=0, surfaceSlopeBias=0;
     bool surfaceVerticesReady=false, surfaceVerticesGrass=false;
     Com<IDirect3DVertexBuffer9> surfaceVertices;
@@ -400,7 +420,7 @@ int main(int argc, char **argv) {
             for (int z = -5; z < 100; ++z)
                 for (int x = -15; x < 15; ++x) {
                     DWORD c = darkScene ? 0xff25211c : ((x + z) & 1 ? 0xff7c725a : 0xffb2a581);
-                    if(planeOnly)c=0xff808080;
+                    if(planeOnly && !pavingChecker)c=0xff808080;
                     for (auto v : std::initializer_list<Vertex>{{float(x), 0, float(z), c},
                                                                 {float(x), 0, float(z + 1), c},
                                                                 {float(x + 1), 0, float(z), c},
@@ -614,6 +634,7 @@ int main(int argc, char **argv) {
     auto original = Read(d);
     CHECK(original.size() == W * H);
     CHECK(Save(original, L"build/scene-original.bmp"));
+    if(!surfaceOnly) {
     settings.color=true;settings.exposure=1;
     CHECK(render());auto normalPost=Read(d);
     hostilePostState=true;
@@ -933,6 +954,7 @@ int main(int argc, char **argv) {
     CHECK(nightOn[12 * W + 12] == nightOff[12 * W + 12]); // HUD remains exact.
     CHECK(Save(nightOff, L"build/scene-night-light-off.bmp"));
     CHECK(Save(nightOn, L"build/scene-night-light-on.bmp"));
+    }
     darkScene = false;
     emit = occluded = false;
     nativePoint = true;
@@ -1036,7 +1058,30 @@ int main(int argc, char **argv) {
         CHECK(maximumDelta(skyOnlyStone,tracedStone)<=(pp.MultiSampleType?32u:1u));
         CHECK(interior>100 && untouched<interior/50);
     }
-    surfaceBlend=true;surfaceDepthBias=surfaceSlopeBias=0;sceneOffset={7000,100,3300};
+    // Contrast on an empty receiver exposes false self-hits as displaced tile textures.
+    // Sweep fractional camera positions with the native game's D16 path as well as D24.
+    surfaceDepthBias=surfaceSlopeBias=0;pavingChecker=true;
+    for(bool detailed:{false,true})for(float elevation:{12.f,35.f,65.f,120.f,180.f})for(int motion=0;motion<3;++motion) {
+        settings.sceneQuality=detailed;cameraHeight=elevation+.17f*motion;cameraYaw=.3f+.003f*motion;
+        settings.surfaceDistance=0;CHECK(render());const auto environmentOnly=Read(d);
+        settings.surfaceDistance=100;CHECK(render());const auto traced=Read(d);
+        printf("Textured empty paving: height=%.2f detailed=%d delta=%u\n",cameraHeight,detailed,maximumDelta(environmentOnly,traced));
+        CHECK(maximumDelta(environmentOnly,traced)<=pavingResolveTolerance);
+    }
+    pavingChecker=false;
+    // Quantized depth must not turn a known horizontal receiver's light normal into
+    // a staircase. Test both field resolutions while the camera moves above the lamp.
+    settings.localLighting=true;nativePoint=true;settings.localRange=8;
+    for(bool detailed:{false,true})for(int motion=0;motion<6;++motion) {
+        settings.sceneQuality=detailed;cameraHeight=35+.17f*motion;cameraYaw=.3f+.003f*motion;
+        CHECK(render());float error=0;
+        const float expectedAlpha=(1-cameraHeight/std::sqrt(cameraHeight*cameraHeight+144))*.5f;
+        const float energy=SceneFXFixture::lightMaximum(fx.sceneFX(),d,expectedAlpha,&error);
+        printf("Moving paving light: detailed=%d frame=%d energy=%.3f normal error=%.5f\n",detailed,motion,energy,error);
+        CHECK(energy>.05f && error<.005f);
+    }
+    settings.localLighting=false;nativePoint=false;settings.localRange=1.55f;
+    surfaceBlend=true;sceneOffset={7000,100,3300};
     // Both constant and spatially varying coverage must remain continuous while
     // camera height changes through fractional values during a jump.
     for(bool buffered:{false,true})for(bool gradient:{false,true})for(const auto layers:std::array<std::array<unsigned,2>,3>{{{16,16},{16,64},{32,4}}})for(float elevation:{4.f,12.f,35.f,65.f,120.f}) {
@@ -1125,6 +1170,11 @@ int main(int argc, char **argv) {
     settings.surfaceStrength=0;CHECK(render());
     CHECK(maximumDelta(pavingOff,Read(d))<=(pp.MultiSampleType?32u:0u));
     settings.surfaceReflections=false; surfaceFixture=false;
+    if(surfaceOnly) {
+        fx.invalidate();DestroyWindow(window);
+        puts("PASS: surface reflections, moving receivers, local paving lighting and HUD isolation.");
+        return 0;
+    }
     settings.fxaa = true;
     CHECK(render());
     auto antialias = Read(d);

@@ -10,6 +10,7 @@ float4 SurfaceControls : register(c56); // strength, roughness, trace distance, 
 float4 SurfaceLight : register(c57); // view-space directional light, daylight
 float4 SurfaceEnvironment : register(c58); // captured sky available
 float4 SurfaceDepth : register(c59); // projection _43, native depth bias, native slope-scale bias
+float4 DepthPrecision : register(c60); // depth quantum, receiver mask available, quantum / abs(_43)
 float4 Camera : register(c0);
 float4 Viewport : register(c1);
 float4 Texel : register(c2);
@@ -43,6 +44,30 @@ float3 Point(float2 uv,float z) {
     uv=DepthUV(uv)-Texel.xy*.5;
     float2 ndc=(uv-Viewport.xy)/Viewport.zw*float2(2,-2)+float2(-1,1);
     return float3(ndc/Camera.xy,1)*z;
+}
+float DepthUncertainty(float z) {
+    return z*z*DepthPrecision.z;
+}
+float ReceiverDepth(float raw,float height,float3 ray,float3 n) {
+    float center=dot(ray,n),span=dot(abs(n.xy),Texel.xy/(Camera.xy*Viewport.zw));
+    if(abs(center)<=span)return 0;
+    float z=height/center;
+    if(z<=0 || z>10000)return 0;
+    float za=height/(center-span),zb=height/(center+span);
+    float precision=max(.012,z*.0015); // FP16 receiver height and transform arithmetic.
+    // Compare in device depth, where D16 has a constant quantization interval.
+    // A linear-z percentage alone rejects alternating depth steps as the camera moves.
+    float nearZ=max(.001,min(za,zb)-precision),farZ=max(nearZ,max(za,zb)+precision);
+    float lower=Camera.z+Camera.w/nearZ,upper=Camera.z+Camera.w/farZ;
+    float quantum=DepthPrecision.x*.6+.00000012;
+    return raw>=lower-quantum && raw<=upper+quantum?z:0;
+}
+float AboveReceiver(float2 uv,float z,float3 n,float plane) {
+    float3 ray=Point(uv,1);
+    float span=dot(abs(n.xy),Texel.xy/(Camera.xy*Viewport.zw));
+    float uncertainty=abs(dot(ray,n))*DepthUncertainty(z)+span*z+max(.012,z*.0015);
+    // A coarse depth step on the paving is never evidence of an object above it.
+    return saturate((dot(ray*z,n)-plane-.035-uncertainty)/.065);
 }
 float3 SurfaceNormal(float2 uv,float3 p) {
     // Pick the same surface on each axis; derivatives across silhouettes invent slanted receivers.
@@ -428,6 +453,12 @@ float4 EmitterSum(float2 uv:TEXCOORD0):COLOR0 {
 }
 float4 EmitterLighting(float2 uv:TEXCOORD0):COLOR0 {
     float raw=RawDepth(uv),z=Z(uv);float3 p=Point(uv,z),n=SurfaceNormal(uv,p);
+    if(DepthPrecision.y>.5) {
+        float4 receiver=tex2Dlod(SkyBackdrop,float4(DepthUV(uv),0,0));
+        float3 planeNormal=normalize(View[1].xyz);
+        float planeZ=ReceiverDepth(raw,receiver.b,Point(uv,1),planeNormal);
+        if(receiver.a>.0001 && planeZ>0) {p=Point(uv,planeZ);n=planeNormal;}
+    }
     float3 light=0;
     [loop]for(int j=0;j<8;++j){
         if(j>=Local.x)break;
@@ -524,15 +555,10 @@ float4 SurfaceReflectionPS(float2 uv:TEXCOORD0):COLOR0 {
  // Resolve depth may come from any MSAA sample inside this pixel. Bound that
  // range using the replayed plane, not neighboring foreground/background depths.
  // A fixed world-space tolerance cuts the far end of grazing paving into bands.
- float center=dot(ray,n),span=dot(abs(n.xy),Texel.xy/(Camera.xy*Viewport.zw));
- if(abs(center)<=span)return base;
- material.b/=center; // Intersect this pixel's view ray with the stored receiver height.
- if(material.b<=0 || material.b>10000)return base;
- float plane=material.b*center;
- float za=plane/(center-span),zb=plane/(center+span);
- float precision=max(.012,material.b*.0015);
- if(z<min(za,zb)-precision || z>max(za,zb)+precision)return base;
- float3 p=ray*material.b;
+ float plane=material.b;
+ float receiverZ=ReceiverDepth(raw,plane,ray,n);
+ if(receiverZ<=0)return base;
+ float3 p=ray*receiverZ;
  // The material replay accepts horizontal surfaces only. Their geometry normal avoids
  // differentiating quantized or multisample-resolved depth into a noisy mirror direction.
  float3 direction=reflect(normalize(p),n),origin=p+n*.035;
@@ -555,15 +581,16 @@ float4 SurfaceReflectionPS(float2 uv:TEXCOORD0):COLOR0 {
     if(candidate.z>Z(st))hi=mid;else lo=mid;
    }
    q=origin+direction*hi;at=SurfaceProject(q);depth=Z(at);
-   float tolerance=max(.025,depth*.0015);
+   float tolerance=max(.025,depth*.0015)+DepthUncertainty(depth);
    float dz=abs(q.z-depth);
    // Reject unsupported crossings and thin foliage silhouettes, rather than stretching them.
    float spread=max(abs(Z(at+dx)-depth),abs(Z(at-dx)-depth));
    spread=max(spread,max(abs(Z(at+dy)-depth),abs(Z(at-dy)-depth)));
-   if(RawDepth(at)<.999999 && dz<tolerance && spread<max(.12,depth*.01)) {
-    found=saturate(1-dz/(tolerance*3));hit=at;hitZ=depth;
+   float above=AboveReceiver(at,depth,n,plane);
+   if(RawDepth(at)<.999999 && dz<tolerance && spread<max(.12,depth*.01)+2*DepthUncertainty(depth) && above>0) {
+    found=saturate(1-dz/(tolerance*3))*above;hit=at;hitZ=depth;
+    break;
    }
-   break;
   }
   previousT=t;previousDelta=delta;
  }
@@ -583,7 +610,8 @@ float4 SurfaceReflectionPS(float2 uv:TEXCOORD0):COLOR0 {
   float3 sum=tex2Dlod(Image,float4(hit,0,0)).rgb*2;float weight=2;
   [loop]for(int tap=0;tap<8;++tap) {
    float2 at=hit+Kernel(tap)*Texel.xy*radius*sqrt((tap+.5)/8);
-   float w=exp(-abs(Z(at)-hitZ)/max(.03,hitZ*.002));
+   float tapZ=Z(at);
+   float w=exp(-abs(tapZ-hitZ)/max(.03,hitZ*.002))*AboveReceiver(at,tapZ,n,plane);
    sum+=tex2Dlod(Image,float4(at,0,0)).rgb*w;weight+=w;
   }
   reflection=lerp(environment,sum/weight,found*saturate(edge/.025));
