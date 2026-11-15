@@ -265,7 +265,7 @@ int main(int argc, char **argv) {
     // Native building light maps can leave stage 1 selecting the unchanged stage-0 result.
     DWORD emitterStage1 = D3DTOP_DISABLE, emitterStage1Argument = D3DTA_CURRENT;
     bool surfaceFixture = false, surfaceGrass = false, atlasGrass = false, surfacePattern = false;
-    unsigned surfaceTiles=1, surfaceUnknownTiles=0;
+    unsigned surfaceTiles=1, surfaceUnknownTiles=0, surfaceLayers=1;
     bool surfaceBuffered=true, surfaceBlend=false, surfaceBadNormals=false;
     float surfaceDepthBias=0, surfaceSlopeBias=0;
     bool surfaceVerticesReady=false, surfaceVerticesGrass=false;
@@ -429,7 +429,7 @@ int main(int argc, char **argv) {
                     }
                     d->SetStreamSource(0,surfaceVertices,0,sizeof(PavingVertex));
                 }
-                for(unsigned tile=0;tile<surfaceTiles;++tile) {
+                for(unsigned layer=0;layer<surfaceLayers;++layer)for(unsigned tile=0;tile<surfaceTiles;++tile) {
                     const UINT first=UINT(maskFloor.size()/3)*tile/surfaceTiles;
                     const UINT end=UINT(maskFloor.size()/3)*(tile+1)/surfaceTiles;
                     fx.sceneFX().captureSurface(settings,[&] {
@@ -1019,6 +1019,26 @@ int main(int argc, char **argv) {
         CHECK(maximumDelta(skyOnlyStone,tracedStone)<=(pp.MultiSampleType?32u:1u));
         CHECK(interior>100 && untouched<interior/50);
     }
+    surfaceBlend=true;surfaceDepthBias=surfaceSlopeBias=0;sceneOffset={7000,100,3300};
+    for(const auto layers:std::array<std::array<unsigned,2>,3>{{{16,16},{16,64},{32,4}}})for(float elevation:{65.f,120.f}) {
+        surfaceLayers=layers[0];CHECK(setSurfaceCoverage(BYTE(layers[1])));cameraHeight=elevation;
+        for(int motion=0;motion<6;++motion) {
+            cameraYaw=.3f+motion*.002f;settings.surfaceStrength=0;CHECK(render());const auto bare=Read(d);
+            settings.surfaceStrength=1;CHECK(render());const auto coated=Read(d);unsigned untouched=0,interior=0;
+            for(UINT y=4;y+4<H;++y)for(UINT x=4;x+4<W;++x) {
+                const size_t at=y*W+x;
+                if((bare[at]&0xffffff)!=0x808080 || (bare[at-4]&0xffffff)!=0x808080 ||
+                   (bare[at+4]&0xffffff)!=0x808080 || (bare[at-4*W]&0xffffff)!=0x808080 ||
+                   (bare[at+4*W]&0xffffff)!=0x808080)continue;
+                ++interior;untouched+=(coated[at]&0xffffff)==0x808080;
+            }
+            printf("Moving layered paving: layers=%u alpha=%u height=%.0f frame=%d missing=%u/%u\n",
+                layers[0],layers[1],elevation,motion,untouched,interior);
+            CHECK(Save(coated,L"build/surface-moving-layers.bmp"));
+            CHECK(interior>100 && untouched<std::max(4u,interior/2000));
+        }
+    }
+    surfaceLayers=1;surfaceBlend=false;sceneOffset={};
     cameraOrbit=false;cameraYaw=0;cameraHeight=4;surfaceDepthBias=surfaceSlopeBias=0;settings.surfaceDistance=50;settings.sceneQuality=false;
     foreground=true;settings.surfaceStrength=0;CHECK(render());const auto nativeBody=Read(d);
     settings.surfaceStrength=1;CHECK(render());const auto reflectedGround=Read(d);unsigned bodyPixels=0;

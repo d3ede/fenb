@@ -502,7 +502,9 @@ float4 SurfaceMaskPS(float2 blendUV:TEXCOORD0,float depth:TEXCOORD1,float3 world
  float slope=max(abs(ddx(projected)),abs(ddy(projected)));
  float offset=SurfaceDepth.y+SurfaceDepth.z*slope;
  float receiver=depth/max(.000001,1+offset*depth/SurfaceDepth.x);
- return float4(response,receiver,Camera.z>.5?tex2D(Depth,blendUV).a:1);
+ // A horizontal receiver has constant camera-relative height, unlike view Z,
+ // whose FP16 rounding changes every scanline and accumulates across terrain layers.
+ return float4(response,world.y*(receiver/depth),Camera.z>.5?tex2D(Depth,blendUV).a:1);
 }
 float2 SurfaceProject(float3 p) {
  return (p.xy*Camera.xy/p.z*float2(.5,-.5)+.5)*Viewport.zw+Viewport.xy+Texel.xy*.5;
@@ -510,10 +512,10 @@ float2 SurfaceProject(float3 p) {
 float4 SurfaceReflectionPS(float2 uv:TEXCOORD0):COLOR0 {
  float4 base=tex2D(Image,uv),material=tex2Dlod(AO,float4(DepthUV(uv),0,0));
  float raw=RawDepth(uv),z=Z(uv);
- // The replay records receiver depth. Later characters, water and props cannot inherit it.
+ // The replay records receiver height. Later characters, water and props cannot inherit it.
  if(material.r<.001 || material.a<.0001 || raw>=.999999)return base;
  // RGB stores alpha-weighted terrain layers; alpha stores their accumulated coverage.
- // Normalize depth/roughness, while reflectance must retain its native blend coverage.
+ // Normalize height/roughness, while reflectance must retain its native blend coverage.
  material.gb/=material.a;
  float2 dx=float2(Texel.x,0),dy=float2(0,Texel.y);
  float3 n=normalize(View[1].xyz),ray=Point(uv,1);
@@ -522,6 +524,8 @@ float4 SurfaceReflectionPS(float2 uv:TEXCOORD0):COLOR0 {
  // A fixed world-space tolerance cuts the far end of grazing paving into bands.
  float center=dot(ray,n),span=dot(abs(n.xy),Texel.xy/(Camera.xy*Viewport.zw));
  if(abs(center)<=span)return base;
+ material.b/=center; // Intersect this pixel's view ray with the stored receiver height.
+ if(material.b<=0 || material.b>10000)return base;
  float plane=material.b*center;
  float za=plane/(center-span),zb=plane/(center+span);
  float precision=max(.012,material.b*.0015);
