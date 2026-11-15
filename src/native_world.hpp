@@ -1,6 +1,6 @@
 #pragma once
 #include "common.hpp"
-#include "client_layout.hpp"
+#include "native_binding.hpp"
 #include "native_patch.hpp"
 #include "hybrid_time.hpp"
 #include "visual_transform.hpp"
@@ -8,8 +8,8 @@
 #include <cstring>
 
 // The native world keeps its object iteration, link maintenance and deletion order.
-// Only the scheduling at its verified call sites changes. All addresses are RVAs
-// of the inspected Homesickness ABI and are rejected when the bytes disagree.
+// Only the scheduling at its verified call sites changes. Reference RVAs resolve
+// through the complete ABI binding; changed instructions are rejected.
 namespace native_world {
 struct Vec { float x,y,z; };
 template<class T> inline T &field(void *p,size_t offset) { return *reinterpret_cast<T *>(static_cast<char *>(p)+offset); }
@@ -30,7 +30,7 @@ inline int *waterCount=nullptr;
 inline void **waterDefinitions=nullptr;
 inline float *waterFrames=nullptr;
 inline int *weatherEnabled=nullptr;
-inline native_patch::Set patches;
+inline native_binding::Set patches;
 inline bool active=false;
 inline void *observedWorld=nullptr,*observedDevice=nullptr;
 inline std::unordered_map<void **,bool> refreshableSfx;
@@ -251,8 +251,7 @@ inline BOOL __fastcall effectHook(void *model,void *) {
 
 inline bool install() {
     if(active) return true;
-    auto image=native_patch::image();client_detail::Image scan(image);
-    auto *base=reinterpret_cast<unsigned char *>(image);
+    auto image=native_patch::image();native_binding::Image scan(image);
     if(!scan.bytes(0x38fc90,"55 8B EC 83 EC 24 A1 ?? ?? ?? ?? 33 C5 89 45 FC 53 56 8B 35 ?? ?? ?? ??") ||
        !scan.bytes(0x357da0,"55 8B EC 83 E4 F8 83 EC 14 A1 ?? ?? ?? ?? 33 C4 89 44 24 10 53 56 57") ||
        !scan.bytes(0x2d7180,"55 8B EC 83 EC 08 53 8B 5D 08 0F B6 C3 35 C5 9D 1C 81") ||
@@ -265,39 +264,39 @@ inline bool install() {
        !scan.bytes(0x352380,"55 8B EC 83 E4 F8 83 EC 6C 53 8B D9 33 D2 56") ||
        !scan.bytes(0x3bdd40,"8B 0D ?? ?? ?? ?? 56 33 F6 85 C9 7E 59") ||
        !scan.bytes(0x837f2c,"2E 3F 41 56 43 53 66 78 53 68 6F 6F 74 40 40 00")) return false;
-    originalWorld=reinterpret_cast<Process>(base+0x38fc90);
-    originalWeather=reinterpret_cast<Process>(base+0x388620);
-    originalInitFall=reinterpret_cast<Process>(base+0x388240);weatherEnabled=reinterpret_cast<int *>(base+0x92674c);
-    originalItem=reinterpret_cast<Process>(base+0x304f80);baseObjectProcess=reinterpret_cast<Process>(base+0x32d5c0);
-    originalLua=reinterpret_cast<Process>(base+0x354620);
-    originalEffect=reinterpret_cast<EffectProcess>(base+0x352380);
-    originalCleanup=reinterpret_cast<Cleanup>(base+0x3bdd40);
-    resolve=reinterpret_cast<Resolve>(base+0x2d7180);setPos=reinterpret_cast<SetPos>(base+0x32de20);
-    ctrlMap=base+0x86c12c;shootType=base+0x837f24;
-    worldSlot=reinterpret_cast<void **>(base+0x86c07c);playerSlot=reinterpret_cast<void **>(base+0x841ccc);
-    activePlayerSlot=reinterpret_cast<void **>(base+0x842168);wndWorldSlot=reinterpret_cast<void **>(base+0x91d760);
-    cameraSlot=reinterpret_cast<void **>(base+0x847aa8);nativeCamera=base+0x869f64;
-    waterCount=reinterpret_cast<int *>(base+0x8f854c);waterDefinitions=reinterpret_cast<void **>(base+0x8f8550);
-    waterFrames=reinterpret_cast<float *>(base+0x8f8554);
+    originalWorld=reinterpret_cast<Process>(scan.address(0x38fc90));
+    originalWeather=reinterpret_cast<Process>(scan.address(0x388620));
+    originalInitFall=reinterpret_cast<Process>(scan.address(0x388240));weatherEnabled=reinterpret_cast<int *>(scan.address(0x92674c));
+    originalItem=reinterpret_cast<Process>(scan.address(0x304f80));baseObjectProcess=reinterpret_cast<Process>(scan.address(0x32d5c0));
+    originalLua=reinterpret_cast<Process>(scan.address(0x354620));
+    originalEffect=reinterpret_cast<EffectProcess>(scan.address(0x352380));
+    originalCleanup=reinterpret_cast<Cleanup>(scan.address(0x3bdd40));
+    resolve=reinterpret_cast<Resolve>(scan.address(0x2d7180));setPos=reinterpret_cast<SetPos>(scan.address(0x32de20));
+    ctrlMap=scan.address(0x86c12c);shootType=scan.address(0x837f24);
+    worldSlot=reinterpret_cast<void **>(scan.address(0x86c07c));playerSlot=reinterpret_cast<void **>(scan.address(0x841ccc));
+    activePlayerSlot=reinterpret_cast<void **>(scan.address(0x842168));wndWorldSlot=reinterpret_cast<void **>(scan.address(0x91d760));
+    cameraSlot=reinterpret_cast<void **>(scan.address(0x847aa8));nativeCamera=scan.address(0x869f64);
+    waterCount=reinterpret_cast<int *>(scan.address(0x8f854c));waterDefinitions=reinterpret_cast<void **>(scan.address(0x8f8550));
+    waterFrames=reinterpret_cast<float *>(scan.address(0x8f8554));
     const unsigned char dispatch[]={0x8b,0x01,0xff,0x50,0x18};
     const unsigned char worldCall[]={0xe8,0xf9,0xf3,0x24,0x00},weatherCall[]={0xe8,0x1f,0x87,0xff,0xff};
     const unsigned char luaCall[]={0xe8,0xb7,0x46,0xfc,0xff};
     const unsigned char effectCall[]={0xe8,0x7e,0x4d,0x02,0x00};
     const unsigned char cleanupCall[]={0xe8,0xcb,0xde,0x02,0x00};
-    bool ok=patches.call(base+0x140892,worldCall,reinterpret_cast<void *>(&legacyWorldHook)) &&
-        patches.call(base+0x38fd12,dispatch,reinterpret_cast<void *>(&dispatchHook)) &&
-        patches.call(base+0x38fe1d,dispatch,reinterpret_cast<void *>(&dispatchHook)) &&
-        patches.call(base+0x38fefc,weatherCall,reinterpret_cast<void *>(&weatherHook)) &&
-        patches.call(base+0x38ff64,luaCall,reinterpret_cast<void *>(&luaHook)) &&
-        patches.call(base+0x32d5fd,effectCall,reinterpret_cast<void *>(&effectHook)) &&
-        patches.call(base+0x38fe70,cleanupCall,reinterpret_cast<void *>(&postObjectsHook));
+    bool ok=patches.call(scan.address(0x140892),worldCall,reinterpret_cast<void *>(&legacyWorldHook)) &&
+        patches.call(scan.address(0x38fd12),dispatch,reinterpret_cast<void *>(&dispatchHook)) &&
+        patches.call(scan.address(0x38fe1d),dispatch,reinterpret_cast<void *>(&dispatchHook)) &&
+        patches.call(scan.address(0x38fefc),weatherCall,reinterpret_cast<void *>(&weatherHook)) &&
+        patches.call(scan.address(0x38ff64),luaCall,reinterpret_cast<void *>(&luaHook)) &&
+        patches.call(scan.address(0x32d5fd),effectCall,reinterpret_cast<void *>(&effectHook)) &&
+        patches.call(scan.address(0x38fe70),cleanupCall,reinterpret_cast<void *>(&postObjectsHook));
     unsigned char oldWater[10]={0x33,0xd2,0x39,0x15,0,0,0,0,0x7e,0x4b};
     const uint32_t countAddress=uint32_t(reinterpret_cast<uintptr_t>(waterCount));std::memcpy(oldWater+4,&countAddress,4);
     unsigned char newWater[10]={0xe8,0,0,0,0,0xe9};
-    const uint32_t callback=uint32_t(reinterpret_cast<uintptr_t>(&waterHook)-reinterpret_cast<uintptr_t>(base+0x38ff08)-5);
-    const uint32_t continuation=0x38ff5d-(0x38ff08+10);
+    const uint32_t callback=uint32_t(reinterpret_cast<uintptr_t>(&waterHook)-reinterpret_cast<uintptr_t>(scan.address(0x38ff08))-5);
+    const uint32_t continuation=uint32_t(scan.address(0x38ff5d)-(scan.address(0x38ff08)+10));
     std::memcpy(newWater+1,&callback,4);std::memcpy(newWater+6,&continuation,4);
-    ok=ok && patches.add(base+0x38ff08,oldWater,newWater,sizeof(oldWater));
+    ok=ok && patches.add(scan.address(0x38ff08),oldWater,newWater,sizeof(oldWater));
     if(!ok || !patches.apply()) { patches.clear();return false; }
     active=true;Log("FPS native hybrid: continuous world, legacy SFX, destination attachment refresh, delta-time weather and water installed.");return true;
 }

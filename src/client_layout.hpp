@@ -25,6 +25,8 @@ class Image {
     HMODULE module_;
     DWORD size_ = 0;
     std::vector<Section> sections_;
+    mutable std::vector<std::pair<DWORD,DWORD>> pointers_;
+    mutable bool indexed_ = false;
 
   public:
     explicit Image(HMODULE module) : module_(module) {
@@ -90,16 +92,27 @@ class Image {
         std::vector<int> p;
         while (input >> token)
             p.push_back(token == "??" ? -1 : std::stoi(token, nullptr, 16));
+        size_t seed=0,length=0,run=0;
+        for(size_t i=0;i<=p.size();++i) {
+            if(i<p.size() && p[i]>=0)++run;
+            else { if(run>length) { seed=i-run;length=run; }run=0; }
+        }
+        if(!length)return 0;
+        std::vector<unsigned char> literal;
+        for(size_t i=0;i<length;++i)literal.push_back(static_cast<unsigned char>(p[seed+i]));
         DWORD result = 0;
         for (auto &s : sections_)
             if (s.flags & IMAGE_SCN_MEM_EXECUTE) {
                 if (s.bytes.size() < p.size())
                     continue;
-                for (size_t at = 0; at <= s.bytes.size() - p.size(); ++at) {
-                    if (p[0] >= 0 && s.bytes[at] != p[0])
-                        continue;
+                const size_t last=s.bytes.size()-p.size();
+                for (size_t cursor=0;cursor<=last;) {
+                    const auto *found=static_cast<const unsigned char *>(std::memchr(s.bytes.data()+cursor+seed,literal[0],last-cursor+1));
+                    if(!found)break;
+                    const size_t at=size_t(found-s.bytes.data())-seed;cursor=at+1;
+                    if(std::memcmp(found,literal.data(),length))continue;
                     bool match = true;
-                    for (size_t i = 1; i < p.size(); ++i)
+                    for (size_t i = 0; i < p.size(); ++i)
                         if (p[i] >= 0 && s.bytes[at + i] != p[i]) {
                             match = false;
                             break;
@@ -140,6 +153,54 @@ class Image {
             }
         }
         return result;
+    }
+    DWORD string(const char *text) const {
+        const size_t n=std::strlen(text)+1;
+        DWORD result=0;
+        for(const auto &s:sections_) {
+            if(!(s.flags&IMAGE_SCN_MEM_READ) || (s.flags&IMAGE_SCN_MEM_EXECUTE))continue;
+            auto cursor=s.bytes.begin();
+            while(cursor!=s.bytes.end()) {
+                auto found=std::search(cursor,s.bytes.end(),text,text+n);
+                if(found==s.bytes.end())break;
+                if(result)return 0;
+                result=s.rva+DWORD(found-s.bytes.begin());cursor=found+1;
+            }
+        }
+        return result;
+    }
+    DWORD typeTable(DWORD descriptor) const {
+        if(!descriptor)return 0;
+        if(!indexed_) {
+            for(const auto &s:sections_) {
+                if(!(s.flags&IMAGE_SCN_MEM_READ) || (s.flags&(IMAGE_SCN_MEM_EXECUTE|IMAGE_SCN_MEM_WRITE)))continue;
+                for(DWORD offset=0;offset+4<=s.size;offset+=4) {
+                    const DWORD target=relative(value(s.rva+offset));
+                    if(target)pointers_.emplace_back(target,s.rva+offset);
+                }
+            }
+            std::sort(pointers_.begin(),pointers_.end());indexed_=true;
+        }
+        DWORD result=0;
+        auto references=[&](DWORD target,auto &&visit) {
+            auto it=std::lower_bound(pointers_.begin(),pointers_.end(),std::pair<DWORD,DWORD>{target,0});
+            for(;it!=pointers_.end() && it->first==target;++it)visit(it->second);
+        };
+        bool ambiguous=false;
+        references(descriptor,[&](DWORD field) {
+            if(field<12)return;
+            const DWORD locator=field-12;
+            if(value(locator)!=0 || value(locator+4)!=0 || value(locator+8)!=0 ||
+               !section(locator,20,IMAGE_SCN_MEM_READ,IMAGE_SCN_MEM_WRITE|IMAGE_SCN_MEM_EXECUTE))return;
+            references(locator,[&](DWORD entry) {
+                const DWORD table=entry+4,process=relative(value(table+24));
+                if(!section(table,28,IMAGE_SCN_MEM_READ,IMAGE_SCN_MEM_WRITE|IMAGE_SCN_MEM_EXECUTE) ||
+                   !section(process,1,IMAGE_SCN_MEM_EXECUTE))return;
+                if(result && result!=table)ambiguous=true;
+                result=table;
+            });
+        });
+        return ambiguous?0:result;
     }
     Layout discover() const {
         Layout l;

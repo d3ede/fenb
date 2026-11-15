@@ -60,6 +60,60 @@ bool identical(const std::vector<Region> &before) {
     return ok;
 }
 struct Adapter { const char *name;bool (*install)();void (*uninstall)(); };
+bool materializeWritablePages(HMODULE image) {
+    auto *base=reinterpret_cast<unsigned char *>(image);
+    auto *dos=reinterpret_cast<IMAGE_DOS_HEADER *>(base);
+    auto *nt=reinterpret_cast<IMAGE_NT_HEADERS32 *>(base+dos->e_lfanew);
+    auto *sections=IMAGE_FIRST_SECTION(nt);
+    for(unsigned i=0;i<nt->FileHeader.NumberOfSections;++i) {
+        const auto &s=sections[i];if(!(s.Characteristics&IMAGE_SCN_MEM_WRITE))continue;
+        for(DWORD offset=0;offset<s.Misc.VirtualSize;offset+=4096) {
+            auto *byte=reinterpret_cast<volatile unsigned char *>(base+s.VirtualAddress+offset);
+            MEMORY_BASIC_INFORMATION info{};
+            if(!VirtualQuery(const_cast<unsigned char *>(byte),&info,sizeof(info)) ||
+               !(info.Protect&(PAGE_READWRITE|PAGE_WRITECOPY|PAGE_EXECUTE_READWRITE|PAGE_EXECUTE_WRITECOPY)))return false;
+            const unsigned char same=*byte;*byte=same;
+        }
+    }
+    return true;
+}
+bool rejectMutation(HMODULE image,DWORD at,const char *name) {
+    auto *byte=reinterpret_cast<unsigned char *>(image)+at;
+    DWORD protection=0,ignored=0;
+    if(!VirtualProtect(byte,1,PAGE_EXECUTE_READWRITE,&protection))return false;
+    const auto original=*byte;*byte^=0x08;
+    if(!VirtualProtect(byte,1,protection,&ignored))return false;
+    const auto corrupted=snapshot(image);
+    const bool accepted=native_hybrid::install();native_hybrid::uninstall();
+    const bool untouched=identical(corrupted);
+    if(!VirtualProtect(byte,1,PAGE_EXECUTE_READWRITE,&ignored))return false;
+    *byte=original;
+    if(!VirtualProtect(byte,1,protection,&ignored))return false;
+    const bool recovered=native_binding::prepare(image);
+    std::printf("ABI mutation %s: rejected=%d untouched=%d recovered=%d\n",name,!accepted,untouched,recovered);
+    return !accepted && untouched && recovered;
+}
+bool rejectionAndMutableData(HMODULE image) {
+    if(!native_binding::prepare(image))return false;
+    const auto code=native_binding::cached.rva(0x368500);
+    const auto call=native_binding::cached.rva(0x309ad8)+1;
+    const auto descriptor=native_binding::cached.rva(0x83760c)+8;
+    // A wrong callee must fail even when the CALL opcode and register ABI match.
+    if(!rejectMutation(image,call,"action CALL target") || !rejectMutation(image,code,"animation instruction") ||
+       !rejectMutation(image,descriptor,"SFX RTTI identity"))return false;
+    // A live player's pointer is mutable gameplay state, not an ABI signature.
+    auto **slot=reinterpret_cast<void **>(native_binding::cached.address(0x842168));
+    DWORD protection=0,ignored=0;
+    // Writing a mapped PE can promote WRITECOPY to READWRITE. Restore the
+    // fixture's protection as well as its value before the byte/page audit.
+    if(!VirtualProtect(slot,sizeof(void *),PAGE_READWRITE,&protection))return false;
+    void *original=*slot;*slot=reinterpret_cast<unsigned char *>(image)+code;
+    const bool mutableAccepted=native_binding::prepare(image);*slot=original;
+    if(!VirtualProtect(slot,sizeof(void *),protection,&ignored))return false;
+    const bool restored=native_binding::prepare(image);
+    std::printf("Mutable player slot: accepted=%d restored=%d\n",mutableAccepted,restored);
+    return mutableAccepted && restored;
+}
 bool presentationRoundTrip(HMODULE image) {
     client_detail::Image initial(image);
     const auto cameraBinding=presentation_detail::camera(initial);
@@ -97,9 +151,10 @@ int wmain(int argc,wchar_t **argv) {
     if(!image) { std::fprintf(stderr,"Could not map supplied PE: Windows error %lu\n",GetLastError());return 3; }
     native_patch::imageOverride=image;
     std::printf("Mapped native PE at %p\n",static_cast<void *>(image));
-    // Fault in the mapped image before recording page protections. Relocated
-    // writable image pages can become private during their first access.
-    if(snapshot(image).empty()) { std::fprintf(stderr,"Could not materialize mapped PE\n");native_patch::imageOverride=nullptr;FreeLibrary(image);return 4; }
+    // A fresh DLL-style PE mapping has lazy copy-on-write data pages. A same-byte
+    // volatile write makes them private before the protection baseline; reading
+    // with ReadProcessMemory alone does not reliably materialize those pages.
+    if(!materializeWritablePages(image) || snapshot(image).empty()) { std::fprintf(stderr,"Could not materialize mapped PE\n");native_patch::imageOverride=nullptr;FreeLibrary(image);return 4; }
     const auto before=snapshot(image);
     if(before.empty()) { std::fprintf(stderr,"Could not snapshot mapped PE\n");native_patch::imageOverride=nullptr;FreeLibrary(image);return 4; }
     if(presentationOnly) {
@@ -108,13 +163,14 @@ int wmain(int argc,wchar_t **argv) {
         if(ok)std::puts("PASS: presentation adapters relocated, ABI rejection retained, every mapped byte and protection restored; no game callback executed.");
         return ok?0:1;
     }
-    auto *imageBytes=reinterpret_cast<unsigned char *>(image);
+    if(!native_binding::prepare(image)) { std::fprintf(stderr,"Native ABI discovery rejected the supplied client\n");FreeLibrary(image);return 1; }
+    auto *preview=native_binding::cached.address(0xdabd0);
     unsigned char previewCompare[7],previewNullBranch[2];
-    std::memcpy(previewCompare,imageBytes+0xdabd5,sizeof(previewCompare));
-    std::memcpy(previewNullBranch,imageBytes+0xdabc2,sizeof(previewNullBranch));
+    std::memcpy(previewCompare,preview+5,sizeof(previewCompare));
+    std::memcpy(previewNullBranch,preview-14,sizeof(previewNullBranch));
     const auto previewFlowPreserved=[&]() {
-        return std::memcmp(previewCompare,imageBytes+0xdabd5,sizeof(previewCompare))==0 &&
-            std::memcmp(previewNullBranch,imageBytes+0xdabc2,sizeof(previewNullBranch))==0;
+        return std::memcmp(previewCompare,preview+5,sizeof(previewCompare))==0 &&
+            std::memcmp(previewNullBranch,preview-14,sizeof(previewNullBranch))==0;
     };
     Adapter adapters[]={
         {"animation",&native_animation::install,&native_animation::uninstall},
@@ -144,6 +200,7 @@ int wmain(int argc,wchar_t **argv) {
         ok=ok && previewFlowPreserved();
         native_hybrid::uninstall();if(!identical(before)) ok=false;
     }
+    if(ok)ok=rejectionAndMutableData(image) && identical(before);
     if(ok)ok=presentationRoundTrip(image) && identical(before);
     native_patch::imageOverride=nullptr;FreeLibrary(image);
     if(!ok) return 1;

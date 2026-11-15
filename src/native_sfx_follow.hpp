@@ -1,6 +1,6 @@
 #pragma once
 #include "common.hpp"
-#include "client_layout.hpp"
+#include "native_binding.hpp"
 #include "hybrid_time.hpp"
 #include "native_patch.hpp"
 #include "native_animation.hpp"
@@ -240,7 +240,7 @@ inline bool install() {
 #if !FENB_NATIVE_X86_ASM
     return false;
 #else
-    auto image=native_patch::image();client_detail::Image scan(image);auto *base=reinterpret_cast<unsigned char *>(image);
+    auto image=native_patch::image();native_binding::Image scan(image);
     if(!scan.bytes(0x2d7180,"55 8B EC 83 EC 08 53 8B 5D 08 0F B6 C3 35 C5 9D 1C 81") ||
        !scan.bytes(0x32de20,"55 8B EC 83 EC 10 53 56 8B F1 F3 0F 10 86 60 01 00 00") ||
        !scan.bytes(0x32e0e0,"0F 57 C0 F3 0F 5A C1 56 8B F1 83 BE 70 01 00 00 05") ||
@@ -248,15 +248,15 @@ inline bool install() {
        !scan.bytes(0x368fb0,"55 8B EC 83 EC 58 A1 ?? ?? ?? ?? 33 C5 89 45 F8")) return false;
     bindings.clear();
     for(const auto &r:records) {
-        auto **vtable=reinterpret_cast<void **>(base+r.vtable);
+        auto **vtable=reinterpret_cast<void **>(scan.address(r.vtable));
         auto *locator=static_cast<unsigned char *>(vtable[-1]);
-        if(vtable[6]!=base+r.process || !locator || field<void *>(locator,12)!=base+r.type ||
-           std::strcmp(reinterpret_cast<const char *>(base+r.type+8),r.name)!=0) { bindings.clear();return false; }
+        if(vtable[6]!=scan.address(r.process) || !locator || field<void *>(locator,12)!=scan.address(r.type) ||
+           std::strcmp(reinterpret_cast<const char *>(scan.address(r.type)+8),r.name)!=0) { bindings.clear();return false; }
         bindings.emplace(vtable,r.kind);
     }
-    resolve=reinterpret_cast<Resolve>(base+0x2d7180);ctrlMap=base+0x86c12c;
-    setPos=reinterpret_cast<SetPos>(base+0x32de20);angleEntry=base+0x32e0e0;setAngle=&nativeAngle;
-    hand=reinterpret_cast<Hand>(base+0x368fb0);force=reinterpret_cast<Force>(base+0x368c30);
+    resolve=reinterpret_cast<Resolve>(scan.address(0x2d7180));ctrlMap=scan.address(0x86c12c);
+    setPos=reinterpret_cast<SetPos>(scan.address(0x32de20));angleEntry=scan.address(0x32e0e0);setAngle=&nativeAngle;
+    hand=reinterpret_cast<Hand>(scan.address(0x368fb0));force=reinterpret_cast<Force>(scan.address(0x368c30));
     boneRefresh=&native_animation::refreshBones;
     installed=true;Log("Native SFX: verified class-specific zero-tick attachment refresh installed.");return true;
 #endif

@@ -1,6 +1,6 @@
 #pragma once
 #include "common.hpp"
-#include "client_layout.hpp"
+#include "native_binding.hpp"
 #include "hybrid_time.hpp"
 #include "native_patch.hpp"
 #include <array>
@@ -22,7 +22,7 @@ inline Create create=nullptr;
 inline void *createEntry=nullptr;
 inline void **playerSlot=nullptr;
 inline unsigned char **queueBegin=nullptr,**queueEnd=nullptr;
-inline native_patch::Set patches;
+inline native_binding::Set patches;
 inline bool installed=false;
 inline bool active() { return installed && hybrid_time::frame.active && hybrid_time::frame.thread==GetCurrentThreadId() &&
     hybrid_time::frame.stage==hybrid_time::Stage::World; }
@@ -186,8 +186,7 @@ inline bool install() {
 #if !FENB_NATIVE_X86_ASM
     return false;
 #else
-    auto image=native_patch::image();client_detail::Image scan(image);
-    auto *base=reinterpret_cast<unsigned char *>(image);
+    auto image=native_patch::image();native_binding::Image scan(image);
     if(!scan.bytes(0x3098d0,"55 8B EC 6A FF 68 ?? ?? ?? ?? 64 A1 00 00 00 00 50 81 EC D0 01 00 00") ||
        !scan.bytes(0x31e1c0,"56 8B F1 8B 86 A8 11 00 00 83 F8 01 0F 85") ||
        !scan.bytes(0x307e20,"55 8B EC 83 EC 10 53 8B D9 89 5D FC") ||
@@ -195,33 +194,33 @@ inline bool install() {
        !scan.bytes(0x3a6c70,"55 8B EC 6A FF 68 ?? ?? ?? ?? 64 A1 00 00 00 00") ||
        !scan.bytes(0x174ac0,"56 8B F1 8B 4E 14 83 F9 0F 76") ||
        !scan.bytes(0x2fce40,"55 8B EC 6A FF 68 ?? ?? ?? ?? 64 A1 00 00 00 00")) return false;
-    pattern=reinterpret_cast<Process>(base+0x31e1c0);quests=reinterpret_cast<Process>(base+0x307e20);
-    pet=reinterpret_cast<Process>(base+0x310540);checkFile=reinterpret_cast<CheckFile>(base+0x3a6c70);
-    destroyString=reinterpret_cast<DestroyString>(base+0x174ac0);createEntry=base+0x2fce40;create=&nativeCreate;
-    playerSlot=reinterpret_cast<void **>(base+0x842168);
-    queueBegin=reinterpret_cast<unsigned char **>(base+0x86c0a8);queueEnd=reinterpret_cast<unsigned char **>(base+0x86c0ac);
+    pattern=reinterpret_cast<Process>(scan.address(0x31e1c0));quests=reinterpret_cast<Process>(scan.address(0x307e20));
+    pet=reinterpret_cast<Process>(scan.address(0x310540));checkFile=reinterpret_cast<CheckFile>(scan.address(0x3a6c70));
+    destroyString=reinterpret_cast<DestroyString>(scan.address(0x174ac0));createEntry=scan.address(0x2fce40);create=&nativeCreate;
+    playerSlot=reinterpret_cast<void **>(scan.address(0x842168));
+    queueBegin=reinterpret_cast<unsigned char **>(scan.address(0x86c0a8));queueEnd=reinterpret_cast<unsigned char **>(scan.address(0x86c0ac));
     const unsigned char periodicOld[]={0x83,0xbf,0x1c,0x03,0,0,0,0x0f,0x84,0x83,0,0,0};
     unsigned char periodicNew[]={0x8b,0xcf,0xe8,0,0,0,0,0xe9,0,0,0,0,0x90};
-    const uint32_t periodicCall=uint32_t(reinterpret_cast<uintptr_t>(&periodicHook)-reinterpret_cast<uintptr_t>(base+0x309922)-5);
-    const uint32_t periodicNext=0x3099b0-(0x309920+12);
+    const uint32_t periodicCall=uint32_t(reinterpret_cast<uintptr_t>(&periodicHook)-reinterpret_cast<uintptr_t>(scan.address(0x309922))-5);
+    const uint32_t periodicNext=uint32_t(scan.address(0x3099b0)-(scan.address(0x309920)+12));
     std::memcpy(periodicNew+3,&periodicCall,4);std::memcpy(periodicNew+8,&periodicNext,4);
     const unsigned char patternCall[]={0xe8,0xf5,0x46,1,0},questCall[]={0xe8,0xc3,0xd7,0xff,0xff},aiCall[]={0x8b,1,0xff,0x50,8};
     const unsigned char attackOld[]={0x8b,0x87,0x20,7,0,0,0x85,0xc0,0x7e,7,0x40,0x89,0x87,0x20,7,0,0};
     const unsigned char countOld[]={0xff,0x87,0xc8,0x11,0,0},waterCountOld[]={0xfe,0x87,0x1c,0x0d,0,0};
     const unsigned char waterReadyOld[]={0x80,0xbf,0x1c,0x0d,0,0,7},rippleCall[]={0xe8,0x7d,0x2e,0xff,0xff};
     unsigned char waterReadyNew[]={0xe8,0,0,0,0,0x84,0xc0};
-    const uint32_t waterReadyTarget=uint32_t(reinterpret_cast<uintptr_t>(&waterReadyThunk)-reinterpret_cast<uintptr_t>(base+0x309f51)-5);
+    const uint32_t waterReadyTarget=uint32_t(reinterpret_cast<uintptr_t>(&waterReadyThunk)-reinterpret_cast<uintptr_t>(scan.address(0x309f51))-5);
     std::memcpy(waterReadyNew+1,&waterReadyTarget,4);
     patches.clear();
-    bool ok=patches.add(base+0x309920,periodicOld,periodicNew,sizeof(periodicOld)) &&
-        patches.call(base+0x309ac6,patternCall,reinterpret_cast<void *>(&patternHook)) &&
-        patches.call(base+0x30a658,questCall,reinterpret_cast<void *>(&questsHook)) &&
-        patches.call(base+0x3099ca,aiCall,reinterpret_cast<void *>(&aiHook)) &&
-        callbackSpan(base+0x309c48,attackOld,sizeof(attackOld),reinterpret_cast<void *>(&attackCountHook),true) &&
-        callbackSpan(base+0x30a7ac,countOld,sizeof(countOld),reinterpret_cast<void *>(&processCountThunk)) &&
-        callbackSpan(base+0x309fcd,waterCountOld,sizeof(waterCountOld),reinterpret_cast<void *>(&waterCountThunk)) &&
-        patches.add(base+0x309f51,waterReadyOld,waterReadyNew,sizeof(waterReadyOld)) &&
-        patches.call(base+0x309fbe,rippleCall,reinterpret_cast<void *>(&rippleThunk));
+    bool ok=patches.add(scan.address(0x309920),periodicOld,periodicNew,sizeof(periodicOld)) &&
+        patches.call(scan.address(0x309ac6),patternCall,reinterpret_cast<void *>(&patternHook)) &&
+        patches.call(scan.address(0x30a658),questCall,reinterpret_cast<void *>(&questsHook)) &&
+        patches.call(scan.address(0x3099ca),aiCall,reinterpret_cast<void *>(&aiHook)) &&
+        callbackSpan(scan.address(0x309c48),attackOld,sizeof(attackOld),reinterpret_cast<void *>(&attackCountHook),true) &&
+        callbackSpan(scan.address(0x30a7ac),countOld,sizeof(countOld),reinterpret_cast<void *>(&processCountThunk)) &&
+        callbackSpan(scan.address(0x309fcd),waterCountOld,sizeof(waterCountOld),reinterpret_cast<void *>(&waterCountThunk)) &&
+        patches.add(scan.address(0x309f51),waterReadyOld,waterReadyNew,sizeof(waterReadyOld)) &&
+        patches.call(scan.address(0x309fbe),rippleCall,reinterpret_cast<void *>(&rippleThunk));
     if(!ok || !patches.apply()) { patches.clear();return false; }
     installed=true;Log("Native hybrid mover services: legacy patterns/AI, periodic work and water/attack counters installed.");return true;
 #endif

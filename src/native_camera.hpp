@@ -1,5 +1,5 @@
 #pragma once
-#include "client_layout.hpp"
+#include "native_binding.hpp"
 #include "hybrid_time.hpp"
 #include "native_patch.hpp"
 #include <limits>
@@ -29,7 +29,7 @@ inline unsigned *deployFlags=nullptr;
 inline void **deployObject=nullptr;
 inline void *embeddedCamera=nullptr;
 inline bool installed=false;
-inline native_patch::Set patches;
+inline native_binding::Set patches;
 // Native instructions reference these private operands. Scoped changes preserve
 // native initialization/setup calls and never edit shared executable constants.
 inline float impulseCoefficient=.5f,recoveryStep=.37f,rollStep=1,rollRecoveryStep=2;
@@ -162,8 +162,7 @@ inline void uninstall() {
 }
 inline bool install() {
     if(installed) return true;
-    HMODULE module=native_patch::image();client_detail::Image scan(module);
-    auto *base=reinterpret_cast<unsigned char *>(module);
+    HMODULE module=native_patch::image();native_binding::Image scan(module);
     if(!scan.bytes(0x386050,"55 8B EC 83 E4 F0 81 EC 98 00 00 00 A1 ?? ?? ?? ?? 33 C4") ||
        !scan.bytes(0x385cb0,"55 8B EC 83 EC 2C A1 ?? ?? ?? ?? 33 C5 89 45 FC 53 8B D9 56 8B 75 08 57") ||
        !scan.bytes(0x151330,"55 8B EC 83 E4 F8 83 EC 50 A1 ?? ?? ?? ?? 33 C4") ||
@@ -175,18 +174,18 @@ inline bool install() {
     if(scan.relative(scan.value(0x38606b))!=0x842168 || scan.relative(scan.value(0x386081))!=0x86c07c ||
        scan.relative(scan.value(0x140dbd))!=0x841d35 || scan.relative(scan.value(0x140eff))!=0x9b0e8c ||
        scan.relative(scan.value(0x140f30))!=0x9b0ed4) return false;
-    auto **table=reinterpret_cast<void **>(base+0x7b8cf4);
-    if(table[0]!=base+0x386050 || table[1]!=base+0x385cb0) return false;
+    auto **table=reinterpret_cast<void **>(scan.address(0x7b8cf4));
+    if(table[0]!=scan.address(0x386050) || table[1]!=scan.address(0x385cb0)) return false;
     originalProcess=reinterpret_cast<Process>(table[0]);originalTransform=reinterpret_cast<Transform>(table[1]);
-    originalFlying=reinterpret_cast<Flying>(base+0x151330);
+    originalFlying=reinterpret_cast<Flying>(scan.address(0x151330));
     auto operand=[&](DWORD rva,const char *opcode,DWORD constant,float *replacement) {
-        return scan.bytes(rva,opcode) && scan.relative(scan.value(rva+4))==constant &&
-            patches.pointer(reinterpret_cast<void **>(base+rva+4),base+constant,replacement);
+        return scan.bytes(rva,opcode) && scan.relative(scan.value(rva,4))==constant &&
+            patches.pointer(reinterpret_cast<void **>(scan.address(rva)+4),scan.address(constant),replacement);
     };
     auto call=[&](DWORD rva,void *target) {
         unsigned char expected[5]={0xe8};
         const uint32_t displacement=uint32_t(0x151330-rva-5);std::memcpy(expected+1,&displacement,4);
-        return patches.call(base+rva,expected,target);
+        return patches.call(scan.address(rva),expected,target);
     };
     const bool prepared=operand(0x3862ed,"F3 0F 10 0D",0x7b9d4c,&impulseCoefficient) &&
         operand(0x386462,"F3 0F 58 05",0x7b9d30,&recoveryStep) &&
@@ -198,13 +197,13 @@ inline bool install() {
         patches.pointer(table,reinterpret_cast<void *>(originalProcess),reinterpret_cast<void *>(&processHook)) &&
         patches.pointer(table+1,reinterpret_cast<void *>(originalTransform),reinterpret_cast<void *>(&transformHook));
     if(!prepared || !patches.apply()) { uninstall();return false; }
-    nativePlayer=reinterpret_cast<void **>(base+0x842168);nativeWorld=reinterpret_cast<void **>(base+0x86c07c);
-    nativeCamera=reinterpret_cast<void **>(base+0x847aa8);embeddedCamera=base+0x869f64;keys=base+0x841d10;
-    inputPlayer=reinterpret_cast<void **>(base+0x841ccc);cameraLock=reinterpret_cast<int *>(base+0x926844);
-    keyUp=reinterpret_cast<signed char *>(base+0x86bd9d);keyLeft=reinterpret_cast<signed char *>(base+0x86bd9c);
-    deployFlags=reinterpret_cast<unsigned *>(base+0x9b0e8c);deployObject=reinterpret_cast<void **>(base+0x9b0ed4);
-    guildDeploy=reinterpret_cast<Factory>(base+0xd5e00);initializeDeploy=reinterpret_cast<Initialize>(base+0x2a4290);
-    nativeAtExit=reinterpret_cast<AtExit>(base+0x5a6b00);destroyDeploy=reinterpret_cast<Initialize>(base+0x6d5e90);
+    nativePlayer=reinterpret_cast<void **>(scan.address(0x842168));nativeWorld=reinterpret_cast<void **>(scan.address(0x86c07c));
+    nativeCamera=reinterpret_cast<void **>(scan.address(0x847aa8));embeddedCamera=scan.address(0x869f64);keys=scan.address(0x841d10);
+    inputPlayer=reinterpret_cast<void **>(scan.address(0x841ccc));cameraLock=reinterpret_cast<int *>(scan.address(0x926844));
+    keyUp=reinterpret_cast<signed char *>(scan.address(0x86bd9d));keyLeft=reinterpret_cast<signed char *>(scan.address(0x86bd9c));
+    deployFlags=reinterpret_cast<unsigned *>(scan.address(0x9b0e8c));deployObject=reinterpret_cast<void **>(scan.address(0x9b0ed4));
+    guildDeploy=reinterpret_cast<Factory>(scan.address(0xd5e00));initializeDeploy=reinterpret_cast<Initialize>(scan.address(0x2a4290));
+    nativeAtExit=reinterpret_cast<AtExit>(scan.address(0x5a6b00));destroyDeploy=reinterpret_cast<Initialize>(scan.address(0x6d5e90));
     reset();installed=true;return true;
 }
 }

@@ -1,5 +1,5 @@
 #pragma once
-#include "client_layout.hpp"
+#include "native_binding.hpp"
 #include "hybrid_time.hpp"
 #include "native_patch.hpp"
 #include "visual_transform.hpp"
@@ -15,7 +15,7 @@ inline Particle originalParticle=nullptr;
 inline Shoot originalShoot=nullptr,originalMelee=nullptr;
 inline uint32_t *processCounter=nullptr;
 inline bool installed=false;
-inline native_patch::Set patches;
+inline native_binding::Set patches;
 inline float scaleDecay=.001f,sparkFade=.05f,companionDivisor=10.f,balloonTravel=.006f,balloonIdle=.002f;
 template<class T> T &field(void *p,size_t offset) { return *reinterpret_cast<T *>(static_cast<unsigned char *>(p)+offset); }
 inline bool onThread() { return installed && hybrid_time::frame.active && hybrid_time::frame.thread==GetCurrentThreadId(); }
@@ -174,8 +174,7 @@ inline bool install() {
 #if !FENB_NATIVE_X86_ASM
     return false;
 #else
-    HMODULE module=native_patch::image();client_detail::Image scan(module);
-    auto *base=reinterpret_cast<unsigned char *>(module);
+    HMODULE module=native_patch::image();native_binding::Image scan(module);
     if(!scan.bytes(0x309330,"55 8B EC 83 E4 C0 83 EC 3C 0F 57 C0 56 8B F1 F3 0F 10 8E 48 0D 00 00") ||
        !scan.bytes(0x309670,"55 8B EC 83 E4 F8 51 53 56 57 8B F1") ||
        !scan.bytes(0x30a7e0,"55 8B EC 83 E4 F0 81 EC AC 00 00 00") ||
@@ -184,18 +183,18 @@ inline bool install() {
        !scan.bytes(0x313c90,"55 8B EC 83 EC 2C A1 ?? ?? ?? ?? 33 C5 89 45 FC 56 8B F1 57") ||
        !scan.bytes(0x3132b0,"55 8B EC")) return false;
     auto operand=[&](DWORD rva,const char *opcode,DWORD constant,float *replacement) {
-        return scan.bytes(rva,opcode) && scan.relative(scan.value(rva+4))==constant &&
-            patches.pointer(reinterpret_cast<void **>(base+rva+4),base+constant,replacement);
+        return scan.bytes(rva,opcode) && scan.relative(scan.value(rva,4))==constant &&
+            patches.pointer(reinterpret_cast<void **>(scan.address(rva)+4),scan.address(constant),replacement);
     };
     auto call=[&](DWORD rva,DWORD target,void *replacement) {
         unsigned char expected[5]={0xe8};const uint32_t displacement=target-rva-5;
-        std::memcpy(expected+1,&displacement,4);return patches.call(base+rva,expected,replacement);
+        std::memcpy(expected+1,&displacement,4);return patches.call(scan.address(rva),expected,replacement);
     };
-    originalScale=reinterpret_cast<Service>(base+0x309330);originalEye=reinterpret_cast<Service>(base+0x309670);
-    originalAngel=reinterpret_cast<Service>(base+0x30a7e0);originalBalloon=reinterpret_cast<Service>(base+0x30aa60);
-    originalParticle=reinterpret_cast<Particle>(base+0x310320);
-    originalShoot=reinterpret_cast<Shoot>(base+0x313c90);
-    originalMelee=reinterpret_cast<Shoot>(base+0x3132b0);processCounter=reinterpret_cast<uint32_t *>(base+0x841d04);
+    originalScale=reinterpret_cast<Service>(scan.address(0x309330));originalEye=reinterpret_cast<Service>(scan.address(0x309670));
+    originalAngel=reinterpret_cast<Service>(scan.address(0x30a7e0));originalBalloon=reinterpret_cast<Service>(scan.address(0x30aa60));
+    originalParticle=reinterpret_cast<Particle>(scan.address(0x310320));
+    originalShoot=reinterpret_cast<Shoot>(scan.address(0x313c90));
+    originalMelee=reinterpret_cast<Shoot>(scan.address(0x3132b0));processCounter=reinterpret_cast<uint32_t *>(scan.address(0x841d04));
     // This span is only the timed continuation after a native hit event. Keep
     // the separate initial-hit emission and its new shoot-count assignment.
     const unsigned char shootOld[]={0x6a,1,0x51,0x8b,0xce,0xe8,0xb8,0x2f,0xf4,0xff,0xff,0x8f,0x90,0,0,0};
@@ -203,14 +202,14 @@ inline bool install() {
     const unsigned char magicOld[]={0x6a,1,0x51,0x8b,0xcf,0xe8,0x24,0x29,0xf4,0xff,0xff,0x8e,0x90,0,0,0};
     auto timedSpan=[&](DWORD rva,const unsigned char *expected,void *target) {
         unsigned char code[16];std::fill(std::begin(code),std::end(code),static_cast<unsigned char>(0x90));code[0]=0xe8;
-        const uint32_t relative=uint32_t(reinterpret_cast<uintptr_t>(target)-reinterpret_cast<uintptr_t>(base+rva)-5);
-        std::memcpy(code+1,&relative,4);return patches.add(base+rva,expected,code,sizeof(code));
+        const uint32_t relative=uint32_t(reinterpret_cast<uintptr_t>(target)-reinterpret_cast<uintptr_t>(scan.address(rva))-5);
+        std::memcpy(code+1,&relative,4);return patches.add(scan.address(rva),expected,code,sizeof(code));
     };
     auto quarterGate=[&](DWORD rva,unsigned char jump) {
         unsigned char expected[]={0xf6,0x05,0,0,0,0,3,0x75,jump},code[sizeof(expected)];
         const uint32_t counter=uint32_t(reinterpret_cast<uintptr_t>(processCounter));std::memcpy(expected+2,&counter,4);
         std::fill(std::begin(code),std::end(code),static_cast<unsigned char>(0x90));
-        return patches.add(base+rva,expected,code,sizeof(code));
+        return patches.add(scan.address(rva),expected,code,sizeof(code));
     };
     const bool prepared=operand(0x30946e,"F3 0F 5C 05",0x7b9c80,&scaleDecay) &&
         operand(0x3096ce,"F3 0F 5C 0D",0x7b9cd8,&sparkFade) &&

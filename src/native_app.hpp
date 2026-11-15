@@ -1,6 +1,6 @@
 #pragma once
 #include "common.hpp"
-#include "client_layout.hpp"
+#include "native_binding.hpp"
 #include "native_patch.hpp"
 #include "hybrid_time.hpp"
 #include "native_world.hpp"
@@ -21,7 +21,7 @@ inline void *networkClients[3]{};
 inline DWORD *nativeMilliseconds=nullptr,*nativeSeconds=nullptr;
 inline DWORD *processCounter=nullptr;
 inline void **previewSlot=nullptr,**playerSlot=nullptr;
-inline native_patch::Set patches;
+inline native_binding::Set patches;
 inline bool active=false,hasReceived=false;
 inline uint64_t receivedSerial=0;
 inline bool onThread() { return active && hybrid_time::frame.active && hybrid_time::frame.thread==GetCurrentThreadId(); }
@@ -95,28 +95,27 @@ inline bool install() {
 #if !FENB_NATIVE_X86_ASM
     return false;
 #else
-    auto image=native_patch::image();client_detail::Image scan(image);
-    auto *base=reinterpret_cast<unsigned char *>(image);
+    auto image=native_patch::image();native_binding::Image scan(image);
     if(!scan.bytes(0x3c3510,"55 8B EC 83 EC 08 53 8B D9 83 7B 04 00 75 07") ||
        !scan.bytes(0x1506c0,"55 8B EC 83 E4 F8 56 8B 35 ?? ?? ?? ?? 57 8B F9 85 F6")) return false;
-    originalReceive=reinterpret_cast<Receive>(base+0x3c3510);originalControl=reinterpret_cast<Control>(base+0x1506c0);
-    networkClients[0]=base+0x868f90;networkClients[1]=base+0x82cc70;networkClients[2]=base+0x82a620;
-    nativeMilliseconds=reinterpret_cast<DWORD *>(base+0x841cd0);nativeSeconds=reinterpret_cast<DWORD *>(base+0x841cd4);
-    processCounter=reinterpret_cast<DWORD *>(base+0x841d04);
-    previewSlot=reinterpret_cast<void **>(base+0x841e10);playerSlot=reinterpret_cast<void **>(base+0x841ccc);
+    originalReceive=reinterpret_cast<Receive>(scan.address(0x3c3510));originalControl=reinterpret_cast<Control>(scan.address(0x1506c0));
+    networkClients[0]=scan.address(0x868f90);networkClients[1]=scan.address(0x82cc70);networkClients[2]=scan.address(0x82a620);
+    nativeMilliseconds=reinterpret_cast<DWORD *>(scan.address(0x841cd0));nativeSeconds=reinterpret_cast<DWORD *>(scan.address(0x841cd4));
+    processCounter=reinterpret_cast<DWORD *>(scan.address(0x841d04));
+    previewSlot=reinterpret_cast<void **>(scan.address(0x841e10));playerSlot=reinterpret_cast<void **>(scan.address(0x841ccc));
     const unsigned char receive0[]={0xe8,0xf8,0x8c,0x2e,0x00},receive1[]={0xe8,0x8c,0x8c,0x2e,0x00},receive2[]={0xe8,0x82,0x8c,0x2e,0x00};
     const unsigned char control0[]={0xe8,0x22,0xfd,0x00,0x00},control1[]={0xe8,0xc8,0xfc,0x00,0x00};
-    bool ok=patches.call(base+0xda813,receive0,reinterpret_cast<void *>(&receiveHook)) &&
-        patches.call(base+0xda87f,receive1,reinterpret_cast<void *>(&receiveHook)) &&
-        patches.call(base+0xda889,receive2,reinterpret_cast<void *>(&receiveHook)) &&
-        patches.call(base+0x140999,control0,reinterpret_cast<void *>(&controlHook)) &&
-        patches.call(base+0x1409f3,control1,reinterpret_cast<void *>(&controlHook));
+    bool ok=patches.call(scan.address(0xda813),receive0,reinterpret_cast<void *>(&receiveHook)) &&
+        patches.call(scan.address(0xda87f),receive1,reinterpret_cast<void *>(&receiveHook)) &&
+        patches.call(scan.address(0xda889),receive2,reinterpret_cast<void *>(&receiveHook)) &&
+        patches.call(scan.address(0x140999),control0,reinterpret_cast<void *>(&controlHook)) &&
+        patches.call(scan.address(0x1409f3),control1,reinterpret_cast<void *>(&controlHook));
     const unsigned char oldPreview[]={0x6a,0,0xff,0x50,0x54};
-    ok=ok && patches.call(base+0xdabd0,oldPreview,reinterpret_cast<void *>(&previewNoSound));
+    ok=ok && patches.call(scan.address(0xdabd0),oldPreview,reinterpret_cast<void *>(&previewNoSound));
     unsigned char oldKeyboard[7]={0x80,0x3d,0,0,0,0,0},newKeyboard[7]={0xe9,0,0,0,0,0x90,0x90};
-    const uint32_t keyAddress=uint32_t(reinterpret_cast<uintptr_t>(base+0x841d35)),keyboardOffset=0x140ff0-(0x140dbb+5);
+    const uint32_t keyAddress=uint32_t(reinterpret_cast<uintptr_t>(scan.address(0x841d35))),keyboardOffset=uint32_t(scan.address(0x140ff0)-(scan.address(0x140dbb)+5));
     std::memcpy(oldKeyboard+2,&keyAddress,4);std::memcpy(newKeyboard+1,&keyboardOffset,4);
-    ok=ok && patches.add(base+0x140dbb,oldKeyboard,newKeyboard,7);
+    ok=ok && patches.add(scan.address(0x140dbb),oldKeyboard,newKeyboard,7);
     if(!ok || !patches.apply()) { patches.clear();return false; }
     hasReceived=false;active=true;Log("FPS native hybrid: per-render receive/input/preview services separated from legacy UI, counters and effects.");return true;
 #endif

@@ -1,6 +1,6 @@
 #pragma once
 #include "common.hpp"
-#include "client_layout.hpp"
+#include "native_binding.hpp"
 #include "hybrid_time.hpp"
 #include "native_patch.hpp"
 #include <array>
@@ -34,7 +34,8 @@ inline Sound playSound=nullptr;
 inline Quake setQuake=nullptr;
 inline BoneSampler boneSampler=nullptr;
 inline void *boneEntry=nullptr;
-inline unsigned char *imageBase=nullptr;
+inline void *soundEntry=nullptr;
+inline void **playerSlot=nullptr,**cameraSlot=nullptr;
 inline bool active() { return enabled && hybrid_time::frame.active && hybrid_time::frame.thread==GetCurrentThreadId() &&
     hybrid_time::frame.stage==hybrid_time::Stage::World; }
 inline float ticks() { return std::isfinite(hybrid_time::frame.ticks) ? std::clamp(hybrid_time::frame.ticks,0.f,15.625f) : 0.f; }
@@ -209,12 +210,12 @@ inline void __fastcall moveHook(void *p,void *,void *soundPosition,float speed,i
 inline void nativeSound(int sound,void *position) {
     // The optimized client entry reads ECX=sound, EDX=position and returns with RET.
     using Play=int(__fastcall *)(int,void *);
-    reinterpret_cast<Play>(imageBase+0x45070)(sound,position);
+    reinterpret_cast<Play>(soundEntry)(sound,position);
 }
 inline void nativeQuake(bool motion) {
     if(motion) return; // native motion branch's active-mover exclusion never selects the active mover
-    auto player=*reinterpret_cast<void **>(imageBase+0x842168);
-    auto camera=*reinterpret_cast<void **>(imageBase+0x847aa8);
+    auto player=*playerSlot;
+    auto camera=*cameraSlot;
     if(player && camera && field<int>(camera,0xe0)<=0) { field<int>(camera,0xe0)=30;field<float>(camera,0xe4)=1; }
 }
 inline bool replace(void **slot,void *expected,void *value) {
@@ -227,22 +228,21 @@ struct Patch { unsigned slot;void *native,*hook; };
 inline std::array<Patch,8> patches{};
 inline bool install() {
     if(enabled) return true;
-    auto image=native_patch::image();client_detail::Image scan(image);
+    auto image=native_patch::image();native_binding::Image scan(image);
     if(!scan.bytes(0x368500,"55 8B EC 53 56 8B F1 57 83 BE 08 01 00 00 00 0F 84 E5 00 00 00") ||
        !scan.bytes(0x35d870,"55 8B EC 83 B9 94 00 00 00 00 0F 85") ||
        !scan.bytes(0x36ae50,"53 56 F3 0F 2C C1 57 8B D9 F3 0F 2C F2") ||
        !scan.bytes(0x45070,"53 8B DC 83 EC 08 83 E4 F8 83 C4 04 55") ||
        !scan.bytes(0x3697d0,"55 8B EC 83 EC 20 53 56 57 8B F9 33 DB 33 C9") ||
        !scan.bytes(0x35ab60,"55 8B EC 81 EC 04 01 00 00 A1 ?? ?? ?? ?? 33 C5 89 45 FC")) return false;
-    auto base=reinterpret_cast<unsigned char *>(image);
-    auto candidate=reinterpret_cast<void **>(base+0x7b7f70);
+    auto candidate=reinterpret_cast<void **>(scan.address(0x7b7f70));
     const unsigned slots[]={0,9,10,11,12,13,14,21};
     const DWORD addresses[]={0x365f30,0x36ad10,0x36af00,0x36b080,0x36acd0,0x36ac90,0x36b000,0x368500};
     void *hooks[]={reinterpret_cast<void *>(&destroyHook),reinterpret_cast<void *>(&hitHook),reinterpret_cast<void *>(&hitAtHook),
         reinterpret_cast<void *>(&soundHook),reinterpret_cast<void *>(&soundAtHook),reinterpret_cast<void *>(&quakeHook),
         reinterpret_cast<void *>(&quakeAtHook),reinterpret_cast<void *>(&moveHook)};
-    if(candidate[0]!=base+0x365f30) return false;
-    for(size_t i=0;i<8;++i) { if(candidate[slots[i]]!=base+addresses[i]) return false;patches[i]={slots[i],base+addresses[i],hooks[i]}; }
+    if(candidate[0]!=scan.address(0x365f30)) return false;
+    for(size_t i=0;i<8;++i) { if(candidate[slots[i]]!=scan.address(addresses[i])) return false;patches[i]={slots[i],scan.address(addresses[i]),hooks[i]}; }
     originalDestroy=reinterpret_cast<Destroy>(candidate[0]);originalHit=reinterpret_cast<Query>(candidate[9]);
     originalHitAt=reinterpret_cast<QueryAt>(candidate[10]);originalSound=reinterpret_cast<Query>(candidate[11]);
     originalSoundAt=reinterpret_cast<QueryAt>(candidate[12]);originalQuake=reinterpret_cast<Query>(candidate[13]);
@@ -254,8 +254,8 @@ inline bool install() {
         }
         ++installed;
     }
-    imageBase=base;table=candidate;trailProcess=reinterpret_cast<TrailProcess>(base+0x3697d0);
-    playSound=&nativeSound;setQuake=&nativeQuake;boneEntry=base+0x35ab60;boneSampler=&nativeBones;
+    soundEntry=scan.address(0x45070);playerSlot=reinterpret_cast<void **>(scan.address(0x842168));cameraSlot=reinterpret_cast<void **>(scan.address(0x847aa8));table=candidate;trailProcess=reinterpret_cast<TrailProcess>(scan.address(0x3697d0));
+    playSound=&nativeSound;setQuake=&nativeQuake;boneEntry=scan.address(0x35ab60);boneSampler=&nativeBones;
     { std::lock_guard lock(boneMutex);boneCache.clear(); }
     enabled=true;
     Log("Native hybrid animation: time-scaled phases/blends and interval events installed.");return true;
@@ -264,6 +264,6 @@ inline void reset() { std::lock_guard lock(boneMutex);boneCache.clear(); }
 inline void uninstall() {
     enabled=false;
     if(table) for(auto it=patches.rbegin();it!=patches.rend();++it) replace(table+it->slot,it->hook,it->native);
-    table=nullptr;imageBase=nullptr;boneEntry=nullptr;boneSampler=nullptr;reset();
+    table=nullptr;soundEntry=nullptr;playerSlot=cameraSlot=nullptr;boneEntry=nullptr;boneSampler=nullptr;reset();
 }
 }

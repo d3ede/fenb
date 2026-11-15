@@ -27,6 +27,7 @@ inline void uninstall() {
 inline void refreshSfx(void *object) { native_sfx_follow::refresh(object); }
 inline bool install() {
     if(installed) return true;
+    if(!native_binding::prepare()) { Log("Native hybrid unavailable: complete ABI discovery rejected.");uninstall();return false; }
     if(!native_animation::install()) { Log("Native hybrid unavailable: animation ABI guard.");uninstall();return false; }
     if(!native_mover::install()) { Log("Native hybrid unavailable: action ABI guard.");uninstall();return false; }
     if(!native_mover_legacy::install()) { Log("Native hybrid unavailable: legacy mover ABI guard.");uninstall();return false; }

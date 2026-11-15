@@ -15,14 +15,16 @@ using Tracking=void(__thiscall *)(void *);
 using Speed=float(*)(void *,float);
 using Particle=void(*)(void *,float);
 inline bool installed=false;
-inline unsigned char *base=nullptr;
+inline void **playerSlot=nullptr;
+inline int *speedIndicator=nullptr;
+inline void *sendEntry=nullptr,*networkClient=nullptr;
 inline Action originalAction=nullptr;
 inline State originalState=nullptr;
 inline Tracking tracking=nullptr;
 inline Speed getSpeed=nullptr;
 inline Particle particles=nullptr;
 inline void *speedEntry=nullptr,*particleEntry=nullptr;
-inline native_patch::Set patches;
+inline native_binding::Set patches;
 inline bool active() { return installed && hybrid_time::frame.active && hybrid_time::frame.thread==GetCurrentThreadId() &&
     hybrid_time::frame.stage==hybrid_time::Stage::World; }
 inline float ticks() { return std::isfinite(hybrid_time::frame.ticks) ? std::clamp(hybrid_time::frame.ticks,0.f,15.625f) : 0.f; }
@@ -118,9 +120,9 @@ inline Vec flyMove(void *action,float dt) {
     if(field<float>(action,0x4c)==0 && visual_transform::dot(velocity,velocity)<.00000004f) {
         velocity={};field<DWORD>(action,8)&=~0x10u;
     }
-    if(base && *reinterpret_cast<void **>(base+0x842168)==mover) {
+    if(playerSlot && *playerSlot==mover) {
         const float length=std::sqrt(visual_transform::dot(velocity,velocity));
-        *reinterpret_cast<int *>(base+0x841e38)=int(float(int(length*60.f*60.f*60.f))/200.f);
+        *speedIndicator=int(float(int(length*60.f*60.f*60.f))/200.f);
     }
     return displacement;
 }
@@ -168,9 +170,9 @@ inline int __fastcall actionHook(void *action,void *,const Vec *position) {
     if(!flying(action)) { field<float>(action,0x50)=0;field<float>(action,0x58)=0; }
     if(state(action)==0) {
         message(action,3);
-        if(base && *reinterpret_cast<void **>(base+0x842168)==mover && flying(action)) {
+        if(playerSlot && *playerSlot==mover && flying(action)) {
             using Send=void(__thiscall *)(void *);
-            reinterpret_cast<Send>(base+0x9bc70)(base+0x868f90);
+            reinterpret_cast<Send>(sendEntry)(networkClient);
         }
     } else {
         const float speed=getSpeed ? getSpeed(mover,field<float>(action,0x48))*dt : 0;
@@ -189,26 +191,26 @@ inline bool install() {
     return false;
 #else
     if(installed) return true;
-    auto image=native_patch::image();client_detail::Image scan(image);
+    auto image=native_patch::image();native_binding::Image scan(image);
     if(!scan.bytes(0x3cc540,"55 8B EC 83 EC 08 56 8B F1 57 F6 46 08 08") ||
-       !scan.bytes(0x309ad8,"E8 63 2A 0C 00") ||
+       !scan.calls(0x309ad8,0x3cc540) ||
        !scan.bytes(0x3cc8a0,"55 8B EC F6 41 08 08 FF 75 08 8B 41 0C 50 74 09") ||
        !scan.bytes(0x323ee0,"55 8B EC") || !scan.bytes(0x3d2b00,"53 8B DC 83 EC 08 83 E4 F8")) return false;
-    auto *candidate=reinterpret_cast<unsigned char *>(image);
-    auto **table=reinterpret_cast<void **>(candidate+0x7b9bbc);
-    if(table[0]!=candidate+0x3cc100 || table[1]!=candidate+0x3cc860 || table[2]!=candidate+0x3cc8a0) return false;
+    auto **table=reinterpret_cast<void **>(scan.address(0x7b9bbc));
+    if(table[0]!=scan.address(0x3cc100) || table[1]!=scan.address(0x3cc860) || table[2]!=scan.address(0x3cc8a0)) return false;
     const unsigned char actionCall[]={0xe8,0x63,0x2a,0x0c,0};
     patches.clear();
-    if(!patches.call(candidate+0x309ad8,actionCall,reinterpret_cast<void *>(&actionHook)) ||
+    if(!patches.call(scan.address(0x309ad8),actionCall,reinterpret_cast<void *>(&actionHook)) ||
        !patches.pointer(table+2,table[2],reinterpret_cast<void *>(&stateHook))) { patches.clear();return false; }
-    originalAction=reinterpret_cast<Action>(candidate+0x3cc540);originalState=reinterpret_cast<State>(candidate+0x3cc8a0);
-    speedEntry=candidate+0x323ee0;particleEntry=candidate+0x3d2610;
-    tracking=reinterpret_cast<Tracking>(candidate+0x3d2b00);getSpeed=&nativeSpeed;particles=&nativeParticles;
+    originalAction=reinterpret_cast<Action>(scan.address(0x3cc540));originalState=reinterpret_cast<State>(scan.address(0x3cc8a0));
+    speedEntry=scan.address(0x323ee0);particleEntry=scan.address(0x3d2610);
+    tracking=reinterpret_cast<Tracking>(scan.address(0x3d2b00));getSpeed=&nativeSpeed;particles=&nativeParticles;
     if(!patches.apply()) { patches.clear();return false; }
-    base=candidate;installed=true;
+    playerSlot=reinterpret_cast<void **>(scan.address(0x842168));speedIndicator=reinterpret_cast<int *>(scan.address(0x841e38));
+    sendEntry=scan.address(0x9bc70);networkClient=scan.address(0x868f90);installed=true;
     Log("Native hybrid mover: continuous action/gravity/flight integration and legacy counters installed.");return true;
 #endif
 }
 inline void reset() {}
-inline void uninstall() { installed=false;patches.clear();base=nullptr; }
+inline void uninstall() { installed=false;patches.clear();playerSlot=nullptr;speedIndicator=nullptr;sendEntry=networkClient=nullptr; }
 }
