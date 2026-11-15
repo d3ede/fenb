@@ -176,8 +176,9 @@ void PipelineProbe::surface(IDirect3DTexture9* before,IDirect3DTexture9* mask,ID
     LONG x=LONG((desc.Width-width)/2),y=LONG((desc.Height-height)*2/3);
     RECT crop{x,y,x+LONG(width),y+LONG(height)};
     auto prefix="surface-"+std::to_string(frame_);
-    float constants[60*4]{};
-    bool uniforms=SUCCEEDED(device_->GetPixelShaderConstantF(0,constants,60)) &&
+    constexpr UINT uniformRegisters=61; // Includes c60 native depth quantization controls.
+    float constants[uniformRegisters*4]{};
+    bool uniforms=SUCCEEDED(device_->GetPixelShaderConstantF(0,constants,uniformRegisters)) &&
         addBlob(prefix+"-ps.fp32",constants,sizeof(constants));
     Com<IDirect3DSurface9> input,material;
     bool color=SUCCEEDED(before->GetSurfaceLevel(0,input.out()))&&readSurface(input,prefix+"-before.argb",&crop);
@@ -185,7 +186,7 @@ void PipelineProbe::surface(IDirect3DTexture9* before,IDirect3DTexture9* mask,ID
     readDepth(depth,prefix+"-depth.r32f",&crop);
     bool result=readSurface(after,prefix+"-after.argb",&crop);
     std::ostringstream out;out<<"{\"kind\":\"surface-frame\",\"frame\":"<<frame_<<",\"prefix\":\""<<prefix
-        <<"\",\"uniforms\":"<<(uniforms?"true":"false")<<",\"color\":"<<(color?"true":"false")
+        <<"\",\"uniforms\":"<<(uniforms?"true":"false")<<",\"uniformRegisters\":"<<uniformRegisters<<",\"color\":"<<(color?"true":"false")
         <<",\"mask\":"<<(receiver?"true":"false")<<",\"result\":"<<(result?"true":"false")<<"}\n";
     lines_+=out.str();
 }
