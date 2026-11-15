@@ -1,9 +1,10 @@
-param([switch]$Tests,[switch]$Diagnostics,[string]$OutputDirectory)
+param([switch]$Tests,[switch]$Diagnostics,[string]$OutputDirectory,[string]$NativeTestImage)
 $ErrorActionPreference='Stop'
 Set-Location -LiteralPath $PSScriptRoot
 $toolchain=Get-ChildItem -LiteralPath '.tools' -Directory -Filter 'llvm-mingw-*-ucrt-x86_64' | Sort-Object Name -Descending | Select-Object -First 1
 if (-not $toolchain) { throw 'Portable LLVM-MinGW is missing from .tools. See BUILD.txt.' }
 $cxx=Join-Path $toolchain.FullName 'bin\i686-w64-mingw32-clang++.exe'
+$nativeAsmOptions=@('-fms-extensions','-fasm-blocks','-DFENB_CLANG_ASM_BLOCKS')
 if(-not $OutputDirectory){$OutputDirectory=if($Diagnostics){'dist-diagnostics'}else{'dist'}}
 New-Item -ItemType Directory -Force -Path 'build',$outputDirectory,'src/generated' | Out-Null
 node tools/embed-cursor.mjs src/generated/ui_cursor.hpp
@@ -48,6 +49,7 @@ $imgui='vendor/imgui-1.92.9b'
 $sources=@('src/exports.cpp','src/generated/exports.cpp','src/proxy.cpp','src/generated/proxies.cpp','src/settings.cpp','src/runtime.cpp','src/effects.cpp','src/water.cpp','src/scene_fx.cpp','src/fps_limiter.cpp','src/environment.cpp','src/ui.cpp','src/updater.cpp',
     "$imgui/imgui.cpp","$imgui/imgui_draw.cpp","$imgui/imgui_tables.cpp","$imgui/imgui_widgets.cpp","$imgui/backends/imgui_impl_win32.cpp","$imgui/backends/imgui_impl_dx9.cpp")
 $options=@('-std=c++20','-Os','-static','-shared','-fno-rtti','-ffunction-sections','-fdata-sections','-DIMGUI_DISABLE_DEMO_WINDOWS','-DIMGUI_DISABLE_DEBUG_TOOLS','-DIMGUI_IMPL_WIN32_DISABLE_GAMEPAD','-DIMGUI_USE_BGRA_PACKED_COLOR',"-I$imgui",'-Isrc','-Wall','-Wextra','-Wno-unused-parameter')
+$options+=$nativeAsmOptions
 if($Diagnostics){$options+='-DFENB_DIAGNOSTICS';$sources+='src/pipeline_probe.cpp'}
 & $cxx @options @sources 'src/d3d9.def' '-Wl,--gc-sections,--kill-at,--exclude-all-symbols' '-s' '-ld3d9' '-ldxguid' '-lcomctl32' '-ldwmapi' '-lgdi32' '-limm32' '-lbcrypt' '-lwinmm' '-o' "$outputDirectory/d3d9.dll"
 if ($LASTEXITCODE) { throw 'FENB build failed' }
@@ -56,6 +58,21 @@ node tools/prepare-distribution.mjs $outputDirectory
 if ($LASTEXITCODE) { throw 'Distribution documentation generation failed' }
 Get-Item -LiteralPath "$outputDirectory/d3d9.dll" | Select-Object FullName,Length
 if ($Tests) {
+    $nativeTests=@('native_animation','native_camera','native_world','native_mover','native_mover_legacy',
+        'native_mover_services','native_app','native_sfx_follow','native_hybrid','native_binding',
+        'presentation_clock','camera_current','visual_animation','visual_restore')
+    foreach($nativeTest in $nativeTests) {
+        $testBinary="build/$($nativeTest.Replace('_','-'))-test.exe"
+        $nativeOptions=@()
+        if($nativeTest -eq 'native_binding'){$nativeOptions+='-municode'}
+        & $cxx '-std=c++20' '-O2' '-static' '-Isrc' @nativeAsmOptions @nativeOptions "tests/${nativeTest}_test.cpp" '-lwinmm' '-luser32' '-o' $testBinary
+        if($LASTEXITCODE){throw "$nativeTest test build failed"}
+        if($nativeTest -eq 'native_binding') {
+            if(!$NativeTestImage){Write-Host 'Native binding execution skipped: supply -NativeTestImage with a disposable client PE.';continue}
+            & $testBinary $NativeTestImage
+        } else { & $testBinary }
+        if($LASTEXITCODE){throw "$nativeTest test failed"}
+    }
     & $cxx '-std=c++20' '-O2' '-static' '-Isrc' 'tests/settings_test.cpp' 'src/settings.cpp' '-o' 'build/settings-test.exe'
     if ($LASTEXITCODE) { throw 'Settings test build failed' }
     & '.\build\settings-test.exe'
