@@ -2,6 +2,9 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
+#ifdef _MSC_VER
+using WINBOOL = BOOL; // Generated MinGW interface spelling, identical Windows ABI.
+#endif
 #include <d3d9.h>
 #include <atomic>
 #include <memory>
