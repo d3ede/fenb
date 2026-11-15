@@ -6,6 +6,7 @@
 #include "generated/overlay_catalog.hpp"
 #include "generated/surface_catalog.hpp"
 #include <cstring>
+#include <limits>
 #ifdef FENB_DIAGNOSTICS
 #include "pipeline_probe.hpp"
 #endif
@@ -477,7 +478,9 @@ IDirect3DTexture9 *SceneFX::process(IDirect3DTexture9 *input, const Settings &s)
     c[19][3] = s.localLighting && (emitters_ || lights_) && localField_.texture.p ? 1.f : 0.f;
     device_->SetPixelShaderConstantF(0, c[0], 20);
     float depthPrecision[]={depth_.quantum(),s.surfaceReflections && surfaceCaptured_?1.f:0.f,
-                            depth_.quantum()/std::max(.000001f,std::abs(projection_._43)),0};
+                            depth_.quantum()/std::max(.000001f,std::abs(projection_._43)),
+                            (std::abs(eye_[0])+std::abs(eye_[1])+std::abs(eye_[2]))*
+                                (32*std::numeric_limits<float>::epsilon())};
     device_->SetPixelShaderConstantF(60,depthPrecision,1);
     if (s.surfaceReflections && surfaceCaptured_ && s.surfaceStrength > 0 &&
         (surfacePS_.p || SUCCEEDED(device_->CreatePixelShader(ShaderSurfaceReflectionPS, surfacePS_.out()))) &&
@@ -808,7 +811,7 @@ void SceneFX::captureSurface(const Settings &s, DrawCall draw, SurfaceDraw geome
     if(FAILED(device_->GetRenderTarget(0,target.out())) || FAILED(target->GetDesc(&desc)) ||
        FAILED(device_->GetViewport(&vp)) || vp.X!=viewport_.X || vp.Y!=viewport_.Y ||
        vp.Width!=viewport_.Width || vp.Height!=viewport_.Height ||
-       !surfaceMask_.make(device_,desc.Width,desc.Height,D3DFMT_A16B16G16R16F)) return;
+       !surfaceMask_.make(device_,desc.Width,desc.Height,D3DFMT_A32B32G32R32F)) return;
     auto command=std::make_unique<SurfaceCommand>();
     command->draw=geometry; command->fvf=fvf; command->blend=blend!=0;
     memcpy(command->matrices,matrices,sizeof(matrices));

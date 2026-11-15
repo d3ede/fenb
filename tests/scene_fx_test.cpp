@@ -29,12 +29,12 @@ struct SceneFXFixture {
     static float surfaceMaskMaximum(SceneFX &fx,IDirect3DDevice9 *d) {
         Com<IDirect3DSurface9> read;
         if(FAILED(d->CreateOffscreenPlainSurface(fx.surfaceMask_.width,fx.surfaceMask_.height,
-            D3DFMT_A16B16G16R16F,D3DPOOL_SYSTEMMEM,read.out(),nullptr)) ||
+            fx.surfaceMask_.format,D3DPOOL_SYSTEMMEM,read.out(),nullptr)) ||
            FAILED(d->GetRenderTargetData(fx.surfaceMask_.surface,read)))return -1;
         D3DLOCKED_RECT lock{};if(FAILED(read->LockRect(&lock,nullptr,D3DLOCK_READONLY)))return -1;
-        unsigned maximum=0;
+        float maximum=0;
         for(UINT y=0;y<fx.surfaceMask_.height;++y)for(UINT x=0;x<fx.surfaceMask_.width;++x)
-            maximum=std::max(maximum,unsigned(((unsigned short *)((BYTE *)lock.pBits+y*lock.Pitch))[x*4]));
+            maximum=std::max(maximum,((float *)((BYTE *)lock.pBits+y*lock.Pitch))[x*4]);
         read->UnlockRect();return float(maximum);
     }
     static std::array<float, 3> sourcePosition(SceneFX &fx, IDirect3DDevice9 *d) {
@@ -172,7 +172,9 @@ bool LoadMaterial(IDirect3DDevice9 *d,const wchar_t *path,Com<IDirect3DTexture9>
 } // namespace
 int main(int argc, char **argv) {
     const bool surfaceBenchmark=argc>1 && !strcmp(argv[1],"--surface-benchmark");
-    if(surfaceBenchmark){W=1920;H=1080;}
+    bool nativeResolution=false;
+    for(int i=1;i<argc;++i)if(!strcmp(argv[i],"--absolute-world"))nativeResolution=true;
+    if(surfaceBenchmark || nativeResolution){W=1920;H=1080;}
     WNDCLASSW wc{};
     wc.lpfnWndProc = DefWindowProcW;
     wc.hInstance = GetModuleHandleW(nullptr);
@@ -192,7 +194,7 @@ int main(int argc, char **argv) {
     pp.SwapEffect = D3DSWAPEFFECT_DISCARD;
     pp.EnableAutoDepthStencil = TRUE;
     pp.AutoDepthStencilFormat = D3DFMT_D24X8;
-    bool surfaceOnly=false;
+    bool surfaceOnly=nativeResolution;
     for(int i=1;i<argc;++i) {
         if(!strcmp(argv[i],"--depth16"))pp.AutoDepthStencilFormat=D3DFMT_D16;
         if(!strcmp(argv[i],"--msaa"))pp.MultiSampleType=D3DMULTISAMPLE_8_SAMPLES;
@@ -232,7 +234,7 @@ int main(int argc, char **argv) {
     DWORD tag = 1;
     emitter->SetPrivateData(EmitterTag, &tag, 4, 0); // Synthetic recognized source.
     bool emit = false, nativePoint = true, occluded = false, foreground = false;
-    float cameraYaw = 0, cameraHeight = 4;
+    float cameraYaw = 0, cameraHeight = 4, cameraRadius=12;
     bool cameraOrbit = false;
     bool planeOnly = false, moonBackdrop = false;
     bool nativeFogScene = false, horizonCube = false, hostilePostState = false, swapHudDepth = false;
@@ -288,6 +290,8 @@ int main(int argc, char **argv) {
     bool surfaceBuffered=true, surfaceBlend=false, surfaceBadNormals=false, surfaceGradient=false;
     bool surfaceInvisibleLayer=false;
     bool pavingChecker=false;
+    bool absoluteWorldVertices=false;
+    float absoluteWorldStep=1;
     float surfaceDepthBias=0, surfaceSlopeBias=0;
     bool surfaceVerticesReady=false, surfaceVerticesGrass=false;
     Com<IDirect3DVertexBuffer9> surfaceVertices;
@@ -331,7 +335,7 @@ int main(int argc, char **argv) {
         D3DMATRIX currentView = view;
         if (cameraYaw != 0 || cameraOrbit) {
             // Orbit around the receiver while keeping the world and emissive geometry fixed.
-            float ex = std::sin(cameraYaw) * 12, ez = 4 - std::cos(cameraYaw) * 12;
+            float ex = std::sin(cameraYaw) * cameraRadius, ez = 4 - std::cos(cameraYaw) * cameraRadius;
             float zx = -ex, zy = -cameraHeight, zz = 4 - ez;
             float length = std::sqrt(zx * zx + zy * zy + zz * zz);
             zx /= length;
@@ -427,8 +431,12 @@ int main(int argc, char **argv) {
                                                                 {float(x + 1), 0, float(z), c},
                                                                 {float(x), 0, float(z + 1), c},
                                                                 {float(x + 1), 0, float(z + 1), c}})
+                    {
+                        if(absoluteWorldVertices){v.x=v.x*absoluteWorldStep+sceneOffset[0];v.y+=sceneOffset[1];v.z=v.z*absoluteWorldStep+sceneOffset[2];}
                         floor.push_back(v);
+                    }
                 }
+            if(absoluteWorldVertices)d->SetTransform(D3DTS_WORLD,&id);
             d->DrawPrimitiveUP(D3DPT_TRIANGLELIST, UINT(floor.size() / 3), floor.data(), sizeof(Vertex));
             if(surfaceFixture) {
                 struct PavingVertex {float x,y,z,nx,ny,nz,u,v,u1,v1;};
@@ -505,6 +513,7 @@ int main(int argc, char **argv) {
                 }
                 d->SetFVF(D3DFVF_XYZ|D3DFVF_DIFFUSE);d->SetTexture(0,nullptr);
             }
+            d->SetTransform(D3DTS_WORLD,&sceneWorld);
             Vertex wall[] = {{-2, 0, 18, 0xff948674},
                              {2, 0, 18, 0xff948674},
                              {-2, 7, 18, 0xff948674},
@@ -1081,6 +1090,31 @@ int main(int argc, char **argv) {
         CHECK(energy>.05f && error<.005f);
     }
     settings.localLighting=false;nativePoint=false;settings.localRange=1.55f;
+    // The native terrain stores absolute world coordinates in its vertex buffer;
+    // a translated local mesh does not exercise the same fixed-function precision.
+    absoluteWorldVertices=true;sceneOffset={6994,100,3263};surfaceVerticesReady=false;
+    const auto savedProjection=projection;
+    for(bool nativeProjection:{false,true}) {
+        projection=savedProjection;absoluteWorldStep=nativeProjection?8.f:1.f;surfaceVerticesReady=false;
+        if(nativeProjection){projection._11=1.357995f;projection._22=2.4142134f;projection._33=1.00095797f;projection._43=-.49046943f;}
+        cameraRadius=nativeProjection?14.11f:12.f;
+        for(int motion=0;motion<6;++motion) {
+            cameraHeight=16.73364f+.17f*motion;cameraYaw=.3f+.003f*motion;
+            settings.surfaceStrength=0;CHECK(render());const auto bare=Read(d);
+            settings.surfaceStrength=1;CHECK(render());const auto coated=Read(d);unsigned interior=0,missing=0;
+            for(UINT y=4;y+4<H;++y)for(UINT x=4;x+4<W;++x) {
+                const size_t at=y*W+x;
+                if((bare[at]&0xffffff)!=0x808080 || (bare[at-4]&0xffffff)!=0x808080 ||
+                   (bare[at+4]&0xffffff)!=0x808080 || (bare[at-4*W]&0xffffff)!=0x808080 ||
+                   (bare[at+4*W]&0xffffff)!=0x808080)continue;
+                ++interior;missing+=(coated[at]&0xffffff)==0x808080;
+            }
+            printf("Absolute-world paving: frame=%d missing=%u/%u\n",motion,missing,interior);
+            CHECK(Save(coated,L"build/surface-absolute-world.bmp"));
+            CHECK(interior>100 && missing<std::max(4u,interior/2000));
+        }
+    }
+    absoluteWorldVertices=false;surfaceVerticesReady=false;projection=savedProjection;cameraRadius=12;
     surfaceBlend=true;sceneOffset={7000,100,3300};
     // Both constant and spatially varying coverage must remain continuous while
     // camera height changes through fractional values during a jump.

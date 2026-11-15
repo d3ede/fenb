@@ -86,15 +86,18 @@ int main(){
     CHECK(!PipelineProbeFixture::payload(probe,65*1024*1024));
     probe.boundary();probe.boundary();probe.boundary();
     CHECK(PipelineProbeFixture::blobs(probe).empty());
-    Com<IDirect3DTexture9> surfaceColor,surfaceMask;
-    Com<IDirect3DSurface9> colorTarget,maskTarget,originalTarget;
+    Com<IDirect3DTexture9> surfaceColor,surfaceMask,preciseMask;
+    Com<IDirect3DSurface9> colorTarget,maskTarget,preciseTarget,originalTarget;
     CHECK(SUCCEEDED(device->CreateTexture(320,240,1,D3DUSAGE_RENDERTARGET,D3DFMT_A8R8G8B8,D3DPOOL_DEFAULT,surfaceColor.out(),nullptr)));
     CHECK(SUCCEEDED(device->CreateTexture(320,240,1,D3DUSAGE_RENDERTARGET,D3DFMT_A16B16G16R16F,D3DPOOL_DEFAULT,surfaceMask.out(),nullptr)));
+    CHECK(SUCCEEDED(device->CreateTexture(320,240,1,D3DUSAGE_RENDERTARGET,D3DFMT_A32B32G32R32F,D3DPOOL_DEFAULT,preciseMask.out(),nullptr)));
+    CHECK(SUCCEEDED(preciseMask->GetSurfaceLevel(0,preciseTarget.out())));
     CHECK(SUCCEEDED(surfaceColor->GetSurfaceLevel(0,colorTarget.out()))&&SUCCEEDED(surfaceMask->GetSurfaceLevel(0,maskTarget.out())));
     device->GetRenderTarget(0,originalTarget.out());
     device->SetDepthStencilSurface(nullptr);device->SetRenderTarget(0,colorTarget);
     CHECK(SUCCEEDED(device->Clear(0,nullptr,D3DCLEAR_TARGET,0xff205080,1,0)));
     device->SetRenderTarget(0,maskTarget);CHECK(SUCCEEDED(device->Clear(0,nullptr,D3DCLEAR_TARGET,0xff102030,1,0)));
+    device->SetRenderTarget(0,preciseTarget);CHECK(SUCCEEDED(device->Clear(0,nullptr,D3DCLEAR_TARGET,0xff102030,1,0)));
     device->SetRenderTarget(0,originalTarget);
     const auto marker=ModuleDirectory()+L"FENB-surface.request";
     FILE* request=_wfopen(marker.c_str(),L"wb");CHECK(request);fclose(request);
@@ -107,20 +110,22 @@ int main(){
         const auto previous=PipelineProbeFixture::blobs(probe).size();
         CHECK(SUCCEEDED(device->BeginScene()));
         device->SetPixelShaderConstantF(0,constants,1);
-        const float precision[]={1.f/65535.f,1,.00015f,float(frame)};
+        const float precision[]={1.f/65535.f,1,.00015f,.025f};
         device->SetPixelShaderConstantF(60,precision,1);
-        probe.surface(surfaceColor,surfaceMask,depth.texture(),colorTarget);
+        auto *frameMask=frame==2?preciseMask.p:surfaceMask.p;
+        probe.surface(surfaceColor,frameMask,depth.texture(),colorTarget);
         CHECK(PipelineProbeFixture::blobs(probe).size()==previous+5);
         const auto &uniforms=PipelineProbeFixture::blobs(probe)[previous];
         CHECK(uniforms.name=="surface-"+std::to_string(frame)+"-ps.fp32" && uniforms.bytes.size()==61*16);
         CHECK(!memcmp(uniforms.bytes.data()+60*16,precision,16));
-        probe.surface(surfaceColor,surfaceMask,depth.texture(),colorTarget);
+        probe.surface(surfaceColor,frameMask,depth.texture(),colorTarget);
         CHECK(PipelineProbeFixture::blobs(probe).size()==previous+5);
         device->GetPixelShaderConstantF(0,values,1);CHECK(!memcmp(values,constants,16));
         device->GetPixelShaderConstantF(60,values,1);CHECK(!memcmp(values,precision,16));
         const auto &mask=PipelineProbeFixture::blobs(probe)[previous+2];
-        CHECK(mask.bytes.size()==320*240*8);
-        unsigned short alpha=0;memcpy(&alpha,mask.bytes.data()+6,2);CHECK(alpha==0x3c00);
+        CHECK(mask.bytes.size()==320*240*(frame==2?16:8));
+        if(frame==2){float alpha=0;memcpy(&alpha,mask.bytes.data()+12,4);CHECK(alpha==1);}
+        else {unsigned short alpha=0;memcpy(&alpha,mask.bytes.data()+6,2);CHECK(alpha==0x3c00);}
         CHECK(SUCCEEDED(device->EndScene()));probe.boundary();
     }
     CHECK(PipelineProbeFixture::blobs(probe).empty());

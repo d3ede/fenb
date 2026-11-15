@@ -182,11 +182,14 @@ void PipelineProbe::surface(IDirect3DTexture9* before,IDirect3DTexture9* mask,ID
         addBlob(prefix+"-ps.fp32",constants,sizeof(constants));
     Com<IDirect3DSurface9> input,material;
     bool color=SUCCEEDED(before->GetSurfaceLevel(0,input.out()))&&readSurface(input,prefix+"-before.argb",&crop);
-    bool receiver=SUCCEEDED(mask->GetSurfaceLevel(0,material.out()))&&readSurface(material,prefix+"-mask.rgba16f",&crop);
+    D3DSURFACE_DESC maskDescription{};mask->GetLevelDesc(0,&maskDescription);
+    const auto maskFile=prefix+(maskDescription.Format==D3DFMT_A32B32G32R32F?"-mask.rgba32f":"-mask.rgba16f");
+    bool receiver=SUCCEEDED(mask->GetSurfaceLevel(0,material.out()))&&readSurface(material,maskFile,&crop);
     readDepth(depth,prefix+"-depth.r32f",&crop);
     bool result=readSurface(after,prefix+"-after.argb",&crop);
     std::ostringstream out;out<<"{\"kind\":\"surface-frame\",\"frame\":"<<frame_<<",\"prefix\":\""<<prefix
         <<"\",\"uniforms\":"<<(uniforms?"true":"false")<<",\"uniformRegisters\":"<<uniformRegisters<<",\"color\":"<<(color?"true":"false")
+        <<",\"maskFile\":\""<<maskFile<<"\",\"receiverEncoding\":\"camera-relative-height\""
         <<",\"mask\":"<<(receiver?"true":"false")<<",\"result\":"<<(result?"true":"false")<<"}\n";
     lines_+=out.str();
 }

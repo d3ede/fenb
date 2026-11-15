@@ -10,7 +10,7 @@ float4 SurfaceControls : register(c56); // strength, roughness, trace distance, 
 float4 SurfaceLight : register(c57); // view-space directional light, daylight
 float4 SurfaceEnvironment : register(c58); // captured sky available
 float4 SurfaceDepth : register(c59); // projection _43, native depth bias, native slope-scale bias
-float4 DepthPrecision : register(c60); // depth quantum, receiver mask available, quantum / abs(_43)
+float4 DepthPrecision : register(c60); // quantum, mask available, quantum / abs(_43), transform roundoff
 float4 Camera : register(c0);
 float4 Viewport : register(c1);
 float4 Texel : register(c2);
@@ -54,9 +54,9 @@ float ReceiverDepth(float raw,float height,float3 ray,float3 n) {
     float z=height/center;
     if(z<=0 || z>10000)return 0;
     float za=height/(center-span),zb=height/(center+span);
-    float precision=max(.012,z*.0015); // FP16 receiver height and transform arithmetic.
-    // Compare in device depth, where D16 has a constant quantization interval.
-    // A linear-z percentage alone rejects alternating depth steps as the camera moves.
+    // Absolute-world vertices lose precision before projection. Account for
+    // native/replay FP32 transform roundoff in world height, not a fixed Z bias.
+    float precision=max(.012,z*.0015)+DepthPrecision.w/abs(center);
     float nearZ=max(.001,min(za,zb)-precision),farZ=max(nearZ,max(za,zb)+precision);
     float lower=Camera.z+Camera.w/nearZ,upper=Camera.z+Camera.w/farZ;
     float quantum=DepthPrecision.x*.6+.00000012;
@@ -526,15 +526,13 @@ float4 SurfaceMaskPS(float2 blendUV:TEXCOORD0,float depth:TEXCOORD1,float3 world
   response.x*=lerp(.4,1,smoothstep(.12,.65,grain));
   response.y=saturate(response.y+(1-grain)*.12);
  }
- // Native raster depth includes polygon bias; the material replay stores linear
- // depth and must apply the same offset before comparing against the game Z buffer.
- // Differentiate _43/z directly to avoid cancellation near an NDC depth of one.
+ // Native raster depth includes polygon bias. Differentiate _43/z directly
+ // to avoid cancellation near an NDC depth of one.
  float projected=SurfaceDepth.x/depth;
  float slope=max(abs(ddx(projected)),abs(ddy(projected)));
  float offset=SurfaceDepth.y+SurfaceDepth.z*slope;
  float receiver=depth/max(.000001,1+offset*depth/SurfaceDepth.x);
- // Keep the receiver camera-relative. The height write is unblended, so neither
- // view-depth variation nor repeated alpha blending can accumulate receiver error.
+ // Receiver height is FP32 and unblended, including through terrain layers.
  float coverage=Camera.z>.5?tex2D(Depth,blendUV).a:1;
  clip(coverage-.00001);
  return float4(response,world.y*(receiver/depth),coverage);
@@ -544,7 +542,7 @@ float2 SurfaceProject(float3 p) {
 }
 float4 SurfaceReflectionPS(float2 uv:TEXCOORD0):COLOR0 {
  float4 base=tex2D(Image,uv),material=tex2Dlod(AO,float4(DepthUV(uv),0,0));
- float raw=RawDepth(uv),z=Z(uv);
+ float raw=RawDepth(uv);
  // The replay records receiver height. Later characters, water and props cannot inherit it.
  if(material.r<.001 || material.a<.0001 || raw>=.999999)return base;
  // Roughness is alpha-weighted; height is replayed without blending.

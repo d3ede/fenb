@@ -24,7 +24,8 @@ class SceneFX {
             width = height = 0;
         }
         size_t bytes() const {
-            return texture.p ? size_t(width) * height * (format == D3DFMT_A16B16G16R16F ? 8 : 4) : 0;
+            const size_t pixelBytes=format==D3DFMT_A32B32G32R32F?16:format==D3DFMT_A16B16G16R16F?8:4;
+            return texture.p?size_t(width)*height*pixelBytes:0;
         }
     };
     IDirect3DDevice9 *device_;

@@ -29,7 +29,10 @@ const report=[];
 for(const frame of frames){
     const prefix=frame.prefix;if(!/^surface-[0-2]$/.test(prefix))throw Error('Invalid surface frame prefix');
     const before=image(prefix+'-before.argb',4),after=image(prefix+'-after.argb',4);
-    const mask=image(prefix+'-mask.rgba16f',8),depth=image(prefix+'-depth.r32f',4);
+    const maskFile=frame.maskFile??prefix+'-mask.rgba16f';
+    if(maskFile!==prefix+'-mask.rgba16f' && maskFile!==prefix+'-mask.rgba32f')throw Error('Invalid mask filename');
+    const mask=image(maskFile,maskFile.endsWith('rgba32f')?16:8),depth=image(prefix+'-depth.r32f',4);
+    const channel=(i,c)=>mask.pixelBytes===16?mask.data.readFloatLE(i*16+c*4):half(mask.data.readUInt16LE(i*8+c*2));
     if([after,mask,depth].some(r=>['width','height','x','y','sourceWidth','sourceHeight'].some(k=>r[k]!==before[k])))
         throw Error('Surface crop coordinates differ');
     const uniforms=fs.readFileSync(path.join(capture,prefix+'-ps.fp32'));
@@ -39,6 +42,7 @@ for(const frame of frames){
     const texel=[f(8),f(9)],n=[f(52),f(53),f(54)],length=Math.hypot(...n);
     if(length)for(let i=0;i<3;++i)n[i]/=length;
     const quantum=uniforms.length>=61*16?f(240):null;
+    const transformRoundoff=uniforms.length>=61*16?Math.max(0,f(243)):0;
     const validationAvailable=length>0 && camera[0]>0 && camera[1]>0 && camera[3]<0 &&
         viewport[2]>0 && viewport[3]>0 && texel.every(v=>v>0) && Number.isFinite(quantum) && quantum>0;
     const count=before.width*before.height,delta=Buffer.alloc(count*4),receivers=Buffer.alloc(count*4);
@@ -48,8 +52,8 @@ for(const frame of frames){
         const at=i*4;let maximum=0;
         for(let c=0;c<3;++c){const difference=Math.abs(after.data[at+c]-before.data[at+c]);maximum=Math.max(maximum,difference);delta[at+c]=Math.min(255,difference*8);}
         changed+=maximum>1;delta[at+3]=receivers[at+3]=material[at+3]=255;
-        const reflectance=half(mask.data.readUInt16LE(i*8)),coverage=half(mask.data.readUInt16LE(i*8+6));
-        const height=half(mask.data.readUInt16LE(i*8+4)),raw=depth.data.readFloatLE(i*4);
+        const reflectance=channel(i,0),coverage=channel(i,3);
+        const height=channel(i,2),raw=depth.data.readFloatLE(i*4);
         if(![reflectance,coverage,height,raw].every(Number.isFinite)){++invalid;continue;}
         material[at]=material[at+1]=material[at+2]=Math.round(Math.max(0,Math.min(1,reflectance))*255);
         if(reflectance<.001 || coverage<.0001)continue;
@@ -60,7 +64,8 @@ for(const frame of frames){
             (1-(y/before.sourceHeight-viewport[1])/viewport[3]*2)/camera[1],1];
         const center=ray.reduce((sum,v,k)=>sum+v*n[k],0);
         const span=Math.abs(n[0])*texel[0]/(camera[0]*viewport[2])+Math.abs(n[1])*texel[1]/(camera[1]*viewport[3]);
-        const z=height/center,za=height/(center-span),zb=height/(center+span),precision=Math.max(.012,z*.0015);
+        const z=height/center;
+        const za=height/(center-span),zb=height/(center+span),precision=Math.max(.012,z*.0015)+transformRoundoff/Math.abs(center);
         const near=Math.max(.001,Math.min(za,zb)-precision),far=Math.max(near,Math.max(za,zb)+precision);
         const allowance=quantum*.6+.00000012;
         const valid=raw<.999999 && Math.abs(center)>span && z>0 && z<=10000 &&
@@ -72,7 +77,8 @@ for(const frame of frames){
     report.push({frame:frame.frame,width:before.width,height:before.height,cropX:before.x,cropY:before.y,
         uniformRegisters:uniforms.length/16,depthQuantum:quantum,copiedDepthBits:quantum>0?Math.round(Math.log2(1/quantum)):null,
         validationAvailable,changedPixels:changed,reflectiveMaskPixels:covered,acceptedReceiverPixels:accepted,
-        rejectedReceiverPixels:rejected,invalidPixels:invalid,heightRange:covered?[heightMin,heightMax]:null});
+        rejectedReceiverPixels:rejected,invalidPixels:invalid,receiverEncoding:'camera-relative-height',transformRoundoff,
+        heightRange:covered?[heightMin,heightMax]:null});
 }
 const result={frames:report,note:'Receiver validity reproduces receiver admission only, not SSR hit confidence. Green means accepted, red rejected, amber unavailable, black outside the reflective mask. Differences show the surface pass before atmosphere and grading. Camera movement changes pixel correspondence between frames; image differences alone do not establish a cause of flicker.'};
 fs.writeFileSync(path.join(output,'report.json'),JSON.stringify(result,null,2)+'\n');

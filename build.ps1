@@ -127,6 +127,8 @@ if ($Tests) {
     if($LASTEXITCODE){throw 'D16 scene FX tests failed'}
     & '.\build\scene-fx-test.exe' '--depth16' '--msaa' '--surface-tests'
     if($LASTEXITCODE){throw 'D16 MSAA surface reflection tests failed'}
+    & './build/scene-fx-test.exe' '--absolute-world' '--msaa'
+    if($LASTEXITCODE){throw 'Native-resolution absolute-world reflection tests failed'}
     & $cxx '-std=c++20' '-O2' '-static' '-Isrc' 'tests/sfx_test.cpp' '-ld3d9' '-ldxguid' '-lbcrypt' '-o' 'build/sfx-test.exe'
     if($LASTEXITCODE){throw 'SFX test build failed'}
     & '.\build\sfx-test.exe'
