@@ -502,9 +502,11 @@ float4 SurfaceMaskPS(float2 blendUV:TEXCOORD0,float depth:TEXCOORD1,float3 world
  float slope=max(abs(ddx(projected)),abs(ddy(projected)));
  float offset=SurfaceDepth.y+SurfaceDepth.z*slope;
  float receiver=depth/max(.000001,1+offset*depth/SurfaceDepth.x);
- // A horizontal receiver has constant camera-relative height, unlike view Z,
- // whose FP16 rounding changes every scanline and accumulates across terrain layers.
- return float4(response,world.y*(receiver/depth),Camera.z>.5?tex2D(Depth,blendUV).a:1);
+ // Keep the receiver camera-relative. The height write is unblended, so neither
+ // view-depth variation nor repeated alpha blending can accumulate receiver error.
+ float coverage=Camera.z>.5?tex2D(Depth,blendUV).a:1;
+ clip(coverage-.00001);
+ return float4(response,world.y*(receiver/depth),coverage);
 }
 float2 SurfaceProject(float3 p) {
  return (p.xy*Camera.xy/p.z*float2(.5,-.5)+.5)*Viewport.zw+Viewport.xy+Texel.xy*.5;
@@ -514,9 +516,9 @@ float4 SurfaceReflectionPS(float2 uv:TEXCOORD0):COLOR0 {
  float raw=RawDepth(uv),z=Z(uv);
  // The replay records receiver height. Later characters, water and props cannot inherit it.
  if(material.r<.001 || material.a<.0001 || raw>=.999999)return base;
- // RGB stores alpha-weighted terrain layers; alpha stores their accumulated coverage.
- // Normalize height/roughness, while reflectance must retain its native blend coverage.
- material.gb/=material.a;
+ // Roughness is alpha-weighted; height is replayed without blending.
+ // Reflectance must retain its native blend coverage.
+ material.g/=material.a;
  float2 dx=float2(Texel.x,0),dy=float2(0,Texel.y);
  float3 n=normalize(View[1].xyz),ray=Point(uv,1);
  // Resolve depth may come from any MSAA sample inside this pixel. Bound that

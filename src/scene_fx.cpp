@@ -832,7 +832,14 @@ void SceneFX::captureSurface(const Settings &s, DrawCall draw, SurfaceDraw geome
     StateGuard state(device_);if(!state.valid())return;state.isolateTargets();
     if(!beginSurfaceMask())return;
     applySurface(*command);
-    if(SUCCEEDED(draw()))surfaceCaptured_=true;
+    if(SUCCEEDED(draw())) {
+        if(command->blend) {
+            device_->SetRenderState(D3DRS_COLORWRITEENABLE,D3DCOLORWRITEENABLE_BLUE);
+            device_->SetRenderState(D3DRS_ALPHABLENDENABLE,FALSE);
+            if(FAILED(draw()))return;
+        }
+        surfaceCaptured_=true;
+    }
 }
 bool SceneFX::beginSurfaceMask() {
     if(!surfaceMask_.surface.p || FAILED(device_->SetRenderTarget(0,surfaceMask_.surface)))return false;
@@ -845,8 +852,8 @@ bool SceneFX::beginSurfaceMask() {
     for(auto key:{D3DRS_ZENABLE,D3DRS_ZWRITEENABLE,D3DRS_ALPHATESTENABLE,D3DRS_FOGENABLE,
                   D3DRS_STENCILENABLE,D3DRS_SCISSORTESTENABLE,D3DRS_SRGBWRITEENABLE,
                   D3DRS_CLIPPLANEENABLE}) device_->SetRenderState(key,FALSE);
-    // The mask's alpha is accumulated coverage, not source-alpha squared. Height and
-    // roughness are divided by this coverage when the completed mask is sampled.
+    // Coverage and roughness accumulate together. Receiver height is written separately
+    // without blending so varying terrain alpha cannot accumulate FP16 height error.
     device_->SetRenderState(D3DRS_SEPARATEALPHABLENDENABLE,TRUE);
     device_->SetRenderState(D3DRS_SRCBLENDALPHA,D3DBLEND_ONE);
     device_->SetRenderState(D3DRS_DESTBLENDALPHA,D3DBLEND_INVSRCALPHA);
@@ -855,12 +862,13 @@ bool SceneFX::beginSurfaceMask() {
     device_->SetRenderState(D3DRS_SRCBLEND,D3DBLEND_SRCALPHA);
     device_->SetRenderState(D3DRS_DESTBLEND,D3DBLEND_INVSRCALPHA);
     device_->SetRenderState(D3DRS_BLENDOP,D3DBLENDOP_ADD);
-    device_->SetRenderState(D3DRS_COLORWRITEENABLE,15);
     device_->SetRenderState(D3DRS_MULTISAMPLEMASK,0xffffffff);
     device_->SetRenderState(D3DRS_FILLMODE,D3DFILL_SOLID);
     return true;
 }
 void SceneFX::applySurface(const SurfaceCommand &command) {
+    device_->SetRenderState(D3DRS_COLORWRITEENABLE,command.blend?
+        D3DCOLORWRITEENABLE_RED|D3DCOLORWRITEENABLE_GREEN|D3DCOLORWRITEENABLE_ALPHA:15);
     device_->SetFVF(command.fvf);
     device_->SetTexture(0,command.art);device_->SetTexture(1,command.blendMap);
     device_->SetVertexShaderConstantF(0,&command.matrices[0].m[0][0],12);
@@ -881,10 +889,18 @@ void SceneFX::flushSurfaces() {
             applySurface(*command);
             device_->SetStreamSource(0,command->vertices,command->offset,command->stride);
             const auto &draw=command->draw;
-            if(draw.indexed) {
-                device_->SetIndices(command->indices);
-                device_->DrawIndexedPrimitive(draw.type,draw.baseVertex,draw.minVertex,draw.vertices,draw.first,draw.primitives);
-            }else device_->DrawPrimitive(draw.type,draw.first,draw.primitives);
+            if(draw.indexed)device_->SetIndices(command->indices);
+            const auto replay=[&] {
+                if(draw.indexed)
+                    device_->DrawIndexedPrimitive(draw.type,draw.baseVertex,draw.minVertex,draw.vertices,draw.first,draw.primitives);
+                else device_->DrawPrimitive(draw.type,draw.first,draw.primitives);
+            };
+            replay();
+            if(command->blend) {
+                device_->SetRenderState(D3DRS_COLORWRITEENABLE,D3DCOLORWRITEENABLE_BLUE);
+                device_->SetRenderState(D3DRS_ALPHABLENDENABLE,FALSE);
+                replay();
+            }
         }
     }
     surfaceCommands_.clear();

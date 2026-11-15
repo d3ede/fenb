@@ -266,7 +266,8 @@ int main(int argc, char **argv) {
     DWORD emitterStage1 = D3DTOP_DISABLE, emitterStage1Argument = D3DTA_CURRENT;
     bool surfaceFixture = false, surfaceGrass = false, atlasGrass = false, surfacePattern = false;
     unsigned surfaceTiles=1, surfaceUnknownTiles=0, surfaceLayers=1;
-    bool surfaceBuffered=true, surfaceBlend=false, surfaceBadNormals=false;
+    bool surfaceBuffered=true, surfaceBlend=false, surfaceBadNormals=false, surfaceGradient=false;
+    bool surfaceInvisibleLayer=false;
     float surfaceDepthBias=0, surfaceSlopeBias=0;
     bool surfaceVerticesReady=false, surfaceVerticesGrass=false;
     Com<IDirect3DVertexBuffer9> surfaceVertices;
@@ -282,12 +283,19 @@ int main(int argc, char **argv) {
     CHECK(SUCCEEDED(d->CreateTexture(2,2,1,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,unknownPaving.out(),nullptr)));
     DWORD unknownPavingTag=4;unknownPaving->SetPrivateData(EmitterTag,&unknownPavingTag,4,0);
     Com<IDirect3DTexture9> surfaceCoverage;
-    CHECK(SUCCEEDED(d->CreateTexture(1,1,1,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,surfaceCoverage.out(),nullptr)));
+    CHECK(SUCCEEDED(d->CreateTexture(32,32,1,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,surfaceCoverage.out(),nullptr)));
     auto setSurfaceCoverage=[&](BYTE alpha) {
         D3DLOCKED_RECT coverage{};if(FAILED(surfaceCoverage->LockRect(0,&coverage,nullptr,0)))return false;
-        *(DWORD*)coverage.pBits=(DWORD(alpha)<<24)|0xffffff;surfaceCoverage->UnlockRect(0);return true;
+        for(int y=0;y<32;++y)for(int x=0;x<32;++x)
+            ((DWORD*)((BYTE*)coverage.pBits+y*coverage.Pitch))[x]=
+                (DWORD(surfaceGradient && alpha?1+(x+3*y)%alpha:alpha)<<24)|0xffffff;
+        surfaceCoverage->UnlockRect(0);return true;
     };
     CHECK(setSurfaceCoverage(255));
+    Com<IDirect3DTexture9> transparentCoverage;
+    CHECK(SUCCEEDED(d->CreateTexture(1,1,1,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,transparentCoverage.out(),nullptr)));
+    CHECK(SUCCEEDED(transparentCoverage->LockRect(0,&lock,nullptr,0)));
+    *(DWORD*)lock.pBits=0xffffff;transparentCoverage->UnlockRect(0);
     struct Vertex {
         float x, y, z;
         DWORD color;
@@ -406,7 +414,7 @@ int main(int argc, char **argv) {
                 struct PavingVertex {float x,y,z,nx,ny,nz,u,v,u1,v1;};
                 std::vector<PavingVertex> maskFloor;
                 for(const auto &v:floor)maskFloor.push_back({v.x,v.y,v.z,surfaceBadNormals && v.x>0?.3f:0.f,1,0,
-                    atlasGrass?.9f:.3f,atlasGrass?.77f:.3f,0,0});
+                    atlasGrass?.9f:.3f,atlasGrass?.77f:.3f,v.x*.12f,v.z*.12f});
                 d->SetFVF(0x212); d->SetTexture(0,paving);
                 if(surfaceBlend) {
                     d->SetRenderState(D3DRS_ALPHABLENDENABLE,TRUE);
@@ -436,6 +444,15 @@ int main(int argc, char **argv) {
                         return surfaceBuffered?d->DrawPrimitive(D3DPT_TRIANGLELIST,first*3,end-first):
                             d->DrawPrimitiveUP(D3DPT_TRIANGLELIST,end-first,maskFloor.data()+first*3,sizeof(PavingVertex));
                     },surfaceBuffered?SurfaceDraw{D3DPT_TRIANGLELIST,first*3,end-first}:SurfaceDraw{});
+                }
+                if(surfaceInvisibleLayer) {
+                    // A zero-alpha layer at another height must not replace the receiver.
+                    for(auto &v:maskFloor)v.y-=.5f;
+                    d->SetTexture(0,unknownPaving);d->SetTexture(1,transparentCoverage);
+                    fx.sceneFX().captureSurface(settings,[&] {
+                        return d->DrawPrimitiveUP(D3DPT_TRIANGLELIST,UINT(maskFloor.size()/3),maskFloor.data(),sizeof(PavingVertex));
+                    });
+                    d->SetTexture(0,paving);d->SetTexture(1,surfaceCoverage);
                 }
                 if(surfaceUnknownTiles) {
                     d->SetTexture(0,unknownPaving);
@@ -1020,9 +1037,14 @@ int main(int argc, char **argv) {
         CHECK(interior>100 && untouched<interior/50);
     }
     surfaceBlend=true;surfaceDepthBias=surfaceSlopeBias=0;sceneOffset={7000,100,3300};
-    for(const auto layers:std::array<std::array<unsigned,2>,3>{{{16,16},{16,64},{32,4}}})for(float elevation:{65.f,120.f}) {
+    // Both constant and spatially varying coverage must remain continuous while
+    // camera height changes through fractional values during a jump.
+    for(bool buffered:{false,true})for(bool gradient:{false,true})for(const auto layers:std::array<std::array<unsigned,2>,3>{{{16,16},{16,64},{32,4}}})for(float elevation:{4.f,12.f,35.f,65.f,120.f}) {
+        surfaceBuffered=buffered;
+        surfaceGradient=gradient;
         surfaceLayers=layers[0];CHECK(setSurfaceCoverage(BYTE(layers[1])));cameraHeight=elevation;
         for(int motion=0;motion<6;++motion) {
+            cameraHeight=elevation+std::sin(float(motion+1))*.73f;
             cameraYaw=.3f+motion*.002f;settings.surfaceStrength=0;CHECK(render());const auto bare=Read(d);
             settings.surfaceStrength=1;CHECK(render());const auto coated=Read(d);unsigned untouched=0,interior=0;
             for(UINT y=4;y+4<H;++y)for(UINT x=4;x+4<W;++x) {
@@ -1032,13 +1054,17 @@ int main(int argc, char **argv) {
                    (bare[at+4*W]&0xffffff)!=0x808080)continue;
                 ++interior;untouched+=(coated[at]&0xffffff)==0x808080;
             }
-            printf("Moving layered paving: layers=%u alpha=%u height=%.0f frame=%d missing=%u/%u\n",
-                layers[0],layers[1],elevation,motion,untouched,interior);
+            printf("Moving layered paving: buffered=%d gradient=%d layers=%u alpha=%u height=%.3f frame=%d missing=%u/%u\n",
+                buffered,gradient,layers[0],layers[1],cameraHeight,motion,untouched,interior);
             CHECK(Save(coated,L"build/surface-moving-layers.bmp"));
             CHECK(interior>100 && untouched<std::max(4u,interior/2000));
         }
     }
-    surfaceLayers=1;surfaceBlend=false;sceneOffset={};
+    surfaceGradient=false;surfaceLayers=1;sceneOffset={};cameraHeight=4.37f;
+    CHECK(setSurfaceCoverage(255));CHECK(render());const auto visibleReceiver=Read(d);
+    surfaceInvisibleLayer=true;CHECK(render());
+    CHECK(maximumDelta(visibleReceiver,Read(d))==0);
+    surfaceInvisibleLayer=false;surfaceBlend=false;
     cameraOrbit=false;cameraYaw=0;cameraHeight=4;surfaceDepthBias=surfaceSlopeBias=0;settings.surfaceDistance=50;settings.sceneQuality=false;
     foreground=true;settings.surfaceStrength=0;CHECK(render());const auto nativeBody=Read(d);
     settings.surfaceStrength=1;CHECK(render());const auto reflectedGround=Read(d);unsigned bodyPixels=0;
