@@ -6,6 +6,8 @@ void Log(const char *) {}
 namespace {
 using namespace native_app;
 int receives=0,controls=0,previews=0,timeouts=0;
+int targetChecks=0,targetRequests=0;
+bool targetAllowed=true;
 bool expired=true;
 void *expectedWindow=nullptr;
 void __thiscall receive(void *) { ++receives; }
@@ -17,6 +19,8 @@ void __thiscall move(void *,void *sound,float speed,int extra) {
     ++previews;assert(!sound && speed==1 && extra==0 && hybrid_time::frame.stage==hybrid_time::Stage::World);
 }
 BOOL __thiscall timeout(void *) { ++timeouts;return expired; }
+int __thiscall canAttack(void *,void *) { ++targetChecks;return targetAllowed; }
+int __thiscall attack(void *,void *) { ++targetRequests;return 1; }
 #if FENB_NATIVE_X86_ASM
 using Flow=int(__cdecl *)();
 struct StackPair { DWORD before,after; };
@@ -104,6 +108,45 @@ int main() {
     expectedWindow=window;originalControl=reinterpret_cast<Control>(&control);
     { hybrid_time::Scope legacy(hybrid_time::Stage::Legacy,1,1);assert(controlHook(window,nullptr,0,123,456)==0); }
     assert(controls==0);heldInput();assert(controls==1 && hybrid_time::frame.stage==hybrid_time::Stage::Idle);
+    // A completed ordinary attack can requeue only the same native selected
+    // target. Every command/cancellation is checked again after world callbacks.
+    alignas(16) unsigned char target[0x400]{},attackModel[512]{},attackMotion[128]{};
+    field<void *>(actor,0x178)=attackModel;field<void *>(attackModel,0x108)=attackMotion;
+    field<int>(attackModel,0x9c)=1;
+    field<DWORD>(action,8)=1;field<unsigned char>(window,0x45)=0;
+    field<void *>(world,0x20)=target;field<void *>(target,0x16c)=world;
+    field<DWORD>(target,0x170)=5;field<DWORD>(target,0x2d4)=1234;
+    field<DWORD>(actor,0x1194)=1234;field<DWORD>(actor,0x1180)=0;
+    canTarget=&canAttack;requestTarget=&attack;
+    for(DWORD state:{0x10000u,0x20000u,0x30000u,0x40000u,0x50000u,0x60000u,0x70000u,0x80000u}) {
+        field<DWORD>(action,4)=state|0xa;const auto before=captureAutoAttack();assert(before.player==actor);
+        continueAutoAttack(before);assert(targetChecks==targetRequests); // still attacking
+        const int requests=targetRequests;field<DWORD>(action,4)=0xa;
+        continueAutoAttack(before);assert(targetRequests==requests+1 && targetChecks==targetRequests);
+    }
+    for(DWORD state:{0u,0x90000u,0xb0000u,0xc0000u,0xd0000u,0x100000u}) {
+        field<DWORD>(action,4)=state|0xa;assert(!captureAutoAttack().player);
+    }
+    auto completion=[&]() { field<DWORD>(action,4)=0x6000a;auto before=captureAutoAttack();assert(before.player);field<DWORD>(action,4)=0xa;return before; };
+    const int requests=targetRequests;
+    for(DWORD goal:{1u,2u,3u,5u,6u}) { const auto before=completion();field<DWORD>(actor,0x1180)=goal;continueAutoAttack(before);field<DWORD>(actor,0x1180)=0; }
+    for(DWORD command:{0u,123u,0x7fffffffu}) { const auto before=completion();field<DWORD>(window,0x164c)=command;continueAutoAttack(before);field<DWORD>(window,0x164c)=UINT32_MAX; }
+    { const auto before=completion();field<DWORD>(window,0x2000)=0;continueAutoAttack(before);field<DWORD>(window,0x2000)=1; }
+    { const auto before=completion();field<DWORD>(target,0x2d4)=9876;continueAutoAttack(before);field<DWORD>(target,0x2d4)=1234; }
+    { const auto before=completion();field<DWORD>(target,4)=1;continueAutoAttack(before);field<DWORD>(target,4)=0; }
+    { const auto before=completion();field<DWORD>(actor,4)=1;continueAutoAttack(before);field<DWORD>(actor,4)=0; }
+    { const auto before=completion();field<void *>(target,0x16c)=nullptr;continueAutoAttack(before);field<void *>(target,0x16c)=world; }
+    { const auto before=completion();field<void *>(world,0x20)=nullptr;continueAutoAttack(before);field<void *>(world,0x20)=target; }
+    { const auto before=completion();player=nullptr;continueAutoAttack(before);player=actor; }
+    { const auto before=completion();map=nullptr;continueAutoAttack(before);map=world; }
+    { const auto before=completion();wnd=nullptr;continueAutoAttack(before);wnd=window; }
+    { const auto before=completion();field<void *>(actor,0x324)=nullptr;continueAutoAttack(before);field<void *>(actor,0x324)=action; }
+    { const auto before=completion();field<void *>(actor,0x178)=nullptr;continueAutoAttack(before);field<void *>(actor,0x178)=attackModel; }
+    { const auto before=completion();field<void *>(attackModel,0x108)=nullptr;continueAutoAttack(before);field<void *>(attackModel,0x108)=attackMotion; }
+    { const auto before=completion();field<int>(attackModel,0x9c)=0;continueAutoAttack(before);field<int>(attackModel,0x9c)=1; }
+    for(DWORD flags:{8u,0x100u}) { const auto before=completion();field<DWORD>(action,8)=flags;continueAutoAttack(before);field<DWORD>(action,8)=1; }
+    { const auto before=completion();targetAllowed=false;continueAutoAttack(before);targetAllowed=true; }
+    assert(targetRequests==requests && targetChecks==requests+1);
     player=nullptr;heldInput();assert(controls==1);
     puts("Native hybrid app checks passed: once-per-frame packet receive, wall clocks, original preview JE/CMP flow for null/non-null model/player, RET8 stack balance, legacy suppression and skill/attack/flight input predicates.");
     return 0;

@@ -15,8 +15,12 @@ using Receive=void(__thiscall *)(void *);
 using Control=int(__thiscall *)(void *,int,int,int);
 using PreviewMove=void(__thiscall *)(void *,void *,float,int);
 using TimerExpired=BOOL(__thiscall *)(void *);
+using TargetCheck=int(__thiscall *)(void *,void *);
+using TargetRequest=int(__thiscall *)(void *,void *);
 inline Receive originalReceive=nullptr;
 inline Control originalControl=nullptr;
+inline TargetCheck canTarget=nullptr;
+inline TargetRequest requestTarget=nullptr;
 inline void *networkClients[3]{};
 inline DWORD *nativeMilliseconds=nullptr,*nativeSeconds=nullptr;
 inline DWORD *processCounter=nullptr;
@@ -90,6 +94,50 @@ inline void heldInput() {
     hybrid_time::Scope input(hybrid_time::Stage::Input);
     originalControl(window,0,field<int>(window,0xa8),field<int>(window,0xac));
 }
+
+struct AutoAttack {
+    void *window=nullptr,*player=nullptr,*world=nullptr,*action=nullptr,*model=nullptr,*motion=nullptr;
+    DWORD target=0;
+};
+inline bool ordinaryAttack(DWORD state) {
+    const DWORD attack=state&0xff0000u;
+    return attack>=0x10000u && attack<=0x80000u;
+}
+inline bool autoAttackContext(void *window,void *player,void *world) {
+    if(!window || !player || !world || !field<DWORD>(window,0x2000) ||
+       field<DWORD>(window,0x164c)!=UINT32_MAX || (field<DWORD>(player,4)&1u) ||
+       field<void *>(player,0x16c)!=world || field<DWORD>(player,0x1180)!=0) return false;
+    auto action=field<void *>(player,0x324);
+    return action && !(field<DWORD>(action,8)&0x108u);
+}
+inline AutoAttack captureAutoAttack() {
+    if(!onThread() || !requestTarget || !canTarget || !playerSlot) return {};
+    auto window=native_world::activeWndWorld(),player=*playerSlot,world=native_world::getWorld();
+    if(!autoAttackContext(window,player,world)) return {};
+    auto action=field<void *>(player,0x324);
+    if(!ordinaryAttack(field<DWORD>(action,4))) return {};
+    auto model=field<void *>(player,0x178);
+    if(!model || !field<void *>(model,0x108)) return {};
+    return {window,player,world,action,model,field<void *>(model,0x108),field<DWORD>(player,0x1194)};
+}
+inline void continueAutoAttack(const AutoAttack &before) {
+    if(!before.player || !onThread() || !playerSlot || *playerSlot!=before.player ||
+       native_world::activeWndWorld()!=before.window || native_world::getWorld()!=before.world ||
+       !autoAttackContext(before.window,before.player,before.world) ||
+       field<void *>(before.player,0x324)!=before.action || (field<DWORD>(before.action,4)&0xff0000u) ||
+       field<void *>(before.player,0x178)!=before.model || field<void *>(before.model,0x108)!=before.motion ||
+       !field<int>(before.model,0x9c)) return;
+    // Native CWndWorld::Process runs world -> target request. The hybrid UI
+    // runs only on legacy ticks, so a fractional world update can otherwise
+    // finish an attack, select idle on the next render and only then requeue
+    // auto-attack. Complete that same native request immediately after world.
+    // Never replay a skill, click, movement goal or request for a changed target.
+    auto target=field<void *>(before.world,0x20);
+    if(!target || (field<DWORD>(target,4)&1u) || field<DWORD>(target,0x170)!=5 ||
+       field<void *>(target,0x16c)!=before.world || field<DWORD>(target,0x2d4)!=before.target) return;
+    hybrid_time::Scope input(hybrid_time::Stage::Input);
+    if(canTarget(before.player,target)) requestTarget(before.window,target);
+}
 inline bool install() {
     if(active) return true;
 #if !FENB_NATIVE_X86_ASM
@@ -97,8 +145,12 @@ inline bool install() {
 #else
     auto image=native_patch::image();native_binding::Image scan(image);
     if(!scan.bytes(0x3c3510,"55 8B EC 83 EC 08 53 8B D9 83 7B 04 00 75 07") ||
-       !scan.bytes(0x1506c0,"55 8B EC 83 E4 F8 56 8B 35 ?? ?? ?? ?? 57 8B F9 85 F6")) return false;
+       !scan.bytes(0x1506c0,"55 8B EC 83 E4 F8 56 8B 35 ?? ?? ?? ?? 57 8B F9 85 F6") ||
+       !scan.bytes(0x13d340,"55 8B EC 83 E4 F0 83 EC 28 A1 ?? ?? ?? ?? 33 C4") ||
+       !scan.bytes(0x30c7c0,"55 8B EC 83 EC 08 53 8B D9 56 57 6A 51") ||
+       !scan.calls(0x140972,0x30c7c0) || !scan.calls(0x140982,0x13d340)) return false;
     originalReceive=reinterpret_cast<Receive>(scan.address(0x3c3510));originalControl=reinterpret_cast<Control>(scan.address(0x1506c0));
+    canTarget=reinterpret_cast<TargetCheck>(scan.address(0x30c7c0));requestTarget=reinterpret_cast<TargetRequest>(scan.address(0x13d340));
     networkClients[0]=scan.address(0x868f90);networkClients[1]=scan.address(0x82cc70);networkClients[2]=scan.address(0x82a620);
     nativeMilliseconds=reinterpret_cast<DWORD *>(scan.address(0x841cd0));nativeSeconds=reinterpret_cast<DWORD *>(scan.address(0x841cd4));
     processCounter=reinterpret_cast<DWORD *>(scan.address(0x841d04));
@@ -124,5 +176,6 @@ inline void uninstall() {
     active=false;patches.clear();hasReceived=false;receivedSerial=0;
     for(auto &client:networkClients) client=nullptr;
     nativeMilliseconds=nativeSeconds=processCounter=nullptr;previewSlot=playerSlot=nullptr;
+    canTarget=nullptr;requestTarget=nullptr;
 }
 }

@@ -75,7 +75,12 @@ template<class Move,class Continue> HRESULT run(void *application,float *elapsed
     if(SUCCEEDED(result) && alive()) {
         native_app::preview();
         native_app::heldInput();
-        continuousSubsteps(frame,[&]() { if(alive()) native_world::continuousWorld(); },native_app::processCounter);
+        continuousSubsteps(frame,[&]() {
+            if(!alive()) return;
+            const auto attack=native_app::captureAutoAttack();
+            native_world::continuousWorld();
+            if(alive()) native_app::continueAutoAttack(attack);
+        },native_app::processCounter);
         if(alive()) {
             hybrid_time::Scope input(hybrid_time::Stage::Input);
             native_camera::applyKeyboard(native_world::activeWndWorld());

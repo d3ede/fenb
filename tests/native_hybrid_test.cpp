@@ -112,6 +112,73 @@ void initialize() {
     native_camera::originalTransform=reinterpret_cast<native_camera::Transform>(&transformCamera);
 }
 }
+namespace combat {
+using native_app::field;
+DWORD attackState=0;
+unsigned idleFrames=0,starts=0,completions=0,requests=0,hits=0,cycleHits=0;
+bool hitStop=false;
+int __thiscall canTarget(void *p,void *target) { assert(p==actor && target==mob);return 1; }
+int __thiscall request(void *p,void *target) {
+    assert(p==window && target==mob && !(field<DWORD>(action,4)&0xff0000u));
+    assert(!field<DWORD>(actor,0x1180));
+    ++requests;field<DWORD>(actor,0x1180)=3;return 1;
+}
+void __thiscall process(void *) {
+    // Native ordering: goal processing -> state/completion -> animation phase.
+    // Selecting idle after completion but before a new request reproduces the
+    // high-FPS regression. Native completion retains the finished clip itself.
+    if(!(field<DWORD>(action,4)&0xff0000u)) {
+        if(field<DWORD>(actor,0x1180)==3) {
+            ++starts;cycleHits=0;field<DWORD>(actor,0x1180)=0;
+            field<DWORD>(actor,0x1194)=77;field<DWORD>(action,4)=attackState|0xa;
+            field<int>(model,0xa8)=29;field<float>(model,0xa0)=field<float>(model,0xa4)=0;
+            field<int>(model,0x9c)=0;
+        } else { ++idleFrames;field<int>(model,0xa8)=42; }
+    }
+    if(field<DWORD>(action,4)&0xff0000u) {
+        if(field<int>(model,0x9c)) {
+            assert(cycleHits==1);++completions;field<DWORD>(action,4)=0xa;field<DWORD>(actor,0x1194)=0;
+        }
+        const int pause=native_animation::capturePause(model);
+        if(pause) { --field<int>(model,0x94);native_animation::settlePause(model,pause); }
+        else if(native_animation::hitHook(model,nullptr)&1) {
+            ++hits;++cycleHits;assert(cycleHits==1);
+            if(hitStop)field<int>(model,0x94)=4;
+        }
+    }
+    native_animation::moveHook(model,nullptr,nullptr,1.655077f,0);
+}
+HRESULT __thiscall app(void *) {
+    ++counter;
+    native_world::legacyWorldHook(world,nullptr);
+    if(!(field<DWORD>(action,4)&0xff0000u) && !field<DWORD>(actor,0x1180))request(window,mob);
+    return S_OK;
+}
+unsigned run(int fps,DWORD state,bool repeat,bool pause) {
+    initialize();attackState=state;hitStop=pause;idleFrames=completions=requests=hits=cycleHits=0;starts=1;
+    native_app::canTarget=&canTarget;native_app::requestTarget=repeat?&request:nullptr;
+    native_world::originalWorld=&process;
+    field<void *>(world,0x20)=mob;field<DWORD>(mob,0x2d4)=77;
+    field<DWORD>(actor,0x1194)=77;field<DWORD>(window,0x2000)=1;
+    field<DWORD>(action,4)=state|0xa;field<DWORD>(action,8)=1;
+    field<int>(model,0xa8)=29;field<int>(model,0xb4)=1;field<float>(model,0xac)=.5f;
+    std::fill(std::begin(attributes),std::end(attributes),native_animation::Attribute{});
+    attributes[14]={1,0,14};float elapsed=1.f/fps;
+    for(int i=0;i<fps*4;++i) {
+        auto move=reinterpret_cast<HRESULT(__thiscall *)(void *)>(&app);
+        assert(native_hybrid::run(nullptr,&elapsed,int64_t(i)*1000000/fps,1000000,move,[] {return true;})==S_OK);
+    }
+    assert(completions>=5 && hits>=completions && hits<=starts && starts<=completions+1);
+    assert(requests==completions); // one native continuation per completed attack
+    native_app::canTarget=nullptr;native_app::requestTarget=nullptr;
+    return idleFrames;
+}
+void test() {
+    assert(run(500,0x60000,false,false)>0); // fixture observes the old idle flash
+    for(int fps:{30,60,144,240,500,1000})for(DWORD state:{0x10000u,0x20000u,0x30000u,0x40000u,0x50000u,0x60000u,0x70000u,0x80000u})
+        for(bool pause:{false,true})assert(run(fps,state,true,pause)==0);
+}
+}
 int main() {
     for(int fps:{30,60,144,240,500,1000}) {
         initialize();float elapsed=1.f/fps;unsigned fractionalMoves=0;
@@ -152,5 +219,6 @@ int main() {
     auto move=reinterpret_cast<HRESULT(__thiscall *)(void *)>(&application);
     assert(native_hybrid::run(nullptr,&elapsed,0,1000000,move,[] {return true;})==S_OK);
     assert(appCalls==1 && worldCalls==0 && inputCalls==0 && cameraCalls==0 && !hybrid_time::frame.active);
+    combat::test();
     puts("Native hybrid integration: per-render player/mob positions, matching skill origins and world matrices, attack counts, legacy SFX lifetime, input/network frequency and multipass camera quake agree at 30..1000 FPS.");
 }

@@ -97,10 +97,14 @@ bool rejectionAndMutableData(HMODULE image) {
     if(!native_binding::prepare(image))return false;
     const auto code=native_binding::cached.rva(0x368500);
     const auto call=native_binding::cached.rva(0x309ad8)+1;
+    const auto repeatCall=native_binding::cached.rva(0x140982)+1;
+    const auto completion=native_binding::cached.rva(0x35d8f0)+7;
     const auto descriptor=native_binding::cached.rva(0x83760c)+8;
     // A wrong callee must fail even when the CALL opcode and register ABI match.
     if(!rejectMutation(image,call,"action CALL target") || !rejectMutation(image,code,"animation instruction") ||
-       !rejectMutation(image,descriptor,"SFX RTTI identity"))return false;
+       !rejectMutation(image,descriptor,"SFX RTTI identity") ||
+       !rejectMutation(image,repeatCall,"auto-attack request CALL target") ||
+       !rejectMutation(image,completion,"animation completion instruction"))return false;
     // A live player's pointer is mutable gameplay state, not an ABI signature.
     auto **slot=reinterpret_cast<void **>(native_binding::cached.address(0x842168));
     DWORD protection=0,ignored=0;

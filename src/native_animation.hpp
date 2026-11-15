@@ -159,25 +159,30 @@ inline void advancePhase(void *p,float speed,float delta) {
     old=current;
     if(field<int>(p,0x94) || !std::isfinite(speed) || speed<0 || !std::isfinite(delta) || delta<=0) return;
     const float per=field<float>(p,0xac);
-    const double advance=field<int>(p,0x98) ? .1*double(delta) : double(per)*double(speed)*double(delta);
+    const float rate=field<int>(p,0x98)==1 ? .1f : per*speed;
+    const double advance=double(rate)*double(delta);
     if(!std::isfinite(advance) || advance<0 || advance>4096) return;
-    double next=double(current)+advance;
+    double next=float(current+float(advance));
     const bool loop=(field<int>(p,0xb4)&4)!=0;
-    if(next>double(maximum-1)) field<int>(p,0x9c)=1;
+    // Native completion looks ahead by one *native* animation increment. A
+    // fixed last-frame threshold changes attack/skill duration with attack
+    // speed; using the render increment here changes it with render FPS.
+    const bool ended=float(float(next)+rate)>float(maximum);
+    if(ended) field<int>(p,0x9c)=1;
     if(loop) {
         const double cycles=std::floor(next/double(maximum));
         next-=cycles*maximum;
         old=float(double(current)-cycles*maximum);
-    } else next=std::min(next,double(maximum-1));
+    } else if(ended) next=double(maximum-1);
     current=float(next);
     field<float>(p,0xb0)=current-std::floor(current);
 }
-inline void advanceBlend(void *p,float speed,float delta) {
-    if(!field<int>(p,0xe4) || !std::isfinite(speed) || !std::isfinite(delta)) return;
-    // Shining uses the supplied animation speed here, including normalized time.
+inline void advanceBlend(void *p,float delta) {
+    if(!field<int>(p,0xe4) || !std::isfinite(delta)) return;
+    // This client's transition duration is independent of attack/clip speed.
     auto &blend=field<float>(p,0xe8);
     if(!std::isfinite(blend)) return;
-    blend+=std::max(0.f,speed)*std::max(0.f,delta)*.05f;
+    blend+=std::max(0.f,delta)*.05f;
     if(blend>=1) { field<int>(p,0xe4)=0;blend=0; }
 }
 inline void advanceTrails(void *p) {
@@ -205,7 +210,7 @@ inline void __fastcall moveHook(void *p,void *,void *soundPosition,float speed,i
         if(quake && setQuake) setQuake(attr.motion);
     }
     const float delta=ticks();
-    advancePhase(p,speed,delta);advanceTrails(p);advanceBlend(p,speed,delta);
+    advancePhase(p,speed,delta);advanceTrails(p);advanceBlend(p,delta);
 }
 inline void nativeSound(int sound,void *position) {
     // The optimized client entry reads ECX=sound, EDX=position and returns with RET.
@@ -231,6 +236,9 @@ inline bool install() {
     auto image=native_patch::image();native_binding::Image scan(image);
     if(!scan.bytes(0x368500,"55 8B EC 53 56 8B F1 57 83 BE 08 01 00 00 00 0F 84 E5 00 00 00") ||
        !scan.bytes(0x35d870,"55 8B EC 83 B9 94 00 00 00 00 0F 85") ||
+       !scan.bytes(0x35d8f0,"F3 0F 2C D3 0F 28 CB F3 0F 58 DA") ||
+       !scan.bytes(0x3687cc,"F3 0F 10 86 E8 00 00 00 F3 0F 58 05 ?? ?? ?? ?? 0F 2F 05") ||
+       !scan.address(0x7b9cd8) || field<float>(scan.address(0x7b9cd8),0)!=.05f ||
        !scan.bytes(0x36ae50,"53 56 F3 0F 2C C1 57 8B D9 F3 0F 2C F2") ||
        !scan.bytes(0x45070,"53 8B DC 83 EC 08 83 E4 F8 83 C4 04 55") ||
        !scan.bytes(0x3697d0,"55 8B EC 83 EC 20 53 56 57 8B F9 33 DB 33 C9") ||

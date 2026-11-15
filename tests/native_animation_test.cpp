@@ -73,7 +73,40 @@ void testCrossRate() {
     Model m;field<int>(m.data,0x98)=1;
     m.step(.25f);assert(std::fabs(field<float>(m.data,0xa0)-.025f)<.000001f);
     field<int>(m.data,0xe4)=1;m.step(.5f,0,2);
-    assert(std::fabs(field<float>(m.data,0xe8)-.05f)<.000001f);
+    assert(std::fabs(field<float>(m.data,0xe8)-.025f)<.000001f);
+    for(float speed:{.5f,1.f,2.f,4.f}) {
+        Model transition;field<int>(transition.data,0xe4)=1;
+        transition.step(1,1,speed);
+        assert(field<float>(transition.data,0xe8)==.05f);
+    }
+}
+void testNativeCompletion() {
+    // Expected phases/end flags from the inspected native phase routine at one
+    // native tick. Cover slow clips, attack-speed scaling and non-boolean slow.
+    struct Case { float start,per,speed;int slow,loop;float phase;int end; };
+    const Case cases[]={
+        {18.5f,.5f,1,0,1,19,0}, {19,.5f,1,0,1,19.5f,0},
+        {19.25f,.5f,1,0,1,19,1}, {17,1,2,0,1,19,1},
+        {19.75f,.5f,1,0,4,.25f,1}, {19.5f,.5f,1,1,1,19.6f,0},
+        {18.5f,.5f,2,2,1,19,1}, {18,.5f,2,0,1,19,0}
+    };
+    for(const auto &c:cases) {
+        Model m;field<float>(m.data,0xa0)=c.start;field<float>(m.data,0xac)=c.per;
+        field<int>(m.data,0x98)=c.slow;field<int>(m.data,0xb4)=c.loop;
+        advancePhase(m.data,c.speed,1);
+        assert(std::fabs(field<float>(m.data,0xa0)-c.phase)<.00001f && field<int>(m.data,0x9c)==c.end);
+    }
+    // Render partitioning must not shrink completion lookahead to a render
+    // interval. Slower/faster attacks retain their native speed-based threshold.
+    for(float speed:{.5f,1.f,1.655077f,2.f,4.f})for(int fps:{30,60,144,240,500,1000}) {
+        Model m;field<int>(m.data,0xb4)=1;
+        const double rate=.5*speed,threshold=20-rate,dt=62.5/double(fps);
+        unsigned count=0;
+        while(!field<int>(m.data,0x9c) && count<10000) { advancePhase(m.data,speed,float(dt));++count; }
+        const double advanced=double(count)*dt*rate;
+        assert(advanced>threshold-.001 && advanced<=threshold+dt*rate+.001);
+        assert(field<float>(m.data,0xa0)==19);
+    }
 }
 void testIntervals() {
     Model m;m.attr[1].flags=3;m.attr[2].flags=7;m.attr[3].flags=2;
@@ -172,7 +205,7 @@ void testBoneRefresh() {
 }
 }
 int main() {
-    testCrossRate();testIntervals();testCountersAndLegacy();testStaticModelAndClips();testBoneRefresh();
+    testCrossRate();testNativeCompletion();testIntervals();testCountersAndLegacy();testStaticModelAndClips();testBoneRefresh();
     native_animation::enabled=false;
     assert(!native_animation::install()); // unsupported test EXE must fail closed
     puts("Native animation: float phases, interval events, legacy counters and cached event-free bone sampler ABI passed.");
