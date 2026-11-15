@@ -1,5 +1,10 @@
 #include "fps_limiter.hpp"
 #include "client_layout.hpp"
+#include "visual_animation.hpp"
+#include "visual_camera.hpp"
+#include "visual_mover.hpp"
+#include "presentation_clock.hpp"
+#include "native_hybrid.hpp"
 #include <mmsystem.h>
 #include <array>
 #include <cstring>
@@ -67,6 +72,9 @@ HRESULT __fastcall MoveHook(void *application, void *) {
     auto original = fallbackMove.load();
     unsigned steps = 1;
     float *elapsed = nullptr;
+    bool resetPresentation=false;
+    bool nativeFrame=false;
+    int64_t nativeNow=0;
     {
         std::lock_guard lock(hookMutex);
         if (s && s->owners && s->binding.application == application) {
@@ -76,21 +84,49 @@ HRESULT __fastcall MoveHook(void *application, void *) {
         if (s && s->owners && s->binding.application == application && s->thread == GetCurrentThreadId()) {
             original = s->binding.originalMove;
             if (*(static_cast<unsigned char *>(application) + 0xa8)) {
-                steps = s->scheduler.advance(s->counter(), s->frequency);
-                elapsed = s->binding.frameElapsed;
+                const auto now=s->counter();
+                if(s->nativeHybrid && native_hybrid::installed) {
+                    nativeFrame=true;nativeNow=now;elapsed=s->binding.frameElapsed;
+                } else {
+                    steps = s->scheduler.advance(now, s->frequency);
+                    visual_animation::renderPhase = s->scheduler.fraction(s->frequency);
+                    presentation_clock::sample(now,s->frequency,visual_animation::renderPhase,s->scheduler.discontinuous());
+                    if(presentation_clock::frame.discontinuity) visual_animation::renderPhase=0;
+                    resetPresentation=presentation_clock::frame.discontinuity;
+                    elapsed = s->binding.frameElapsed;
+                }
             } else {
                 s->scheduler.reset(); // Preserve native paused/single-step calls.
+                presentation_clock::reset();
+                visual_animation::renderPhase=0;
+                resetPresentation=true;
             }
         }
     }
+    if(resetPresentation) {
+        visual_camera::resetTimeline();
+        visual_mover::resetTimeline();
+        visual_animation::resetTimeline();
+    }
     if (!original)
         return E_FAIL;
-    if (!elapsed)
+    if (!elapsed) {
+        if(s && s->nativeHybrid) native_hybrid::reset();
+        visual_camera::finishFrame();
+        visual_mover::finishFrame();
+        visual_animation::finishFrame();
         return original(application);
+    }
+    if(nativeFrame) return native_hybrid::run(application,elapsed,nativeNow,s->frequency,original,
+        [&]() { return hookedState.load()==s; });
     // No lock across game code: FrameMove can receive packets and recreate DX9 devices.
     const float renderElapsed = *elapsed;
     HRESULT result = S_OK;
     for (unsigned i = 0; i < steps; ++i) {
+        visual_camera::finishFrame();
+        visual_mover::finishFrame();
+        visual_animation::finishFrame();
+        visual_animation::beginTick();
         *elapsed = .016f;
         result = original(application);
         if (FAILED(result) || hookedState.load() != s)
@@ -200,27 +236,43 @@ void FpsLimiter::update(bool unlock) {
                     return;
                 s.originalFlag = *b.enabled;
                 s.scheduler.reset();
+                presentation_clock::reset();
                 s.thread = 0;
                 hookedState.store(&s);
-                Log("FPS unlock: fixed 16 ms simulation gate installed; render limiter released.");
+                s.nativeHybrid=native_hybrid::install();
+                if(!s.nativeHybrid) {
+                    visual_animation::install();
+                    visual_camera::install();
+                    visual_mover::install();
+                    visual_camera::setTargetProvider(&visual_mover::localTarget);
+                }
+                Log(s.nativeHybrid ? "FPS unlock: native hybrid delta-time loop installed; render limiter released."
+                    : "FPS unlock: native hybrid unavailable; fixed 16 ms simulation fallback installed.");
             }
             ++s.owners;
             active_ = true;
         }
-        if (!*(static_cast<unsigned char *>(b.application) + 0xa8))
+        if (!*(static_cast<unsigned char *>(b.application) + 0xa8)) {
             s.scheduler.reset();
+            presentation_clock::reset();
+        }
         if (*b.frameMove == hook && *b.enabled != 0)
             InterlockedExchange(b.enabled, 0);
     } else {
         active_ = false;
         if (!--s.owners) {
             // Restore native pacing BEFORE removing the simulation gate.
+            visual_camera::uninstall();
+            visual_mover::uninstall();
+            visual_animation::uninstall();
+            if(s.nativeHybrid) { native_hybrid::uninstall();s.nativeHybrid=false; }
             *b.lastTick = timeGetTime();
             *b.elapsed = 0;
             InterlockedExchange(b.enabled, s.originalFlag);
             ReplaceMove(b, hook, b.originalMove);
             hookedState.store(nullptr);
             s.scheduler.reset();
+            presentation_clock::reset();
             Log("FPS unlock: native simulation and render pacing restored.");
         }
     }

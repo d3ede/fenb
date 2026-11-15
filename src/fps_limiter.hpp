@@ -30,6 +30,7 @@ struct State {
     unsigned owners = 0;
     DWORD thread = 0;
     LONG originalFlag = 0;
+    bool nativeHybrid=false;
 };
 } // namespace fps_detail
 
