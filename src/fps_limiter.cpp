@@ -2,7 +2,6 @@
 #include "client_layout.hpp"
 #include "visual_animation.hpp"
 #include "visual_camera.hpp"
-#include "visual_mover.hpp"
 #include "presentation_clock.hpp"
 #include "native_hybrid.hpp"
 #include <mmsystem.h>
@@ -105,7 +104,6 @@ HRESULT __fastcall MoveHook(void *application, void *) {
     }
     if(resetPresentation) {
         visual_camera::resetTimeline();
-        visual_mover::resetTimeline();
         visual_animation::resetTimeline();
     }
     if (!original)
@@ -113,7 +111,6 @@ HRESULT __fastcall MoveHook(void *application, void *) {
     if (!elapsed) {
         if(s && s->nativeHybrid) native_hybrid::reset();
         visual_camera::finishFrame();
-        visual_mover::finishFrame();
         visual_animation::finishFrame();
         return original(application);
     }
@@ -124,7 +121,6 @@ HRESULT __fastcall MoveHook(void *application, void *) {
     HRESULT result = S_OK;
     for (unsigned i = 0; i < steps; ++i) {
         visual_camera::finishFrame();
-        visual_mover::finishFrame();
         visual_animation::finishFrame();
         visual_animation::beginTick();
         *elapsed = .016f;
@@ -241,13 +237,12 @@ void FpsLimiter::update(bool unlock) {
                 hookedState.store(&s);
                 s.nativeHybrid=native_hybrid::install();
                 if(!s.nativeHybrid) {
+                    // Actor transforms stay native: prediction breaks shadows, picking and SFX origins.
                     visual_animation::install();
                     visual_camera::install();
-                    visual_mover::install();
-                    visual_camera::setTargetProvider(&visual_mover::localTarget);
                 }
                 Log(s.nativeHybrid ? "FPS unlock: native hybrid delta-time loop installed; render limiter released."
-                    : "FPS unlock: native hybrid unavailable; fixed 16 ms simulation fallback installed.");
+                    : "FPS unlock: native hybrid unavailable; fixed 16 ms simulation with native actor positions installed.");
             }
             ++s.owners;
             active_ = true;
@@ -263,7 +258,6 @@ void FpsLimiter::update(bool unlock) {
         if (!--s.owners) {
             // Restore native pacing BEFORE removing the simulation gate.
             visual_camera::uninstall();
-            visual_mover::uninstall();
             visual_animation::uninstall();
             if(s.nativeHybrid) { native_hybrid::uninstall();s.nativeHybrid=false; }
             *b.lastTick = timeGetTime();

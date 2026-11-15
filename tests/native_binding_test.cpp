@@ -7,7 +7,6 @@
 #include "native_app.hpp"
 #include "native_hybrid.hpp"
 #include "visual_camera.hpp"
-#include "visual_mover.hpp"
 #if __has_include("native_sfx_follow.hpp")
 #include "native_sfx_follow.hpp"
 #define FENB_BINDING_SFX 1
@@ -66,13 +65,16 @@ bool presentationRoundTrip(HMODULE image) {
     const auto cameraBinding=presentation_detail::camera(initial);
     const auto moverBinding=presentation_detail::mover(initial);
     if(!cameraBinding || !moverBinding || cameraBinding.player!=moverBinding.player)return false;
+    auto **moverTable=reinterpret_cast<void **>(reinterpret_cast<unsigned char *>(image)+moverBinding.table);
+    std::array<void *,10> nativeMover{};std::copy_n(moverTable,10,nativeMover.begin());
     for(int cycle=0;cycle<2;++cycle) {
         visual_animation::install(image);
         const bool animation=visual_animation::enabled;
-        const bool camera=visual_camera::install(image),mover=visual_mover::install(image);
-        std::printf("Presentation cycle %d: animation=%d camera=%d mover=%d\n",cycle+1,animation,camera,mover);
-        visual_mover::uninstall();visual_camera::uninstall();visual_animation::uninstall();
-        if(!animation || !camera || !mover)return false;
+        const bool camera=visual_camera::install(image);
+        const bool moverUnchanged=std::equal(nativeMover.begin(),nativeMover.end(),moverTable);
+        std::printf("Presentation cycle %d: animation=%d camera=%d nativeMoverUnchanged=%d\n",cycle+1,animation,camera,moverUnchanged);
+        visual_camera::uninstall();visual_animation::uninstall();
+        if(!animation || !camera || !moverUnchanged)return false;
     }
     // An ABI mismatch must still reject the image without installing a subset.
     client_detail::Image scan(image);const auto binding=presentation_detail::animation(scan);

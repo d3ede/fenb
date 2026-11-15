@@ -30,10 +30,8 @@ inline Sample sample(void *p) {
 }
 struct History {
     Sample previous{}, current{};
-    unsigned long long updated = 0, matrixTick = 0, epoch = 0;
-    std::array<float,16> oldWorld{}, world{};
-    bool hasMatrix = false;
-    bool ownerTransform = false, pending = false;
+    unsigned long long updated = 0, epoch = 0;
+    bool pending = false;
     float nativeFrame = 0, nativeBlend = 0;
     float presentedFrame = 0, presentedBlend = 0;
     void *pendingMotion = nullptr;
@@ -58,7 +56,7 @@ inline void restore(void *p,History &h) {
         if(sameBlend) field<float>(p,0xe8)=h.nativeBlend;
         if(sameBlend && samePause && sameBones) std::memcpy(h.nativeBones,h.savedBones.data(),h.savedBones.size());
     }
-    if(!sameIdentity || !sameFrame || !sameBlend || !samePause || !sameBones) { h.updated=0; h.hasMatrix=false; }
+    if(!sameIdentity || !sameFrame || !sameBlend || !samePause || !sameBones) { h.updated=0; }
     h.pending=false;
 }
 inline void finishFrame() {
@@ -107,20 +105,6 @@ inline float blendAtCurrent(const Sample &a,const Sample &b,float residual) {
     if(advance<0 || advance>.1f) return b.blend;
     return std::clamp(b.blend+advance*std::clamp(residual,0.f,1.f),0.f,1.f);
 }
-inline bool worldAtCurrent(const float *a,const float *b,float residual,float *out) {
-    visual_transform::Transform previous,current;
-    if(!std::isfinite(residual) || !visual_transform::decompose(a,previous) || !visual_transform::decompose(b,current)) return false;
-    const auto delta=current.position-previous.position;
-    // Limit prediction to one short, observed step; no position integration or collision calls.
-    if(visual_transform::dot(delta,delta)>4.f) return false;
-    float cosine=std::fabs(previous.rotation.x*current.rotation.x+previous.rotation.y*current.rotation.y+
-        previous.rotation.z*current.rotation.z+previous.rotation.w*current.rotation.w);
-    if(cosine<.70710678f) return false; // abrupt >90-degree turns are native cuts
-    residual=std::clamp(residual,0.f,1.f);
-    auto value=visual_transform::compose({current.position+delta*residual,current.scale,
-        visual_transform::slerp(previous.rotation,current.rotation,1.f+residual)});
-    std::copy(value.begin(),value.end(),out);return true;
-}
 inline void __fastcall moveHook(void *p,void *,void *sound,float speed,int extra) {
     if (!enabled || GetCurrentThreadId()!=ownerThread) { originalMove(p,sound,speed,extra); return; }
     if(auto it=history.find(p);it!=history.end()) restore(p,it->second);
@@ -128,7 +112,6 @@ inline void __fastcall moveHook(void *p,void *,void *sound,float speed,int extra
     originalMove(p,sound,speed,extra);
     if(!enabled) return;
     auto &h=history[p];
-    if(h.updated+1!=tick || h.epoch!=presentation_clock::frame.epoch) h.hasMatrix=false;
     h.previous=before; h.current=sample(p); h.updated=tick; h.epoch=presentation_clock::frame.epoch;
 }
 inline int __fastcall renderHook(void *p,void *,void *device,const float *matrix) {
@@ -138,7 +121,7 @@ inline int __fastcall renderHook(void *p,void *,void *device,const float *matrix
     if (found==history.end())
         return originalRender(p,device,matrix);
     auto &h=found->second;
-    // All passes in this render frame must see the same pose, including native glow/attachments.
+    // Recursive draws reuse the outer draw pose. No pose survives the outer callback.
     if(h.pending) {
         const bool unchanged=field<void *>(p,0x108)==h.pendingMotion && field<int>(p,0xa8)==h.pendingMaximum &&
             field<int>(p,0xb4)==h.pendingLoop && field<float>(p,0xa0)==h.presentedFrame &&
@@ -146,10 +129,7 @@ inline int __fastcall renderHook(void *p,void *,void *device,const float *matrix
             field<int>(p,0xe4)==h.pendingBlending && field<unsigned char *>(p,0x118)==h.nativeBones &&
             h.pendingMotion && field<int>(h.pendingMotion,0x54)==h.pendingBoneCount;
         if(!unchanged) { restore(p,h);return originalRender(p,device,matrix); }
-        std::array<float,16> repeated{};std::copy_n(matrix,16,repeated.begin());
-        bool same=true;for(int i=0;i<16;++i) if(matrix[i]!=h.world[i]) same=false;
-        if(same && !h.ownerTransform) worldAtCurrent(h.oldWorld.data(),h.world.data(),phase(),repeated.data());
-        return originalRender(p,device,repeated.data());
+        return originalRender(p,device,matrix);
     }
     const auto current=sample(p);
     if (h.updated!=tick || h.epoch!=presentation_clock::frame.epoch)
@@ -159,21 +139,12 @@ inline int __fastcall renderHook(void *p,void *,void *device,const float *matrix
         current.pause==h.current.pause;
     const bool interpolateBlend=current.blend==h.current.blend && current.blending==h.current.blending;
     const float alpha=phase();
-    if (!h.hasMatrix) { std::copy_n(matrix,16,h.world.begin()); h.oldWorld=h.world; h.hasMatrix=true; }
-    if (h.matrixTick!=tick) {
-        h.oldWorld=h.world; std::copy_n(matrix,16,h.world.begin());
-        if(h.matrixTick+1!=tick) h.oldWorld=h.world;
-        h.matrixTick=tick;
-    }
-    std::array<float,16> visual{}; std::copy_n(matrix,16,visual.begin());
-    // Only interpolate the matching affine world pass; retain mirrored/special passes.
-    bool same=true; for(int i=0;i<16;++i) if(matrix[i]!=h.world[i]) same=false;
-    if(same && !h.ownerTransform) worldAtCurrent(h.oldWorld.data(),h.world.data(),alpha,visual.data());
-    if(!interpolatePose) return originalRender(p,device,visual.data());
+    // World placement is authoritative for shadows, selection, range checks and skill origins.
+    if(!interpolatePose) return originalRender(p,device,matrix);
     auto *motion=field<void *>(p,0x108);
     auto *bones=field<unsigned char *>(p,0x118);
     const int count=motion ? field<int>(motion,0x54) : 0;
-    if(!bones || count<1 || count>256) return originalRender(p,device,visual.data());
+    if(!bones || count<1 || count>256) return originalRender(p,device,matrix);
     h.savedBones.resize(size_t(count)*64);
     std::memcpy(h.savedBones.data(),bones,h.savedBones.size());
     h.nativeBones=bones; h.nativeFrame=field<float>(p,0xa0); h.nativeBlend=field<float>(p,0xe8); h.pending=true;
@@ -183,7 +154,11 @@ inline int __fastcall renderHook(void *p,void *,void *device,const float *matrix
     h.presentedBlend=interpolateBlend ? blendAtCurrent(h.previous,h.current,alpha) : current.blend;
     field<float>(p,0xa0)=h.presentedFrame;
     field<float>(p,0xe8)=h.presentedBlend;
-    return originalRender(p,device,visual.data());
+    const int result=originalRender(p,device,matrix);
+    // The callback may destroy the model or insert models and rehash history.
+    // Reacquire it before restoring; no sampled pose survives the draw callback.
+    if(auto live=history.find(p);live!=history.end()) restore(p,live->second);
+    return result;
 }
 inline bool replace(void **slot,void *expected,void *value) {
     DWORD protection=0,ignored=0;
@@ -212,7 +187,7 @@ inline void install(HMODULE image=GetModuleHandleW(nullptr)) {
     }
     destroyEntry=destructor;
     entries=table; QueryPerformanceFrequency(&frequency); QueryPerformanceCounter(&lastTick);
-    enabled=true; Log("FPS current-time presentation: native pose sampling and guarded frame-wide state installed.");
+    enabled=true; Log("FPS current-time presentation: draw-scoped animation sampling installed; world transforms remain native.");
 }
 inline void beginTick() {
     if(!enabled) return;

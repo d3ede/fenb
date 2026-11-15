@@ -1,7 +1,6 @@
 #include "runtime.hpp"
 #include "visual_camera.hpp"
 #include "native_hybrid.hpp"
-#include "visual_mover.hpp"
 #include "backends/imgui_impl_dx9.h"
 #include "backends/imgui_impl_win32.h"
 #include "effects.hpp"
@@ -189,7 +188,6 @@ void Runtime::invalidate() {
 void Runtime::beforeReset() {
     if(native_hybrid::installed) native_hybrid::reset();
     visual_camera::finishFrame();
-    visual_mover::finishFrame();
     visual_animation::finishFrame();
     std::lock_guard lock(mutex_);
     updateCursor(false);
@@ -413,7 +411,6 @@ void Runtime::targetCleared(DWORD flags, DWORD rectangles) {
 }
 void Runtime::beforePresent(IDirect3DSwapChain9 *provided, DWORD flags, HWND windowOverride) {
     visual_camera::finishFrame();
-    visual_mover::finishFrame();
     visual_animation::finishFrame();
     std::lock_guard lock(mutex_);
     // Do not add blocking GPU work to a nonblocking Present, or draw twice inside an open scene.

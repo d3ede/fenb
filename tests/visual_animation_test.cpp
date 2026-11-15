@@ -1,6 +1,5 @@
 #include "visual_animation.hpp"
 #include "visual_camera.hpp"
-#include "visual_mover.hpp"
 #include "fixed_step.hpp"
 #include <cassert>
 #include <cstdio>
@@ -26,20 +25,6 @@ void __fastcall fakeCameraTransform(void *p,void *,void *device,void *world) {
     assert(visual_animation::field<int>(p,0xe0)==0);
     observedCamera=visual_camera::read(p); ++cameraRenders;
 }
-float actorGeometryX=0;
-void __fastcall fakeMoverProcess(void *p,void *) {
-    auto &pos=visual_animation::field<visual_transform::Vec>(p,0x160);pos.x+=2;
-    auto &angles=visual_animation::field<visual_transform::Vec>(p,0x18);angles.x=10;
-    const float r=10*3.14159265358979323846f/180;
-    auto rotation=visual_transform::compose({{},{1,1,1},{0,std::sin(r/2),0,std::cos(r/2)}});
-    std::memcpy(static_cast<char *>(p)+0xa4,rotation.data(),64);
-    visual_animation::moveHook(visual_animation::field<void *>(p,0x178),nullptr,reinterpret_cast<void *>(123),1,456);
-}
-void __fastcall fakeMoverRender(void *p,void *,void *device) {
-    auto pose=visual_mover::read(p);actorGeometryX=pose.position.x;
-    auto matrix=pose.rotation;matrix[12]=pose.position.x;matrix[13]=pose.position.y;matrix[14]=pose.position.z;
-    visual_animation::renderHook(pose.model,nullptr,device,matrix.data());
-}
 void *__fastcall fakeDestroy(void *p,void *,unsigned) { return p; }
 void __fastcall fakeMove(void *p,void *,void *sound,float speed,int extra) {
     assert(sound==reinterpret_cast<void *>(123)); assert(extra==456); ++moves;
@@ -59,7 +44,7 @@ int main() {
     moveHook(object,nullptr,reinterpret_cast<void *>(123),1.f,456);
     float matrix[16]{}; matrix[0]=matrix[5]=matrix[10]=matrix[15]=1;
     assert(renderHook(object,nullptr,nullptr,matrix)==77);
-    assert(observed==6.5f && field<float>(object,0xa0)==6.5f && bones[0]==99);
+    assert(observed==6.5f && field<float>(object,0xa0)==6 && bones[0]==0);
     renderHook(object,nullptr,nullptr,matrix); assert(observed==6.5f); // native glow/name pass sees the same phase
     finishFrame(); assert(field<float>(object,0xa0)==6 && bones[0]==0);
     renderPhase=.75f; renderHook(object,nullptr,nullptr,matrix);
@@ -96,12 +81,6 @@ int main() {
     // Shortest rotation across 360 degrees, with nonuniform scale preserved.
     using namespace visual_transform;
     constexpr float pi=3.14159265358979323846f;
-    // Native local mover angles use negative yaw and a bounded pitch.
-    auto localRotation=visual_mover::moverRotation({90,0,0});
-    assert(std::fabs(localRotation[0])<1e-5f && std::fabs(localRotation[2]-1)<1e-5f);
-    auto clampedPitch=visual_mover::moverRotation({0,90,0});
-    auto nativePitch=visual_mover::moverRotation({0,45,0});
-    for(int i=0;i<16;++i) assert(std::fabs(clampedPitch[i]-nativePitch[i])<1e-5f);
     auto yaw=[](float angle) { return Quat{0,std::sin(angle/2),0,std::cos(angle/2)}; };
     auto oldMatrix=compose({{0,0,0},{2,3,4},yaw(350*pi/180)});
     auto newMatrix=compose({{2,0,0},{2,3,4},yaw(10*pi/180)});
@@ -114,10 +93,9 @@ int main() {
     }
     // Exercise rotation through the actual model render wrapper as well as its math helper.
     field<void *>(object,0x108)=motion;
-    auto &modelHistory=history[object]; modelHistory.hasMatrix=true; modelHistory.matrixTick=tick;
-    modelHistory.oldWorld=oldMatrix; modelHistory.world=newMatrix; renderPhase=.5f;
+    renderPhase=.5f;
     renderHook(object,nullptr,nullptr,newMatrix.data());
-    assert(std::fabs(observedWorld[0]-2*std::cos(pi/9))<1e-4f && observedWorld[12]==3);
+    assert(observedWorld==newMatrix); // Never move geometry away from its native shadow/picking position.
     finishFrame();
     newMatrix[12]=200; assert(!interpolate(oldMatrix.data(),newMatrix.data(),.5f,interpolated));
     newMatrix=oldMatrix; newMatrix[0]*=-1; assert(!interpolate(oldMatrix.data(),newMatrix.data(),.5f,interpolated));
@@ -146,41 +124,7 @@ int main() {
     auto orbit=visual_camera::between({{0,0,6},{0,0,0}},{{6,0,0},{0,0,0}},.5f);
     assert(std::fabs(dot(orbit.eye,orbit.eye)-36)<1e-4f);
     visual_camera::uninstall(); assert(!visual_camera::pending);
-    // A complete mover draw and subsequent name pass must share position and orientation.
-    alignas(16) unsigned char actor[1024]{};
-    field<void *>(actor,0x178)=object;field<Vec>(actor,0x18)={350,0,0};field<DWORD>(actor,4)=8;
-    auto actorRotation=compose({{},{1,1,1},yaw(350*pi/180)});
-    std::memcpy(actor+0xa4,actorRotation.data(),64);
-    visual_mover::originalProcess=reinterpret_cast<visual_mover::Process>(&fakeMoverProcess);
-    visual_mover::originalRender=reinterpret_cast<visual_mover::Render>(&fakeMoverRender);
-    visual_mover::originalDestroy=reinterpret_cast<visual_mover::Destroy>(&fakeDestroy);
-    visual_mover::active=true;
-    beginTick();visual_mover::processHook(actor,nullptr);renderPhase=.5f;
-    // Cold state uses the current endpoint, never a previous-tick pose.
-    visual_mover::renderHook(actor,nullptr,nullptr);
-    assert(actorGeometryX==2 && observedWorld[12]==2);
-    visual_mover::finishFrame();finishFrame();
-    beginTick();visual_mover::processHook(actor,nullptr);renderPhase=.5f;
-    const float logicalFrame=field<float>(object,0xa0);
-    void *localActor=actor;visual_mover::activePlayerSlot=&localActor;
-    Vec cameraTarget{};float targetYaw=0,targetPitch=0;
-    assert(visual_mover::localTarget(cameraTarget,targetYaw,targetPitch) && cameraTarget.x==5);
-    visual_mover::renderHook(actor,nullptr,nullptr);
-    assert(actorGeometryX==5 && observedWorld[12]==5); // current4 + residual1, no double interpolation
-    assert(field<Vec>(actor,0x160).x==actorGeometryX); // the name renderer reads GetPos later
-    assert(field<Vec>(actor,0x160).x==cameraTarget.x && field<Vec>(actor,0x18).x==targetYaw);
-    assert(std::fabs(field<Vec>(actor,0x18).x-10)<1e-4f);
-    assert(field<float>(object,0xa0)==logicalFrame+.5f);
-    visual_mover::renderHook(actor,nullptr,nullptr);
-    assert(actorGeometryX==5 && field<float>(object,0xa0)==logicalFrame+.5f);
-    visual_mover::finishFrame();finishFrame();
-    assert(field<Vec>(actor,0x160).x==4 && field<Vec>(actor,0x18).x==10 && (field<DWORD>(actor,4)&8));
-    assert(field<float>(object,0xa0)==logicalFrame && bones[0]==99);
-    visual_mover::renderHook(actor,nullptr,nullptr);
-    assert(visual_mover::destroyHook(actor,nullptr,0)==actor);
-    assert(field<Vec>(actor,0x160).x==4 && !visual_mover::history.contains(actor));
     originalDestroy=reinterpret_cast<Destroy>(&fakeDestroy);
     assert(destroyHook(object,nullptr,0)==object && !history.contains(object));
-    visual_mover::uninstall();
-    puts("Current-time visual callbacks: no previous-tick delay, shared geometry/name phase, guarded restoration, no extra simulation calls, camera and quaternion tests passed.");
+    puts("Current-time visual callbacks: draw-scoped animation, native geometry placement, guarded restoration, no extra simulation calls, camera and quaternion tests passed.");
 }
