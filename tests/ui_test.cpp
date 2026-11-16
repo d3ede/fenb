@@ -227,14 +227,16 @@ int main() {
     // Select by the visible third row; the popup uses the shared font spacing.
     click(popup->Pos.x+40,popup->Pos.y+8+2*ImGui::GetTextLineHeightWithSpacing());frame();
     CHECK(r.settings.smaa && !r.settings.fxaa && r.settings.msaaSamples==0);
-    // FPS is always visible, but unsupported clients cannot enable its hook.
+    // Both client controls stay visible, with stable IDs outside the actions menu.
     CHECK(!r.fpsUnlockSupported());click(638,556);CHECK(!r.settings.unlockFps);
+    CHECK(!r.backgroundActivitySupported());
+    activate(panel,"background-activity");CHECK(!r.settings.backgroundActivity);
+    r.settings.backgroundActivity=true;frame();
+    activate(panel,"background-activity");CHECK(!r.settings.backgroundActivity && !r.settings.unlockFps);
+    r.settings.backgroundActivity=true;frame();
     r.editorPage=0;frame();
     activate(panel,"menu");CHECK(!ImGui::GetCurrentContext()->OpenPopupStack.empty());
     popup=ImGui::GetCurrentContext()->OpenPopupStack.back().Window;
-    auto background="###text-"+std::to_string(static_cast<int>(UiText::BackgroundActivity));
-    activate(popup,background.c_str());CHECK(r.settings.backgroundActivity && !r.settings.unlockFps);
-    activate(panel,"menu");popup=ImGui::GetCurrentContext()->OpenPopupStack.back().Window;
     auto appearance="###text-"+std::to_string(static_cast<int>(UiText::V2Appearance));
     activate(popup,appearance.c_str());CHECK(r.editorPage==5);
     r.settings.customCursor=true;r.settings.interfaceMotion=true;frame();

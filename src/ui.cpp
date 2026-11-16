@@ -167,6 +167,21 @@ bool SquareSwitch(const char *id, bool &value, ImVec2 size = {28, 18}) {
         Opacity(Blend(Muted,IM_COL32(224,225,231,255),t)),20);
     return changed;
 }
+float FooterSwitch(const char *id, UiText label, bool &value, bool supported, UiText help,
+                   float right, float top) {
+    constexpr float fontSize=11, gap=6, switchWidth=28;
+    const char *text=Tr(label);
+    const float width=ImGui::GetFont()->CalcTextSizeA(fontSize,FLT_MAX,0,text).x;
+    const float left=right-switchWidth-gap-width;
+    const auto origin=ImGui::GetWindowPos();
+    TextAt(ImGui::GetWindowDrawList(),{origin.x+left,origin.y+top+3},text,Muted,fontSize);
+    ImGui::SetCursorPos({right-switchWidth,top});
+    ImGui::BeginDisabled(!supported && !value);
+    SquareSwitch(id,value);
+    Tip(Tr(supported?help:UiText::UnsupportedClient),ImGuiHoveredFlags_AllowWhenDisabled);
+    ImGui::EndDisabled();
+    return left;
+}
 void ResetGlyph(ImDrawList *d, ImVec2 p, ImU32 color, ImVec2 size = {20, 18}) {
     ImVec2 c{p.x + size.x*.5f, p.y + size.y*.5f};
     d->PathArcTo(c, 5, -2.35f, 2.65f, 24);
@@ -1023,8 +1038,6 @@ void DrawPanel(Runtime &r, const PanelBranding &branding) {
 #endif
         ImGui::MenuItem(Label(UiText::WaterDepth24).c_str(), nullptr, &s.preciseWaterDepth);
         Tip(Tr(UiText::WaterDepth24Help));
-        ImGui::MenuItem(Label(UiText::BackgroundActivity).c_str(),nullptr,&s.backgroundActivity);
-        Tip(Tr(r.backgroundActivitySupported()?UiText::BackgroundActivityHelp:UiText::UnsupportedClient));
         ImGui::Separator();
         if (ImGui::MenuItem(Label(UiText::SaveSettings).c_str(), "Ctrl+S"))
             r.save();
@@ -1262,16 +1275,15 @@ void DrawPanel(Runtime &r, const PanelBranding &branding) {
                          : r.pendingSave()         ? Tr(UiText::Saving)
                                                    : Tr(UiText::Autosave);
     TextAt(d, {origin.x + 16, origin.y + footer + 7}, FENBVersion, Muted, 12);
-    d->PushClipRect({origin.x+65,origin.y+footer},{origin.x+size.x-198,origin.y+size.y},true);
-    if (size.x >= 430) TextAt(d, {origin.x + 65, origin.y + footer + 7}, status, Muted, 12);
-    d->PopClipRect();
-    TextAt(d,{origin.x+size.x-190,origin.y+footer+8},Tr(UiText::UnlockFPS),Muted,11);
-    ImGui::SetCursorPos({size.x-56,footer+6});
-    const bool fpsSupported=r.fpsUnlockSupported();
-    ImGui::BeginDisabled(!fpsSupported && !s.unlockFps);
-    SquareSwitch("unlock-fps",s.unlockFps);
-    Tip(Tr(fpsSupported?UiText::UnlockFPSHelp:UiText::UnsupportedClient),ImGuiHoveredFlags_AllowWhenDisabled);
-    ImGui::EndDisabled();
+    const float fpsLeft=FooterSwitch("unlock-fps",UiText::UnlockFPS,s.unlockFps,r.fpsUnlockSupported(),
+        UiText::UnlockFPSHelp,size.x-28,footer+6);
+    const float controlsLeft=FooterSwitch("background-activity",UiText::BackgroundActivityShort,
+        s.backgroundActivity,r.backgroundActivitySupported(),UiText::BackgroundActivityHelp,fpsLeft-20,footer+6);
+    if (size.x>=430 && controlsLeft-16>65) {
+        d->PushClipRect({origin.x+65,origin.y+footer},{origin.x+controlsLeft-16,origin.y+size.y},true);
+        TextAt(d, {origin.x + 65, origin.y + footer + 7}, status, Muted, 12);
+        d->PopClipRect();
+    }
     s.sanitize();
     if (!(s == before))
         r.settingsChanged();

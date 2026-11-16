@@ -189,11 +189,12 @@ int main(int argc,char** argv) {
     Com<IDirect3DBaseTexture9> gotTexture;dev->GetTexture(0,gotTexture.out());Check(gotTexture.p==texture.p,"restore texture binding");Drop(gotTexture.p);
     Com<IDirect3DPixelShader9> gotShader;dev->GetPixelShader(gotShader.out());Check(gotShader.p==shader.p,"restore pixel shader");Drop(gotShader.p);
     Check(Screenshot(dev,bb,(dir+L"FENB-panel.png").c_str()),"save actual DX9 panel screenshot");
-    auto frameSample=[&](){Scene(dev,bb,pp.BackBufferWidth,pp.BackBufferHeight);dev->Present(nullptr,nullptr,nullptr,nullptr);return Sample(dev,bb,316,300);};
-    DWORD panelPixel=frameSample();
-    Hotkey(window,true);DWORD hiddenPixel=frameSample();Check(hiddenPixel!=panelPixel,"Right Shift + Enter closes panel");
-    Hotkey(window,false,false,false);Check(frameSample()==panelPixel,"Left Shift + Enter opens panel");
-    Hotkey(window,false,true);Check(frameSample()==panelPixel,"Enter auto-repeat does not toggle panel");
+    auto frameSample=[&](bool panel=false){Scene(dev,bb,pp.BackBufferWidth,pp.BackBufferHeight);dev->Present(nullptr,nullptr,nullptr,nullptr);return Sample(dev,bb,panel?540:316,panel?500:300);};
+    // Sample the blank panel interior, away from rows that change on navigation.
+    DWORD panelPixel=frameSample(true);
+    Hotkey(window,true);DWORD hiddenPixel=frameSample(true);Check(hiddenPixel!=panelPixel,"Right Shift + Enter closes panel");
+    Hotkey(window,false,false,false);Check(frameSample(true)==panelPixel,"Left Shift + Enter opens panel");
+    Hotkey(window,false,true);Check(frameSample(true)==panelPixel,"Enter auto-repeat does not toggle panel");
     Hotkey(window,true);
     test.enabled=false;test.save(config);Sleep(550);frameSample();
     DWORD original=Sample(dev,bb,316,300);
@@ -224,7 +225,7 @@ int main(int argc,char** argv) {
         Com<IDirect3DSurface9> current;dev->GetBackBuffer(0,0,D3DBACKBUFFER_TYPE_MONO,current.out());
         Scene(dev,current,pp.BackBufferWidth,pp.BackBufferHeight);
         Check(SUCCEEDED(dev->Present(nullptr,nullptr,nullptr,nullptr)),"draw after Reset");
-        Check(Sample(dev,current,316,300)!=0x232739,"panel redraw after Reset");
+        Check(Sample(dev,current,540,500)==panelPixel,"panel redraw after Reset");
     }
     Drop(texture.p);Drop(dev.p);
     Check(true,"device and UI teardown completed");
