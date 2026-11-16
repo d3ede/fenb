@@ -166,6 +166,8 @@ Recognized refinement textures, pet-bead auras and elemental weapon materials us
 
 The DLL belongs beside `Neuz.exe`. Keep an existing `FENB.ini` when updating. A running game keeps its already loaded DLL and must be restarted to load a replacement.
 
+Already-running clients keep their own **Effects**, **Unlock FPS** and **Run in background** switch states. Automatic reloads of the shared `FENB.ini` retain these three in-memory values, so another window's autosave cannot enable or disable them. Image tuning and profile files remain shared. Newly started clients read the saved switches as their initial values; explicitly choosing **Reload FENB.ini** applies the file's values only to the requesting client. No per-character configuration files or process IDs are persisted. Runtime tests exercise two instances reading/writing the same disposable configuration, independent switches, shared image changes and explicit reload.
+
 ### Panel updates and recovery
 
 Opening the panel starts one background check per game session against the official repository's `releases/latest/download/FENB-update.json`. A newer stable release opens a centered modal in the selected language: English, Russian, Spanish or Brazilian Portuguese. The actions menu also exposes checking, download status and rollback. No network requests run on the rendering thread, and closed panels do not poll status. The DLL embeds the local PowerShell worker; it writes its working files into `FENB-update/` beside the DLL and runs the system Windows PowerShell hidden, without a separate updater executable. If PowerShell, networking or folder writes are unavailable, the panel reports failure and manual updates remain available.

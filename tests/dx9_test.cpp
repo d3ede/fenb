@@ -42,6 +42,13 @@ void Hotkey(HWND window,bool right,bool repeat=false,bool release=true) {
     SendMessageW(window,WM_CHAR,'\r',1);
     SetKeyboardState(previous);
 }
+void EffectsHotkey(HWND window) {
+    BYTE previous[256]{},keys[256]{};GetKeyboardState(previous);
+    keys[VK_SHIFT]=keys[VK_RSHIFT]=0x80;SetKeyboardState(keys);
+    SendMessageW(window,WM_KEYDOWN,VK_F12,1);
+    SendMessageW(window,WM_KEYUP,VK_F12,static_cast<LPARAM>(0xC0000001u));
+    SetKeyboardState(previous);
+}
 bool Screenshot(IDirect3DDevice9* dev,IDirect3DSurface9* source,const wchar_t* path) {
     D3DSURFACE_DESC d{};source->GetDesc(&d);
     Com<IDirect3DSurface9> copy;
@@ -196,12 +203,14 @@ int main(int argc,char** argv) {
     Hotkey(window,false,false,false);Check(frameSample(true)==panelPixel,"Left Shift + Enter opens panel");
     Hotkey(window,false,true);Check(frameSample(true)==panelPixel,"Enter auto-repeat does not toggle panel");
     Hotkey(window,true);
-    test.enabled=false;test.save(config);Sleep(550);frameSample();
+    // Master state belongs to this running client, not external INI writes.
+    EffectsHotkey(window);Sleep(500);frameSample();
     DWORD original=Sample(dev,bb,316,300);
     Check(original==0x232739,"disabled effects preserve source pixels");
-    test.enabled=true;test.bloom=false;test.color=true;test.exposure=1;test.save(config);Sleep(550);frameSample();
+    EffectsHotkey(window);Sleep(500);frameSample();
+    test.enabled=false;test.bloom=false;test.color=true;test.exposure=1;test.save(config);Sleep(550);frameSample();
     DWORD graded=Sample(dev,bb,316,300);
-    Check((graded&255)>(original&255),"exposure changes rendered pixels");
+    Check((graded&255)>(original&255),"shared exposure changes pixels without importing the master switch");
     test.color=false;test.bloom=true;test.threshold=.5f;test.bloomStrength=1;test.radius=2;test.save(config);Sleep(550);frameSample();
     DWORD glow=Sample(dev,bb,885,65);
     Check((glow&255)>(original&255),"bloom spreads outside bright geometry");

@@ -234,6 +234,24 @@ int main() {
     }
     DeleteFileW(primary.c_str());
     RemoveDirectoryW(profiles.c_str());
+    // Two clients share image tuning, without importing each other's switches.
+    {
+        Runtime first(device),second(device);
+        first.visible=second.visible=false;
+        first.settings.enabled=true;first.settings.unlockFps=false;first.settings.backgroundActivity=false;
+        second.settings.enabled=false;second.settings.unlockFps=true;second.settings.backgroundActivity=true;
+        first.settings.exposure=.35f;first.save();
+        Sleep(520);second.beforePresent(nullptr);
+        CHECK(!second.settings.enabled && second.settings.unlockFps && second.settings.backgroundActivity);
+        CHECK(second.settings.exposure==.35f);
+        second.settings.gamma=1.05f;second.save();
+        Sleep(520);first.beforePresent(nullptr);
+        CHECK(first.settings.enabled && !first.settings.unlockFps && !first.settings.backgroundActivity);
+        CHECK(first.settings.gamma==1.05f);
+        // Explicit Reload still applies the file to the window requesting it.
+        first.reload();
+        CHECK(!first.settings.enabled && first.settings.unlockFps && first.settings.backgroundActivity);
+    }
     {
         Runtime runtime(device);
         runtime.configPath = ModuleDirectory() + L"missing\\FENB.ini";
@@ -245,6 +263,6 @@ int main() {
     DestroyWindow(window);
     DeleteFileW(config.c_str());
     puts("PASS: Shift+Enter without chat leakage, normal Enter preserved, single cursor, autosave, shutdown "
-         "flush.");
+         "flush, independent client switches and shared image tuning.");
     return 0;
 }

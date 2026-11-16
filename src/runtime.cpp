@@ -456,8 +456,16 @@ void Runtime::beforePresent(IDirect3DSwapChain9 *provided, DWORD flags, HWND win
         lastConfigCheck_ = now;
         auto modified = FileTime(configPath);
         if (CompareFileTime(&modified, &configTime_) != 0) {
-            settings.load(configPath);
-            recognizeProfile();
+            Settings updated;
+            if (updated.load(configPath)) {
+                // Image settings remain shared, but another client's autosave
+                // must not toggle this running client's native hooks or effects.
+                updated.enabled=settings.enabled;
+                updated.unlockFps=settings.unlockFps;
+                updated.backgroundActivity=settings.backgroundActivity;
+                settings=updated;
+                recognizeProfile();
+            }
             configTime_ = modified;
         }
     }
