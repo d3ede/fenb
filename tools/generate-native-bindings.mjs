@@ -29,7 +29,7 @@ function find(image,pat){let best=[],bestAt=0,run=[];for(let i=0;i<=pat.length;i
 }
 function codeProbe(point,operand=null){for(const n of [128,96,64,48,32])for(const back of [16,8,0]){const start=point-back,p=pattern(start,n);if(!p)continue;const a=find(old,p);if(a.length!==1||a[0]!==start)continue;const b=find(cur,p);if(b.length!==1)continue;const value=operand===null?b[0]+back:cur.value(b[0]+back)-cur.base;
  return{rva:value,probe:{start,pattern:p.map(v=>v<0?'??':v.toString(16).padStart(2,'0')).join(' '),offset:back,follow:operand!==null}};}}
-const roots=new Set();for(const f of ['native_animation.hpp','native_app.hpp','native_camera.hpp','native_layer_time.hpp','native_mover.hpp','native_mover_legacy.hpp','native_mover_services.hpp','native_sfx_follow.hpp','native_sfx_time.hpp','native_world.hpp']){for(const m of fs.readFileSync('src/'+f,'utf8').split('inline bool install()')[1].matchAll(/\b0x[0-9a-f]{5,}\b/gi)){const rva=Number(m[0]);if(old.section(rva))roots.add(rva);}}
+const roots=new Set();for(const f of ['native_animation.hpp','native_app.hpp','native_background.hpp','native_camera.hpp','native_layer_time.hpp','native_mover.hpp','native_mover_legacy.hpp','native_mover_services.hpp','native_sfx_follow.hpp','native_sfx_time.hpp','native_world.hpp']){for(const m of fs.readFileSync('src/'+f,'utf8').split('inline bool install()')[1].matchAll(/\b0x[0-9a-f]{5,}\b/gi)){const rva=Number(m[0]);if(old.section(rva))roots.add(rva);}}
 // One existing world adapter owns this call's loop/reset semantics. All other
 // native CSfxModel::Process calls share the model clock, including Render paths.
 const sfxProcessCalls=branches.filter(b=>b.operand===1&&b.target===0x352380&&old.b[old.offset(b.site)]===0xe8&&b.site!==0x32d5fd).map(b=>b.site);

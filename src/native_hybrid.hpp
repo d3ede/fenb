@@ -8,6 +8,7 @@
 #include "native_app.hpp"
 #include "native_sfx_follow.hpp"
 #include "native_layer_time.hpp"
+#include "native_background.hpp"
 
 namespace native_hybrid {
 inline bool installed=false;
@@ -23,6 +24,7 @@ inline void reset() {
 }
 inline void uninstall() {
     installed=false;hybrid_time::frame.active=false;
+    native_background::uninstall();
     native_app::uninstall();native_sfx_follow::uninstall();native_camera::uninstall();native_world::uninstall();
     native_sfx_time::uninstall();
     native_layer_time::uninstall();
@@ -43,6 +45,7 @@ inline bool install() {
     if(!native_camera::install()) { Log("Native hybrid unavailable: camera/input ABI guard.");uninstall();return false; }
     if(!native_sfx_follow::install()) { Log("Native hybrid unavailable: SFX ABI guard.");uninstall();return false; }
     if(!native_app::install()) { Log("Native hybrid unavailable: application ABI guard.");uninstall();return false; }
+    if(!native_background::install()) { Log("Native hybrid unavailable: background-loop ABI guard.");uninstall();return false; }
     native_world::afterObject=&native_mover_services::afterProcess;
     native_world::sfxRefresh=&refreshSfx;
     reset();installed=true;
@@ -65,7 +68,7 @@ template<class F> void continuousSubsteps(const hybrid_time::Frame &frame,F &&wo
     }
     if(processCounter) *processCounter=finalCounter;
 }
-template<class Move,class Continue> HRESULT run(void *application,float *elapsed,int64_t now,int64_t frequency,Move move,Continue &&keepGoing) {
+template<class Move,class Continue> HRESULT run(void *application,float *elapsed,int64_t now,int64_t frequency,Move move,Continue &&keepGoing,bool background=false) {
     hybrid_time::frame=clock.advance(now,frequency);
     hybrid_time::frame.thread=GetCurrentThreadId();
     native_sfx_time::beginFrame(hybrid_time::frame);
@@ -82,15 +85,17 @@ template<class Move,class Continue> HRESULT run(void *application,float *elapsed
         if(FAILED(result)) break;
     }
     if(SUCCEEDED(result) && alive()) {
-        native_app::preview();
-        native_app::heldInput();
+        if(!background) {
+            native_app::preview();
+            native_app::heldInput();
+        }
         continuousSubsteps(frame,[&]() {
             if(!alive()) return;
             const auto attack=native_app::captureAutoAttack();
             native_world::continuousWorld();
             if(alive()) native_app::continueAutoAttack(attack);
         },native_app::processCounter);
-        if(alive()) {
+        if(alive() && !background) {
             hybrid_time::Scope input(hybrid_time::Stage::Input);
             native_camera::applyKeyboard(native_world::activeWndWorld());
             native_camera::processCurrent(native_world::getDevice());

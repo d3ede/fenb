@@ -114,8 +114,11 @@ HRESULT __fastcall MoveHook(void *application, void *) {
         visual_animation::finishFrame();
         return original(application);
     }
-    if(nativeFrame) return native_hybrid::run(application,elapsed,nativeNow,s->frequency,original,
-        [&]() { return hookedState.load()==s; });
+    if(nativeFrame) {
+        ++native_background::moves;
+        return native_hybrid::run(application,elapsed,nativeNow,s->frequency,original,
+            [&]() { return hookedState.load()==s; },native_background::pumping);
+    }
     // No lock across game code: FrameMove can receive packets and recreate DX9 devices.
     const float renderElapsed = *elapsed;
     HRESULT result = S_OK;
@@ -246,6 +249,16 @@ void FpsLimiter::update(bool unlock) {
             }
             ++s.owners;
             active_ = true;
+            if(s.nativeHybrid) {
+                native_background::application=b.application;
+                native_background::thread=GetWindowThreadProcessId(*reinterpret_cast<HWND *>(static_cast<char *>(b.application)+0xac),nullptr);
+                native_background::move=[](void *app) { return MoveHook(app,nullptr); };
+                native_background::ready=[]() {
+                    const auto *current=hookedState.load();
+                    return current && current->owners && current->nativeHybrid && native_hybrid::installed &&
+                        native_world::getWorld() && native_world::playerSlot && *native_world::playerSlot;
+                };
+            }
         }
         if (!*(static_cast<unsigned char *>(b.application) + 0xa8)) {
             s.scheduler.reset();

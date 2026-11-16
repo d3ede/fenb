@@ -102,6 +102,8 @@ bool rejectionAndMutableData(HMODULE image) {
     const auto effectCall=native_binding::cached.rva(0x35ec9d)+1;
     const auto ownedEffectCall=native_binding::cached.rva(0x33763f)+1;
     const auto cloudStore=native_binding::cached.rva(0x3897ef)+4;
+    const auto messageImport=native_binding::cached.rva(0xebab3)+2;
+    const auto renderPermission=native_binding::cached.rva(0xec186)+1;
     const auto descriptor=native_binding::cached.rva(0x83760c)+8;
     // A wrong callee must fail even when the CALL opcode and register ABI match.
     if(!rejectMutation(image,call,"action CALL target") || !rejectMutation(image,code,"animation instruction") ||
@@ -110,7 +112,9 @@ bool rejectionAndMutableData(HMODULE image) {
        !rejectMutation(image,completion,"animation completion instruction") ||
        !rejectMutation(image,effectCall,"render-driven SFX CALL target") ||
        !rejectMutation(image,ownedEffectCall,"RTTI-owned SFX CALL target") ||
-       !rejectMutation(image,cloudStore,"cloud-layer offset store"))return false;
+       !rejectMutation(image,cloudStore,"cloud-layer offset store") ||
+       !rejectMutation(image,messageImport,"inactive GetMessage import") ||
+       !rejectMutation(image,renderPermission,"background render-permission CALL target"))return false;
     // A live player's pointer is mutable gameplay state, not an ABI signature.
     auto **slot=reinterpret_cast<void **>(native_binding::cached.address(0x842168));
     DWORD protection=0,ignored=0;
@@ -192,6 +196,7 @@ int wmain(int argc,wchar_t **argv) {
         {"world",&native_world::install,&native_world::uninstall},
         {"camera",&native_camera::install,&native_camera::uninstall},
         {"application",&native_app::install,&native_app::uninstall},
+        {"background loop",&native_background::install,&native_background::uninstall},
 #ifdef FENB_BINDING_SFX
         {"SFX followers",&native_sfx_follow::install,&native_sfx_follow::uninstall},
 #endif

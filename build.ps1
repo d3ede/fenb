@@ -59,7 +59,7 @@ if ($LASTEXITCODE) { throw 'Distribution documentation generation failed' }
 Get-Item -LiteralPath "$outputDirectory/d3d9.dll" | Select-Object FullName,Length
 if ($Tests) {
     $nativeTests=@('native_animation','native_camera','native_world','native_mover','native_mover_legacy',
-        'native_mover_services','native_app','native_sfx_follow','native_sfx_time','native_layer_time','native_hybrid','native_binding',
+        'native_mover_services','native_app','native_sfx_follow','native_sfx_time','native_layer_time','native_background','native_hybrid','native_binding',
         'presentation_clock','camera_current','visual_animation','visual_restore')
     foreach($nativeTest in $nativeTests) {
         $testBinary="build/$($nativeTest.Replace('_','-'))-test.exe"
