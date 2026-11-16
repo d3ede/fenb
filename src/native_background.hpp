@@ -25,6 +25,12 @@ inline bool (*ready)()=nullptr;
 inline bool installed=false,pumping=false,scheduled=false;
 inline uint64_t moves=0;
 inline int64_t last=0,frequency=0;
+struct WakeTimer {
+    HANDLE handle=nullptr;
+    explicit WakeTimer(HANDLE value):handle(value) {}
+    ~WakeTimer() { if(handle)CloseHandle(handle); }
+};
+inline std::shared_ptr<WakeTimer> wakeTimer;
 inline int64_t counter() { LARGE_INTEGER n;QueryPerformanceCounter(&n);return n.QuadPart; }
 inline bool eligible() {
     return installed && application && thread==GetCurrentThreadId() &&
@@ -61,7 +67,21 @@ inline void waitMessages(DWORD milliseconds) {
 inline DWORD remaining() {
     if(!scheduled || frequency<=0)return 1;
     const int64_t left=std::max<int64_t>(0,frequency*16/1000-(counter()-last));
-    return DWORD(std::clamp<int64_t>((left*1000+frequency-1)/frequency,1,16));
+    return DWORD(std::clamp<int64_t>((left*1000+frequency-1)/frequency,0,16));
+}
+inline int64_t remaining100ns(int64_t now) {
+    if(!scheduled || frequency<=0 || now<last)return 0;
+    const int64_t left=std::max<int64_t>(0,frequency*16/1000-(now-last));
+    return (left*10000000+frequency-1)/frequency;
+}
+inline void waitNext() {
+    const auto left=remaining100ns(counter());if(!left)return;
+    const auto timer=std::atomic_load(&wakeTimer);
+    LARGE_INTEGER deadline;deadline.QuadPart=-left;
+    if(timer && SetWaitableTimer(timer->handle,&deadline,0,nullptr,nullptr,FALSE)) {
+        // Keep the handle alive if another device releases its background request.
+        MsgWaitForMultipleObjectsEx(1,&timer->handle,INFINITE,QS_ALLINPUT,MWMO_INPUTAVAILABLE);
+    } else waitMessages(remaining());
 }
 inline BOOL WINAPI getMessageHook(LPMSG message,HWND window,UINT first,UINT end) {
     const auto original=originalGetMessage;
@@ -74,19 +94,21 @@ inline BOOL WINAPI getMessageHook(LPMSG message,HWND window,UINT first,UINT end)
         if(queued)return TRUE;
         if(FAILED(result))break;
         if(!eligible() || !background())break;
-        waitMessages(remaining()); // Wake for real messages; never fabricate window/focus/input events.
+        waitNext(); // Wake for real messages; never fabricate window/focus/input events.
     }
     resetSchedule();return original(message,window,first,end);
 }
 inline BOOL __fastcall canRenderHook(void *app,void *) {
-    return pumping && app==application ? FALSE : originalCanRender(app);
+    // An inactive visible window still needs the complete native Render/Present
+    // lifecycle. Device-loss handling remains in the original environment call.
+    return pumping && app==application ? TRUE : originalCanRender(app);
 }
 inline HRESULT __fastcall environmentHook(void *app,void *) {
     if(app!=application || !eligible())return originalEnvironment(app);
     if(background()) {
-        const auto now=counter();HRESULT result=S_OK;
-        if(due(now)) { scheduled=true;last=now;result=tick(); }
-        waitMessages(remaining());return result;
+        // This native loop is already running: keep its FPS cap/uncap and all
+        // post-render services. Only the blocking inactive message loop is paced.
+        resetSchedule();return tick();
     }
     resetSchedule();const auto before=moves;
     HRESULT result=originalEnvironment(app);
@@ -138,11 +160,15 @@ inline bool install() {
         patches.clear();return false;
     }
     LARGE_INTEGER value;QueryPerformanceFrequency(&value);frequency=value.QuadPart;
+    HANDLE timer=CreateWaitableTimerExW(nullptr,nullptr,CREATE_WAITABLE_TIMER_HIGH_RESOLUTION,TIMER_MODIFY_STATE|SYNCHRONIZE);
+    if(!timer)timer=CreateWaitableTimerExW(nullptr,nullptr,0,TIMER_MODIFY_STATE|SYNCHRONIZE);
+    std::atomic_store(&wakeTimer,timer?std::make_shared<WakeTimer>(timer):std::shared_ptr<WakeTimer>{});
     resetSchedule();installed=true;
-    Log("Native background loop: inactive message wait and lost-device CPU updates installed; native window/input state retained.");return true;
+    Log("Native background loop: full native frame lifecycle, deadline-based message wait and lost-device CPU updates installed.");return true;
 }
 inline void uninstall() {
     installed=false;patches.clear();application=nullptr;move=nullptr;ready=nullptr;playerSlot=nullptr;thread=0;
+    std::atomic_store(&wakeTimer,std::shared_ptr<WakeTimer>{});
     pumping=false;resetSchedule();
 }
 }

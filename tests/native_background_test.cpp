@@ -4,17 +4,17 @@
 void Log(const char *) {}
 namespace {
 alignas(16) unsigned char app[512]{};
-unsigned environments=0,updates=0,renders=0,messageCalls=0;
+unsigned environments=0,updates=0,renders=0,postRenders=0,messageCalls=0;
 bool world=true,deviceLost=false,moveBeforeLoss=false,stoppedTimer=false;
 HRESULT environmentResult=S_OK,moveResult=S_OK;
 bool ready() { return world; }
 HRESULT step(void *p) { assert(p==app);++updates;++native_background::moves;return moveResult; }
-BOOL __thiscall canRender(void *p) { assert(p==app);++renders;return TRUE; }
+BOOL __thiscall canRender(void *p) { assert(p==app);return FALSE; }
 HRESULT __thiscall environment(void *p) {
     assert(p==app);++environments;
     if(FAILED(environmentResult))return environmentResult;
     if((!deviceLost && !stoppedTimer) || moveBeforeLoss)step(p);
-    if(!deviceLost)native_background::canRenderHook(p,nullptr);
+    if(!deviceLost && !stoppedTimer && native_background::canRenderHook(p,nullptr)) { ++renders;++postRenders; }
     return S_OK;
 }
 BOOL WINAPI getMessage(LPMSG m,HWND,UINT,UINT) { ++messageCalls;m->message=WM_APP+4;return TRUE; }
@@ -28,8 +28,8 @@ int main() {
     originalEnvironment=&environment;originalCanRender=&canRender;originalGetMessage=&getMessage;
     LARGE_INTEGER f;QueryPerformanceFrequency(&f);frequency=f.QuadPart;
     assert(eligible());
-    tick();assert(environments==1 && updates==1 && renders==0 && !pumping);
-    assert(canRenderHook(app,nullptr) && renders==1);
+    tick();assert(environments==1 && updates==1 && renders==1 && postRenders==1 && !pumping);
+    assert(!canRenderHook(app,nullptr)); // Native inactive-window throttle is retained outside the opt-in update.
     deviceLost=true;field<unsigned char>(app,0xa2)=1;
     tick();assert(environments==2 && updates==2 && renders==1);
     moveBeforeLoss=true;tick();assert(environments==3 && updates==3);
@@ -38,6 +38,7 @@ int main() {
     thread=GetCurrentThreadId()+1;tick();assert(environments==3);thread=GetCurrentThreadId();
     frequency=1000000;scheduled=true;last=100;
     assert(!due(100) && !due(16099) && due(16100) && due(99) && due(300000));
+    assert(remaining100ns(100)==160000 && remaining100ns(16099)==10 && remaining100ns(16100)==0 && remaining100ns(16101)==0);
     QueryPerformanceFrequency(&f);frequency=f.QuadPart;resetSchedule();
     const auto window=CreateWindowExA(0,"STATIC","FENB disposable background test",WS_POPUP,0,0,1,1,nullptr,nullptr,GetModuleHandleW(nullptr),nullptr);
     assert(window);field<HWND>(app,0xac)=window;
@@ -58,6 +59,18 @@ int main() {
     assert(tick()==S_OK && updates==5 && renders==1);
     environmentResult=E_FAIL;assert(tick()==E_FAIL && updates==5 && !pumping);
     environmentResult=S_OK;moveResult=E_FAIL;assert(tick()==E_FAIL && updates==6 && !pumping);
+    // A visible inactive native loop must not acquire a second frame limiter.
+    stoppedTimer=false;moveResult=S_OK;const auto before=updates,beforeRender=renders;
+    scheduled=true;last=counter();
+    assert(environmentHook(app,nullptr)==S_OK && environmentHook(app,nullptr)==S_OK);
+    assert(updates==before+2 && renders==beforeRender+2 && postRenders==renders);
+    // Timer ownership survives an option/device release until the waiter exits.
+    HANDLE handle=CreateWaitableTimerExW(nullptr,nullptr,CREATE_WAITABLE_TIMER_HIGH_RESOLUTION,TIMER_MODIFY_STATE|SYNCHRONIZE);
+    if(!handle)handle=CreateWaitableTimerExW(nullptr,nullptr,0,TIMER_MODIFY_STATE|SYNCHRONIZE);
+    assert(handle);std::atomic_store(&wakeTimer,std::make_shared<WakeTimer>(handle));
+    auto held=std::atomic_load(&wakeTimer);DWORD handleFlags=0;
+    uninstall();assert(GetHandleInformation(handle,&handleFlags));held.reset();
+    assert(!std::atomic_load(&wakeTimer));
     DestroyWindow(window);uninstall();
-    puts("Background loop: native updates without rendering, lost-device fallback, no duplicate updates, pause/world/thread guards, cadence and real message/quit delivery passed.");
+    puts("Background loop: full render/post-render lifecycle, no extra visible-window cap, native lost-device recovery, input filtering, precise deadlines, timer lifetime and real messages passed.");
 }

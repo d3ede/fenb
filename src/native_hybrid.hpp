@@ -83,19 +83,20 @@ template<class Move,class Continue> HRESULT run(void *application,float *elapsed
         if(FAILED(result)) break;
     }
     if(SUCCEEDED(result) && alive()) {
-        if(!background) {
-            native_app::preview();
-            native_app::heldInput();
-        }
+        native_app::preview();
+        // ControlPlayer also maintains native movement transitions and packets.
+        // Background input is filtered at the polling boundary, not by omitting
+        // the entire control path and leaving client/server movement stale.
+        native_app::heldInput();
         continuousSubsteps(frame,[&]() {
             if(!alive()) return;
             const auto attack=native_app::captureAutoAttack();
             native_world::continuousWorld();
             if(alive()) native_app::continueAutoAttack(attack);
         },native_app::processCounter);
-        if(alive() && !background) {
+        if(alive()) {
             hybrid_time::Scope input(hybrid_time::Stage::Input);
-            native_camera::applyKeyboard(native_world::activeWndWorld());
+            if(!background)native_camera::applyKeyboard(native_world::activeWndWorld());
             native_camera::processCurrent(native_world::getDevice());
         }
     }

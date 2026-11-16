@@ -11,6 +11,7 @@ unsigned playerHits=0,mobHits=0;
 void *actorPointer=actor,*worldPointer=world,*cameraPointer=camera,*windowPointer=window,*previewPointer=previewModel;
 DWORD counter=0;
 unsigned appCalls=0,worldCalls=0,networkCalls=0,inputCalls=0,cameraCalls=0;
+Vec lastControlPosition{};
 bool resetDuringApp=false;
 float speed(void *,float) { return .08f; }
 void __thiscall state(void *a,DWORD mask,float speed) { if(mask==4) native_mover::field<float>(a,0x50)=speed; }
@@ -40,13 +41,15 @@ void __thiscall processWorld(void *) {
 }
 void __thiscall receive(void *) { ++networkCalls; }
 int __thiscall input(void *,int,int,int) {
-    assert(hybrid_time::frame.stage==hybrid_time::Stage::Input);++inputCalls;return 1;
+    assert(hybrid_time::frame.stage==hybrid_time::Stage::Input);++inputCalls;
+    lastControlPosition=native_mover::field<Vec>(actor,0x160);return 1;
 }
 void __thiscall movePreview(void *p,void *position,float speed,int extra) {
     native_animation::moveHook(p,nullptr,position,speed,extra);
 }
-void __thiscall processCamera(void *,void *,float factor) {
+void __thiscall processCamera(void *p,void *,float factor) {
     assert(hybrid_time::frame.stage==hybrid_time::Stage::Camera && factor>=1);++cameraCalls;
+    native_camera::field<Vec>(p,0x90)=native_mover::field<Vec>(actor,0x160);
 }
 void __thiscall transformCamera(void *p,void *,void *) {
     auto &quake=native_camera::field<int>(p,0xe0);if(quake>0) --quake;
@@ -69,6 +72,7 @@ void initialize() {
         std::pair{mobMotion,sizeof(mobMotion)},std::pair{sourceSfx,sizeof(sourceSfx)},std::pair{targetSfx,sizeof(targetSfx)}})
         std::memset(block.first,0,block.second);
     counter=appCalls=worldCalls=networkCalls=inputCalls=cameraCalls=playerHits=mobHits=0;
+    lastControlPosition={};
     static void *actorTable[7]={},*actionTable[3]={},*previewTable[22]={},*sfxTable[7]={};
     actorTable[6]=reinterpret_cast<void *>(&mover);actionTable[2]=reinterpret_cast<void *>(&native_mover::stateHook);
     previewTable[21]=reinterpret_cast<void *>(&movePreview);
@@ -187,6 +191,8 @@ int main() {
             auto move=reinterpret_cast<HRESULT(__thiscall *)(void *)>(&application);
             assert(native_hybrid::run(nullptr,&elapsed,int64_t(i)*1000000/fps,1000000,move,[] {return true;},background)==S_OK);
             const float current=native_mover::field<Vec>(actor,0x160).x;
+            assert(std::fabs(lastControlPosition.x-before)<1e-6f);
+            assert(std::fabs(native_camera::field<Vec>(camera,0x90).x-current)<1e-6f);
             if(i>0 && fps>=144)assert(current>before); // Authoritative movement on every render, including zero legacy ticks.
             if(appCalls==legacyBefore && current>before)++fractionalMoves;
             for(auto pair:{std::pair{actor,sourceSfx},std::pair{mob,targetSfx}}) {
@@ -197,10 +203,8 @@ int main() {
                 assert(matrix[13]==position.y && matrix[14]==position.z && skill.y==position.y && skill.z==position.z);
             }
             assert(std::fabs(native_mover::field<Vec>(mob,0x160).x-current-1.5f)<.002f); // Native range and both rendered positions agree.
-            if(!background) {
-                native_camera::transformHook(camera,nullptr,nullptr,world);
-                native_camera::transformHook(camera,nullptr,nullptr,world);
-            }
+            native_camera::transformHook(camera,nullptr,nullptr,world);
+            native_camera::transformHook(camera,nullptr,nullptr,world);
             assert(native_mover::field<Vec>(actor,0x160).x==current);
             assert(hybrid_time::frame.stage==hybrid_time::Stage::Idle && elapsed==1.f/fps);
         }
@@ -209,25 +213,25 @@ int main() {
         assert(native_mover::field<unsigned>(sourceSfx,0x5f0)==126 && native_mover::field<unsigned>(targetSfx,0x5f0)==126);
         assert(native_mover::field<DWORD>(mob,0x11c8)==126);
         const unsigned renders=unsigned(fps*2+1);
-        assert(appCalls==126 && counter==126 && networkCalls==renders*3 && inputCalls==(background?0:renders) && cameraCalls==(background?0:renders));
+        assert(appCalls==126 && counter==126 && networkCalls==renders*3 && inputCalls==renders && cameraCalls==renders);
         assert(native_mover::field<DWORD>(actor,0x11c8)==126 && native_mover::field<DWORD>(action,0x40)==126);
         assert(std::fabs(native_mover::field<Vec>(actor,0x160).x-10.08f)<.002f);
         assert(std::fabs(native_mover::field<float>(model,0xa0)-126)<.003f);
-        assert(std::fabs(native_mover::field<float>(previewModel,0xa0)-(background?0:126))<.003f);
-        assert(native_mover::field<int>(camera,0xe0)==(background?1000:874));
+        assert(std::fabs(native_mover::field<float>(previewModel,0xa0)-126)<.003f);
+        assert(native_mover::field<int>(camera,0xe0)==874);
     }
     initialize();float transitionElapsed=.002f;
     auto transitionMove=reinterpret_cast<HRESULT(__thiscall *)(void *)>(&application);
-    unsigned foregroundFrames=0;
+
     for(int i=0;i<=200;++i) {
         const bool background=i>=50 && i<150;
-        if(!background)++foregroundFrames;
+
         const float before=native_mover::field<Vec>(actor,0x160).x;
         assert(native_hybrid::run(nullptr,&transitionElapsed,int64_t(i)*2000,1000000,transitionMove,[] {return true;},background)==S_OK);
         const float displacement=native_mover::field<Vec>(actor,0x160).x-before;
         assert(displacement>0 && displacement<=.080001f);
     }
-    assert(inputCalls==foregroundFrames && cameraCalls==foregroundFrames && counter==26);
+    assert(inputCalls==201 && cameraCalls==201 && counter==26);
     assert(std::fabs(native_mover::field<Vec>(actor,0x160).x-2.08f)<.001f);
     native_hybrid::reset();assert(!hybrid_time::frame.active);
     initialize();resetDuringApp=true;float elapsed=.01f;
