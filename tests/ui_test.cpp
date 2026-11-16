@@ -232,19 +232,23 @@ int main() {
     r.editorPage=0;frame();
     activate(panel,"menu");CHECK(!ImGui::GetCurrentContext()->OpenPopupStack.empty());
     popup=ImGui::GetCurrentContext()->OpenPopupStack.back().Window;
+    auto background="###text-"+std::to_string(static_cast<int>(UiText::BackgroundActivity));
+    activate(popup,background.c_str());CHECK(r.settings.backgroundActivity && !r.settings.unlockFps);
+    activate(panel,"menu");popup=ImGui::GetCurrentContext()->OpenPopupStack.back().Window;
     auto appearance="###text-"+std::to_string(static_cast<int>(UiText::V2Appearance));
     activate(popup,appearance.c_str());CHECK(r.editorPage==5);
     r.settings.customCursor=true;r.settings.interfaceMotion=true;frame();
     activate(child(),"custom-cursor");CHECK(!r.settings.customCursor);
     activate(child(),"interface-motion");CHECK(!r.settings.interfaceMotion);
     r.save();Settings saved;CHECK(saved.load(r.configPath));
-    CHECK(!saved.customCursor && !saved.interfaceMotion);
+    CHECK(!saved.customCursor && !saved.interfaceMotion && saved.backgroundActivity && !saved.unlockFps);
     // Reset all and preset loads preserve appearance, language and client controls.
     for (std::size_t i=0;i<LanguageCount;++i) {
         r.settings.language=static_cast<Language>(i);r.settings.exposure=.4f;frame();
         activate(panel,"reset-all");
         CHECK(r.settings.language==static_cast<Language>(i) && !r.settings.customCursor && !r.settings.interfaceMotion);
         CHECK(r.settings.exposure==0);
+        CHECK(r.settings.backgroundActivity && !r.settings.unlockFps);
     }
     r.settings.language=Language::Russian;
     r.editorPage=0;frame();

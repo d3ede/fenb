@@ -1023,6 +1023,8 @@ void DrawPanel(Runtime &r, const PanelBranding &branding) {
 #endif
         ImGui::MenuItem(Label(UiText::WaterDepth24).c_str(), nullptr, &s.preciseWaterDepth);
         Tip(Tr(UiText::WaterDepth24Help));
+        ImGui::MenuItem(Label(UiText::BackgroundActivity).c_str(),nullptr,&s.backgroundActivity);
+        Tip(Tr(r.backgroundActivitySupported()?UiText::BackgroundActivityHelp:UiText::UnsupportedClient));
         ImGui::Separator();
         if (ImGui::MenuItem(Label(UiText::SaveSettings).c_str(), "Ctrl+S"))
             r.save();

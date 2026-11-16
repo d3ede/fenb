@@ -78,6 +78,7 @@ class Runtime {
     bool fpsUnlockSupported() {
         return fpsLimiter_.supported();
     }
+    bool backgroundActivitySupported() { return fpsLimiter_.backgroundSupported(); }
     bool environmentSupported() { return environment_.supported(); }
     float environmentMinutes() const { return environment_.minutes(settings); }
     void beforeDraw(UINT primitives = 0, UINT vertices = 0);

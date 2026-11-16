@@ -1,5 +1,6 @@
 #include "client_fixture.hpp"
 #include "fps_limiter.hpp"
+#include "native_background.hpp"
 #include <cstdio>
 #include <cstring>
 #include <cstdint>
@@ -134,6 +135,37 @@ int main() {
     fps_detail::State state(binding);
     state.frequency = 1000000;
     state.counter = Counter;
+    {
+        FpsLimiter limiter(state);
+        limiter.update(false,true);
+        CHECK(!limiter.active() && state.owners==0 && state.backgroundOwners==1 && *flag==1);
+        CHECK(*binding.frameMove!=binding.originalMove);
+        moves=0;counter=0;native_background::pumping=true;*binding.frameElapsed=.004f;
+        CHECK(SUCCEEDED((*binding.frameMove)(binding.application)) && moves==1 && *binding.frameElapsed==.004f);
+        counter=8000;CHECK(SUCCEEDED((*binding.frameMove)(binding.application)) && moves==1);
+        counter=16000;CHECK(SUCCEEDED((*binding.frameMove)(binding.application)) && moves==2);
+        native_background::pumping=false;
+        counter=17000;CHECK(SUCCEEDED((*binding.frameMove)(binding.application)) && moves==3);
+        CHECK(*flag==1 && *binding.frameElapsed==.004f); // Foreground native pacing/delta remain native.
+        native_background::pumping=true;counter=18000;
+        CHECK(SUCCEEDED((*binding.frameMove)(binding.application)) && moves==3); // No extra tick at focus loss.
+        counter=33000;CHECK(SUCCEEDED((*binding.frameMove)(binding.application)) && moves==4);
+        native_background::pumping=false;
+        limiter.update(true,true);CHECK(limiter.active() && state.owners==1 && state.backgroundOwners==1 && *flag==0);
+        counter=34000;CHECK(SUCCEEDED((*binding.frameMove)(binding.application)) && moves==5);
+        limiter.update(false,true);CHECK(!limiter.active() && *flag==1 && *binding.frameMove!=binding.originalMove);
+        native_background::pumping=true;counter=35000;
+        CHECK(SUCCEEDED((*binding.frameMove)(binding.application)) && moves==6);
+        native_background::pumping=false;limiter.update(false,false);
+        CHECK(!state.owners && !state.backgroundOwners && *binding.frameMove==binding.originalMove && *flag==1);
+    }
+    {
+        FpsLimiter first(state),second(state);
+        first.update(false,true);second.update(true);
+        CHECK(state.owners==1 && state.backgroundOwners==1 && *flag==0);
+        first.update(false,false);CHECK(state.owners==1 && !state.backgroundOwners && *flag==0);
+        second.update(false);CHECK(*flag==1 && *binding.frameMove==binding.originalMove);
+    }
     for (int fps : {30, 60, 144, 500, 1000}) {
         moves = 0;
         distance = 0;

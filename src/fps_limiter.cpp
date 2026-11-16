@@ -76,15 +76,23 @@ HRESULT __fastcall MoveHook(void *application, void *) {
     int64_t nativeNow=0;
     {
         std::lock_guard lock(hookMutex);
-        if (s && s->owners && s->binding.application == application) {
+        if (s && (s->owners || s->backgroundOwners) && s->binding.application == application) {
             if (!s->thread)
                 s->thread = GetCurrentThreadId();
         }
-        if (s && s->owners && s->binding.application == application && s->thread == GetCurrentThreadId()) {
+        if (s && (s->owners || s->backgroundOwners) && s->binding.application == application && s->thread == GetCurrentThreadId()) {
             original = s->binding.originalMove;
             if (*(static_cast<unsigned char *>(application) + 0xa8)) {
                 const auto now=s->counter();
-                if(s->nativeHybrid && native_hybrid::installed) {
+                if(!s->owners) {
+                    if(native_background::pumping) {
+                        steps=s->backgroundScheduler.advance(now,s->frequency);elapsed=s->binding.frameElapsed;
+                    } else {
+                        // This foreground native call already consumes a tick.
+                        // Seed the background clock without scheduling it again.
+                        s->backgroundScheduler.reset();s->backgroundScheduler.advance(now,s->frequency);
+                    }
+                } else if(s->nativeHybrid && native_hybrid::installed) {
                     nativeFrame=true;nativeNow=now;elapsed=s->binding.frameElapsed;
                 } else {
                     steps = s->scheduler.advance(now, s->frequency);
@@ -108,6 +116,7 @@ HRESULT __fastcall MoveHook(void *application, void *) {
     }
     if (!original)
         return E_FAIL;
+    ++native_background::moves;
     if (!elapsed) {
         if(s && s->nativeHybrid) native_hybrid::reset();
         visual_camera::finishFrame();
@@ -115,7 +124,6 @@ HRESULT __fastcall MoveHook(void *application, void *) {
         return original(application);
     }
     if(nativeFrame) {
-        ++native_background::moves;
         return native_hybrid::run(application,elapsed,nativeNow,s->frequency,original,
             [&]() { return hookedState.load()==s; },native_background::pumping);
     }
@@ -214,73 +222,69 @@ bool FpsLimiter::supported() {
 FpsLimiter::~FpsLimiter() {
     update(false);
 }
-void FpsLimiter::update(bool unlock) {
-    if (!unlock && !active_)
-        return;
-    auto &s = state();
-    if (!s.binding || s.frequency <= 0)
-        return;
+bool FpsLimiter::backgroundSupported() {
+    return supported() && (!backgroundActive_ || native_background::installed);
+}
+void FpsLimiter::update(bool unlock,bool background) {
+    if (!unlock && !active_ && !background && !backgroundActive_)return;
+    auto &s=state();
+    if (!s.binding || s.frequency<=0)return;
     std::lock_guard lock(hookMutex);
-    auto &b = s.binding;
-    // x86 thiscall supplies ECX; the fastcall adapter ignores EDX and consumes no stack arguments.
-    const auto hook = std::bit_cast<fps_detail::FrameMove>(&MoveHook);
-    if (unlock) {
-        if (!active_) {
-            if (!s.owners) {
-                if (hookedState.load() && hookedState.load() != &s)
-                    return;
-                fallbackMove.store(b.originalMove);
-                // Install the simulation gate BEFORE permitting additional render frames.
-                if (!ReplaceMove(b, b.originalMove, hook))
-                    return;
-                s.originalFlag = *b.enabled;
-                s.scheduler.reset();
-                presentation_clock::reset();
-                s.thread = 0;
-                hookedState.store(&s);
+    auto &b=s.binding;
+    const auto hook=std::bit_cast<fps_detail::FrameMove>(&MoveHook);
+    const bool changed=unlock!=active_ || background!=backgroundActive_;
+    if(!s.owners && !s.backgroundOwners) {
+        if(hookedState.load() && hookedState.load()!=&s)return;
+        fallbackMove.store(b.originalMove);
+        if(!ReplaceMove(b,b.originalMove,hook))return;
+        hookedState.store(&s);s.thread=0;
+    }
+    // Restore the four main-loop sites before changing the hybrid ABI patches.
+    if(changed)native_background::uninstall();
+    if(unlock!=active_) {
+        if(unlock) {
+            if(!s.owners) {
+                s.originalFlag=*b.enabled;s.scheduler.reset();presentation_clock::reset();
                 s.nativeHybrid=native_hybrid::install();
-                if(!s.nativeHybrid) {
-                    // Actor transforms stay native: prediction breaks shadows, picking and SFX origins.
-                    visual_animation::install();
-                    visual_camera::install();
-                }
+                if(!s.nativeHybrid) { visual_animation::install();visual_camera::install(); }
                 Log(s.nativeHybrid ? "FPS unlock: native hybrid delta-time loop installed; render limiter released."
                     : "FPS unlock: native hybrid unavailable; fixed 16 ms simulation with native actor positions installed.");
             }
             ++s.owners;
-            active_ = true;
-            if(s.nativeHybrid) {
-                native_background::application=b.application;
-                native_background::thread=GetWindowThreadProcessId(*reinterpret_cast<HWND *>(static_cast<char *>(b.application)+0xac),nullptr);
-                native_background::move=[](void *app) { return MoveHook(app,nullptr); };
-                native_background::ready=[]() {
-                    const auto *current=hookedState.load();
-                    return current && current->owners && current->nativeHybrid && native_hybrid::installed &&
-                        native_world::getWorld() && native_world::playerSlot && *native_world::playerSlot;
-                };
-            }
-        }
-        if (!*(static_cast<unsigned char *>(b.application) + 0xa8)) {
-            s.scheduler.reset();
-            presentation_clock::reset();
-        }
-        if (*b.frameMove == hook && *b.enabled != 0)
-            InterlockedExchange(b.enabled, 0);
-    } else {
-        active_ = false;
-        if (!--s.owners) {
-            // Restore native pacing BEFORE removing the simulation gate.
-            visual_camera::uninstall();
-            visual_animation::uninstall();
+        } else if(!--s.owners) {
+            visual_camera::uninstall();visual_animation::uninstall();
             if(s.nativeHybrid) { native_hybrid::uninstall();s.nativeHybrid=false; }
-            *b.lastTick = timeGetTime();
-            *b.elapsed = 0;
-            InterlockedExchange(b.enabled, s.originalFlag);
-            ReplaceMove(b, hook, b.originalMove);
-            hookedState.store(nullptr);
-            s.scheduler.reset();
-            presentation_clock::reset();
+            *b.lastTick=timeGetTime();*b.elapsed=0;InterlockedExchange(b.enabled,s.originalFlag);
+            s.scheduler.reset();presentation_clock::reset();
             Log("FPS unlock: native simulation and render pacing restored.");
         }
+        active_=unlock;s.backgroundScheduler.reset();
+    }
+    if(background!=backgroundActive_) {
+        if(background)++s.backgroundOwners;else --s.backgroundOwners;
+        backgroundActive_=background;s.backgroundScheduler.reset();
+    }
+    if(s.owners) {
+        if(!*(static_cast<unsigned char *>(b.application)+0xa8)) { s.scheduler.reset();presentation_clock::reset(); }
+        if(*b.frameMove==hook && *b.enabled!=0)InterlockedExchange(b.enabled,0);
+    }
+    if(!s.owners && !s.backgroundOwners) {
+        ReplaceMove(b,hook,b.originalMove);hookedState.store(nullptr);s.backgroundScheduler.reset();return;
+    }
+    if(changed && s.backgroundOwners) {
+        // Without FPS unlock, the original world and render cap stay intact.
+        // Only the inactive/lost-device main-loop paths need the background hook.
+        const bool abi=s.nativeHybrid || native_binding::prepare();
+        if(abi && native_background::install()) {
+            native_background::application=b.application;
+            native_background::thread=GetWindowThreadProcessId(*reinterpret_cast<HWND *>(static_cast<char *>(b.application)+0xac),nullptr);
+            native_background::move=[](void *app) { return MoveHook(app,nullptr); };
+            native_background::ready=[]() {
+                const auto *current=hookedState.load();
+                const auto slot=native_background::playerSlot;
+                return current && current->backgroundOwners && slot && *slot &&
+                    native_background::field<void *>(*slot,0x16c);
+            };
+        } else Log("Background activity unavailable: native main-loop ABI guard.");
     }
 }

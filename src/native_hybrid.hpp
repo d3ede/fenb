@@ -24,7 +24,6 @@ inline void reset() {
 }
 inline void uninstall() {
     installed=false;hybrid_time::frame.active=false;
-    native_background::uninstall();
     native_app::uninstall();native_sfx_follow::uninstall();native_camera::uninstall();native_world::uninstall();
     native_sfx_time::uninstall();
     native_layer_time::uninstall();
@@ -45,7 +44,6 @@ inline bool install() {
     if(!native_camera::install()) { Log("Native hybrid unavailable: camera/input ABI guard.");uninstall();return false; }
     if(!native_sfx_follow::install()) { Log("Native hybrid unavailable: SFX ABI guard.");uninstall();return false; }
     if(!native_app::install()) { Log("Native hybrid unavailable: application ABI guard.");uninstall();return false; }
-    if(!native_background::install()) { Log("Native hybrid unavailable: background-loop ABI guard.");uninstall();return false; }
     native_world::afterObject=&native_mover_services::afterProcess;
     native_world::sfxRefresh=&refreshSfx;
     reset();installed=true;

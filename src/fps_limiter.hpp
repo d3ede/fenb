@@ -24,10 +24,10 @@ Binding InspectImage(HMODULE image, const client_detail::Layout &layout = {});
 struct State {
     explicit State(Binding binding = {});
     Binding binding;
-    FixedStep scheduler;
+    FixedStep scheduler,backgroundScheduler;
     int64_t (*counter)() = ReadCounter;
     int64_t frequency = 0;
-    unsigned owners = 0;
+    unsigned owners = 0,backgroundOwners = 0;
     DWORD thread = 0;
     LONG originalFlag = 0;
     bool nativeHybrid=false;
@@ -41,8 +41,9 @@ class FpsLimiter {
     ~FpsLimiter();
     FpsLimiter(const FpsLimiter &) = delete;
     FpsLimiter &operator=(const FpsLimiter &) = delete;
-    void update(bool unlock);
+    void update(bool unlock,bool background=false);
     bool supported();
+    bool backgroundSupported();
     bool active() const {
         return active_;
     }
@@ -50,5 +51,5 @@ class FpsLimiter {
   private:
     fps_detail::State &state();
     fps_detail::State *state_ = nullptr;
-    bool active_ = false;
+    bool active_ = false,backgroundActive_ = false;
 };

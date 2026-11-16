@@ -111,7 +111,9 @@ int main() {
     }
     s.language = Language::Russian;
     CHECK(!s.unlockFps);
+    CHECK(!s.backgroundActivity);
     s.unlockFps = true;
+    s.backgroundActivity = true;
     s.bloomScale = 3;
     s.exposure = std::numeric_limits<float>::infinity();
     s.gamma = 0;
@@ -171,6 +173,7 @@ int main() {
     CHECK(loaded.load(path));
     CHECK(loaded.language == Language::Russian);
     CHECK(loaded.unlockFps);
+    CHECK(loaded.backgroundActivity);
     CHECK(!loaded.preciseWaterDepth);
     CHECK(loaded.msaaSamples == 4 && loaded.fxaa && loaded.smaa && loaded.fxaaStrength == .8f &&
           loaded.nightFoliage == .55f);
@@ -329,6 +332,7 @@ int main() {
         controls.customCursor = false;
         controls.interfaceMotion = false;
         controls.unlockFps = true;
+        controls.backgroundActivity = true;
         controls.msaaSamples = 8;
         controls.language = Language::Russian;
         controls.preciseWaterDepth = false;

@@ -9,13 +9,18 @@ using Environment=HRESULT(__thiscall *)(void *);
 using CanRender=BOOL(__thiscall *)(void *);
 using GetMessage=BOOL(WINAPI *)(LPMSG,HWND,UINT,UINT);
 using Move=HRESULT(*)(void *);
+using KeyState=SHORT(WINAPI *)(int);
+using KeyboardState=BOOL(WINAPI *)(PBYTE);
 inline Environment originalEnvironment=nullptr;
 inline CanRender originalCanRender=nullptr;
 inline GetMessage originalGetMessage=nullptr;
+inline KeyState originalAsyncKey=nullptr,originalKey=nullptr;
+inline KeyboardState originalKeyboard=nullptr;
 inline native_binding::Set patches;
 inline void *application=nullptr;
 inline DWORD thread=0;
 inline Move move=nullptr;
+inline void **playerSlot=nullptr;
 inline bool (*ready)()=nullptr;
 inline bool installed=false,pumping=false,scheduled=false;
 inline uint64_t moves=0;
@@ -28,6 +33,13 @@ inline bool eligible() {
 inline bool background() {
     const HWND window=field<HWND>(application,0xac);
     return window && (IsIconic(window) || GetForegroundWindow()!=window);
+}
+inline bool ignoreInput() { return pumping && application && background(); }
+inline SHORT WINAPI asyncKeyHook(int key) { return ignoreInput()?0:originalAsyncKey(key); }
+inline SHORT WINAPI keyHook(int key) { return ignoreInput()?0:originalKey(key); }
+inline BOOL WINAPI keyboardHook(PBYTE keys) {
+    if(ignoreInput() && keys) { std::memset(keys,0,256);return TRUE; }
+    return originalKeyboard(keys);
 }
 inline void resetSchedule() { scheduled=false;last=0; }
 inline bool due(int64_t now) {
@@ -105,14 +117,24 @@ inline bool install() {
        !scan.calls(0xebb15,0xebe20) || !scan.calls(0xec186,0xec250))return false;
     originalEnvironment=reinterpret_cast<Environment>(scan.address(0xebe20));
     originalCanRender=reinterpret_cast<CanRender>(scan.address(0xec250));
+    playerSlot=reinterpret_cast<void **>(scan.address(0x842168));if(!playerSlot)return false;
     auto *getMessage=scan.address(0x6d87e4);if(!getMessage)return false;
     std::memcpy(&originalGetMessage,getMessage,sizeof(originalGetMessage));
+    auto **asyncKey=reinterpret_cast<void **>(scan.address(0x6d881c));
+    auto **key=reinterpret_cast<void **>(scan.address(0x6d8b4c));
+    auto **keyboard=reinterpret_cast<void **>(scan.address(0x6d8a90));
+    if(!asyncKey || !key || !keyboard)return false;
+    originalAsyncKey=reinterpret_cast<KeyState>(*asyncKey);originalKey=reinterpret_cast<KeyState>(*key);
+    originalKeyboard=reinterpret_cast<KeyboardState>(*keyboard);
     patches.clear();
     const unsigned char environmentCall[5]={0xe8,6,3,0,0},renderCall[5]={0xe8,0xc5,0,0,0};
     if(!replaceImport(scan,0xebab3,0x6d87e4,reinterpret_cast<void *>(&getMessageHook)) ||
        !replaceImport(scan,0xebb04,0x6d8368,reinterpret_cast<void *>(&sleepHook)) ||
        !patches.call(scan.address(0xebb15),environmentCall,reinterpret_cast<void *>(&environmentHook)) ||
-       !patches.call(scan.address(0xec186),renderCall,reinterpret_cast<void *>(&canRenderHook)) || !patches.apply()) {
+       !patches.call(scan.address(0xec186),renderCall,reinterpret_cast<void *>(&canRenderHook)) ||
+       !patches.pointer(asyncKey,*asyncKey,reinterpret_cast<void *>(&asyncKeyHook)) ||
+       !patches.pointer(key,*key,reinterpret_cast<void *>(&keyHook)) ||
+       !patches.pointer(keyboard,*keyboard,reinterpret_cast<void *>(&keyboardHook)) || !patches.apply()) {
         patches.clear();return false;
     }
     LARGE_INTEGER value;QueryPerformanceFrequency(&value);frequency=value.QuadPart;
@@ -120,7 +142,7 @@ inline bool install() {
     Log("Native background loop: inactive message wait and lost-device CPU updates installed; native window/input state retained.");return true;
 }
 inline void uninstall() {
-    installed=false;patches.clear();application=nullptr;move=nullptr;ready=nullptr;thread=0;
+    installed=false;patches.clear();application=nullptr;move=nullptr;ready=nullptr;playerSlot=nullptr;thread=0;
     pumping=false;resetSchedule();
 }
 }

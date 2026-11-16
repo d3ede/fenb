@@ -42,7 +42,7 @@ Runtime::Runtime(IDirect3DDevice9 *device)
     if (SUCCEEDED(device_->GetSwapChain(0, chain.out())) &&
         SUCCEEDED(chain->GetPresentParameters(&presentation)))
         presentation_.initialize(presentation, settings.msaaSamples);
-    fpsLimiter_.update(settings.unlockFps);
+    fpsLimiter_.update(settings.unlockFps,settings.backgroundActivity);
     environment_.update(settings, compare);
     visible = settings.openOnStart;
     configTime_ = FileTime(configPath);
@@ -461,7 +461,7 @@ void Runtime::beforePresent(IDirect3DSwapChain9 *provided, DWORD flags, HWND win
             configTime_ = modified;
         }
     }
-    fpsLimiter_.update(settings.unlockFps);
+    fpsLimiter_.update(settings.unlockFps,settings.backgroundActivity);
     bool panel = visible && main && initUI();
     if (!visible || !settings.customCursor || (main && !panel))
         updateCursor(false);
@@ -591,7 +591,7 @@ void Runtime::reload() {
     bool loaded = settings.load(configPath);
     if (loaded)
         recognizeProfile();
-    fpsLimiter_.update(settings.unlockFps);
+    fpsLimiter_.update(settings.unlockFps,settings.backgroundActivity);
     environment_.update(settings, compare);
     if (loaded)
         dirty_ = false;
@@ -599,7 +599,7 @@ void Runtime::reload() {
     configTime_ = FileTime(configPath);
 }
 void Runtime::settingsChanged() {
-    fpsLimiter_.update(settings.unlockFps);
+    fpsLimiter_.update(settings.unlockFps,settings.backgroundActivity);
     environment_.update(settings, compare);
     dirty_ = true;
     lastEdit_ = GetTickCount();

@@ -168,6 +168,7 @@ bool Settings::load(const std::wstring &path) {
         next.m = number;
         READ_BOOL("enabled", enabled)
         READ_BOOL("unlock_fps", unlockFps)
+        READ_BOOL("background_activity", backgroundActivity)
         READ_BOOL("custom_cursor", customCursor)
         READ_BOOL("interface_motion", interfaceMotion)
         READ_BOOL("precise_water_depth", preciseWaterDepth)
@@ -245,7 +246,7 @@ bool Settings::save(const std::wstring &path) const {
     int written = fprintf(
         file,
         "; FENB / Shift + Enter opens the "
-        "panel\n[General]\nenabled=%d\nopen_on_start=%d\npanel_page=%d\nlanguage=%s\nunlock_fps=%d\nprecise_"
+        "panel\n[General]\nenabled=%d\nopen_on_start=%d\npanel_page=%d\nlanguage=%s\nunlock_fps=%d\nbackground_activity=%d\nprecise_"
         "water_depth=%"
         "d\n"
         "\n[Bloom]\nbloom=%d\nbloom_strength=%.6f\nthreshold=%.6f\nknee=%.6f\nradius=%.6f\nbloom_scale=%d\n"
@@ -256,7 +257,7 @@ bool Settings::save(const std::wstring &path) const {
         "6f\nwater_tint=%.6f\nwater_refraction=%.6f\nwater_texture=%.6f\nwater_depth=%.6f\n"
         "water_shore=%.6f\nwater_ssr=%.6f\nwater_ssr_quality=%d\nwater_caustics=%.6f\nwater_dispersion=%."
         "6f\nwater_caustic_scale=%d\n",
-        enabled, openOnStart, panelPage, LanguageCodes[LanguageIndex(language)], unlockFps,
+        enabled, openOnStart, panelPage, LanguageCodes[LanguageIndex(language)], unlockFps, backgroundActivity,
         preciseWaterDepth, bloom, bloomStrength, threshold, knee, radius, bloomScale, color, exposure,
         contrast, saturation, temperature, tint, gamma, shadows, highlights, water, waterWaves, waterLength,
         waterSpeed, waterRipples, waterRippleScale, waterOpacity, waterSky, waterGlints, waterGloss,
@@ -303,7 +304,7 @@ bool Settings::save(const std::wstring &path) const {
 void Settings::preserveControls(const Settings &source) {
 #define KEEP(member) member = source.member;
     KEEP(enabled) KEEP(customCursor) KEEP(interfaceMotion)
-    KEEP(openOnStart) KEEP(unlockFps) KEEP(preciseWaterDepth) KEEP(msaaSamples) KEEP(panelPage) KEEP(language)
+    KEEP(openOnStart) KEEP(unlockFps) KEEP(backgroundActivity) KEEP(preciseWaterDepth) KEEP(msaaSamples) KEEP(panelPage) KEEP(language)
         KEEP(timeOverride) KEEP(timeMinutes) KEEP(freezeTime) KEEP(weatherOverride) KEEP(weatherType)
             KEEP(weatherIntensity)
 #undef KEEP

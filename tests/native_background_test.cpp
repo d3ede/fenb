@@ -18,6 +18,8 @@ HRESULT __thiscall environment(void *p) {
     return S_OK;
 }
 BOOL WINAPI getMessage(LPMSG m,HWND,UINT,UINT) { ++messageCalls;m->message=WM_APP+4;return TRUE; }
+SHORT WINAPI keyState(int) { return SHORT(0x8001); }
+BOOL WINAPI keyboardState(PBYTE keys) { if(!keys)return FALSE;std::memset(keys,0x80,256);return TRUE; }
 }
 int main() {
     using namespace native_background;
@@ -39,6 +41,12 @@ int main() {
     QueryPerformanceFrequency(&f);frequency=f.QuadPart;resetSchedule();
     const auto window=CreateWindowExA(0,"STATIC","FENB disposable background test",WS_POPUP,0,0,1,1,nullptr,nullptr,GetModuleHandleW(nullptr),nullptr);
     assert(window);field<HWND>(app,0xac)=window;
+    originalAsyncKey=originalKey=&keyState;originalKeyboard=&keyboardState;
+    BYTE keys[256]{};pumping=true;
+    assert(asyncKeyHook('W')==0 && keyHook(VK_LBUTTON)==0 && keyboardHook(keys));
+    for(auto key:keys)assert(key==0);
+    pumping=false;assert(asyncKeyHook('W')==SHORT(0x8001) && keyHook(VK_LBUTTON)==SHORT(0x8001));
+    assert(keyboardHook(keys) && keys['W']==0x80 && !keyboardHook(nullptr));
     MSG m{};PeekMessageA(&m,nullptr,0,0,PM_NOREMOVE);
     PostThreadMessageA(GetCurrentThreadId(),WM_APP+9,123,456);
     assert(getMessageHook(&m,nullptr,WM_APP+9,WM_APP+9));
