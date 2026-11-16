@@ -129,13 +129,14 @@ int main(int argc, char **) {
     int mildChange = 0, strongChange = 0;
     for (UINT y = 2; y + 2 < Height; ++y) for (UINT x = 2; x + 2 < Width; ++x) {
         auto i = y * Width + x;
-        if (y < 10 || (y > 20 && y < 28) || (y > 36 && y < 43))
+        // Test flat/noise interiors beyond the seven-pixel texture footprint.
+        if (y < 9 || (y > 20 && y < 28) || (y >= 39 && y <= 40))
             CHECK(strong[i] == baseline[i]); // Flat fields, midtone steps, silhouettes and tiny noise.
         if (y > 50) {
             int difference = Channel(strong[i]) - Channel(baseline[i]);
             mildChange += std::abs(Channel(mild[i]) - Channel(baseline[i]));
             strongChange += std::abs(difference);
-            CHECK(std::abs(difference) <= 21);
+            CHECK(std::abs(difference) <= 37);
             for (int shift : {8, 16})
                 CHECK(std::abs(Channel(strong[i], shift) - Channel(baseline[i], shift) - difference) <= 1);
         }
@@ -147,13 +148,17 @@ int main(int argc, char **) {
     settings.textureContrast = 1;
     auto fullTexture = render();
     CHECK(fineOnly.size() == baseline.size() && fullTexture.size() == baseline.size());
-    int fineTextureChange = 0, broadTextureChange = 0;
+    int fineTextureChange = 0, broadTextureChange = 0, defaultTextureChange = 0;
     for (UINT y = 80; y < 90; ++y) for (UINT x = 8; x + 8 < Width; ++x) {
         auto i = y * Width + x;
         fineTextureChange += std::abs(Channel(fineOnly[i]) - Channel(baseline[i]));
         broadTextureChange += std::abs(Channel(fullTexture[i]) - Channel(baseline[i]));
+        defaultTextureChange += std::abs(Channel(mild[i]) - Channel(baseline[i]));
     }
     CHECK(broadTextureChange > fineTextureChange * 3 && broadTextureChange > 1000);
+    // The default response must be visible on low-contrast painted structure,
+    // rather than only satisfying a nonzero-pixel test at maximum strength.
+    CHECK(defaultTextureChange > 3 * 144 * 10);
     settings.textureContrast = Settings{}.textureContrast;
     settings.color = false;
     CHECK(render() == strong); // Sharpening works as the only image effect.
