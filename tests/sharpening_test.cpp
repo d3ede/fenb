@@ -66,9 +66,10 @@ int main(int argc, char **) {
     D3DLOCKED_RECT lock{};
     CHECK(SUCCEEDED(texture->LockRect(0, &lock, nullptr, 0)));
     for (UINT y = 0; y < Height; ++y) for (UINT x = 0; x < Width; ++x) {
-        int value = y < 16 ? 110 : y < 32 ? (x < Width / 2 ? 0 : 255) :
+        int value = y < 16 ? (x < Width / 2 ? 80 : 180) : y < 32 ? (x < Width / 2 ? 0 : 255) :
             y < 48 ? 127 + (x + y) % 2 :
-            int(128 + 14 * std::cos(x * .8) * std::cos(y * .7));
+            y < 72 ? int(128 + 14 * std::cos(x * .8) * std::cos(y * .7)) :
+            int(128 + 18 * std::cos(x * .22) * std::cos((y-72) * .3));
         // Keep chroma constant in the textured region to detect colored fringes.
         ((DWORD *)((BYTE *)lock.pBits + y * lock.Pitch))[x] = y < 48 ?
             D3DCOLOR_ARGB(173, value, value, value) : D3DCOLOR_ARGB(173, value + 20, value, value - 20);
@@ -128,19 +129,32 @@ int main(int argc, char **) {
     int mildChange = 0, strongChange = 0;
     for (UINT y = 2; y + 2 < Height; ++y) for (UINT x = 2; x + 2 < Width; ++x) {
         auto i = y * Width + x;
-        if (y < 14 || (y > 17 && y < 30) || (y > 33 && y < 46))
-            CHECK(strong[i] == baseline[i]); // Flat fields, silhouettes and tiny noise.
+        if (y < 10 || (y > 20 && y < 28) || (y > 36 && y < 43))
+            CHECK(strong[i] == baseline[i]); // Flat fields, midtone steps, silhouettes and tiny noise.
         if (y > 50) {
             int difference = Channel(strong[i]) - Channel(baseline[i]);
             mildChange += std::abs(Channel(mild[i]) - Channel(baseline[i]));
             strongChange += std::abs(difference);
-            CHECK(std::abs(difference) <= 11);
+            CHECK(std::abs(difference) <= 21);
             for (int shift : {8, 16})
                 CHECK(std::abs(Channel(strong[i], shift) - Channel(baseline[i], shift) - difference) <= 1);
         }
         CHECK((strong[i] >> 24) == (baseline[i] >> 24));
     }
     CHECK(mildChange > 100 && strongChange > mildChange);
+    settings.textureContrast = 0;
+    auto fineOnly = render();
+    settings.textureContrast = 1;
+    auto fullTexture = render();
+    CHECK(fineOnly.size() == baseline.size() && fullTexture.size() == baseline.size());
+    int fineTextureChange = 0, broadTextureChange = 0;
+    for (UINT y = 80; y < 90; ++y) for (UINT x = 8; x + 8 < Width; ++x) {
+        auto i = y * Width + x;
+        fineTextureChange += std::abs(Channel(fineOnly[i]) - Channel(baseline[i]));
+        broadTextureChange += std::abs(Channel(fullTexture[i]) - Channel(baseline[i]));
+    }
+    CHECK(broadTextureChange > fineTextureChange * 3 && broadTextureChange > 1000);
+    settings.textureContrast = Settings{}.textureContrast;
     settings.color = false;
     CHECK(render() == strong); // Sharpening works as the only image effect.
     settings.bloom = true;
@@ -164,6 +178,6 @@ int main(int argc, char **) {
     settings.fxaa = settings.smaa = false;
     effects.invalidate();
     CHECK(render() == strong);
-    puts("PASS: sharpening detail, strength, flat/noise/edge limiting, chroma, alpha, bloom offsets, AA, memory and recreation.");
+    puts("PASS: two-scale texture contrast, strength, flat/noise/edge limiting, chroma, alpha, bloom offsets, AA, memory and recreation.");
     return 0;
 }

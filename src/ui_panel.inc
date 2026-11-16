@@ -408,6 +408,7 @@ void PanelParameters(Runtime &r, int item) {
         case 8:
             PanelNote(Tr(UiText::Sharpening));
             SR(Strength, SharpeningHelp, sharpeningStrength, 0, 1, "%.2f", .05f);
+            SR(TextureContrast, TextureContrastHelp, textureContrast, 0, 1, "%.2f", .05f);
             break;
         }
     if (page == 1)

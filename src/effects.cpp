@@ -167,7 +167,7 @@ void Effects::draw(IDirect3DSurface9 *backbuffer, const Settings &s) {
                      {s.exposure, s.contrast, s.saturation, s.gamma},
                      {s.temperature, s.tint, s.shadows, s.highlights},
                      {s.bloom ? 1.f : 0.f, s.color ? 1.f : 0.f,
-                      s.sharpening ? s.sharpeningStrength : 0.f, 0},
+                      s.sharpening ? s.sharpeningStrength : 0.f, s.textureContrast},
                      {0, 0, 0, 0}};
     device_->SetPixelShaderConstantF(0, &c[0][0], 5);
     float automatic[] = {exposure && s.adaptation ? 1.f : 0.f,

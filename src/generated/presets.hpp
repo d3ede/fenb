@@ -105,6 +105,7 @@ inline void ApplyBuiltInVisuals(Settings &s, int index) {
     s.surfaceDistance = 50.000000f;
     s.sharpening = false;
     s.sharpeningStrength = 0.450000f;
+    s.textureContrast = 0.650000f;
     switch(index) {
     case 1: // Default (High-end PC)
     s.sceneQuality = true;

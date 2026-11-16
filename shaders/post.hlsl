@@ -5,7 +5,7 @@ sampler2D MeanLuminance : register(s3);
 float4 Bloom : register(c0); // strength, threshold (linear), knee, radius
 float4 Grade : register(c1); // exposure, contrast, saturation, gamma
 float4 Balance : register(c2); // temperature, tint, shadows, highlights
-float4 Options : register(c3); // bloom enabled, color enabled, sharpening strength
+float4 Options : register(c3); // bloom enabled, color enabled, detail strength, texture contrast
 float4 Step : register(c4);
 float4 Automatic : register(c5);
 
@@ -32,8 +32,8 @@ float4 Blur(float2 uv : TEXCOORD0) : COLOR0 {
 }
 float4 Composite(float2 uv : TEXCOORD0) : COLOR0 {
     float4 source = tex2D(Scene, uv);
-    // Experimental luminance-only sharpening: four extra reads in the existing pass.
-    // A uniform branch skips the reads when disabled or at zero strength.
+    // Two-scale detail enhancement in the existing pass. Fine edges and broader
+    // texture shading are separate bands; no synthetic grain or retained history.
     [branch] if (Options.z > 0) {
         const float3 lumaWeights = float3(.2126,.7152,.0722);
         float center = dot(source.rgb, lumaWeights);
@@ -45,12 +45,39 @@ float4 Composite(float2 uv : TEXCOORD0) : COLOR0 {
         float low = min(center, min(min(north, south), min(west, east)));
         float high = max(center, max(max(north, south), max(west, east)));
         float span = high - low;
-        // Suppress near-flat noise and strong silhouettes; cap the luminance correction.
-        float detail = center - (north + south + west + east) * .25;
-        float gain = Options.z * smoothstep(.002, .015, span) / (1 + 8 * span);
-        float correction = clamp(detail * gain, -.04, .04);
-        correction = clamp(correction, low - center, high - center);
-        source.rgb = saturate(source.rgb + correction);
+        float nearMean = (north + south + west + east) * .25;
+        float edgeGuard = 1 - smoothstep(.12, .30, span);
+        float fine = (center - nearMean) * 1.6 * smoothstep(.003, .015, span);
+        float textureBand = 0;
+        [branch] if (Options.w > 0) {
+            // Four diagonal samples cover the scale of painted stone/wood detail.
+            // Skipping this band retains the four-read fine-detail mode.
+            float2 radius = Step.xy * 4;
+            float a = dot(tex2Dlod(Scene, float4(uv + radius, 0, 0)).rgb, lumaWeights);
+            float b = dot(tex2Dlod(Scene, float4(uv - radius, 0, 0)).rgb, lumaWeights);
+            float c = dot(tex2Dlod(Scene, float4(uv + radius * float2(-1,1), 0, 0)).rgb, lumaWeights);
+            float d = dot(tex2Dlod(Scene, float4(uv + radius * float2(1,-1), 0, 0)).rgb, lumaWeights);
+            low = min(low, min(min(a,b), min(c,d)));
+            high = max(high, max(max(a,b), max(c,d)));
+            float wideSpan = high - low;
+            float structure = smoothstep(.008, .04, wideSpan) * (1 - smoothstep(.30,.65,wideSpan));
+            // Reject samples across large brightness discontinuities. A plain
+            // wide blur would emboss silhouettes and lay halos over flat surfaces.
+            float4 samples = float4(a,b,c,d);
+            float4 weights = saturate(1 - abs(samples-center)/.18);
+            float wideMean = (center+dot(samples,weights))/(1+dot(weights,1));
+            textureBand = (nearMean - wideMean) * 2.4 * Options.w * structure;
+        }
+        float tones = smoothstep(.015,.08,center) * (1 - smoothstep(.86,.99,center));
+        float correction = (fine + textureBand) * Options.z * edgeGuard * tones;
+        correction = clamp(correction, -.08 * Options.z, .08 * Options.z);
+        // Permit controlled peak enhancement, unlike the old extrema clamp which
+        // erased the strongest texture detail. Keep chroma and highlight headroom.
+        float margin = (high-low) * .12;
+        correction = clamp(correction, low-center-margin, high-center+margin);
+        correction = clamp(correction, -min(source.r,min(source.g,source.b)),
+                            1-max(source.r,max(source.g,source.b)));
+        source.rgb += correction;
     }
     float3 rgb = pow(max(source.rgb, 0), 2.2);
     if (Automatic.y > .5) {

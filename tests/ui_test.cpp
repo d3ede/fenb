@@ -297,7 +297,8 @@ int main() {
         r.editorPage=0;r.editorSelection[0]=8;frame();frame();
         r.settings.sharpening=false;control("sharpen","enabled");CHECK(r.settings.sharpening);
         ImGui::ActivateItemByID(numeric("sharpen",r.settings.sharpeningStrength));frame();input("0.8");CHECK(r.settings.sharpeningStrength==.8f);
-        control("sharpen","reset-section");CHECK(r.settings.sharpening&&r.settings.sharpeningStrength==Settings{}.sharpeningStrength&&r.settings.language==static_cast<Language>(language));
+        ImGui::ActivateItemByID(numeric("sharpen",r.settings.textureContrast));frame();input("0.9");CHECK(r.settings.textureContrast==.9f);
+        control("sharpen","reset-section");CHECK(r.settings.sharpening&&r.settings.sharpeningStrength==Settings{}.sharpeningStrength&&r.settings.textureContrast==Settings{}.textureContrast&&r.settings.language==static_cast<Language>(language));
         CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-sharpening.png").c_str()));control("sharpen","enabled");CHECK(!r.settings.sharpening);
         struct View{int page,item;const wchar_t *name;};
         const View views[]={{0,4,L"tone"},{0,7,L"bloom"},{1,0,L"water"},{1,6,L"reflections"},{1,7,L"trace"},{2,0,L"scene"},{3,0,L"antialiasing"},{4,0,L"time"},{4,1,L"weather"},{5,2,L"interface"},{7,3,L"optimization"}};

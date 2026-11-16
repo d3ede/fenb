@@ -28,7 +28,7 @@ A graphics mod inspired by ENBSeries, with adjustable effects and an in-game set
 | | Features |
 | --- | --- |
 | **Color & bloom** | Adjust exposure, contrast, saturation, temperature and soft light bloom. |
-| **Experimental sharpening** | Adjustable texture detail emphasis with noise and edge limiting, integrated into the existing post-processing pass. Off by default; does not replace textures or add geometry. |
+| **Experimental texture detail** | Two-scale enhancement of fine details and local texture contrast, with adjustable strength and texture contrast. Makes existing stone, wood and ground patterns more pronounced. Off by default; does not replace textures or add geometry. |
 | **Light & atmosphere** | SSAO, sun rays, a smooth sun core and halo, reconstructed sky/cloud textures and fine night stars, distance and height fog, depth of field, brightness adaptation and local lighting. |
 | **Time & weather** | Live time-of-day controls, freeze time and clear/rain/snow with adjustable intensity on the supported Homesickness client. Time works with image effects disabled. Switch either override off to follow the game. |
 | **WaterFX** | Animated wave shading, refraction, depth-based absorption, optional caustics and refractive footsteps. Separate Sky Only / SSR Performance / SSR Quality modes, reflection resolution and tracing controls. |

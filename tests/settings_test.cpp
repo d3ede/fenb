@@ -47,7 +47,7 @@ int main() {
     }
     {
         Settings sharp;
-        CHECK(!sharp.sharpening && sharp.sharpeningStrength == .45f);
+        CHECK(!sharp.sharpening && sharp.sharpeningStrength == .45f && sharp.textureContrast == .65f);
         sharp.bloom = sharp.color = false;
         CHECK(!sharp.postEnabled());
         sharp.sharpening = true;
@@ -64,19 +64,27 @@ int main() {
         sharp.sanitize();
         CHECK(sharp.sharpeningStrength == .45f);
         sharp.sharpeningStrength = .8f;
+        sharp.textureContrast = 2;
+        sharp.sanitize();
+        CHECK(sharp.textureContrast == 1);
+        sharp.textureContrast = std::numeric_limits<float>::quiet_NaN();
+        sharp.sanitize();
+        CHECK(sharp.textureContrast == .65f);
+        sharp.textureContrast = .9f;
         sharp.language = Language::Russian;
         CHECK(sharp.save(L"build/sharpening-settings.ini"));
         Settings restored;
         CHECK(restored.load(L"build/sharpening-settings.ini") && restored == sharp);
         restored.resetSceneSection(14);
-        CHECK(restored.sharpening && restored.sharpeningStrength == .45f &&
+        CHECK(restored.sharpening && restored.sharpeningStrength == .45f && restored.textureContrast == .65f &&
               restored.language == Language::Russian && !restored.color);
         FILE *legacy = _wfopen(L"build/sharpening-settings.ini", L"wb");
         CHECK(legacy);
         fputs("[Color]\nexposure=0.5\n", legacy);
         fclose(legacy);
         CHECK(restored.load(L"build/sharpening-settings.ini"));
-        CHECK(!restored.sharpening && restored.sharpeningStrength == .45f && restored.exposure == .5f);
+        CHECK(!restored.sharpening && restored.sharpeningStrength == .45f &&
+              restored.textureContrast == .65f && restored.exposure == .5f);
         DeleteFileW(L"build/sharpening-settings.ini");
     }
     {
