@@ -103,6 +103,8 @@ inline void ApplyBuiltInVisuals(Settings &s, int index) {
     s.surfaceStrength = 0.550000f;
     s.surfaceRoughness = 0.650000f;
     s.surfaceDistance = 50.000000f;
+    s.sharpening = false;
+    s.sharpeningStrength = 0.450000f;
     switch(index) {
     case 1: // Default (High-end PC)
     s.sceneQuality = true;

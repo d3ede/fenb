@@ -1069,7 +1069,7 @@ void DrawPanel(Runtime &r, const PanelBranding &branding) {
     ImGui::SetCursorPos({16, 91 + headerExtra});
     ImGui::BeginChild("adjustments", {size.x - 32, size.y - 130 - headerExtra}, ImGuiChildFlags_None);
     if (r.collapseImageSections) {
-        for (const char *id : {"grade", "bloom"}) {
+        for (const char *id : {"grade", "bloom", "sharpening"}) {
             ImGui::PushID(id);
             ImGui::GetStateStorage()->SetBool(ImGui::GetID("expanded"), false);
             ImGui::PopID();
@@ -1150,6 +1150,16 @@ void DrawPanel(Runtime &r, const PanelBranding &branding) {
             Tip(Tr(UiText::BloomQualityHelp));
             ImGui::SetCursorScreenPos(p);
             ImGui::Dummy({width, RowHeight});
+            ImGui::EndDisabled();
+        }
+        ImGui::Dummy({0, 4});
+        expanded = Section("sharpening", Tr(UiText::Sharpening), s.sharpening, reset, true, false);
+        if (reset)
+            s.resetSceneSection(14);
+        if (expanded) {
+            ImGui::BeginDisabled(!s.sharpening || !s.enabled);
+            Row(UiText::Strength, Tr(UiText::SharpeningHelp), s.sharpeningStrength, 0, 1,
+                defaults.sharpeningStrength, "%.2f", .05f, false, "sharpening-strength");
             ImGui::EndDisabled();
         }
     } else if (r.editorPage == 1) {

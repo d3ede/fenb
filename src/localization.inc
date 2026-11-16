@@ -1,4 +1,6 @@
 // Shared UI catalog. Every entry requires English, Russian, Spanish and Brazilian Portuguese UTF-8 text.
+UI_TEXT(Sharpening, "Sharpening (experimental)", "Резкость (эксперимент)", "Nitidez (experimental)", "Nitidez (experimental)")
+UI_TEXT(SharpeningHelp, "Emphasizes existing texture details with a lightweight luminance filter. Limits noise and edge halos; does not add texture resolution or geometry. Start at 0.45. Zero leaves the image unchanged.", "Подчёркивает существующие детали текстур лёгким фильтром яркости. Ограничивает шум и ореолы на границах; не повышает разрешение текстур и не добавляет геометрию. Начните с 0.45. При нуле изображение не меняется.", "Realza los detalles existentes de las texturas con un filtro ligero de luminancia. Limita el ruido y los halos en los bordes; no aumenta la resolución de las texturas ni añade geometría. Empieza en 0.45. Con cero, la imagen no cambia.", "Realça os detalhes existentes das texturas com um filtro leve de luminância. Limita o ruído e os halos nas bordas; não aumenta a resolução das texturas nem adiciona geometria. Comece em 0.45. Em zero, a imagem não muda.")
 UI_TEXT(LanguageTab, "Language", "Язык", "Idioma", "Idioma")
 UI_TEXT(LanguageShort, "EN", "RU", "ES", "PT")
 UI_TEXT(WorldTab, "World", "Мир", "Mundo", "Mundo")

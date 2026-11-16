@@ -196,7 +196,8 @@ bool SurfaceBatchFrame(IDirect3DDevice9 *d,int mutation,std::vector<DWORD> &pixe
 int main(){
     auto path=Directory()+L"FENB.ini";Settings saved;saved.load(path);Settings s;s.openOnStart=false;s.exposure=2;s.bloomStrength=1;s.smaa=true;
     s.fog=true;s.fogStart=0;s.fogDensity=.03f;s.fogFalloff=0;
-    s.surfaceReflections=true;s.surfaceStrength=1;s.surfaceRoughness=.2f;s.save(path);
+    s.surfaceReflections=true;s.surfaceStrength=1;s.surfaceRoughness=.2f;
+    s.sharpening=true;s.sharpeningStrength=1;s.save(path);
     struct Restore{Settings settings;std::wstring path;~Restore(){settings.save(path);}}restore{saved,path};
     WNDCLASSW wc{};wc.lpfnWndProc=DefWindowProcW;wc.hInstance=GetModuleHandleW(nullptr);wc.lpszClassName=L"FENBHudTest";RegisterClassW(&wc);
     HWND window=CreateWindowW(wc.lpszClassName,L"HUD test",WS_OVERLAPPEDWINDOW,0,0,320,240,nullptr,nullptr,wc.hInstance,nullptr);

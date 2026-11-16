@@ -129,6 +129,12 @@ if ($Tests) {
     if($LASTEXITCODE){throw 'D16 MSAA surface reflection tests failed'}
     & './build/scene-fx-test.exe' '--absolute-world' '--msaa'
     if($LASTEXITCODE){throw 'Native-resolution absolute-world reflection tests failed'}
+    & $cxx '-std=c++20' '-O2' '-static' '-Isrc' 'tests/sharpening_test.cpp' 'src/effects.cpp' 'src/scene_fx.cpp' '-ld3d9' '-ldxguid' '-lbcrypt' '-o' 'build/sharpening-test.exe'
+    if($LASTEXITCODE){throw 'Sharpening test build failed'}
+    & './build/sharpening-test.exe'
+    if($LASTEXITCODE){throw 'Sharpening tests failed'}
+    & './build/sharpening-test.exe' '--msaa'
+    if($LASTEXITCODE){throw 'MSAA sharpening tests failed'}
     & $cxx '-std=c++20' '-O2' '-static' '-Isrc' 'tests/sfx_test.cpp' '-ld3d9' '-ldxguid' '-lbcrypt' '-o' 'build/sfx-test.exe'
     if($LASTEXITCODE){throw 'SFX test build failed'}
     & '.\build\sfx-test.exe'

@@ -166,7 +166,8 @@ void Effects::draw(IDirect3DSurface9 *backbuffer, const Settings &s) {
     float c[5][4] = {{s.bloomStrength, std::pow(s.threshold, 2.2f), s.knee, s.radius},
                      {s.exposure, s.contrast, s.saturation, s.gamma},
                      {s.temperature, s.tint, s.shadows, s.highlights},
-                     {s.bloom ? 1.f : 0.f, s.color ? 1.f : 0.f, 0, 0},
+                     {s.bloom ? 1.f : 0.f, s.color ? 1.f : 0.f,
+                      s.sharpening ? s.sharpeningStrength : 0.f, 0},
                      {0, 0, 0, 0}};
     device_->SetPixelShaderConstantF(0, &c[0][0], 5);
     float automatic[] = {exposure && s.adaptation ? 1.f : 0.f,
@@ -186,6 +187,9 @@ void Effects::draw(IDirect3DSurface9 *backbuffer, const Settings &s) {
         device_->SetPixelShaderConstantF(4, step, 1);
         pass(bloomSurface_[0], bw_, bh_, blur_, bloom_[1]);
     }
+    // Blur overwrites c4 with bloom-sized offsets. Sharpening always uses scene pixels.
+    float sceneStep[4] = {1.f / width_, 1.f / height_, 0, 0};
+    device_->SetPixelShaderConstantF(4, sceneStep, 1);
     if ((s.fxaa || s.smaa) && scene_.postSurface()) {
         // Grade/bloom first. Reuse the full-resolution target that is no longer an input.
         auto *graded = processed == frame_ ? scene_.postTexture() : frame_;

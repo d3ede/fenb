@@ -5,7 +5,7 @@ sampler2D MeanLuminance : register(s3);
 float4 Bloom : register(c0); // strength, threshold (linear), knee, radius
 float4 Grade : register(c1); // exposure, contrast, saturation, gamma
 float4 Balance : register(c2); // temperature, tint, shadows, highlights
-float4 Options : register(c3); // bloom enabled, color enabled
+float4 Options : register(c3); // bloom enabled, color enabled, sharpening strength
 float4 Step : register(c4);
 float4 Automatic : register(c5);
 
@@ -32,6 +32,26 @@ float4 Blur(float2 uv : TEXCOORD0) : COLOR0 {
 }
 float4 Composite(float2 uv : TEXCOORD0) : COLOR0 {
     float4 source = tex2D(Scene, uv);
+    // Experimental luminance-only sharpening: four extra reads in the existing pass.
+    // A uniform branch skips the reads when disabled or at zero strength.
+    [branch] if (Options.z > 0) {
+        const float3 lumaWeights = float3(.2126,.7152,.0722);
+        float center = dot(source.rgb, lumaWeights);
+        // Explicit LOD is required for texture reads inside an SM3 dynamic branch.
+        float north = dot(tex2Dlod(Scene, float4(uv - float2(0, Step.y), 0, 0)).rgb, lumaWeights);
+        float south = dot(tex2Dlod(Scene, float4(uv + float2(0, Step.y), 0, 0)).rgb, lumaWeights);
+        float west = dot(tex2Dlod(Scene, float4(uv - float2(Step.x, 0), 0, 0)).rgb, lumaWeights);
+        float east = dot(tex2Dlod(Scene, float4(uv + float2(Step.x, 0), 0, 0)).rgb, lumaWeights);
+        float low = min(center, min(min(north, south), min(west, east)));
+        float high = max(center, max(max(north, south), max(west, east)));
+        float span = high - low;
+        // Suppress near-flat noise and strong silhouettes; cap the luminance correction.
+        float detail = center - (north + south + west + east) * .25;
+        float gain = Options.z * smoothstep(.002, .015, span) / (1 + 8 * span);
+        float correction = clamp(detail * gain, -.04, .04);
+        correction = clamp(correction, low - center, high - center);
+        source.rgb = saturate(source.rgb + correction);
+    }
     float3 rgb = pow(max(source.rgb, 0), 2.2);
     if (Automatic.y > .5) {
         // Adapt one scalar pivot from world-only log luminance. The same hue-preserving curve

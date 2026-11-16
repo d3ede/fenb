@@ -296,6 +296,26 @@ int main() {
         ImGui::ClosePopupToLevel(0,true);frame();
         io.AddMousePosEvent(-FLT_MAX,-FLT_MAX);
         r.editorPage=0;frame();
+        auto *sharpWindow=child();
+        auto sharpID=sharpWindow->GetID("sharpening");
+        auto sharpActivate=[&](const char *id) {
+            ImGui::ActivateItemByID(ImHashStr(id,0,sharpID));frame();frame();
+        };
+        r.settings.sharpening=false;
+        sharpActivate("enabled");
+        CHECK(r.settings.sharpening);
+        sharpActivate("heading");
+        ImGui::ActivateItemByID(ImHashStr("##value",0,sharpWindow->GetID("sharpening-strength")));
+        frame();input("0.8");
+        CHECK(r.settings.sharpeningStrength==.8f);
+        r.settings.sharpeningStrength=.9f;
+        sharpActivate("reset-section");
+        CHECK(r.settings.sharpening && r.settings.sharpeningStrength==.45f &&
+              r.settings.language==static_cast<Language>(language));
+        CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-sharpening.png").c_str()));
+        sharpActivate("heading");
+        sharpActivate("enabled");
+        CHECK(!r.settings.sharpening);
         child()->StateStorage.SetBool(ImHashStr("expanded",0,child()->GetID("grade")),true);
         frame();frame();
         CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-grade.png").c_str()));
