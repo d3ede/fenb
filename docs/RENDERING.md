@@ -1,4 +1,4 @@
-# FENB 0.5d
+# FENB 0.7a
 
 FENB is a graphics mod for Flyff, inspired by ENBSeries. It uses a Windows x86 Direct3D 9 proxy, C++20, precompiled shaders and a native Dear ImGui settings panel.
 
@@ -28,7 +28,7 @@ Blue Water and Cyan Water add contrasting water treatments while retaining the d
 
 All nine profiles are compiled into the DLL; the default image settings come from `config/FENB.ini`, with named variations in `config/builtins.json`. `node tools/embed-presets.mjs` regenerates `src/generated/presets.hpp`, and both build paths keep it in sync. No shipped `.ini` is added under **My profiles**. Custom files remain independently supported. Image-profile changes preserve the master switch, language, hardware/FPS choices and local time/weather controls. Modified built-ins retain their translated name with an asterisk, and can be saved as a custom profile. Updating the DLL preserves an existing configuration's saved effect switches; select a built-in or change the switches manually to use the new defaults.
 
-The lower-left corner shows the public version, **0.5d**, followed by save status. Public versions use the form `digit.digitletter`; suffixes run from `a` through `h`, then the minor number increases.
+The lower-left corner shows the public version, **0.7a**, followed by save status. Public versions use the form `digit.digitletter`; suffixes run from `a` through `h`, then the minor number increases.
 
 The panel uses Windows Tahoma with regular text and moderately strengthened headings. The Profile label uses the muted violet accent and aligns with page navigation, with a short gap before the selection field. Parameter rows are inset under their section titles; numeric inputs and reset controls retain their right-side columns. The Effects caption is 13 px. Tahoma is loaded from the Windows Fonts directory and is not distributed with FENB. If it is unavailable, the embedded, SIL OFL-licensed Inter subset provides both text roles.
 

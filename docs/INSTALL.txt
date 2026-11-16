@@ -34,6 +34,10 @@ Shift + Enter: open or close the panel.
 Right Shift + F12: toggle all FENB image effects.
 Changes save automatically; Ctrl + S saves immediately.
 
+Run in background is an independent footer switch beside Unlock FPS.
+It is off by default. Enable it to keep supported native world updates
+and existing attacks active while the game is inactive or minimized.
+
 Updating
 --------
 Upgrading from 0.4a or earlier requires a manual DLL replacement once;
@@ -97,6 +101,10 @@ FENB — графический мод для Flyff, вдохновлённый 
 Shift + Enter: открыть или закрыть панель.
 Правый Shift + F12: включить или выключить все графические эффекты FENB.
 Изменения сохраняются автоматически; Ctrl + S сохраняет их сразу.
+
+«Игра в фоне» — отдельный переключатель внизу панели рядом со снятием лимита FPS.
+По умолчанию он выключен. Включите его, чтобы поддерживаемый клиент продолжал
+обновлять мир и выполнять текущие атаки в неактивном или свёрнутом окне.
 
 Обновление
 ----------
