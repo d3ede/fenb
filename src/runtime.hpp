@@ -41,7 +41,9 @@ class Runtime {
     bool visible = false;
     bool compare = false;
     bool centerPanel = true;
-    bool collapseImageSections = true;
+    bool resetEditorSelection = true;
+    std::array<int, 8> editorSelection{};
+    int sceneSelection = 0;
     unsigned waterDraws = 0, lastWaterDraws = 0;
     int editorPage = 0;
     char profileName[128]{};

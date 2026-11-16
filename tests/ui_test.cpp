@@ -194,54 +194,52 @@ int main() {
         CHECK(ImGui::GetCurrentContext()->OpenPopupStack.empty());
     }
     CHECK(child());
-    auto expanded=[&](const char *id) {
-        return child()->StateStorage.GetBool(ImHashStr("expanded",0,child()->GetID(id)),false);
+    ImGuiWindow *popup=nullptr;
+    auto activeWindow=[&](const char *fragment)->ImGuiWindow*{
+        for(auto *w:ImGui::GetCurrentContext()->Windows)if(w->Active&&strstr(w->Name,fragment))return w;
+        return nullptr;
     };
-    CHECK(!expanded("grade") && !expanded("bloom"));
-    ImGui::ActivateItemByID(ImHashStr("heading",0,child()->GetID("grade")));frame();frame();
-    CHECK(expanded("grade"));
-    // Actual track gestures, held double-click reset, steps and typed values.
-    const float rowY=291;
+    auto navigation=[&](){return activeWindow("/items_");};
+    auto inspector=[&](){return activeWindow("/panel-inspector-");};
+    auto scoped=[&](ImGuiWindow *w,const char *scope,const char *id){return ImHashStr(id,0,w->GetID(scope));};
+    auto selectItem=[&](const char *id){ImGui::ActivateItemByID(scoped(navigation(),id,"select"));frame();frame();};
+    auto control=[&](const char *scope,const char *id){ImGui::ActivateItemByID(scoped(inspector(),scope,id));frame();frame();};
+    auto numeric=[&](const char *scope,float &value){const void *pointer=&value;auto row=ImHashData(&pointer,sizeof(pointer),inspector()->GetID(scope));return ImHashStr("##value",0,row);};
+    CHECK(r.editorSelection[0]==4 && inspector());
+    const auto body=inspector()->Pos;
+    const float width=inspector()->Size.x, rowY=body.y+53;
     r.settings.exposure=.8f;frame();
-    click(440,rowY);mouse(440,rowY,true);
-    CHECK(r.settings.exposure==0);frame();CHECK(r.settings.exposure==0);
-    mouse(440,rowY,false);
-    click(620,rowY);CHECK(std::abs(r.settings.exposure-.01f)<.00001f);
-    click(566,rowY);CHECK(r.settings.exposure==0);
-    click(590,rowY);input("0.75");CHECK(std::abs(r.settings.exposure-.75f)<.0001f);
-    click(654,rowY);CHECK(r.settings.exposure==0);
-    r.settings.exposure=.8f;r.settings.waterOpacity=.7f;frame();
-    click(610,258);CHECK(r.settings.exposure==0 && r.settings.waterOpacity==.7f);
-    // Navigation preserves all WaterFX, atmosphere and AA controls.
-    activate(child(),"water-settings");CHECK(r.editorPage==1);
-    activate(child(),"water-reflections");CHECK(r.editorPage==6);
-    activate(child(),"back");CHECK(r.editorPage==1);
+    click(body.x+115,rowY+31);mouse(body.x+115,rowY+31,true);
+    CHECK(r.settings.exposure==0);frame();CHECK(r.settings.exposure==0);mouse(body.x+115,rowY+31,false);
+    click(body.x+width-30,rowY+11);CHECK(std::abs(r.settings.exposure-.01f)<.00001f);
+    click(body.x+width-107,rowY+11);CHECK(r.settings.exposure==0);
+    ImGui::ActivateItemByID(numeric("tone",r.settings.exposure));frame();input("0.75");CHECK(std::abs(r.settings.exposure-.75f)<.0001f);
+    click(body.x+width-11,rowY+11);CHECK(r.settings.exposure==0);
+    r.settings.exposure=.8f;r.settings.waterOpacity=.7f;r.settings.language=Language::Russian;frame();
+    control("tone","reset-section");CHECK(r.settings.exposure==0&&r.settings.waterOpacity==.7f&&r.settings.language==Language::Russian);
+    r.settings.language=Language::English;frame();
+    const auto beforeNavigation=r.settings;
+    selectItem("water");CHECK(r.editorPage==1);selectItem("method");CHECK(r.editorSelection[1]==6);
+    CHECK(r.settings==beforeNavigation);
+    control("method","##reflection-method");CHECK(!ImGui::GetCurrentContext()->OpenPopupStack.empty());
+    auto *methodPopup=ImGui::GetCurrentContext()->OpenPopupStack.back().Window;int methodChoice=2;
+    ImGui::ActivateItemByID(ImHashStr("###option",0,ImHashData(&methodChoice,sizeof(methodChoice),methodPopup->IDStack.back())));frame();frame();
+    CHECK(r.settings.waterReflectionMethod==2&&r.settings.waterSSRQuality==1);
     activate(child(),"back");CHECK(r.editorPage==0);
-    activate(child(),"scene-settings");CHECK(r.editorPage==2);
-    r.editorPage=0;frame();
-    activate(child(),"optimization-settings");CHECK(r.editorPage==7);
-    CHECK(!r.settings.limitShopSigns);
-    const bool oldAO=r.settings.ssao;
-    activate(child(),"optimization-ssao");CHECK(r.settings.ssao!=oldAO);
-    activate(child(),"optimization-ssao");CHECK(r.settings.ssao==oldAO);
-    for(size_t i=0;i<LanguageCount;++i) {
-        r.settings.language=static_cast<Language>(i);frame();frame();
-        const std::wstring locale(LanguageCodes[i],LanguageCodes[i]+2);
-        CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-optimization.png").c_str()));
-        io.DisplaySize={360,400};r.centerPanel=true;frame();frame();
-        CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-optimization-narrow.png").c_str()));
-        io.DisplaySize={800,600};r.centerPanel=true;frame();frame();
-    }
-    r.settings.language=Language::English;
-    r.editorPage=0;frame();
-    activate(child(),"aa-settings");CHECK(r.editorPage==3);
-    // Post-AA combo uses an animated chevron and leaves hardware MSAA independent.
-    click(400,199);frame();
-    CHECK(!ImGui::GetCurrentContext()->OpenPopupStack.empty());
-    auto *popup=ImGui::GetCurrentContext()->OpenPopupStack.back().Window;
-    // Select by the visible third row; the popup uses the shared font spacing.
-    click(popup->Pos.x+40,popup->Pos.y+8+2*ImGui::GetTextLineHeightWithSpacing());frame();
-    CHECK(r.settings.smaa && !r.settings.fxaa && r.settings.msaaSamples==0);
+    selectItem("scene");CHECK(r.editorPage==2);
+    r.settings.dof=false;frame();selectItem("dof");CHECK(r.sceneSelection==7&&!r.settings.dof);
+    control("dof","enabled");CHECK(r.settings.dof);control("dof","enabled");CHECK(!r.settings.dof);
+    r.settings.language=Language::Spanish;r.settings.aoStrength=1.2f;selectItem("ssao");control("ssao","reset-section");
+    CHECK(r.settings.aoStrength==Settings{}.aoStrength&&r.settings.language==Language::Spanish);
+    activate(child(),"back");selectItem("optimization");CHECK(r.editorPage==7);
+    selectItem("effects");const bool oldAO=r.settings.ssao;control("effects","ssao");CHECK(r.settings.ssao!=oldAO);control("effects","ssao");CHECK(r.settings.ssao==oldAO);
+    selectItem("shops");CHECK(!r.settings.limitShopSigns);CHECK(!r.shopOptimizationSupported());control("shops","enabled");CHECK(!r.settings.limitShopSigns);
+    r.settings.language=Language::English;activate(child(),"back");selectItem("aa");CHECK(r.editorPage==3);
+    r.settings.fxaa=true;r.settings.smaa=false;r.settings.msaaSamples=4;frame();
+    selectItem("smaa");control("smaa","enabled");CHECK(r.settings.smaa&&!r.settings.fxaa&&r.settings.msaaSamples==4);
+    selectItem("fxaa");control("fxaa","enabled");CHECK(r.settings.fxaa&&!r.settings.smaa&&r.settings.msaaSamples==4);
+    r.settings.msaaSamples=0;
+
     // Both client controls stay visible, with stable IDs outside the actions menu.
     CHECK(!r.fpsUnlockSupported());click(638,556);CHECK(!r.settings.unlockFps);
     CHECK(!r.backgroundActivitySupported());
@@ -255,8 +253,8 @@ int main() {
     auto appearance="###text-"+std::to_string(static_cast<int>(UiText::V2Appearance));
     activate(popup,appearance.c_str());CHECK(r.editorPage==5);
     r.settings.customCursor=true;r.settings.interfaceMotion=true;frame();
-    activate(child(),"custom-cursor");CHECK(!r.settings.customCursor);
-    activate(child(),"interface-motion");CHECK(!r.settings.interfaceMotion);
+    control("cursor","enabled");CHECK(!r.settings.customCursor);
+    selectItem("motion");control("motion","enabled");CHECK(!r.settings.interfaceMotion);
     r.save();Settings saved;CHECK(saved.load(r.configPath));
     CHECK(!saved.customCursor && !saved.interfaceMotion && saved.backgroundActivity && !saved.unlockFps);
     // Reset all and preset loads preserve appearance, language and client controls.
@@ -288,100 +286,39 @@ int main() {
         activate(popup,id.c_str());CHECK(r.settings.matchingPreset()==i);
         CHECK(r.settings.language==Language::Russian && !r.settings.customCursor && !r.settings.interfaceMotion);
     }
-    r.editorPage=0;frame();
-    child()->StateStorage.SetBool(ImHashStr("expanded",0,child()->GetID("grade")),true);
-    child()->StateStorage.SetBool(ImHashStr("expanded",0,child()->GetID("bloom")),true);
-    r.collapseImageSections=true;frame();frame();
-    CHECK(!expanded("grade") && !expanded("bloom"));
-    // Render every production page and each expanded atmosphere section in every supported language.
+    r.editorPage=0;r.resetEditorSelection=true;frame();frame();CHECK(r.editorSelection[0]==4&&r.sceneSelection==0);
     CreateDirectoryW(L"build/ui-integrated",nullptr);
-    r.settings.water=true;
-    io.AddMousePosEvent(-FLT_MAX,-FLT_MAX);frame();
-    for(int language=0;language<static_cast<int>(LanguageCount);++language) {
-        r.settings.language=static_cast<Language>(language);
-        const std::wstring locale(LanguageCodes[language],LanguageCodes[language]+2);
-        activate(panel,"##language");frame();
-        CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-language.png").c_str()));
-        ImGui::ClosePopupToLevel(0,true);frame();
-        click(360,96);frame();
-        CHECK(Screenshot(d,((L"build/ui-integrated/"+locale+L"-profile-order.png").c_str())));
-        ImGui::ClosePopupToLevel(0,true);frame();
-        activate(panel,"menu");
-        CHECK(Screenshot(d,((L"build/ui-integrated/"+locale+L"-actions.png").c_str())));
-        ImGui::ClosePopupToLevel(0,true);frame();
-        io.AddMousePosEvent(-FLT_MAX,-FLT_MAX);
-        r.editorPage=0;frame();
-        auto *sharpWindow=child();
-        auto sharpID=sharpWindow->GetID("sharpening");
-        auto sharpActivate=[&](const char *id) {
-            ImGui::ActivateItemByID(ImHashStr(id,0,sharpID));frame();frame();
-        };
-        r.settings.sharpening=false;
-        sharpActivate("enabled");
-        CHECK(r.settings.sharpening);
-        sharpActivate("heading");
-        ImGui::ActivateItemByID(ImHashStr("##value",0,sharpWindow->GetID("sharpening-strength")));
-        frame();input("0.8");
-        CHECK(r.settings.sharpeningStrength==.8f);
-        r.settings.sharpeningStrength=.9f;
-        sharpActivate("reset-section");
-        CHECK(r.settings.sharpening && r.settings.sharpeningStrength==.45f &&
-              r.settings.language==static_cast<Language>(language));
-        CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-sharpening.png").c_str()));
-        sharpActivate("heading");
-        sharpActivate("enabled");
-        CHECK(!r.settings.sharpening);
-        child()->StateStorage.SetBool(ImHashStr("expanded",0,child()->GetID("grade")),true);
-        frame();frame();
-        CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-grade.png").c_str()));
-        child()->StateStorage.SetBool(ImHashStr("expanded",0,child()->GetID("grade")),false);
-        child()->StateStorage.SetBool(ImHashStr("expanded",0,child()->GetID("bloom")),true);
-        frame();frame();
-        CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-bloom.png").c_str()));
-        child()->StateStorage.SetBool(ImHashStr("expanded",0,child()->GetID("bloom")),false);
-        frame();
-        for(int page=0;page<7;++page) {
-            r.editorPage=page;ImGui::SetScrollY(child(),0);frame();frame();
-            auto path=std::wstring(L"build/ui-integrated/")+(locale+L"-")+std::to_wstring(page)+L".png";
-            CHECK(Screenshot(d,path.c_str()));
-        }
-        r.editorPage=6;
-        auto *reflectionWindow=child();
-        reflectionWindow->StateStorage.SetBool(ImHashStr("expanded",0,reflectionWindow->GetID("water-reflection-method")),false);
-        reflectionWindow->StateStorage.SetBool(ImHashStr("expanded",0,reflectionWindow->GetID("water-reflection-trace")),true);
-        ImGui::SetScrollY(reflectionWindow,0);frame();frame();
-        CHECK(Screenshot(d,((L"build/ui-integrated/"+locale+L"-reflection-trace.png").c_str())));
-        reflectionWindow->StateStorage.SetBool(ImHashStr("expanded",0,reflectionWindow->GetID("water-reflection-method")),true);
-        reflectionWindow->StateStorage.SetBool(ImHashStr("expanded",0,reflectionWindow->GetID("water-reflection-trace")),false);
-        r.editorPage=2;frame();
-        for(const char *section:{"ssao","rays","sky","fog","dof","adaptation","lighting-balance","foliage","lighting","surface-reflections","sfx"}) {
-            auto *w=child();
-            for(const char *id:{"ssao","rays","sky","fog","dof","adaptation","lighting-balance","foliage","lighting","surface-reflections","sfx"})
-                w->StateStorage.SetBool(ImHashStr("expanded",0,w->GetID(id)),strcmp(id,section)==0);
-            ImGui::SetScrollY(w,0);frame();frame();
-            if(!strcmp(section,"sfx") || !strcmp(section,"surface-reflections")) {
-                ImGui::SetScrollY(w,w->ScrollMax.y);frame();frame();
-            }
-            auto path=std::wstring(L"build/ui-integrated/")+(locale+L"-")+std::wstring(section,section+strlen(section))+L".png";
-            CHECK(Screenshot(d,path.c_str()));
-        }
-        io.DisplaySize={334,600};r.centerPanel=true;r.editorPage=0;frame();frame();
-        CHECK(Screenshot(d,((L"build/ui-integrated/"+locale+L"-narrow.png").c_str())));
-        activate(panel,"##language");frame();
-        CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-language-narrow.png").c_str()));
-        CHECK(ImGui::GetCurrentContext()->OpenPopupStack.back().Window->Pos.x>=0);
-        ImGui::ClosePopupToLevel(0,true);frame();
-        io.DisplaySize={800,600};r.centerPanel=true;frame();frame();
-    }
-    r.editorPage=4;r.settings.enabled=false;r.settings.timeOverride=true;r.settings.timeMinutes=1110;frame();
-    mouse(400,168,true);auto firstTime=r.settings.timeMinutes;
-    mouse(480,168,true);CHECK(r.settings.timeMinutes!=firstTime);mouse(480,168,false);
-    click(590,168);input("07:45");CHECK(r.settings.timeMinutes==465);
+    r.settings.water=true;io.AddMousePosEvent(-FLT_MAX,-FLT_MAX);frame();
     for(int language=0;language<static_cast<int>(LanguageCount);++language){
         r.settings.language=static_cast<Language>(language);
-        const std::wstring locale(LanguageCodes[language],LanguageCodes[language]+2);frame();frame();
-        CHECK(Screenshot(d,((L"build/ui-integrated/"+locale+L"-time-without-effects.png").c_str())));
+        const std::wstring locale(LanguageCodes[language],LanguageCodes[language]+2);
+        activate(panel,"##language");frame();CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-language.png").c_str()));ImGui::ClosePopupToLevel(0,true);frame();
+        activate(panel,"menu");CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-actions.png").c_str()));ImGui::ClosePopupToLevel(0,true);frame();
+        r.editorPage=0;r.editorSelection[0]=8;frame();frame();
+        r.settings.sharpening=false;control("sharpen","enabled");CHECK(r.settings.sharpening);
+        ImGui::ActivateItemByID(numeric("sharpen",r.settings.sharpeningStrength));frame();input("0.8");CHECK(r.settings.sharpeningStrength==.8f);
+        control("sharpen","reset-section");CHECK(r.settings.sharpening&&r.settings.sharpeningStrength==Settings{}.sharpeningStrength&&r.settings.language==static_cast<Language>(language));
+        CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-sharpening.png").c_str()));control("sharpen","enabled");CHECK(!r.settings.sharpening);
+        struct View{int page,item;const wchar_t *name;};
+        const View views[]={{0,4,L"tone"},{0,7,L"bloom"},{1,0,L"water"},{1,6,L"reflections"},{1,7,L"trace"},{2,0,L"scene"},{3,0,L"antialiasing"},{4,0,L"time"},{4,1,L"weather"},{5,2,L"interface"},{7,3,L"optimization"}};
+        for(const auto &view:views){r.editorPage=view.page;r.editorSelection[view.page]=view.item;r.sceneSelection=0;frame();frame();CHECK(inspector());CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-"+view.name+L".png").c_str()));}
+        r.editorPage=2;
+        for(int effect=0;effect<11;++effect){r.sceneSelection=effect;frame();frame();CHECK(inspector());}
+        io.DisplaySize={334,400};r.centerPanel=true;
+        for(int page:{0,1,2,3,4,5,7}){r.editorPage=page;frame();frame();CHECK(inspector());CHECK(inspector()->Size.x>240);CHECK(inspector()->Pos.x>=0&&inspector()->Pos.x+inspector()->Size.x<=334);}
+        CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-narrow.png").c_str()));
+        r.editorPage=0;r.editorSelection[0]=4;frame();frame();activate(child(),"##panel-navigation");CHECK(!ImGui::GetCurrentContext()->OpenPopupStack.empty());
+        auto *navPopup=ImGui::GetCurrentContext()->OpenPopupStack.back().Window;CHECK(navPopup->Pos.x>=0&&navPopup->Pos.x+navPopup->Size.x<=334);
+        CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-navigation-narrow.png").c_str()));
+        ImGui::ActivateItemByID(ImHashStr("###select",0,navPopup->GetID("water")));frame();frame();CHECK(r.editorPage==1);
+        io.DisplaySize={800,600};r.centerPanel=true;frame();frame();
     }
+    r.editorPage=4;r.editorSelection[4]=0;r.settings.enabled=false;r.settings.timeOverride=true;r.settings.timeMinutes=1110;frame();frame();
+    const auto clockID=ImHashStr("##clock",0,ImHashStr("time-of-day",0,inspector()->GetID("time")));
+    ImGui::ActivateItemByID(clockID);frame();input("07:45");CHECK(r.settings.timeMinutes==465);
+    control("time","reset-section");CHECK(r.settings.timeOverride&&r.settings.timeMinutes==720);
+    for(int language=0;language<static_cast<int>(LanguageCount);++language){r.settings.language=static_cast<Language>(language);frame();frame();const std::wstring locale(LanguageCodes[language],LanguageCodes[language]+2);CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-time-without-effects.png").c_str()));}
+
     DeleteFileW((ModuleDirectory()+L"FENB-presets\\Тест воды.ini").c_str());
     // Production modal: stable translated IDs, one notification per version,
     // download-in-background -> restart prompt, and narrow-screen wrapping.

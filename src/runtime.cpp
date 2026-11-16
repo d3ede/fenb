@@ -664,7 +664,7 @@ LRESULT CALLBACK Runtime::WindowProc(HWND hwnd, UINT msg, WPARAM w, LPARAM l, UI
         self->visible = !self->visible;
         if (self->visible) {
             self->centerPanel = true;
-            self->collapseImageSections = true;
+            self->resetEditorSelection = true;
             self->editorPage = 0;
         }
         self->compare = false;

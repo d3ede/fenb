@@ -10,6 +10,7 @@
 namespace {
 thread_local Language uiLanguage = Language::English;
 thread_local bool uiMotion = true;
+thread_local bool uiParameterDisabled = false;
 thread_local ImFont *uiEmphasis = nullptr;
 const char *Tr(UiText text) {
     return Translate(uiLanguage, text);
@@ -21,7 +22,7 @@ constexpr ImU32 Background = IM_COL32(29, 30, 33, 255), Raised = IM_COL32(35, 36
 constexpr ImU32 Line = IM_COL32(54, 56, 61, 255), Text = IM_COL32(221, 223, 227, 255);
 constexpr ImU32 Muted = IM_COL32(143, 147, 155, 255), Accent = IM_COL32(171, 157, 204, 255);
 constexpr ImU32 Purple = IM_COL32(144, 116, 177, 255), Lavender = IM_COL32(190, 171, 213, 255);
-constexpr float RowHeight = 28, ParameterInset = 28;
+
 ImU32 Opacity(ImU32 color) {
     auto a = static_cast<ImU32>((color >> 24) * ImGui::GetStyle().Alpha);
     return (color & 0x00ffffff) | (a << 24);
@@ -62,7 +63,11 @@ bool BeginCombo(const char *id, const char *preview, ImGuiComboFlags flags = 0) 
 bool Combo(const char *id, int *selected, const char *const items[], int count) {
     bool changed = false;
     if (BeginCombo(id, items[*selected])) {
-        for (int i=0;i<count;++i) if (ImGui::Selectable(items[i],*selected==i)) { *selected=i; changed=true; }
+        for (int i=0;i<count;++i) {
+            ImGui::PushID(i);
+            if (ImGui::Selectable((std::string(items[i])+"###option").c_str(),*selected==i)) { *selected=i; changed=true; }
+            ImGui::PopID();
+        }
         ImGui::EndCombo();
     }
     return changed;
@@ -194,168 +199,89 @@ void ResetGlyph(ImDrawList *d, ImVec2 p, ImU32 color, ImVec2 size = {20, 18}) {
                          {start.x - t.x * 2 - t.y * 2, start.y - t.y * 2 + t.x * 2},
                          {start.x - t.x * 2 + t.y * 2, start.y - t.y * 2 - t.x * 2}, color);
 }
-void NavigationArrow(ImDrawList *draw, ImVec2 row, float width, ImU32 color) {
-    // Share the section-reset column and one pixel-aligned silhouette on every row.
-    const float x = std::floor(row.x + width - 56) + .5f;
-    const float y = std::floor(row.y + 15) + .5f;
-    draw->AddLine({x - 5, y}, {x + 5, y}, Opacity(color), 1.2f);
-    draw->AddLine({x + 1, y - 3}, {x + 5, y}, Opacity(color), 1.2f);
-    draw->AddLine({x + 5, y}, {x + 1, y + 3}, Opacity(color), 1.2f);
-}
 float Snap(float value, float low, float high, float neutral, float step) {
     value = std::clamp(std::round(value / step) * step, low, high);
     return std::abs(value - neutral) < step * .01f ? neutral : value;
 }
 void Row(UiText label, const char *help, float &value, float low, float high, float neutral,
          const char *format = "%.2f", float step = .01f, bool clock = false, const char *stableId = nullptr) {
-    if (stableId)
-        ImGui::PushID(stableId);
-    else
-        ImGui::PushID(&value);
-    auto p = ImGui::GetCursorScreenPos();
-    float width = ImGui::GetContentRegionAvail().x;
-    auto *d = ImGui::GetWindowDrawList();
-    constexpr float labelInset = ParameterInset;
-    const float trackX = std::min(191.f, width * .38f) + labelInset, inputX = width - 120,
-                trackWidth = std::max(20.f, inputX - trackX - 10);
-    ImGui::SetCursorScreenPos({p.x + labelInset, p.y});
-    ImGui::InvisibleButton("label", {trackX - labelInset - 8, RowHeight});
+    ImGui::BeginDisabled(uiParameterDisabled);
+    if (stableId) ImGui::PushID(stableId); else ImGui::PushID(&value);
+    const auto p = ImGui::GetCursorScreenPos();
+    const float width = ImGui::GetContentRegionAvail().x;
+    auto *draw = ImGui::GetWindowDrawList();
+    const float numberX = width - 98, trackLeft = p.x + 8, trackRight = p.x + width - 12;
+    ImGui::InvisibleButton("label", {std::max(20.f, numberX - 18), 23});
     Tip(help);
-    d->PushClipRect({p.x + labelInset, p.y}, {p.x + trackX - 8, p.y + RowHeight}, true);
-    TextAt(d, {p.x + labelInset, p.y + 6}, Tr(label), Text, 13);
-    d->PopClipRect();
-    ImGui::SetCursorScreenPos({p.x + trackX, p.y});
-    ImGui::InvisibleButton("track", {trackWidth, RowHeight}, ImGuiButtonFlags_EnableNav);
-    bool hover = ImGui::IsItemHovered(), active = ImGui::IsItemActive();
-    auto *storage = ImGui::GetStateStorage();
-    auto resetKey = ImGui::GetID("resetGesture");
-    bool suppress = storage->GetBool(resetKey);
-    if (!ImGui::IsMouseDown(0))
-        suppress = false;
-    if (hover && ImGui::IsMouseDoubleClicked(0)) {
-        value = neutral;
-        suppress = true;
-    } else if (active && ImGui::IsMouseDown(0) && !suppress)
-        value = Snap(
-            low + std::clamp((ImGui::GetIO().MousePos.x - p.x - trackX - 3) / (trackWidth - 6), 0.f, 1.f) *
-                      (high - low),
-            low, high, neutral, step);
-    storage->SetBool(resetKey, suppress);
-    if (ImGui::IsItemFocused()) {
-        if (ImGui::IsKeyPressed(ImGuiKey_LeftArrow))
-            value = Snap(value - step, low, high, neutral, step);
-        if (ImGui::IsKeyPressed(ImGuiKey_RightArrow))
-            value = Snap(value + step, low, high, neutral, step);
-    }
-    float y = std::floor(p.y + RowHeight * .5f), left = p.x + trackX + 3, right = left + trackWidth - 6;
-    float knob = std::floor(left + (right - left) * std::clamp((value - low) / (high - low), 0.f, 1.f));
-    float zero = std::floor(left + (right - left) * (neutral - low) / (high - low));
-    d->AddLine({left, y}, {right, y}, Opacity(IM_COL32(76, 79, 86, 255)), 1);
-    d->AddLine({zero, y - 3}, {zero, y + 3}, Opacity(IM_COL32(99, 102, 110, 255)), 1);
-    d->AddLine({left, y}, {knob, y}, Opacity(Purple), 2);
-    d->AddRectFilled({knob - 2, y - 5}, {knob + 3, y + 5},
-                     Opacity(active || hover ? IM_COL32(247, 241, 255, 255) : IM_COL32(235, 226, 247, 255)), 1);
-    // All three fields keep their positions during text editing. Arrow buttons reserve their space.
-    ImGui::PushFont(nullptr, 14);
-    ImGui::PushStyleColor(ImGuiCol_Text, ImGui::ColorConvertU32ToFloat4(Muted));
-    char displayed[48];
-    std::snprintf(displayed, sizeof(displayed), format, value);
-    if (clock) {
-        int minutes = std::clamp(int(value), 0, 1439);
-        std::snprintf(displayed, sizeof(displayed), "%02d:%02d", minutes / 60, minutes % 60);
-    }
-    float numberPadding = std::max(2.f, (40 - ImGui::CalcTextSize(displayed).x) * .5f);
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(numberPadding, 3));
-    auto stepArrow = [&](const char *id, float x, bool rightward) {
-        ImGui::SetCursorScreenPos({p.x + x, p.y + 4});
+    draw->PushClipRect({p.x + 4, p.y}, {p.x + numberX - 17, p.y + 23}, true);
+    TextAt(draw, {p.x + 4, p.y + 5}, Tr(label), Text, 13);
+    draw->PopClipRect();
+    auto arrow = [&](const char *id, float x, bool right) {
+        ImGui::SetCursorScreenPos({p.x + x, p.y + 2});
         ImGui::PushItemFlag(ImGuiItemFlags_ButtonRepeat, true);
-        bool pressed = ImGui::InvisibleButton(id, {14, 18}, ImGuiButtonFlags_EnableNav);
+        const bool hit = ImGui::InvisibleButton(id, {14, 18}, ImGuiButtonFlags_EnableNav);
         ImGui::PopItemFlag();
-        auto min = ImGui::GetItemRectMin(), max = ImGui::GetItemRectMax();
-        bool hovered = ImGui::IsItemHovered(), held = ImGui::IsItemActive();
-        if (hovered || held)
-            d->AddRectFilled(min, max, Opacity(held ? IM_COL32(57, 59, 65, 255) : Raised), 2);
-        float cx = std::floor(min.x + 7), cy = std::floor(min.y + 9), direction = rightward ? 1.f : -1.f;
-        ImU32 color = Opacity(hovered || held ? Text : Muted);
-        d->AddLine({cx - direction * 1.5f, cy - 3}, {cx + direction * 1.5f, cy}, color, 1);
-        d->AddLine({cx + direction * 1.5f, cy}, {cx - direction * 1.5f, cy + 3}, color, 1);
-        return pressed;
+        const auto box = ImGui::GetItemRectMin();
+        if (ImGui::IsItemHovered() || ImGui::IsItemActive())
+            draw->AddRectFilled(box, {box.x + 14, box.y + 18}, Opacity(Raised), 2);
+        const float direction = right ? 1.f : -1.f, x0 = box.x + 7, y0 = box.y + 9;
+        const auto color = Opacity(ImGui::IsItemHovered() ? Text : Muted);
+        draw->AddLine({x0 - direction * 1.5f, y0 - 3}, {x0 + direction * 1.5f, y0}, color);
+        draw->AddLine({x0 + direction * 1.5f, y0}, {x0 - direction * 1.5f, y0 + 3}, color);
+        return hit;
     };
-    if (stepArrow("less", inputX + 15, false))
-        value = Snap(value - step, low, high, neutral, step);
-    ImGui::SetCursorScreenPos({p.x + inputX + 29, p.y + 2});
-    ImGui::SetNextItemWidth(40);
+    if (arrow("less", numberX - 16, false)) value = Snap(value - step, low, high, neutral, step);
+    ImGui::SetCursorScreenPos({p.x + numberX, p.y + 1});
+    ImGui::SetNextItemWidth(60);
+    ImGui::PushFont(nullptr, 13);
     if (clock) {
-        if (ImGui::InputText("##clock", displayed, sizeof(displayed), ImGuiInputTextFlags_AutoSelectAll)) {
-            int hours, minutes;
-            char tail;
-            if (std::sscanf(displayed, "%d:%d%c", &hours, &minutes, &tail) == 2 &&
-                hours >= 0 && hours < 24 && minutes >= 0 && minutes < 60)
-                value = float(hours * 60 + minutes);
+        char text[16]; const int minutes = std::clamp(int(value), 0, 1439);
+        std::snprintf(text, sizeof(text), "%02d:%02d", minutes / 60, minutes % 60);
+        if (ImGui::InputText("##clock", text, sizeof(text), ImGuiInputTextFlags_AutoSelectAll)) {
+            int hours, mins; char tail;
+            if (std::sscanf(text, "%d:%d%c", &hours, &mins, &tail) == 2 && hours >= 0 && hours < 24 && mins >= 0 && mins < 60)
+                value = float(hours * 60 + mins);
         }
     } else if (ImGui::InputFloat("##value", &value, 0, 0, format, ImGuiInputTextFlags_AutoSelectAll)) {
         value = std::isfinite(value) ? std::clamp(value, low, high) : neutral;
-        if (std::abs(value - neutral) < step * .01f)
-            value = neutral;
+        if (std::abs(value - neutral) < step * .01f) value = neutral;
     }
     Tip(Tr(clock ? UiText::TimeInputHelp : UiText::NumberInputHelp));
-    if (stepArrow("more", inputX + 69, true))
-        value = Snap(value + step, low, high, neutral, step);
-    ImGui::PopStyleVar();
-    ImGui::PopStyleColor();
     ImGui::PopFont();
-    bool modified = std::abs(value - neutral) > step * .01f;
-    ImGui::SetCursorScreenPos({p.x + width - 20, p.y + 4});
+    if (arrow("more", numberX + 61, true)) value = Snap(value + step, low, high, neutral, step);
+    ImGui::SetCursorScreenPos({p.x + width - 21, p.y + 2});
+    const bool modified = std::abs(value - neutral) > step * .01f;
     ImGui::BeginDisabled(!modified);
-    if (ImGui::InvisibleButton("reset", {20, 18}, ImGuiButtonFlags_EnableNav))
-        value = neutral;
-    if (std::abs(value - neutral) > step * .01f) {
-        ResetGlyph(d, ImGui::GetItemRectMin(), Opacity(ImGui::IsItemHovered() ? Text : Muted));
-        Tip(Tr(UiText::ResetValue));
-    }
+    if (ImGui::InvisibleButton("reset", {20, 18}, ImGuiButtonFlags_EnableNav)) value = neutral;
+    if (modified) { ResetGlyph(draw, ImGui::GetItemRectMin(), Opacity(ImGui::IsItemHovered() ? Text : Muted)); Tip(Tr(UiText::ResetValue)); }
     ImGui::EndDisabled();
-    ImGui::SetCursorScreenPos(p);
-    ImGui::Dummy({width, RowHeight});
-    ImGui::PopID();
-}
-bool Section(const char *id, const char *title, bool &enabled, bool &reset, bool showEnable = true,
-             bool initiallyOpen = true) {
-    reset = false;
-    ImGui::PushID(id);
-    auto p = ImGui::GetCursorScreenPos();
-    float width = ImGui::GetContentRegionAvail().x;
-    auto *d = ImGui::GetWindowDrawList();
-    auto key = ImGui::GetID("expanded");
-    auto *state = ImGui::GetStateStorage();
-    bool expanded = state->GetBool(key, initiallyOpen);
-    d->AddRectFilled(p, {p.x + width, p.y + 30}, Raised, 2);
-    if (ImGui::InvisibleButton("heading", {width - 74, 30}, ImGuiButtonFlags_EnableNav)) {
-        expanded = !expanded;
-        state->SetBool(key, expanded);
+    ImGui::SetCursorScreenPos({p.x + 4, p.y + 21});
+    ImGui::InvisibleButton("track", {width - 12, 20}, ImGuiButtonFlags_EnableNav);
+    const bool hover = ImGui::IsItemHovered(), held = ImGui::IsItemActive();
+    auto *state = ImGui::GetStateStorage(); const auto key = ImGui::GetID("resetGesture");
+    bool suppress = state->GetBool(key);
+    if (!ImGui::IsMouseDown(0)) suppress = false;
+    if (hover && ImGui::IsMouseDoubleClicked(0)) { value = neutral; suppress = true; }
+    else if (held && ImGui::IsMouseDown(0) && !suppress)
+        value = Snap(low + std::clamp((ImGui::GetIO().MousePos.x - trackLeft) / (trackRight - trackLeft), 0.f, 1.f) * (high - low), low, high, neutral, step);
+    state->SetBool(key, suppress);
+    if (ImGui::IsItemFocused() && !uiParameterDisabled) {
+        if (ImGui::IsKeyPressed(ImGuiKey_LeftArrow)) value = Snap(value - step, low, high, neutral, step);
+        if (ImGui::IsKeyPressed(ImGuiKey_RightArrow)) value = Snap(value + step, low, high, neutral, step);
+        draw->AddRect({trackLeft - 4, p.y + 21}, {trackRight + 4, p.y + 41}, Opacity(Accent), 2);
     }
-    ImU32 c = ImGui::IsItemHovered() ? Text : Muted;
-    // Rotate one equal-sized silhouette around an inset center in both states.
-    const float angle = Animate("heading-arrow", expanded ? 1.f : 0.f) * 1.57079633f;
-    const float cs = std::cos(angle), sn = std::sin(angle);
-    auto arrow = [&](float x, float y) {
-        return ImVec2(p.x + 12 + x * cs - y * sn, p.y + 15 + x * sn + y * cs);
-    };
-    d->AddTriangleFilled(arrow(-3, -4), arrow(4, 0), arrow(-3, 4), Opacity(c));
-    TextAt(d, {p.x + ParameterInset, p.y + 8}, title, Text, 13, uiEmphasis);
-    ImGui::SetCursorScreenPos({p.x + width - 66, p.y + 6});
-    reset = ImGui::InvisibleButton("reset-section", {22, 18}, ImGuiButtonFlags_EnableNav);
-    ResetGlyph(d, ImGui::GetItemRectMin(), ImGui::IsItemHovered() ? Text : Muted);
-    Tip(Tr(UiText::ResetSection));
-    if (showEnable) {
-        ImGui::SetCursorScreenPos({p.x + width - 38, p.y + 6});
-        SquareSwitch("enabled", enabled);
-        Tip(enabled ? Tr(UiText::DisableEffect) : Tr(UiText::EnableEffect));
-    }
-    ImGui::SetCursorScreenPos(p);
-    ImGui::Dummy({width, 34});
-    ImGui::PopID();
-    return expanded;
+    const float y = std::floor(p.y + 31);
+    const float zero = std::floor(trackLeft + (trackRight - trackLeft) * (neutral - low) / (high - low));
+    const float knob = std::floor(trackLeft + (trackRight - trackLeft) * std::clamp((value - low) / (high - low), 0.f, 1.f));
+    draw->AddLine({trackLeft, y}, {trackRight, y}, Opacity(IM_COL32(73, 75, 83, 255)), 2);
+    draw->AddLine({zero, y - 3}, {zero, y + 3}, Opacity(Muted));
+    draw->AddLine({trackLeft, y}, {knob, y}, Opacity(Purple), 2);
+    draw->AddRectFilled({knob - 3, y - 5}, {knob + 3, y + 5}, Opacity(hover || held ? IM_COL32(242, 231, 255, 255) : Lavender), 1);
+    Tip(help);
+    ImGui::SetCursorScreenPos(p); ImGui::Dummy({width, 44});
+    ImGui::PopID(); ImGui::EndDisabled();
 }
+
 int MatchingPreset(const Settings &s) {
     return s.matchingPreset();
 }
@@ -543,370 +469,8 @@ void ProfilePicker(Runtime &r, float width) {
     }
     ImGui::PopStyleVar(2);
 }
-void WaterReflectionControls(Runtime &runtime) {
-    auto &s=runtime.settings;
-    const Settings defaults;
-    bool reset=false,always=true;
-    auto comboRow=[&](UiText title,const char *id,int &value,const char *const *names,int count) {
-        auto p=ImGui::GetCursorScreenPos();float width=ImGui::GetContentRegionAvail().x;
-        TextAt(ImGui::GetWindowDrawList(),{p.x+ParameterInset,p.y+5},Tr(title),Text,13);
-        ImGui::SetCursorScreenPos({p.x+146,p.y+2});ImGui::SetNextItemWidth(width-171);
-        bool changed=Combo(id,&value,names,count);
-        ImGui::SetCursorScreenPos(p);ImGui::Dummy({width,RowHeight});return changed;
-    };
-    if(Section("water-reflection-method",Tr(UiText::WaterReflections),always,reset,false)) {
-        if(reset)s.resetWaterReflections();
-        ImGui::BeginDisabled(!s.water || !s.enabled);
-        int method=s.waterReflectionMethod<0?(s.waterSSRQuality?2:1):s.waterReflectionMethod;
-        const char *methods[]={Tr(UiText::ReflectionSkyOnly),Tr(UiText::ReflectionPerformance),Tr(UiText::ReflectionQuality)};
-        if(comboRow(UiText::ReflectionMethod,"##waterReflectionMethod",method,methods,3)) {
-            s.waterReflectionMethod=method;s.waterSSRQuality=method==2;s.waterRaySteps=0;
-        }
-        Row(UiText::SkyReflection,Tr(UiText::SkyReflectionHelp),s.waterSky,0,1,defaults.waterSky,"%.2f",.05f);
-        ImGui::BeginDisabled(method==0);
-        Row(UiText::WorldReflections,Tr(UiText::WorldReflectionsHelp),s.waterSSR,0,1,defaults.waterSSR,"%.2f",.05f);
-        int resolution=s.waterReflectionResolution==50?0:s.waterReflectionResolution==75?1:2;
-        const char *resolutions[]={"50%","75%","100%"};
-        if(comboRow(UiText::ReflectionResolution,"##waterReflectionResolution",resolution,resolutions,3))
-            s.waterReflectionResolution=resolution==0?50:resolution==1?75:100;
-        ImGui::EndDisabled();ImGui::EndDisabled();
-    } else if(reset)s.resetWaterReflections();
-    const bool traceOpen=Section("water-reflection-trace",Tr(UiText::ReflectionTrace),always,reset,false,false);
-        if(reset) {
-            s.waterRaySteps=0;s.waterRefinementSteps=defaults.waterRefinementSteps;
-            s.waterTraceDistance=defaults.waterTraceDistance;s.waterTraceBias=defaults.waterTraceBias;
-            s.waterTraceThickness=defaults.waterTraceThickness;s.waterReflectionConfidence=defaults.waterReflectionConfidence;
-            s.waterSoftFallback=defaults.waterSoftFallback;
-        }
-    if(traceOpen) {
-        ImGui::BeginDisabled(!s.water || !s.enabled || s.waterReflectionMethod==0);
-        const float automatic=(s.waterReflectionMethod<0?s.waterSSRQuality!=0:s.waterReflectionMethod==2)?48.f:24.f;
-        float steps=s.waterRaySteps?float(s.waterRaySteps):automatic,before=steps;
-        Row(UiText::ReflectionSteps,Tr(UiText::ReflectionStepsHelp),steps,8,64,automatic,"%.0f",1);
-        if(steps!=before)s.waterRaySteps=int(std::round(steps));
-        float refinements=float(s.waterRefinementSteps);
-        Row(UiText::ReflectionRefinements,Tr(UiText::ReflectionRefinementsHelp),refinements,4,16,12,"%.0f",1);
-        s.waterRefinementSteps=int(std::round(refinements));
-        Row(UiText::Distance,Tr(UiText::ReflectionDistanceHelp),s.waterTraceDistance,16,512,defaults.waterTraceDistance,"%.0f",16);
-        Row(UiText::ReflectionBias,Tr(UiText::ReflectionBiasHelp),s.waterTraceBias,.01f,.5f,defaults.waterTraceBias,"%.3f",.01f);
-        Row(UiText::ReflectionThickness,Tr(UiText::ReflectionThicknessHelp),s.waterTraceThickness,.5f,3,defaults.waterTraceThickness,"%.2f",.05f);
-        Row(UiText::ReflectionConfidence,Tr(UiText::ReflectionConfidenceHelp),s.waterReflectionConfidence,0,.75f,defaults.waterReflectionConfidence,"%.2f",.05f);
-        auto p=ImGui::GetCursorScreenPos();float width=ImGui::GetContentRegionAvail().x;
-        TextAt(ImGui::GetWindowDrawList(),{p.x+ParameterInset,p.y+5},Tr(UiText::ReflectionSoftFallback),Text,13);
-        ImGui::SetCursorScreenPos({p.x+width-38,p.y+4});SquareSwitch("water-soft-fallback",s.waterSoftFallback);
-        ImGui::SetCursorScreenPos(p);ImGui::Dummy({width,RowHeight});
-        ImGui::EndDisabled();
-    }
-}
-void OptimizationControls(Runtime &runtime) {
-    auto &s=runtime.settings;
-    ImGui::PushFont(nullptr,13);
-    ImGui::PushTextWrapPos(0);
-    ImGui::TextDisabled("%s",Tr(UiText::OptimizationHelp));
-    ImGui::PopTextWrapPos();ImGui::PopFont();ImGui::Dummy({0,6});
-    auto toggle=[&](const char *id,const char *label,bool &value,const char *help=nullptr,bool supported=true) {
-        auto p=ImGui::GetCursorScreenPos();const float width=ImGui::GetContentRegionAvail().x;
-        TextAt(ImGui::GetWindowDrawList(),{p.x+12,p.y+5},label,Text,13);
-        ImGui::SetCursorScreenPos({p.x+width-38,p.y+2});
-        ImGui::BeginDisabled(!supported&&!value);SquareSwitch(id,value);
-        if(help)Tip(help,ImGuiHoveredFlags_AllowWhenDisabled);
-        ImGui::EndDisabled();ImGui::SetCursorScreenPos(p);ImGui::Dummy({width,RowHeight});
-    };
-    const bool supported=runtime.shopOptimizationSupported();
-    toggle("limit-shop-signs",Tr(UiText::ShopSigns),s.limitShopSigns,
-           Tr(supported?UiText::ShopSignHelp:UiText::UnsupportedClient),supported);
-    ImGui::BeginDisabled(!supported||!s.limitShopSigns);
-    Row(UiText::ShopSignDistance,Tr(UiText::ShopSignHelp),s.shopSignDistance,5,100,40,"%.0f",5,false,"shop-sign-distance");
-    ImGui::EndDisabled();ImGui::Dummy({0,8});
-    {
-        const auto p=ImGui::GetCursorScreenPos();const float width=ImGui::GetContentRegionAvail().x;
-        ImGui::GetWindowDrawList()->AddRectFilled(p,{p.x+width,p.y+30},Raised,2);
-        TextAt(ImGui::GetWindowDrawList(),{p.x+12,p.y+8},Tr(UiText::CostlyEffects),Text,13,uiEmphasis);
-        ImGui::Dummy({width,34});
-        // These are the original effect settings, not a second preset or master.
-        ImGui::BeginDisabled(!s.enabled);
-        toggle("optimization-water","WaterFX",s.water);
-        toggle("optimization-surfaces",Tr(UiText::SurfaceReflections),s.surfaceReflections,Tr(UiText::SurfaceStrengthHelp));
-        toggle("optimization-ssao","SSAO",s.ssao,Tr(UiText::AOStrengthHelp));
-        toggle("optimization-rays",Tr(UiText::SunRays),s.sunRays,Tr(UiText::RayStrengthHelp));
-        toggle("optimization-dof",Tr(UiText::DepthOfField),s.dof);
-        toggle("optimization-local",Tr(UiText::LocalLighting),s.localLighting);
-        toggle("optimization-particles",Tr(UiText::SpellEffects),s.sfx,Tr(UiText::SfxIntensityHelp));
-        toggle("optimization-bloom","Bloom",s.bloom);
-        ImGui::EndDisabled();
-    }
-}
-void SceneControls(Runtime &runtime) {
-    auto &s = runtime.settings;
-    auto status = runtime.sceneStatus();
-    auto notice = [](UiText text) {
-        ImGui::PushFont(nullptr, 13);
-        ImGui::PushTextWrapPos(0);
-        ImGui::TextDisabled("%s", Tr(text));
-        ImGui::PopTextWrapPos();
-        ImGui::PopFont();
-        ImGui::Dummy({0, 5});
-    };
-    const Settings defaults;
-    bool reset = false;
-    auto section = [&](const char *id, const char *title, bool &value, int group) {
-        bool open = Section(id, title, value, reset, true, false);
-        if (reset)
-            s.resetSceneSection(group);
-        return open;
-    };
-    if (section("ssao", "SSAO", s.ssao, 0)) {
-        ImGui::BeginDisabled(!s.ssao || !s.enabled);
-        Row(UiText::Strength, Tr(UiText::AOStrengthHelp), s.aoStrength, 0, 2, defaults.aoStrength, "%.2f",
-            .05f);
-        Row(UiText::Radius, Tr(UiText::AORadiusHelp), s.aoRadius, .1f, 5, defaults.aoRadius, "%.2f", .1f);
-        Row(UiText::Bias, Tr(UiText::AOBiasHelp), s.aoBias, .005f, .3f, defaults.aoBias, "%.3f", .005f);
-        Row(UiText::Distance, Tr(UiText::AODistanceHelp), s.aoDistance, 10, 500, defaults.aoDistance, "%.0f",
-            10);
-        ImGui::EndDisabled();
-        if (s.enabled && s.ssao && !status.depth)
-            notice(UiText::SceneDepthUnavailable);
-    }
-    if (section("rays", Tr(UiText::SunRays), s.sunRays, 1)) {
-        ImGui::BeginDisabled(!s.sunRays || !s.enabled);
-        Row(UiText::Strength, Tr(UiText::RayStrengthHelp), s.rayStrength, 0, 2, defaults.rayStrength, "%.2f",
-            .05f);
-        Row(UiText::Length, Tr(UiText::RayLengthHelp), s.rayLength, .1f, 1.5f, defaults.rayLength, "%.2f",
-            .05f);
-        Row(UiText::Decay, Tr(UiText::RayDecayHelp), s.rayDecay, .8f, .99f, defaults.rayDecay, "%.2f", .01f);
-        ImGui::EndDisabled();
-        if (s.enabled && s.sunRays) {
-            if (!status.depth)
-                notice(UiText::SceneDepthUnavailable);
-            else if (!status.sun)
-                notice(UiText::RaysNeedSun);
-        }
-    }
-    if (section("sky", "SkyFX", s.sky, 2)) {
-        ImGui::BeginDisabled(!s.sky || !s.enabled);
-        Row(UiText::Atmosphere, Tr(UiText::SkyStrengthHelp), s.skyStrength, 0, 1, defaults.skyStrength,
-            "%.2f", .05f);
-        Row(UiText::Horizon, Tr(UiText::HorizonHelp), s.skyHorizon, .1f, 1, defaults.skyHorizon, "%.2f",
-            .05f);
-        Row(UiText::Clouds, Tr(UiText::CloudsHelp), s.cloudContrast, .5f, 2, defaults.cloudContrast, "%.2f",
-            .05f);
-        Row(UiText::SunHalo, Tr(UiText::SunHaloHelp), s.sunHalo, 0, 2, defaults.sunHalo, "%.2f", .05f);
-        Row(UiText::SkyDetail, Tr(UiText::SkyDetailHelp), s.skyDetail, 0, 1, defaults.skyDetail, "%.2f", .05f);
-        Row(UiText::FineStars, Tr(UiText::FineStarsHelp), s.skyStars, 0, 1, defaults.skyStars, "%.2f", .05f);
-        ImGui::EndDisabled();
-        if (s.enabled && s.sky && !status.sky)
-            notice(UiText::SkyNotDetected);
-    }
-    if (section("fog", Tr(UiText::Fog), s.fog, 3)) {
-        ImGui::BeginDisabled(!s.fog || !s.enabled);
-        Row(UiText::Density, Tr(UiText::FogDensityHelp), s.fogDensity, 0, .03f, defaults.fogDensity, "%.4f",
-            .0005f);
-        Row(UiText::Start, Tr(UiText::FogStartHelp), s.fogStart, 0, 250, defaults.fogStart, "%.0f", 5);
-        Row(UiText::Height, Tr(UiText::FogHeightHelp), s.fogHeight, -500, 500, defaults.fogHeight, "%.0f", 5);
-        Row(UiText::HeightFalloff, Tr(UiText::FogFalloffHelp), s.fogFalloff, 0, .2f, defaults.fogFalloff,
-            "%.3f", .005f);
-        float tint[] = {s.fogR, s.fogG, s.fogB};
-        ImGui::SetNextItemWidth(230);
-        if (ImGui::ColorEdit3(Label(UiText::FogColor).c_str(), tint,
-                              ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoOptions |
-                                  ImGuiColorEditFlags_NoSidePreview)) {
-            s.fogR = tint[0];
-            s.fogG = tint[1];
-            s.fogB = tint[2];
-        }
-        ImGui::EndDisabled();
-    }
-    if (section("dof", Tr(UiText::DepthOfField), s.dof, 4)) {
-        ImGui::BeginDisabled(!s.dof || !s.enabled);
-        Row(UiText::Focus, Tr(UiText::FocusHelp), s.focusDistance, 1, 500, defaults.focusDistance, "%.0f", 1);
-        Row(UiText::FocusRange, Tr(UiText::FocusRangeHelp), s.focusRange, 1, 200, defaults.focusRange, "%.0f",
-            1);
-        Row(UiText::Blur, Tr(UiText::BlurHelp), s.dofRadius, 0, 12, defaults.dofRadius, "%.1f", .5f);
-        Row(UiText::NearBlur, Tr(UiText::NearBlurHelp), s.dofNear, 0, 1, defaults.dofNear, "%.2f", .05f);
-        ImGui::EndDisabled();
-    }
-    if (section("adaptation", Tr(UiText::Adaptation), s.adaptation, 5)) {
-        ImGui::BeginDisabled(!s.adaptation || !s.enabled);
-        Row(UiText::AverageBrightness, Tr(UiText::AverageBrightnessHelp), s.adaptationKey, .04f, .5f,
-            defaults.adaptationKey, "%.2f", .01f);
-        Row(UiText::MinEV, Tr(UiText::MinEVHelp), s.minEV, -4, 0, defaults.minEV, "%+.2f", .1f);
-        Row(UiText::MaxEV, Tr(UiText::MaxEVHelp), s.maxEV, 0, 4, defaults.maxEV, "%+.2f", .1f);
-        Row(UiText::AdaptBright, Tr(UiText::AdaptBrightHelp), s.adaptBright, .1f, 5, defaults.adaptBright,
-            "%.1f", .1f);
-        Row(UiText::AdaptDark, Tr(UiText::AdaptDarkHelp), s.adaptDark, .1f, 5, defaults.adaptDark, "%.1f",
-            .1f);
-        ImGui::EndDisabled();
-    }
-    if (section("lighting-balance", Tr(UiText::LightingBalance), s.lightingBalance, 10)) {
-        ImGui::BeginDisabled(!s.enabled || !s.lightingBalance);
-        Row(UiText::Strength, Tr(UiText::LightingBalanceHelp), s.lightingBalanceStrength, 0, 1,
-            defaults.lightingBalanceStrength, "%.2f", .05f);
-        ImGui::EndDisabled();
-    }
-    bool vegetation = true;
-    if (Section("foliage", Tr(UiText::Vegetation), vegetation, reset, false, false)) {
-        if (reset)
-            s.resetSceneSection(9);
-        Row(UiText::NightBrightness, Tr(UiText::NightBrightnessHelp), s.nightFoliage, 0, 1,
-            defaults.nightFoliage, "%.2f", .05f);
-    } else if (reset)
-        s.resetSceneSection(9);
-    if (section("lighting", Tr(UiText::LocalLighting), s.localLighting, 6)) {
-        ImGui::BeginDisabled(!s.localLighting || !s.enabled);
-        Row(UiText::Strength, Tr(UiText::LocalStrengthHelp), s.localStrength, 0, 3, defaults.localStrength,
-            "%.2f", .05f);
-        Row(UiText::Distance, Tr(UiText::LocalRangeHelp), s.localRange, .25f, 3, defaults.localRange, "%.2f",
-            .05f);
-        ImGui::EndDisabled();
-        if (s.enabled && s.localLighting) {
-            if (!status.depth)
-                notice(UiText::SceneDepthUnavailable);
-            else if (!status.light)
-                notice(UiText::LightNotDetected);
-        }
-    }
-    if (section("surface-reflections", Tr(UiText::SurfaceReflections), s.surfaceReflections, 13)) {
-        ImGui::BeginDisabled(!s.surfaceReflections || !s.enabled);
-        Row(UiText::Strength, Tr(UiText::SurfaceStrengthHelp), s.surfaceStrength, 0, 1,
-            defaults.surfaceStrength,"%.2f",.05f);
-        Row(UiText::SurfaceRoughness, Tr(UiText::SurfaceRoughnessHelp), s.surfaceRoughness, 0, 1,
-            defaults.surfaceRoughness,"%.2f",.05f);
-        Row(UiText::Distance, Tr(UiText::SurfaceDistanceHelp), s.surfaceDistance, 5, 100,
-            defaults.surfaceDistance,"%.0f",5);
-        ImGui::EndDisabled();
-        if (s.enabled && s.surfaceReflections && !status.depth)
-            notice(UiText::SceneDepthUnavailable);
-    }
-    if (section("sfx", Tr(UiText::SpellEffects), s.sfx, 11)) {
-        ImGui::BeginDisabled(!s.sfx || !s.enabled);
-        Row(UiText::AuraGlow, Tr(UiText::AuraGlowHelp), s.sfxAura, 0, 2, defaults.sfxAura,"%.2f",.05f);
-        Row(UiText::Strength, Tr(UiText::SfxIntensityHelp), s.sfxIntensity, .5f, 2, defaults.sfxIntensity,"%.2f",.05f);
-        Row(UiText::SfxGlow, Tr(UiText::SfxGlowHelp), s.sfxGlow, 0, 1, defaults.sfxGlow,"%.2f",.05f);
-        Row(UiText::Saturation, Tr(UiText::SaturationHelp), s.sfxSaturation, .5f, 1.5f, defaults.sfxSaturation,"%.2f",.05f);
-        Row(UiText::SfxSoftness, Tr(UiText::SfxSoftnessHelp), s.sfxSoftness, 0, 1, defaults.sfxSoftness,"%.2f",.05f);
-        ImGui::EndDisabled();
-    }
-    ImGui::Spacing();
-    auto qualityPos = ImGui::GetCursorScreenPos();
-    float qualityWidth = ImGui::GetContentRegionAvail().x;
-    TextAt(ImGui::GetWindowDrawList(), {qualityPos.x + 12, qualityPos.y + 5}, Tr(UiText::SceneQuality),Text,13);
-    ImGui::SetCursorScreenPos({qualityPos.x + qualityWidth - 38, qualityPos.y + 4});
-    SquareSwitch("sceneQuality", s.sceneQuality);
-    ImGui::SetCursorScreenPos(qualityPos);
-    ImGui::Dummy({qualityWidth, RowHeight});
-}
-void AntialiasControls(Runtime &r) {
-    auto &s = r.settings;
-    bool reset = false;
-    bool hardware = true;
-    if (Section("post-aa", Tr(UiText::PostAntialiasing), hardware, reset, false)) {
-        if (reset) {
-            s.resetSceneSection(8);
-            s.fxaa = s.smaa = false;
-        }
-        ImGui::BeginDisabled(!s.enabled);
-        int method = s.smaa ? 2 : s.fxaa ? 1 : 0;
-        const char *methods[] = {Tr(UiText::Off), Tr(UiText::FXAAMethod), Tr(UiText::SMAAMethod)};
-        ImGui::SetNextItemWidth(-1);
-        if (BeginCombo("##post-aa", methods[method])) {
-            for (int i = 0; i < 3; ++i) {
-                ImGui::PushID(i);
-                if (ImGui::Selectable((std::string(methods[i]) + "###method").c_str(), method == i)) {
-                    s.fxaa = i == 1;
-                    s.smaa = i == 2;
-                }
-                ImGui::PopID();
-            }
-            ImGui::EndCombo();
-        }
-        ImGui::EndDisabled();
-    } else if (reset) {
-        s.resetSceneSection(8);
-        s.fxaa = s.smaa = false;
-    }
-    ImGui::Dummy({0, 8});
-    if (Section("msaa", Tr(UiText::MSAAMethod), hardware, reset, false)) {
-        if (reset)
-            s.msaaSamples = 0;
-        const unsigned active = r.activeMSAA();
-        int modes[] = {-1, 2, 4, 8}, choice = -1;
-        for (int i = 0; i < 4; ++i)
-            if (active == unsigned(modes[i] < 0 ? 0 : modes[i]))
-                choice = i;
-        const char *labels[] = {Tr(UiText::Off), Tr(UiText::MSAATwo), Tr(UiText::MSAAFour),
-                                Tr(UiText::MSAAEight)};
-        char nativeLabel[32];
-        std::snprintf(nativeLabel, sizeof(nativeLabel), Tr(UiText::MSAAMultiplier), active);
-        const char *current = choice >= 0   ? labels[choice]
-                              : active == 1 ? Tr(UiText::MSAAMethod)
-                                            : nativeLabel;
-        ImGui::SetNextItemWidth(-1);
-        if (BeginCombo("##msaa", current)) {
-            if (choice < 0) {
-                ImGui::BeginDisabled();
-                ImGui::Selectable((std::string(current) + "###native-samples").c_str(), true);
-                ImGui::EndDisabled();
-            }
-            for (int i = 0; i < 4; ++i) {
-                bool available = r.msaaAvailable(modes[i]);
-                ImGui::PushID(i);
-                ImGui::BeginDisabled(!available);
-                if (ImGui::Selectable((std::string(labels[i]) + "###samples").c_str(), choice == i))
-                    s.msaaSamples = modes[i];
-                ImGui::EndDisabled();
-                if (!available && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-                    ImGui::SetTooltip("%s", Tr(UiText::MSAAUnavailable));
-                ImGui::PopID();
-            }
-            ImGui::EndCombo();
-        }
-    } else if (reset)
-        s.msaaSamples = 0;
-}
-void EnvironmentControls(Runtime &r) {
-    auto &s = r.settings;
-    bool reset = false;
-    bool open = Section("world-time", Tr(UiText::TimeOverride), s.timeOverride, reset);
-    if (reset) { s.timeMinutes = 720; s.freezeTime = true; }
-    if (open) {
-        ImGui::BeginDisabled(!s.timeOverride);
-        float minutes = r.environmentMinutes(), previous = minutes;
-        Row(UiText::TimeOfDay, Tr(UiText::TimeOfDayHelp), minutes, 0, 1439, 720, "%.0f", 1, true, "time-of-day");
-        if (minutes != previous)
-            s.timeMinutes = minutes;
-        auto p = ImGui::GetCursorScreenPos();
-        SquareSwitch("freeze-time", s.freezeTime, {28, RowHeight});
-        Tip(Tr(UiText::FreezeTimeHelp));
-        TextAt(ImGui::GetWindowDrawList(), {p.x + 36, p.y + 6}, Tr(UiText::FreezeTime), Text, 13);
-        ImGui::EndDisabled();
-    }
-    ImGui::Dummy({0, 14});
-    open = Section("world-weather", Tr(UiText::WeatherOverride), s.weatherOverride, reset);
-    if (reset) { s.weatherType = 0; s.weatherIntensity = 100; }
-    if (open) {
-        ImGui::BeginDisabled(!s.weatherOverride || !s.enabled);
-        const UiText types[] = {UiText::WeatherClear, UiText::WeatherRain, UiText::WeatherSnow};
-        ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(.16f, .17f, .19f, 1));
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10, 8));
-        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8, 5));
-        ImGui::SetNextItemWidth(std::min(240.f, ImGui::GetContentRegionAvail().x));
-        if (BeginCombo("##weather-type", Tr(types[s.weatherType]))) {
-            for (int i = 0; i < 3; ++i) {
-                if (ImGui::Selectable(Label(types[i]).c_str(), s.weatherType == i))
-                    s.weatherType = i;
-            }
-            ImGui::EndCombo();
-        }
-        ImGui::PopStyleColor();
-        ImGui::PopStyleVar(2);
-        ImGui::Dummy({0, 6});
-        ImGui::BeginDisabled(s.weatherType == 0);
-        Row(UiText::WeatherIntensity, Tr(UiText::WeatherIntensityHelp), s.weatherIntensity, 0, 100,
-            100, "%.0f%%", 1);
-        ImGui::EndDisabled();
-        ImGui::EndDisabled();
-    }
-}
+#include "ui_panel.inc"
+
 void UpdateDialog(Runtime &r, ImVec2 origin, ImVec2 panelSize) {
     const auto &update = r.updater.status();
     const bool readyNotice = update.state == UpdateState::Ready || update.state == UpdateState::RollbackReady;
@@ -1106,225 +670,8 @@ void DrawPanel(Runtime &r, const PanelBranding &branding) {
     ImGui::PopFont();
     ImGui::SetCursorPos({16, 91 + headerExtra});
     ImGui::BeginChild("adjustments", {size.x - 32, size.y - 130 - headerExtra}, ImGuiChildFlags_None);
-    if (r.collapseImageSections) {
-        for (const char *id : {"grade", "bloom", "sharpening"}) {
-            ImGui::PushID(id);
-            ImGui::GetStateStorage()->SetBool(ImGui::GetID("expanded"), false);
-            ImGui::PopID();
-        }
-        r.collapseImageSections = false;
-    }
-    const Settings defaults;
-    bool reset = false;
-    if (r.editorPage == 0) {
-        auto *navDraw = ImGui::GetWindowDrawList();
-        float waterWidth = ImGui::GetContentRegionAvail().x;
-        auto p = ImGui::GetCursorScreenPos();
-        navDraw->AddLine(p, {p.x + waterWidth, p.y}, Line);
-        if (ImGui::InvisibleButton("scene-settings", {waterWidth, 30}, ImGuiButtonFlags_EnableNav))
-            r.editorPage = 2;
-        TextAt(navDraw, {p.x + 12, p.y + 7}, Tr(UiText::LightAtmosphere), Text, 13, uiEmphasis);
-        NavigationArrow(navDraw, p, waterWidth, ImGui::IsItemHovered() ? Text : Muted);
-        p = ImGui::GetCursorScreenPos();
-        navDraw->AddLine(p, {p.x + waterWidth, p.y}, Line);
-        if (ImGui::InvisibleButton("aa-settings", {waterWidth, 30}, ImGuiButtonFlags_EnableNav))
-            r.editorPage = 3;
-        TextAt(navDraw, {p.x + 12, p.y + 7}, Tr(UiText::Antialiasing), Text, 13, uiEmphasis);
-        NavigationArrow(navDraw, p, waterWidth, ImGui::IsItemHovered() ? Text : Muted);
-        ImGui::Dummy({0, 0});
-        auto waterPos = ImGui::GetCursorScreenPos();
-        navDraw->AddLine(waterPos, {waterPos.x + waterWidth, waterPos.y}, Line);
-        if (ImGui::InvisibleButton("water-settings", {waterWidth - 48, 30}, ImGuiButtonFlags_EnableNav))
-            r.editorPage = 1;
-        ImU32 navColor = ImGui::IsItemHovered() ? Text : Muted;
-        TextAt(navDraw, {waterPos.x + 12, waterPos.y + 7}, "WaterFX", Text, 13, uiEmphasis);
-        NavigationArrow(navDraw, waterPos, waterWidth, navColor);
-        ImGui::SetCursorScreenPos({waterPos.x + waterWidth - 38, waterPos.y + 6});
-        SquareSwitch("waterMain", s.water);
-        ImGui::SetCursorScreenPos(waterPos);
-        ImGui::Dummy({waterWidth, 30});
-        const auto optimizationPos=ImGui::GetCursorScreenPos();
-        navDraw->AddLine(optimizationPos,{optimizationPos.x+waterWidth,optimizationPos.y},Line);
-        if(ImGui::InvisibleButton("optimization-settings",{waterWidth,30},ImGuiButtonFlags_EnableNav))r.editorPage=7;
-        TextAt(navDraw,{optimizationPos.x+12,optimizationPos.y+7},Tr(UiText::Optimization),Text,13,uiEmphasis);
-        NavigationArrow(navDraw,optimizationPos,waterWidth,ImGui::IsItemHovered()?Text:Muted);
-        ImGui::Dummy({0, 2});
-        bool expanded = Section("grade", Tr(UiText::ColorCorrection), s.color, reset, true, false);
-        if (reset)
-            s.resetColor();
-        if (expanded) {
-            ImGui::BeginDisabled(!s.color || !s.enabled);
-            Row(UiText::Exposure, Tr(UiText::ExposureHelp), s.exposure, -2, 2, defaults.exposure, "%+.2f");
-            Row(UiText::Contrast, Tr(UiText::ContrastHelp), s.contrast, .5f, 1.5f, defaults.contrast);
-            Row(UiText::Highlights, Tr(UiText::HighlightsHelp), s.highlights, -.5f, .5f, defaults.highlights,
-                "%+.2f");
-            Row(UiText::Shadows, Tr(UiText::ShadowsHelp), s.shadows, -.5f, .5f, defaults.shadows, "%+.2f");
-            Row(UiText::Temperature, Tr(UiText::TemperatureHelp), s.temperature, -1, 1, defaults.temperature,
-                "%+.2f");
-            Row(UiText::Tint, Tr(UiText::TintHelp), s.tint, -1, 1, defaults.tint, "%+.2f");
-            Row(UiText::Saturation, Tr(UiText::SaturationHelp), s.saturation, 0, 2, defaults.saturation);
-            Row(UiText::Gamma, Tr(UiText::GammaHelp), s.gamma, .5f, 2, defaults.gamma);
-            ImGui::EndDisabled();
-        }
-        ImGui::Dummy({0, 4});
-        expanded = Section("bloom", "Bloom", s.bloom, reset, true, false);
-        if (reset)
-            s.resetBloom();
-        if (expanded) {
-            ImGui::BeginDisabled(!s.bloom || !s.enabled);
-            Row(UiText::Strength, Tr(UiText::BloomStrengthHelp), s.bloomStrength, 0, 2,
-                defaults.bloomStrength);
-            Row(UiText::BrightnessThreshold, Tr(UiText::BrightnessThresholdHelp), s.threshold, 0, 1,
-                defaults.threshold);
-            Row(UiText::ThresholdSoftness, Tr(UiText::ThresholdSoftnessHelp), s.knee, .001f, .5f,
-                defaults.knee);
-            Row(UiText::Radius, Tr(UiText::BloomRadiusHelp), s.radius, .5f, 4, defaults.radius);
-            auto p = ImGui::GetCursorScreenPos();
-            float width = ImGui::GetContentRegionAvail().x;
-            TextAt(ImGui::GetWindowDrawList(), {p.x + ParameterInset, p.y + 5}, Tr(UiText::Quality),Text,13);
-            ImGui::SetCursorScreenPos({p.x + 146, p.y + 2});
-            ImGui::SetNextItemWidth(width - 146 - 25);
-            ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(.14f, .15f, .17f, 1));
-            int quality = s.bloomScale == 4 ? 0 : 1;
-            const char *options[] = {Tr(UiText::Economical), Tr(UiText::High)};
-            if (Combo("##quality", &quality, options, 2))
-                s.bloomScale = quality ? 2 : 4;
-            ImGui::PopStyleColor();
-            Tip(Tr(UiText::BloomQualityHelp));
-            ImGui::SetCursorScreenPos(p);
-            ImGui::Dummy({width, RowHeight});
-            ImGui::EndDisabled();
-        }
-        ImGui::Dummy({0, 4});
-        expanded = Section("sharpening", Tr(UiText::Sharpening), s.sharpening, reset, true, false);
-        if (reset)
-            s.resetSceneSection(14);
-        if (expanded) {
-            ImGui::BeginDisabled(!s.sharpening || !s.enabled);
-            Row(UiText::Strength, Tr(UiText::SharpeningHelp), s.sharpeningStrength, 0, 1,
-                defaults.sharpeningStrength, "%.2f", .05f, false, "sharpening-strength");
-            ImGui::EndDisabled();
-        }
-    } else if (r.editorPage == 1) {
-        auto back = ImGui::GetCursorScreenPos();
-        auto *draw = ImGui::GetWindowDrawList();
-        if (ImGui::InvisibleButton("back", {86, 26}, ImGuiButtonFlags_EnableNav))
-            r.editorPage = 0;
-        TextAt(draw, {back.x + 20, back.y + 6}, Tr(UiText::Back), ImGui::IsItemHovered() ? Text : Muted, 14);
-        draw->AddLine({back.x + 10, back.y + 9}, {back.x + 6, back.y + 13}, Muted);
-        draw->AddLine({back.x + 6, back.y + 13}, {back.x + 10, back.y + 17}, Muted);
-        ImGui::SetCursorScreenPos(back);
-        ImGui::Dummy({280, 34});
-        const auto reflectionLink=ImGui::GetCursorScreenPos();
-        const float reflectionWidth=ImGui::GetContentRegionAvail().x;
-        if(ImGui::InvisibleButton("water-reflections",{reflectionWidth,30},ImGuiButtonFlags_EnableNav))r.editorPage=6;
-        TextAt(draw,{reflectionLink.x+12,reflectionLink.y+7},Tr(UiText::WaterReflections),Text,13);
-        TextAt(draw,{reflectionLink.x+reflectionWidth-44,reflectionLink.y+7},"→",Muted);
-        bool expanded = Section("waterMotion", Tr(UiText::Surface), s.water, reset);
-        if (reset)
-            s.resetWaterSurface();
-        if (expanded) {
-            ImGui::BeginDisabled(!s.water || !s.enabled);
-            Row(UiText::WaveHeight, Tr(UiText::WaveHeightHelp), s.waterWaves, 0, .15f, defaults.waterWaves,
-                "%.3f", .005f);
-            Row(UiText::Wavelength, Tr(UiText::WavelengthHelp), s.waterLength, 1, 15, defaults.waterLength,
-                "%.2f", .25f);
-            Row(UiText::Speed, Tr(UiText::SpeedHelp), s.waterSpeed, 0, 3, defaults.waterSpeed, "%.2f", .05f);
-            Row(UiText::Ripples, Tr(UiText::RipplesHelp), s.waterRipples, 0, 1, defaults.waterRipples, "%.2f",
-                .02f);
-            Row(UiText::RippleFrequency, Tr(UiText::RippleFrequencyHelp), s.waterRippleScale, .25f, 6,
-                defaults.waterRippleScale, "%.2f", .05f);
-            Row(UiText::WaterWake, Tr(UiText::WaterWakeHelp), s.sfxWake, 0, 1.5f,
-                defaults.sfxWake, "%.2f", .05f);
-            ImGui::Dummy({0, 8});
-            Row(UiText::Opacity, Tr(UiText::OpacityHelp), s.waterOpacity, .15f, 1, defaults.waterOpacity,
-                "%.2f", .02f);
-            Row(UiText::Refraction, Tr(UiText::RefractionHelp), s.waterRefraction, 0, 1,
-                defaults.waterRefraction, "%.2f", .02f);
-            Row(UiText::OriginalTexture, Tr(UiText::OriginalTextureHelp), s.waterTexture, 0, 1,
-                defaults.waterTexture, "%.2f", .02f);
-            Row(UiText::TurquoiseTint, Tr(UiText::TurquoiseTintHelp), s.waterTint, 0, 1, defaults.waterTint,
-                "%.2f", .02f);
-            Row(UiText::SkyReflection, Tr(UiText::SkyReflectionHelp), s.waterSky, 0, 1, defaults.waterSky,
-                "%.2f", .02f);
-            Row(UiText::SunGlints, Tr(UiText::SunGlintsHelp), s.waterGlints, 0, 2, defaults.waterGlints,
-                "%.2f", .05f);
-            Row(UiText::Smoothness, Tr(UiText::SmoothnessHelp), s.waterGloss, 0, 1, defaults.waterGloss,
-                "%.2f", .02f);
-            ImGui::EndDisabled();
-        }
-        ImGui::Dummy({0, 6});
-        bool sceneSection = true;
-        if (Section("waterScene", Tr(UiText::DepthReflections), sceneSection, reset, false)) {
-            if (reset)
-                s.resetWaterScene();
-            ImGui::BeginDisabled(!s.water || !s.enabled);
-            Row(UiText::Absorption, Tr(UiText::AbsorptionHelp), s.waterDepth, 0, 2, defaults.waterDepth,
-                "%.2f", .05f);
-            Row(UiText::ShoreTransition, Tr(UiText::ShoreTransitionHelp), s.waterShore, .05f, 3,
-                defaults.waterShore, "%.2f", .05f);
-            auto p = ImGui::GetCursorScreenPos();
-            float width = ImGui::GetContentRegionAvail().x;
-            const char *qualities[] = {Tr(UiText::Economical), Tr(UiText::Detailed)};
-            Row(UiText::Caustics, Tr(UiText::CausticsHelp), s.waterCaustics, 0, 2, defaults.waterCaustics,
-                "%.2f", .05f);
-            Row(UiText::Dispersion, Tr(UiText::DispersionHelp), s.waterDispersion, 0, 1,
-                defaults.waterDispersion, "%.2f", .05f);
-            p = ImGui::GetCursorScreenPos();
-            TextAt(ImGui::GetWindowDrawList(), {p.x + ParameterInset, p.y + 5}, Tr(UiText::CausticQuality),Text,13);
-            ImGui::SetCursorScreenPos({p.x + 146, p.y + 2});
-            ImGui::SetNextItemWidth(width - 171);
-            int causticQuality = s.waterCausticScale == 2 ? 1 : 0;
-            if (Combo("##causticQuality", &causticQuality, qualities, 2))
-                s.waterCausticScale = causticQuality ? 2 : 4;
-            ImGui::SetCursorScreenPos(p);
-            ImGui::Dummy({width, RowHeight});
-            ImGui::EndDisabled();
-        } else if (reset)
-            s.resetWaterScene();
-    }
-    if (r.editorPage == 2) {
-        if (ImGui::Button(Label(UiText::BackButton).c_str()))
-            r.editorPage = 0;
-        ImGui::Dummy({0, 8});
-        SceneControls(r);
-    }
-    if (r.editorPage == 6) {
-        const auto back=ImGui::GetCursorScreenPos();
-        auto *draw=ImGui::GetWindowDrawList();
-        if(ImGui::InvisibleButton("back",{86,26},ImGuiButtonFlags_EnableNav))r.editorPage=1;
-        TextAt(draw,{back.x+20,back.y+6},Tr(UiText::Back),ImGui::IsItemHovered()?Text:Muted,14);
-        draw->AddLine({back.x+10,back.y+9},{back.x+6,back.y+13},Muted);
-        draw->AddLine({back.x+6,back.y+13},{back.x+10,back.y+17},Muted);
-        ImGui::SetCursorScreenPos(back);ImGui::Dummy({280,34});
-        WaterReflectionControls(r);
-    }
-    if (r.editorPage == 3) {
-        if (ImGui::Button(Label(UiText::BackButton).c_str()))
-            r.editorPage = 0;
-        ImGui::Dummy({0, 8});
-        AntialiasControls(r);
-    }
-    if(r.editorPage==7) {
-        if(ImGui::Button(Label(UiText::BackButton).c_str()))r.editorPage=0;
-        ImGui::Dummy({0,8});OptimizationControls(r);
-    }
-    if (r.editorPage == 4)
-        EnvironmentControls(r);
-    if (r.editorPage == 5) {
-        auto heading=ImGui::GetCursorScreenPos();
-        d->AddRectFilled(heading,{heading.x+size.x-32,heading.y+30},Raised,2);
-        TextAt(d,{heading.x+12,heading.y+8},Tr(UiText::V2Appearance),Text,13);
-        ImGui::Dummy({size.x-32,34});
-        auto p=ImGui::GetCursorScreenPos();
-        TextAt(d,{p.x+12,p.y+8},Tr(UiText::V2Cursor),Text,13);
-        ImGui::SetCursorScreenPos({p.x+size.x-72,p.y+5});
-        SquareSwitch("custom-cursor",s.customCursor);
-        ImGui::SetCursorScreenPos({p.x,p.y+34});
-        TextAt(d,{p.x+12,p.y+42},Tr(UiText::V2Motion),Text,13);
-        ImGui::SetCursorScreenPos({p.x+size.x-72,p.y+39});
-        SquareSwitch("interface-motion",s.interfaceMotion);
-    }
+    ImGui::SetScrollY(0);
+    DrawPanelEditor(r);
     ImGui::EndChild();
     float footer = size.y - 28;
     d->AddLine({origin.x + 1, origin.y + footer}, {origin.x + size.x - 1, origin.y + footer}, Line, 1);
