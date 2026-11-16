@@ -1,8 +1,13 @@
-# FENB 0.7a
+# FENB 0.7c
 
 FENB is a graphics mod for Flyff, inspired by ENBSeries. It uses a Windows x86 Direct3D 9 proxy, C++20, precompiled shaders and a native Dear ImGui settings panel.
 
 ## Controls and profiles
+
+- **Optimization**, below WaterFX and above color correction, opens optional shop-sign range controls and shortcuts to the existing WaterFX, surface reflection, SSAO, sun ray, depth-of-field, local lighting, particle-processing and bloom switches. Shortcuts edit the same settings as their original pages. Disabling particle processing restores native particles; it does not hide native skills or auras.
+- Shop-sign limiting is off by default and independent of the effects master switch. The radius is measured in world units from the local character. The local character's own sign is retained. On the verified Homesickness ABI, a scoped, bounded vendor-render list omits distant signs and restores the exact original pointer and count after rendering. It does not remove actors, modify shop contents, stop simulation or send trade requests. Unknown layouts disable this control. Image profiles and Reset all retain the user's shop-limit choice and radius.
+
+Resource forwarding uses a bounded 256-entry thread-local lookup cache. Registering or retiring a wrapper publishes a registry generation; a cached lookup is reusable only for the same pointer and generation. Misses retain the synchronized registry lookup, including native pointers. The cache holds no COM references, changes no DirectX draw/state calls and does not alter shader processing, model visibility or effect settings. `tests/resource_benchmark.cpp` provides a repeatable resource-binding microbenchmark against a selected DLL; its timing is not a live-game FPS measurement.
 
 - **Shift + Enter** opens and closes the panel without opening game chat. Each opening centers the panel and returns to the main image page. The open panel can still be moved.
 - **Effects** enables or disables all FENB rendering. Color correction, Bloom and WaterFX also have individual switches.

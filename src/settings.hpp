@@ -47,6 +47,8 @@ struct Settings {
     int msaaSamples = 0;    // 0 retains the native choice, -1 disables, otherwise 2/4/8.
     bool unlockFps = false; // Opt-in continuous native updates with a guarded legacy fallback.
     bool backgroundActivity = false; // Independent opt-in to keep the world running while inactive.
+    bool limitShopSigns = false;
+    float shopSignDistance = 40;
     bool timeOverride = false, freezeTime = true, weatherOverride = false;
     float timeMinutes = 720, weatherIntensity = 100;
     int weatherType = 0; // 0 clear, 1 rain, 2 snow; independent of server weather.

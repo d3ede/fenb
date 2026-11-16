@@ -201,7 +201,7 @@ int main() {
     ImGui::ActivateItemByID(ImHashStr("heading",0,child()->GetID("grade")));frame();frame();
     CHECK(expanded("grade"));
     // Actual track gestures, held double-click reset, steps and typed values.
-    const float rowY=261;
+    const float rowY=291;
     r.settings.exposure=.8f;frame();
     click(440,rowY);mouse(440,rowY,true);
     CHECK(r.settings.exposure==0);frame();CHECK(r.settings.exposure==0);
@@ -211,13 +211,28 @@ int main() {
     click(590,rowY);input("0.75");CHECK(std::abs(r.settings.exposure-.75f)<.0001f);
     click(654,rowY);CHECK(r.settings.exposure==0);
     r.settings.exposure=.8f;r.settings.waterOpacity=.7f;frame();
-    click(610,228);CHECK(r.settings.exposure==0 && r.settings.waterOpacity==.7f);
+    click(610,258);CHECK(r.settings.exposure==0 && r.settings.waterOpacity==.7f);
     // Navigation preserves all WaterFX, atmosphere and AA controls.
     activate(child(),"water-settings");CHECK(r.editorPage==1);
     activate(child(),"water-reflections");CHECK(r.editorPage==6);
     activate(child(),"back");CHECK(r.editorPage==1);
     activate(child(),"back");CHECK(r.editorPage==0);
     activate(child(),"scene-settings");CHECK(r.editorPage==2);
+    r.editorPage=0;frame();
+    activate(child(),"optimization-settings");CHECK(r.editorPage==7);
+    CHECK(!r.settings.limitShopSigns);
+    const bool oldAO=r.settings.ssao;
+    activate(child(),"optimization-ssao");CHECK(r.settings.ssao!=oldAO);
+    activate(child(),"optimization-ssao");CHECK(r.settings.ssao==oldAO);
+    for(size_t i=0;i<LanguageCount;++i) {
+        r.settings.language=static_cast<Language>(i);frame();frame();
+        const std::wstring locale(LanguageCodes[i],LanguageCodes[i]+2);
+        CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-optimization.png").c_str()));
+        io.DisplaySize={360,400};r.centerPanel=true;frame();frame();
+        CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-optimization-narrow.png").c_str()));
+        io.DisplaySize={800,600};r.centerPanel=true;frame();frame();
+    }
+    r.settings.language=Language::English;
     r.editorPage=0;frame();
     activate(child(),"aa-settings");CHECK(r.editorPage==3);
     // Post-AA combo uses an animated chevron and leaves hardware MSAA independent.

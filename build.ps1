@@ -46,7 +46,7 @@ if ($LASTEXITCODE) { throw 'SFX shader compilation failed' }
 & '.\build\shaderc.exe' 'shaders/smaa.hlsl' 'src/generated/smaa_shaders.hpp' 'smaa'
 if ($LASTEXITCODE) { throw 'SMAA shader compilation failed' }
 $imgui='vendor/imgui-1.92.9b'
-$sources=@('src/exports.cpp','src/generated/exports.cpp','src/proxy.cpp','src/generated/proxies.cpp','src/settings.cpp','src/runtime.cpp','src/effects.cpp','src/water.cpp','src/scene_fx.cpp','src/fps_limiter.cpp','src/environment.cpp','src/ui.cpp','src/updater.cpp',
+$sources=@('src/exports.cpp','src/generated/exports.cpp','src/proxy.cpp','src/generated/proxies.cpp','src/settings.cpp','src/runtime.cpp','src/effects.cpp','src/water.cpp','src/scene_fx.cpp','src/fps_limiter.cpp','src/environment.cpp','src/optimization.cpp','src/ui.cpp','src/updater.cpp',
     "$imgui/imgui.cpp","$imgui/imgui_draw.cpp","$imgui/imgui_tables.cpp","$imgui/imgui_widgets.cpp","$imgui/backends/imgui_impl_win32.cpp","$imgui/backends/imgui_impl_dx9.cpp")
 $options=@('-std=c++20','-Os','-static','-shared','-fno-rtti','-ffunction-sections','-fdata-sections','-DIMGUI_DISABLE_DEMO_WINDOWS','-DIMGUI_DISABLE_DEBUG_TOOLS','-DIMGUI_IMPL_WIN32_DISABLE_GAMEPAD','-DIMGUI_USE_BGRA_PACKED_COLOR',"-I$imgui",'-Isrc','-Wall','-Wextra','-Wno-unused-parameter')
 $options+=$nativeAsmOptions
@@ -62,6 +62,16 @@ if ($Tests) {
     if($LASTEXITCODE){throw 'Resource lookup cache test build failed'}
     & './build/resource-cache-test.exe'
     if($LASTEXITCODE){throw 'Resource lookup cache test failed'}
+    & $cxx '-std=c++20' '-O2' '-static' '-Isrc' 'tests/optimization_test.cpp' '-o' 'build/optimization-test.exe'
+    if($LASTEXITCODE){throw 'Optimization test build failed'}
+    & './build/optimization-test.exe'
+    if($LASTEXITCODE){throw 'Optimization test failed'}
+    if($NativeTestImage) {
+        & $cxx '-std=c++20' '-O2' '-static' '-municode' '-Isrc' 'tests/optimization_binding_test.cpp' '-o' 'build/optimization-binding-test.exe'
+        if($LASTEXITCODE){throw 'Optimization binding test build failed'}
+        & './build/optimization-binding-test.exe' $NativeTestImage
+        if($LASTEXITCODE){throw 'Optimization binding test failed'}
+    }
     $nativeTests=@('native_animation','native_camera','native_world','native_mover','native_mover_legacy',
         'native_mover_services','native_app','native_sfx_follow','native_sfx_time','native_layer_time','native_background','native_hybrid','native_binding',
         'presentation_clock','camera_current','visual_animation','visual_restore')
@@ -176,7 +186,7 @@ if ($Tests) {
         if($LASTEXITCODE){throw 'Probe test failed'}
     }
     $runtimeOptions=@($options | Where-Object { $_ -ne '-shared' }) + @('-lwinmm','-DFENB_UPDATER_OFFLINE_TESTS')
-    $runtimeSources=@('tests/runtime_test.cpp','src/settings.cpp','src/runtime.cpp','src/effects.cpp','src/water.cpp','src/scene_fx.cpp','src/fps_limiter.cpp','src/environment.cpp','src/ui.cpp','src/updater.cpp',
+    $runtimeSources=@('tests/runtime_test.cpp','src/settings.cpp','src/runtime.cpp','src/effects.cpp','src/water.cpp','src/scene_fx.cpp','src/fps_limiter.cpp','src/environment.cpp','src/optimization.cpp','src/ui.cpp','src/updater.cpp',
         "$imgui/imgui.cpp","$imgui/imgui_draw.cpp","$imgui/imgui_tables.cpp","$imgui/imgui_widgets.cpp","$imgui/backends/imgui_impl_win32.cpp","$imgui/backends/imgui_impl_dx9.cpp")
     if($Diagnostics){$runtimeSources+='src/pipeline_probe.cpp'}
     & $cxx @runtimeOptions @runtimeSources '-ld3d9' '-ldxguid' '-lcomctl32' '-ldwmapi' '-lgdi32' '-limm32' '-lbcrypt' '-o' 'build/runtime-test.exe'

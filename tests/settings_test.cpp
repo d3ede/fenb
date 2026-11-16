@@ -33,6 +33,19 @@ int main() {
     }
     Settings s;
     {
+        Settings opt;
+        CHECK(!opt.limitShopSigns&&opt.shopSignDistance==40);
+        opt.limitShopSigns=true;opt.shopSignDistance=25;opt.language=Language::Portuguese;
+        for(int i=0;i<BuiltInPresetCount;++i){opt.preset(i);CHECK(opt.limitShopSigns&&opt.shopSignDistance==25&&opt.language==Language::Portuguese);}
+        CHECK(opt.save(L"build/optimization-settings.ini"));
+        Settings restored;CHECK(restored.load(L"build/optimization-settings.ini"));
+        CHECK(restored==opt);
+        opt.shopSignDistance=std::numeric_limits<float>::quiet_NaN();opt.sanitize();CHECK(opt.shopSignDistance==40);
+        opt.shopSignDistance=200;opt.sanitize();CHECK(opt.shopSignDistance==100);
+        opt.shopSignDistance=-5;opt.sanitize();CHECK(opt.shopSignDistance==5);
+        DeleteFileW(L"build/optimization-settings.ini");
+    }
+    {
         Settings sharp;
         CHECK(!sharp.sharpening && sharp.sharpeningStrength == .45f);
         sharp.bloom = sharp.color = false;

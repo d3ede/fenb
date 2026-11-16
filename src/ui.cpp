@@ -598,6 +598,44 @@ void WaterReflectionControls(Runtime &runtime) {
         ImGui::EndDisabled();
     }
 }
+void OptimizationControls(Runtime &runtime) {
+    auto &s=runtime.settings;
+    ImGui::PushFont(nullptr,13);
+    ImGui::PushTextWrapPos(0);
+    ImGui::TextDisabled("%s",Tr(UiText::OptimizationHelp));
+    ImGui::PopTextWrapPos();ImGui::PopFont();ImGui::Dummy({0,6});
+    auto toggle=[&](const char *id,const char *label,bool &value,const char *help=nullptr,bool supported=true) {
+        auto p=ImGui::GetCursorScreenPos();const float width=ImGui::GetContentRegionAvail().x;
+        TextAt(ImGui::GetWindowDrawList(),{p.x+12,p.y+5},label,Text,13);
+        ImGui::SetCursorScreenPos({p.x+width-38,p.y+2});
+        ImGui::BeginDisabled(!supported&&!value);SquareSwitch(id,value);
+        if(help)Tip(help,ImGuiHoveredFlags_AllowWhenDisabled);
+        ImGui::EndDisabled();ImGui::SetCursorScreenPos(p);ImGui::Dummy({width,RowHeight});
+    };
+    const bool supported=runtime.shopOptimizationSupported();
+    toggle("limit-shop-signs",Tr(UiText::ShopSigns),s.limitShopSigns,
+           Tr(supported?UiText::ShopSignHelp:UiText::UnsupportedClient),supported);
+    ImGui::BeginDisabled(!supported||!s.limitShopSigns);
+    Row(UiText::ShopSignDistance,Tr(UiText::ShopSignHelp),s.shopSignDistance,5,100,40,"%.0f",5,false,"shop-sign-distance");
+    ImGui::EndDisabled();ImGui::Dummy({0,8});
+    {
+        const auto p=ImGui::GetCursorScreenPos();const float width=ImGui::GetContentRegionAvail().x;
+        ImGui::GetWindowDrawList()->AddRectFilled(p,{p.x+width,p.y+30},Raised,2);
+        TextAt(ImGui::GetWindowDrawList(),{p.x+12,p.y+8},Tr(UiText::CostlyEffects),Text,13,uiEmphasis);
+        ImGui::Dummy({width,34});
+        // These are the original effect settings, not a second preset or master.
+        ImGui::BeginDisabled(!s.enabled);
+        toggle("optimization-water","WaterFX",s.water);
+        toggle("optimization-surfaces",Tr(UiText::SurfaceReflections),s.surfaceReflections,Tr(UiText::SurfaceStrengthHelp));
+        toggle("optimization-ssao","SSAO",s.ssao,Tr(UiText::AOStrengthHelp));
+        toggle("optimization-rays",Tr(UiText::SunRays),s.sunRays,Tr(UiText::RayStrengthHelp));
+        toggle("optimization-dof",Tr(UiText::DepthOfField),s.dof);
+        toggle("optimization-local",Tr(UiText::LocalLighting),s.localLighting);
+        toggle("optimization-particles",Tr(UiText::SpellEffects),s.sfx,Tr(UiText::SfxIntensityHelp));
+        toggle("optimization-bloom","Bloom",s.bloom);
+        ImGui::EndDisabled();
+    }
+}
 void SceneControls(Runtime &runtime) {
     auto &s = runtime.settings;
     auto status = runtime.sceneStatus();
@@ -980,7 +1018,7 @@ void DrawPanel(Runtime &r, const PanelBranding &branding) {
         const float w = ImGui::CalcTextSize(label).x+20;
         ImGui::SetCursorPos({tabX,7});
         if (ImGui::InvisibleButton(i ? "world-tab" : "image-tab",{w,32},ImGuiButtonFlags_EnableNav)) r.editorPage=i?4:0;
-        const bool selected = i ? r.editorPage==4 : r.editorPage<4 || r.editorPage==6;
+        const bool selected = i ? r.editorPage==4 : r.editorPage<4 || r.editorPage==6 || r.editorPage==7;
         if (ImGui::IsItemHovered()) d->AddRectFilled({origin.x+tabX,origin.y+7},{origin.x+tabX+w,origin.y+39},Raised,2);
         TextAt(d,{origin.x+tabX+10,origin.y+15},label,selected?Lavender:Muted,13);
         if(selected) d->AddRectFilled({origin.x+tabX+10,origin.y+37},{origin.x+tabX+w-10,origin.y+39},Accent,1);
@@ -1105,6 +1143,11 @@ void DrawPanel(Runtime &r, const PanelBranding &branding) {
         SquareSwitch("waterMain", s.water);
         ImGui::SetCursorScreenPos(waterPos);
         ImGui::Dummy({waterWidth, 30});
+        const auto optimizationPos=ImGui::GetCursorScreenPos();
+        navDraw->AddLine(optimizationPos,{optimizationPos.x+waterWidth,optimizationPos.y},Line);
+        if(ImGui::InvisibleButton("optimization-settings",{waterWidth,30},ImGuiButtonFlags_EnableNav))r.editorPage=7;
+        TextAt(navDraw,{optimizationPos.x+12,optimizationPos.y+7},Tr(UiText::Optimization),Text,13,uiEmphasis);
+        NavigationArrow(navDraw,optimizationPos,waterWidth,ImGui::IsItemHovered()?Text:Muted);
         ImGui::Dummy({0, 2});
         bool expanded = Section("grade", Tr(UiText::ColorCorrection), s.color, reset, true, false);
         if (reset)
@@ -1261,6 +1304,10 @@ void DrawPanel(Runtime &r, const PanelBranding &branding) {
             r.editorPage = 0;
         ImGui::Dummy({0, 8});
         AntialiasControls(r);
+    }
+    if(r.editorPage==7) {
+        if(ImGui::Button(Label(UiText::BackButton).c_str()))r.editorPage=0;
+        ImGui::Dummy({0,8});OptimizationControls(r);
     }
     if (r.editorPage == 4)
         EnvironmentControls(r);

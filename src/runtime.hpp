@@ -2,6 +2,7 @@
 #include "settings.hpp"
 #include "fps_limiter.hpp"
 #include "environment.hpp"
+#include "optimization.hpp"
 #include "draw_call.hpp"
 #include "depth_policy.hpp"
 #include "presentation_reload.hpp"
@@ -113,6 +114,7 @@ class Runtime {
     bool pendingSave() const {
         return dirty_;
     }
+    bool shopOptimizationSupported() { return optimization_.supported(); }
 
   private:
     static LRESULT CALLBACK WindowProc(HWND, UINT, WPARAM, LPARAM, UINT_PTR, DWORD_PTR);
@@ -129,6 +131,7 @@ class Runtime {
     std::unique_ptr<SfxFX> sfx_;
     FpsLimiter fpsLimiter_;
     Environment environment_;
+    Optimization optimization_;
     PresentationReload presentation_;
 #ifdef FENB_DIAGNOSTICS
     std::unique_ptr<PipelineProbe> probe_;

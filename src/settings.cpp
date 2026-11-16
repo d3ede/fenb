@@ -80,6 +80,7 @@ void Settings::sanitize() {
     range(timeMinutes, 0, 1439, 720);
     timeMinutes = std::round(timeMinutes);
     range(weatherIntensity, 0, 100, 100);
+    range(shopSignDistance,5,100,40);
     weatherType = std::clamp(weatherType, 0, 2);
     range(threshold, 0, 1, .72f);
     range(knee, .001f, .5f, .15f);
@@ -169,6 +170,8 @@ bool Settings::load(const std::wstring &path) {
         READ_BOOL("enabled", enabled)
         READ_BOOL("unlock_fps", unlockFps)
         READ_BOOL("background_activity", backgroundActivity)
+        READ_BOOL("limit_shop_signs", limitShopSigns)
+        READ_FLOAT("shop_sign_distance", shopSignDistance)
         READ_BOOL("custom_cursor", customCursor)
         READ_BOOL("interface_motion", interfaceMotion)
         READ_BOOL("precise_water_depth", preciseWaterDepth)
@@ -270,6 +273,7 @@ bool Settings::save(const std::wstring &path) const {
                 waterReflectionMethod,waterReflectionResolution,waterRaySteps,waterRefinementSteps,
                 waterTraceDistance,waterTraceBias,waterTraceThickness,waterReflectionConfidence,waterSoftFallback)<0)
         ok=false;
+    if(fprintf(file,"\n[Optimization]\nlimit_shop_signs=%d\nshop_sign_distance=%.6f\n",limitShopSigns,shopSignDistance)<0)ok=false;
     if (fprintf(file, "\n[Interface]\ncustom_cursor=%d\ninterface_motion=%d\n",
                 customCursor, interfaceMotion) < 0)
         ok = false;
@@ -304,6 +308,7 @@ bool Settings::save(const std::wstring &path) const {
 void Settings::preserveControls(const Settings &source) {
 #define KEEP(member) member = source.member;
     KEEP(enabled) KEEP(customCursor) KEEP(interfaceMotion)
+    KEEP(limitShopSigns) KEEP(shopSignDistance)
     KEEP(openOnStart) KEEP(unlockFps) KEEP(backgroundActivity) KEEP(preciseWaterDepth) KEEP(msaaSamples) KEEP(panelPage) KEEP(language)
         KEEP(timeOverride) KEEP(timeMinutes) KEEP(freezeTime) KEEP(weatherOverride) KEEP(weatherType)
             KEEP(weatherIntensity)
