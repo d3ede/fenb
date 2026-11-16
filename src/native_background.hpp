@@ -129,14 +129,26 @@ inline bool replaceImport(native_binding::Image &scan,DWORD reference,DWORD impo
 inline bool install() {
     if(installed)return true;
     native_binding::Image scan(native_patch::image());
-    if(!scan.bytes(0xeba92,"80 BE A1 00 00 00 00 8D 44 24 0C 74 0D") ||
+    // The shipped client inlines the framework Run loop in WinMain. Its three
+    // call sites are distinct from the otherwise equivalent member-function
+    // loop below; guarding/patching only that member leaves the real loop native.
+    if(!scan.bytes(0xe2f40,"80 3D ?? ?? ?? ?? 00 8D 44 24 14 74 0D") ||
+       !scan.bytes(0xe2f61,"FF 15 ?? ?? ?? ?? 85 C0 0F 95 C0 84 C0") ||
+       !scan.bytes(0xe2fa6,"80 3D ?? ?? ?? ?? 00 74 08 6A 64") ||
+       !scan.bytes(0xe2fb1,"FF 15 ?? ?? ?? ?? 80 3D ?? ?? ?? ?? 00") ||
+       !scan.bytes(0xe2fc0,"B9 ?? ?? ?? ?? E8") ||
+       !scan.bytes(0xeba92,"80 BE A1 00 00 00 00 8D 44 24 0C 74 0D") ||
        !scan.bytes(0xebab3,"FF 15 ?? ?? ?? ?? 85 C0 0F 95 C0 84 C0") ||
        !scan.bytes(0xebb04,"FF 15 ?? ?? ?? ?? 80 BE A1 00 00 00 00") ||
        !scan.bytes(0xebe20,"55 8B EC 83 EC 14 53 56 57 8B F1 E8") ||
        !scan.bytes(0xebe54,"80 BE A2 00 00 00 00 0F 84") ||
        !scan.bytes(0xec118,"8B 06 8B CE F3 0F 10 45 FC F3 0F 11 86 C0 00 00 00") ||
        !scan.bytes(0xec250,"83 3D ?? ?? ?? ?? 00 57 8B F9") ||
-       !scan.calls(0xebb15,0xebe20) || !scan.calls(0xec186,0xec250))return false;
+       !scan.calls(0xe2fc5,0xebe20) || !scan.calls(0xebb15,0xebe20) ||
+       !scan.calls(0xec186,0xec250))return false;
+    const DWORD entryApplication=scan.value(0xe2fc0,1);
+    if(scan.value(0xe2f40,2)!=entryApplication+0xa1 ||
+       scan.value(0xe2fa6,2)!=entryApplication+0xa2)return false;
     originalEnvironment=reinterpret_cast<Environment>(scan.address(0xebe20));
     originalCanRender=reinterpret_cast<CanRender>(scan.address(0xec250));
     playerSlot=reinterpret_cast<void **>(scan.address(0x842168));if(!playerSlot)return false;
@@ -149,8 +161,12 @@ inline bool install() {
     originalAsyncKey=reinterpret_cast<KeyState>(*asyncKey);originalKey=reinterpret_cast<KeyState>(*key);
     originalKeyboard=reinterpret_cast<KeyboardState>(*keyboard);
     patches.clear();
+    const unsigned char entryEnvironmentCall[5]={0xe8,0x56,0x8e,0,0};
     const unsigned char environmentCall[5]={0xe8,6,3,0,0},renderCall[5]={0xe8,0xc5,0,0,0};
-    if(!replaceImport(scan,0xebab3,0x6d87e4,reinterpret_cast<void *>(&getMessageHook)) ||
+    if(!replaceImport(scan,0xe2f61,0x6d87e4,reinterpret_cast<void *>(&getMessageHook)) ||
+       !replaceImport(scan,0xe2fb1,0x6d8368,reinterpret_cast<void *>(&sleepHook)) ||
+       !patches.call(scan.address(0xe2fc5),entryEnvironmentCall,reinterpret_cast<void *>(&environmentHook)) ||
+       !replaceImport(scan,0xebab3,0x6d87e4,reinterpret_cast<void *>(&getMessageHook)) ||
        !replaceImport(scan,0xebb04,0x6d8368,reinterpret_cast<void *>(&sleepHook)) ||
        !patches.call(scan.address(0xebb15),environmentCall,reinterpret_cast<void *>(&environmentHook)) ||
        !patches.call(scan.address(0xec186),renderCall,reinterpret_cast<void *>(&canRenderHook)) ||
@@ -164,7 +180,7 @@ inline bool install() {
     if(!timer)timer=CreateWaitableTimerExW(nullptr,nullptr,0,TIMER_MODIFY_STATE|SYNCHRONIZE);
     std::atomic_store(&wakeTimer,timer?std::make_shared<WakeTimer>(timer):std::shared_ptr<WakeTimer>{});
     resetSchedule();installed=true;
-    Log("Native background loop: full native frame lifecycle, deadline-based message wait and lost-device CPU updates installed.");return true;
+    Log("Native background loop: WinMain and framework loops connected; native render throttle bypass, deadline message wait and lost-device CPU updates installed.");return true;
 }
 inline void uninstall() {
     installed=false;patches.clear();application=nullptr;move=nullptr;ready=nullptr;playerSlot=nullptr;thread=0;

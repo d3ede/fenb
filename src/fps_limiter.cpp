@@ -239,7 +239,7 @@ void FpsLimiter::update(bool unlock,bool background) {
         if(!ReplaceMove(b,b.originalMove,hook))return;
         hookedState.store(&s);s.thread=0;
     }
-    // Restore the four main-loop sites before changing the hybrid ABI patches.
+    // Restore both main-loop variants before changing the hybrid ABI patches.
     if(changed)native_background::uninstall();
     if(unlock!=active_) {
         if(unlock) {

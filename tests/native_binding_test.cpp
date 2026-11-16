@@ -60,6 +60,26 @@ bool identical(const std::vector<Region> &before) {
     return ok;
 }
 struct Adapter { const char *name;bool (*install)();void (*uninstall)(); };
+bool backgroundEntrypointsInstalled() {
+    const auto callsHook=[](DWORD reference,void *hook,bool imported=false) {
+        const auto *site=native_binding::cached.address(reference);
+        if(!site || site[0]!=0xe8 || (imported && site[5]!=0x90))return false;
+        int32_t displacement=0;std::memcpy(&displacement,site+1,4);
+        return uintptr_t(site)+5+displacement==reinterpret_cast<uintptr_t>(hook);
+    };
+    // WinMain has an inlined copy of Run. Both copies must reach the same
+    // opt-in lifecycle; testing only the unused member loop missed the live cap.
+    const bool connected=
+        callsHook(0xe2f61,reinterpret_cast<void *>(&native_background::getMessageHook),true) &&
+        callsHook(0xebab3,reinterpret_cast<void *>(&native_background::getMessageHook),true) &&
+        callsHook(0xe2fb1,reinterpret_cast<void *>(&native_background::sleepHook),true) &&
+        callsHook(0xebb04,reinterpret_cast<void *>(&native_background::sleepHook),true) &&
+        callsHook(0xe2fc5,reinterpret_cast<void *>(&native_background::environmentHook)) &&
+        callsHook(0xebb15,reinterpret_cast<void *>(&native_background::environmentHook)) &&
+        callsHook(0xec186,reinterpret_cast<void *>(&native_background::canRenderHook));
+    std::printf("Background WinMain and framework entrypoints connected: %d\n",connected);
+    return connected;
+}
 bool materializeWritablePages(HMODULE image) {
     auto *base=reinterpret_cast<unsigned char *>(image);
     auto *dos=reinterpret_cast<IMAGE_DOS_HEADER *>(base);
@@ -105,6 +125,9 @@ bool rejectionAndMutableData(HMODULE image) {
     const auto terrainCloudStore=native_binding::cached.rva(0x2f8d94)+4;
     const auto messageImport=native_binding::cached.rva(0xebab3)+2;
     const auto renderPermission=native_binding::cached.rva(0xec186)+1;
+    const auto entryMessage=native_binding::cached.rva(0xe2f61)+2;
+    const auto entrySleep=native_binding::cached.rva(0xe2fb1)+2;
+    const auto entryEnvironment=native_binding::cached.rva(0xe2fc5)+1;
     const auto descriptor=native_binding::cached.rva(0x83760c)+8;
     // A wrong callee must fail even when the CALL opcode and register ABI match.
     if(!rejectMutation(image,call,"action CALL target") || !rejectMutation(image,code,"animation instruction") ||
@@ -116,7 +139,10 @@ bool rejectionAndMutableData(HMODULE image) {
        !rejectMutation(image,cloudStore,"cloud-layer offset store") ||
        !rejectMutation(image,terrainCloudStore,"terrain cloud-layer offset store") ||
        !rejectMutation(image,messageImport,"inactive GetMessage import") ||
-       !rejectMutation(image,renderPermission,"background render-permission CALL target"))return false;
+       !rejectMutation(image,renderPermission,"background render-permission CALL target") ||
+       !rejectMutation(image,entryMessage,"WinMain inactive GetMessage import") ||
+       !rejectMutation(image,entrySleep,"WinMain lost-device Sleep import") ||
+       !rejectMutation(image,entryEnvironment,"WinMain environment CALL target"))return false;
     // A live player's pointer is mutable gameplay state, not an ABI signature.
     auto **slot=reinterpret_cast<void **>(native_binding::cached.address(0x842168));
     DWORD protection=0,ignored=0;
@@ -209,6 +235,7 @@ int wmain(int argc,wchar_t **argv) {
         for(auto &adapter:adapters) {
             const bool success=adapter.install();std::printf("Cycle %d: %s %s\n",cycle+1,adapter.name,success ? "installed" : "REJECTED");
             if(!success) { adapter.uninstall();ok=false;break; }++installed;
+            if(adapter.install==&native_background::install && !backgroundEntrypointsInstalled()) { ok=false;break; }
             if(!previewFlowPreserved()) { std::fprintf(stderr,"Native preview branch/comparison was overwritten\n");ok=false;break; }
         }
         while(installed) adapters[--installed].uninstall();
