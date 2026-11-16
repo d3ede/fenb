@@ -102,6 +102,7 @@ bool rejectionAndMutableData(HMODULE image) {
     const auto effectCall=native_binding::cached.rva(0x35ec9d)+1;
     const auto ownedEffectCall=native_binding::cached.rva(0x33763f)+1;
     const auto cloudStore=native_binding::cached.rva(0x3897ef)+4;
+    const auto terrainCloudStore=native_binding::cached.rva(0x2f8d94)+4;
     const auto messageImport=native_binding::cached.rva(0xebab3)+2;
     const auto renderPermission=native_binding::cached.rva(0xec186)+1;
     const auto descriptor=native_binding::cached.rva(0x83760c)+8;
@@ -113,6 +114,7 @@ bool rejectionAndMutableData(HMODULE image) {
        !rejectMutation(image,effectCall,"render-driven SFX CALL target") ||
        !rejectMutation(image,ownedEffectCall,"RTTI-owned SFX CALL target") ||
        !rejectMutation(image,cloudStore,"cloud-layer offset store") ||
+       !rejectMutation(image,terrainCloudStore,"terrain cloud-layer offset store") ||
        !rejectMutation(image,messageImport,"inactive GetMessage import") ||
        !rejectMutation(image,renderPermission,"background render-permission CALL target"))return false;
     // A live player's pointer is mutable gameplay state, not an ABI signature.
