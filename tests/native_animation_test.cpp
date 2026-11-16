@@ -108,6 +108,22 @@ void testNativeCompletion() {
         assert(field<float>(m.data,0xa0)==19);
     }
 }
+void testBaseModelPhases() {
+    for(int fps:{30,60,144,240,500,1000}) {
+        Model m;field<int>(m.data,0xa8)=1000;
+        field<Attribute *>(m.motion,4)=nullptr;
+        field<WORD>(m.data,0x150)=77;
+        for(int i=0;i<fps;++i) {
+            hybrid_time::frame.ticks=62.5f/float(fps);
+            baseMoveHook(m.data,nullptr,nullptr,1,0);
+        }
+        assert(std::fabs(field<float>(m.data,0xa0)-31.25f)<.001f);
+        assert(field<WORD>(m.data,0x150)==77 && sounds.empty() && quakes==0);
+    }
+    Model m;originalBaseMove=reinterpret_cast<Move>(&fallback);
+    hybrid_time::frame.stage=hybrid_time::Stage::Legacy;
+    baseMoveHook(m.data,nullptr,nullptr,1,0);assert(fallbackCalls==1);
+}
 void testIntervals() {
     Model m;m.attr[1].flags=3;m.attr[2].flags=7;m.attr[3].flags=2;
     field<float>(m.data,0xa4)=.5f;field<float>(m.data,0xa0)=3.5f;
@@ -205,7 +221,7 @@ void testBoneRefresh() {
 }
 }
 int main() {
-    testCrossRate();testNativeCompletion();testIntervals();testCountersAndLegacy();testStaticModelAndClips();testBoneRefresh();
+    testCrossRate();testNativeCompletion();testBaseModelPhases();testIntervals();testCountersAndLegacy();testStaticModelAndClips();testBoneRefresh();
     native_animation::enabled=false;
     assert(!native_animation::install()); // unsupported test EXE must fail closed
     puts("Native animation: float phases, interval events, legacy counters and cached event-free bone sampler ABI passed.");

@@ -99,12 +99,18 @@ bool rejectionAndMutableData(HMODULE image) {
     const auto call=native_binding::cached.rva(0x309ad8)+1;
     const auto repeatCall=native_binding::cached.rva(0x140982)+1;
     const auto completion=native_binding::cached.rva(0x35d8f0)+7;
+    const auto effectCall=native_binding::cached.rva(0x35ec9d)+1;
+    const auto ownedEffectCall=native_binding::cached.rva(0x33763f)+1;
+    const auto cloudStore=native_binding::cached.rva(0x3897ef)+4;
     const auto descriptor=native_binding::cached.rva(0x83760c)+8;
     // A wrong callee must fail even when the CALL opcode and register ABI match.
     if(!rejectMutation(image,call,"action CALL target") || !rejectMutation(image,code,"animation instruction") ||
        !rejectMutation(image,descriptor,"SFX RTTI identity") ||
        !rejectMutation(image,repeatCall,"auto-attack request CALL target") ||
-       !rejectMutation(image,completion,"animation completion instruction"))return false;
+       !rejectMutation(image,completion,"animation completion instruction") ||
+       !rejectMutation(image,effectCall,"render-driven SFX CALL target") ||
+       !rejectMutation(image,ownedEffectCall,"RTTI-owned SFX CALL target") ||
+       !rejectMutation(image,cloudStore,"cloud-layer offset store"))return false;
     // A live player's pointer is mutable gameplay state, not an ABI signature.
     auto **slot=reinterpret_cast<void **>(native_binding::cached.address(0x842168));
     DWORD protection=0,ignored=0;
@@ -181,6 +187,8 @@ int wmain(int argc,wchar_t **argv) {
         {"mover",&native_mover::install,&native_mover::uninstall},
         {"mover legacy",&native_mover_legacy::install,&native_mover_legacy::uninstall},
         {"mover services",&native_mover_services::install,&native_mover_services::uninstall},
+        {"SFX timing",&native_sfx_time::install,&native_sfx_time::uninstall},
+        {"cloud-layer timing",&native_layer_time::install,&native_layer_time::uninstall},
         {"world",&native_world::install,&native_world::uninstall},
         {"camera",&native_camera::install,&native_camera::uninstall},
         {"application",&native_app::install,&native_app::uninstall},

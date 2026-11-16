@@ -1,6 +1,7 @@
 #pragma once
 #include "common.hpp"
 #include "native_binding.hpp"
+#include "native_sfx_time.hpp"
 #include "native_patch.hpp"
 #include "hybrid_time.hpp"
 #include "visual_transform.hpp"
@@ -245,7 +246,7 @@ inline BOOL __fastcall effectHook(void *model,void *) {
     if(!worldStage()) return originalEffect(model);
     const unsigned count=hybrid_time::frame.legacy;
     hybrid_time::Scope legacy(hybrid_time::Stage::Legacy,1.f,1);
-    for(unsigned i=0;i<count;++i) if(originalEffect(model)) field<WORD>(model,0x150)=0;
+    for(unsigned i=0;i<count;++i) if(native_sfx_time::installed ? native_sfx_time::processHook(model,nullptr) : originalEffect(model)) field<WORD>(model,0x150)=0;
     return FALSE; // The loop has already performed the native end-of-cycle reset.
 }
 

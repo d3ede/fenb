@@ -26,6 +26,8 @@ struct Attributes { Attribute *data=nullptr;int maximum=0;bool motion=false; };
 inline bool enabled=false;
 inline void **table=nullptr;
 inline Move originalMove=nullptr;
+inline Move originalBaseMove=nullptr;
+inline native_binding::Set basePatches;
 inline Destroy originalDestroy=nullptr;
 inline Query originalHit=nullptr,originalSound=nullptr,originalQuake=nullptr;
 inline QueryAt originalHitAt=nullptr,originalSoundAt=nullptr,originalQuakeAt=nullptr;
@@ -212,6 +214,10 @@ inline void __fastcall moveHook(void *p,void *,void *soundPosition,float speed,i
     const float delta=ticks();
     advancePhase(p,speed,delta);advanceTrails(p);advanceBlend(p,delta);
 }
+inline void __fastcall baseMoveHook(void *p,void *,void *unused,float speed,int extra) {
+    if(!active()) { originalBaseMove(p,unused,speed,extra);return; }
+    advancePhase(p,speed,ticks());
+}
 inline void nativeSound(int sound,void *position) {
     // The optimized client entry reads ECX=sound, EDX=position and returns with RET.
     using Play=int(__fastcall *)(int,void *);
@@ -244,6 +250,15 @@ inline bool install() {
        !scan.bytes(0x3697d0,"55 8B EC 83 EC 20 53 56 57 8B F9 33 DB 33 C9") ||
        !scan.bytes(0x35ab60,"55 8B EC 81 EC 04 01 00 00 A1 ?? ?? ?? ?? 33 C5 89 45 FC")) return false;
     auto candidate=reinterpret_cast<void **>(scan.address(0x7b7f70));
+    const DWORD baseTables[]={0x7b7474,0x7b73f4},baseTypes[]={0x837fd4,0x837fbc};
+    basePatches.clear();originalBaseMove=reinterpret_cast<Move>(scan.address(0x35d870));
+    for(size_t i=0;i<std::size(baseTables);++i) {
+        auto baseTable=reinterpret_cast<void **>(scan.address(baseTables[i]));
+        auto locator=baseTable ? baseTable[-1] : nullptr;
+        if(!baseTable || !locator || field<void *>(locator,12)!=scan.address(baseTypes[i]) ||
+           baseTable[21]!=scan.address(0x35d870) ||
+           !basePatches.pointer(baseTable+21,baseTable[21],reinterpret_cast<void *>(&baseMoveHook))) { basePatches.clear();return false; }
+    }
     const unsigned slots[]={0,9,10,11,12,13,14,21};
     const DWORD addresses[]={0x365f30,0x36ad10,0x36af00,0x36b080,0x36acd0,0x36ac90,0x36b000,0x368500};
     void *hooks[]={reinterpret_cast<void *>(&destroyHook),reinterpret_cast<void *>(&hitHook),reinterpret_cast<void *>(&hitAtHook),
@@ -256,9 +271,10 @@ inline bool install() {
     originalSoundAt=reinterpret_cast<QueryAt>(candidate[12]);originalQuake=reinterpret_cast<Query>(candidate[13]);
     originalQuakeAt=reinterpret_cast<QueryAt>(candidate[14]);originalMove=reinterpret_cast<Move>(candidate[21]);
     size_t installed=0;
+    if(!basePatches.apply()) { basePatches.clear();return false; }
     for(auto &patch:patches) {
         if(!replace(candidate+patch.slot,patch.native,patch.hook)) {
-            while(installed) { auto &undo=patches[--installed];replace(candidate+undo.slot,undo.hook,undo.native); }return false;
+            while(installed) { auto &undo=patches[--installed];replace(candidate+undo.slot,undo.hook,undo.native); }basePatches.clear();return false;
         }
         ++installed;
     }
@@ -271,6 +287,7 @@ inline bool install() {
 inline void reset() { std::lock_guard lock(boneMutex);boneCache.clear(); }
 inline void uninstall() {
     enabled=false;
+    basePatches.clear();originalBaseMove=nullptr;
     if(table) for(auto it=patches.rbegin();it!=patches.rend();++it) replace(table+it->slot,it->hook,it->native);
     table=nullptr;soundEntry=nullptr;playerSlot=cameraSlot=nullptr;boneEntry=nullptr;boneSampler=nullptr;reset();
 }

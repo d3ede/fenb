@@ -7,6 +7,7 @@
 #include "native_camera.hpp"
 #include "native_app.hpp"
 #include "native_sfx_follow.hpp"
+#include "native_layer_time.hpp"
 
 namespace native_hybrid {
 inline bool installed=false;
@@ -17,10 +18,14 @@ inline void reset() {
     clock.reset();hybrid_time::frame.active=false;hybrid_time::frame.stage=hybrid_time::Stage::Idle;
     native_animation::reset();native_mover::reset();native_mover_legacy::reset();native_camera::reset();
     native_world::alphaHistory.clear();native_sfx_follow::reset();native_app::hasReceived=false;
+    native_sfx_time::reset();
+    native_layer_time::reset();
 }
 inline void uninstall() {
     installed=false;hybrid_time::frame.active=false;
     native_app::uninstall();native_sfx_follow::uninstall();native_camera::uninstall();native_world::uninstall();
+    native_sfx_time::uninstall();
+    native_layer_time::uninstall();
     native_mover_services::uninstall();native_mover_legacy::uninstall();native_mover::uninstall();native_animation::uninstall();
     reset();
 }
@@ -32,6 +37,8 @@ inline bool install() {
     if(!native_mover::install()) { Log("Native hybrid unavailable: action ABI guard.");uninstall();return false; }
     if(!native_mover_legacy::install()) { Log("Native hybrid unavailable: legacy mover ABI guard.");uninstall();return false; }
     if(!native_mover_services::install()) { Log("Native hybrid unavailable: mover services ABI guard.");uninstall();return false; }
+    if(!native_sfx_time::install()) { Log("Native hybrid unavailable: SFX timing ABI guard.");uninstall();return false; }
+    if(!native_layer_time::install()) { Log("Native hybrid unavailable: cloud-layer timing ABI guard.");uninstall();return false; }
     if(!native_world::install()) { Log("Native hybrid unavailable: world ABI guard.");uninstall();return false; }
     if(!native_camera::install()) { Log("Native hybrid unavailable: camera/input ABI guard.");uninstall();return false; }
     if(!native_sfx_follow::install()) { Log("Native hybrid unavailable: SFX ABI guard.");uninstall();return false; }
@@ -61,6 +68,8 @@ template<class F> void continuousSubsteps(const hybrid_time::Frame &frame,F &&wo
 template<class Move,class Continue> HRESULT run(void *application,float *elapsed,int64_t now,int64_t frequency,Move move,Continue &&keepGoing) {
     hybrid_time::frame=clock.advance(now,frequency);
     hybrid_time::frame.thread=GetCurrentThreadId();
+    native_sfx_time::beginFrame(hybrid_time::frame);
+    native_layer_time::beginFrame(hybrid_time::frame);
     const auto epoch=generation;
     auto alive=[&]() { return installed && generation==epoch && keepGoing(); };
     const auto frame=hybrid_time::frame;

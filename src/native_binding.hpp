@@ -43,6 +43,7 @@ struct Binding {
                 if(!scan.bytes(p.anchor,s.probe))return false;
                 if(s.kind==Kind::Operand && scan.relative(scan.value(p.anchor+s.offset))!=p.rva)return false;
                 if(s.kind==Kind::Method && scan.relative(scan.value(points[s.source].rva+s.offset))!=p.rva)return false;
+                if(s.kind==Kind::Offset && (p.rva!=points[s.source].rva+s.offset || p.anchor!=p.rva))return false;
             }
         }
         for(const auto &check:catalog::checks) {
@@ -71,6 +72,11 @@ struct Binding {
         for(size_t i=0;i<points.size();++i) {
             const auto &s=catalog::specs[i];if(s.kind==Kind::Method) {
                 points[i].rva=scan.relative(scan.value(points[s.source].rva+s.offset));points[i].anchor=points[i].rva;
+            }
+        }
+        for(size_t i=0;i<points.size();++i) {
+            const auto &s=catalog::specs[i];if(s.kind==Kind::Offset) {
+                points[i].rva=points[s.source].rva+s.offset;points[i].anchor=points[i].rva;
             }
         }
         valid=true;valid=validate(scan);return valid;
