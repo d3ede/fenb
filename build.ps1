@@ -58,6 +58,10 @@ node tools/prepare-distribution.mjs $outputDirectory
 if ($LASTEXITCODE) { throw 'Distribution documentation generation failed' }
 Get-Item -LiteralPath "$outputDirectory/d3d9.dll" | Select-Object FullName,Length
 if ($Tests) {
+    & $cxx '-std=c++20' '-O2' '-static' '-Isrc' 'tests/resource_cache_test.cpp' '-o' 'build/resource-cache-test.exe'
+    if($LASTEXITCODE){throw 'Resource lookup cache test build failed'}
+    & './build/resource-cache-test.exe'
+    if($LASTEXITCODE){throw 'Resource lookup cache test failed'}
     $nativeTests=@('native_animation','native_camera','native_world','native_mover','native_mover_legacy',
         'native_mover_services','native_app','native_sfx_follow','native_sfx_time','native_layer_time','native_background','native_hybrid','native_binding',
         'presentation_clock','camera_current','visual_animation','visual_restore')

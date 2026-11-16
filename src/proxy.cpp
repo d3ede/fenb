@@ -1,9 +1,12 @@
 #include "proxy.hpp"
+#include "resource_lookup_cache.hpp"
 
 namespace {
 std::recursive_mutex registryMutex;
 std::unordered_map<IUnknown*, ProxyLife*> byReal;
 std::unordered_map<IUnknown*, ProxyLife*> byWrapper;
+std::atomic<uint64_t> registryGeneration{1};
+thread_local ResourceLookupCache<IUnknown*> resourceCache;
 }
 ProxyLife* MakeProxy(REFIID, void*, IUnknown*);
 
@@ -13,6 +16,7 @@ ProxyLife::ProxyLife(IUnknown* real, IUnknown* owner) : realBase_(real), owner_(
 void ProxyLife::registerSelf(IUnknown* self) {
     std::lock_guard lock(registryMutex);
     self_ = self; byReal[realBase_] = this; byWrapper[self] = this;
+    registryGeneration.fetch_add(1,std::memory_order_release);
 }
 ProxyLife::~ProxyLife() {
     // Renderer holds native COM resources. Tear it down BEFORE releasing the native device.
@@ -25,6 +29,7 @@ ULONG ProxyLife::release() {
     auto remaining = --refs_;
     if (remaining) return remaining;
     byReal.erase(realBase_); byWrapper.erase(self_);
+    registryGeneration.fetch_add(1,std::memory_order_release);
     lock.unlock();
     delete this;
     return 0;
@@ -38,9 +43,13 @@ HRESULT ProxyLife::query(REFIID iid, void** out) {
 }
 IUnknown* UnwrapUnknown(IUnknown* object) {
     if (!object) return nullptr;
+    IUnknown *real=nullptr;
+    if(resourceCache.find(object,registryGeneration.load(std::memory_order_acquire),real))return real;
     std::lock_guard lock(registryMutex);
     auto it = byWrapper.find(object);
-    return it == byWrapper.end() ? object : it->second->realBase_;
+    real=it == byWrapper.end() ? object : it->second->realBase_;
+    resourceCache.remember(object,registryGeneration.load(std::memory_order_relaxed),real);
+    return real;
 }
 Runtime* RuntimeFor(IUnknown* wrapper) {
     std::lock_guard lock(registryMutex);

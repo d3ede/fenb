@@ -127,6 +127,17 @@ int main(int argc,char** argv) {
     Com<IDirect3DSurface9> level;texture->GetSurfaceLevel(0,level.out());
     Com<IDirect3DTexture9> container;level->GetContainer(IID_IDirect3DTexture9,(void**)container.out());
     Check(container.p==texture.p,"surface GetContainer preserves identity");Drop(container.p);Drop(level.p);
+    bool bindingLifetime=true;
+    for(unsigned i=0;i<96;++i) {
+        Com<IDirect3DTexture9> transient;
+        if(FAILED(dev->CreateTexture(4,4,1,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,transient.out(),nullptr))) {bindingLifetime=false;break;}
+        for(unsigned j=0;j<8;++j)bindingLifetime&=SUCCEEDED(dev->SetTexture(0,transient));
+        Com<IDirect3DBaseTexture9> bound;
+        bindingLifetime&=SUCCEEDED(dev->GetTexture(0,bound.out())) && bound.p==transient.p;
+        bound.out();dev->SetTexture(0,nullptr);transient.out();
+        bindingLifetime&=SUCCEEDED(dev->SetTexture(0,texture));
+    }
+    Check(bindingLifetime,"cached bindings retain COM identity across resource destruction and recreation");
     Com<IDirect3DSurface9> bb;dev->GetBackBuffer(0,0,D3DBACKBUFFER_TYPE_MONO,bb.out());
     Com<IDirect3DSwapChain9> chain;dev->GetSwapChain(0,chain.out());
     Com<IDirect3DDevice9> chainDevice;chain->GetDevice(chainDevice.out());Check(chainDevice.p==dev.p,"swap-chain device identity");Drop(chainDevice.p);
