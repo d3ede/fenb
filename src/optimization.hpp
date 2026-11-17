@@ -8,5 +8,6 @@ class Optimization {
     bool effectsSupported();
     bool petEffectsSupported();
     bool actorVisibilitySupported();
+    float actorDistanceMaximum();
     void update(const Settings &);
 };

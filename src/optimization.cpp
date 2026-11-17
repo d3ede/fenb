@@ -152,7 +152,9 @@ struct ActorBinding {
     Compare compare=nullptr;
     void **data=nullptr,**player=nullptr;
     int *size=nullptr;
-    explicit operator bool() const { return sortCall&&sort&&compare&&data&&player&&size; }
+    const float *distances=nullptr;
+    explicit operator bool() const { return sortCall&&sort&&compare&&data&&player&&size&&distances; }
+    float maximum() const { return distances?*std::max_element(distances,distances+12):400.f; }
 };
 DWORD findInside(const client_detail::Image &scan,DWORD start,DWORD length,const char *pattern) {
     if(!start || !length || length>8192 || !scan.section(start,length,IMAGE_SCN_MEM_EXECUTE))return 0;
@@ -177,8 +179,14 @@ ActorBinding discoverActors(const EffectsBinding &effects) {
     const DWORD sort=findInside(scan,limit,512,"6A 04 FF 35 ?? ?? ?? ?? 68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B 35 ?? ?? ?? ?? 83 C4 10 33 D2 85 F6");
     const DWORD publish=sort?findInside(scan,sort+18,64,"8B 04 95 ?? ?? ?? ?? 8D 0C 95 ?? ?? ?? ?? 42 89 88 94 01 00 00 3B D6 7C E7"):0;
     const DWORD peaceful=scan.find("33 C0 83 B9 E8 06 00 00 01 0F 94 C0 C3 CC CC CC");
+    const DWORD distanceCheck=findInside(scan,render,8192,"D1 E9 83 E1 03 8D 04 81 0F 2F 04 85 ?? ?? ?? ?? 0F 86");
+    const DWORD distances=distanceCheck?scan.relative(scan.value(distanceCheck+12)):0;
     if(sort<render || sort-render>8192 || !limit || limit<render || limit>=sort || sort-limit>512 ||
-       !peaceful || !scan.bytes(sort-5,"68") || publish<=sort || publish-sort>64)return {};
+       !peaceful || !scan.bytes(sort-5,"68") || publish<=sort || publish-sort>64 ||
+       !distances || !scan.section(distances,12*sizeof(float),IMAGE_SCN_MEM_READ,IMAGE_SCN_MEM_EXECUTE))return {};
+    std::array<float,12> ranges{};
+    if(!scan.read(distances,ranges.data(),sizeof(ranges)) ||
+       std::any_of(ranges.begin(),ranges.end(),[](float value){return !std::isfinite(value)||value<1||value>1000;}))return {};
     const DWORD count=scan.relative(scan.value(sort+4)),data=scan.relative(scan.value(sort+9));
     const DWORD target=DWORD(sort+18+int32_t(scan.value(sort+14))),compare=scan.relative(scan.value(sort-4));
     if(!data || !count || !compare || scan.relative(scan.value(limit+2))!=count ||
@@ -190,7 +198,7 @@ ActorBinding discoverActors(const EffectsBinding &effects) {
        !scan.bytes(target,"8B FF 55 8B EC 81 EC 18 01 00 00 A1 ?? ?? ?? ?? 33 C5 89 45 FC 8B 45 08"))return {};
     return {base+sort+13,reinterpret_cast<Sort>(base+target),reinterpret_cast<Compare>(base+compare),
         reinterpret_cast<void **>(base+data),reinterpret_cast<void **>(native_binding::cached.address(0x842168)),
-        reinterpret_cast<int *>(base+count)};
+        reinterpret_cast<int *>(base+count),reinterpret_cast<const float *>(base+distances)};
 }
 struct Filter {
     Binding binding;
@@ -294,6 +302,7 @@ bool Optimization::supported() { return bool(optimization_detail::state().bindin
 bool Optimization::effectsSupported() { return bool(optimization_detail::state().effects); }
 bool Optimization::petEffectsSupported() { return optimization_detail::state().effects.owners(); }
 bool Optimization::actorVisibilitySupported() { return bool(optimization_detail::state().actors); }
+float Optimization::actorDistanceMaximum() { return optimization_detail::state().actors.maximum(); }
 void Optimization::update(const Settings &settings) {
     auto &s=optimization_detail::state();if(!s.binding&&!s.effects)return;
     std::lock_guard lock(s.mutex);

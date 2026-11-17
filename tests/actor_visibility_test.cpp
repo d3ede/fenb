@@ -16,6 +16,15 @@ BOOL __thiscall resolve(void *map,uint32_t id,void **out) {
 }
 int main() {
     using optimization_detail::field;
+    // The native/default sentinel is displayed only at the right edge. Left,
+    // arrows, numeric entry and reset all use the same monotonic scale.
+    assert(actor_visibility::displayDistance(0,400)==400);
+    assert(actor_visibility::displayDistance(1000,400)==400);
+    assert(actor_visibility::savedDistance(400,400)==0);
+    assert(actor_visibility::savedDistance(395,400)==395);
+    assert(actor_visibility::savedDistance(1,400)==1);
+    assert(actor_visibility::displayDistance(0,550)==550&&actor_visibility::savedDistance(550,550)==0);
+    for(float value:{1.f,5.f,50.f,125.f,395.f})assert(actor_visibility::savedDistance(actor_visibility::displayDistance(value,400),400)==value);
     for(auto &actor:actors){field<DWORD>(actor.data(),0x170)=5;field<DWORD>(actor.data(),0x6e8)=1;}
     field<int>(actors[0].data(),0x31c)=field<int>(actors[1].data(),0x31c)=1;
     field<DWORD>(actors[2].data(),0x18c)=2;field<DWORD>(actors[2].data(),0x6e8)=2;
@@ -53,7 +62,8 @@ int main() {
     auto &state=optimization_detail::state();const auto saved=state.actors;
     int count=7;unsigned char instruction=0;void *active=player;
     for(size_t i=0;i<7;++i)objects[i]=actors[i].data();
-    state.actors={&instruction,&sort,&compare,objects,&active,&count};
+    std::array<float,12> nativeRanges{};nativeRanges.fill(400);
+    state.actors={&instruction,&sort,&compare,objects,&active,&count,nativeRanges.data()};
     int flag=0;optimization_detail::EffectsBinding effects{{&instruction,&instruction},reinterpret_cast<optimization_detail::Render>(1),&flag,&flag,&instruction,&resolve,&mapToken};
     s=Settings{};s.renderPlayers=s.renderMonsters=s.renderPets=false;
     {optimization_detail::OwnerScope scope(effects,s,player,true);optimization_detail::actorSortHook(objects,7,4,&compare);}

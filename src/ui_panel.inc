@@ -629,9 +629,14 @@ void PanelParameters(Runtime &r, int item) {
         case 6: {
             PanelNote(Tr(item==4?UiText::VisiblePlayersHelp:item==5?UiText::VisibleMonstersHelp:UiText::VisiblePetsHelp));
             float &distance=item==4?s.playerDrawDistance:item==5?s.monsterDrawDistance:s.petDrawDistance;
+            const float maximum=r.actorDistanceMaximum();
+            float shown=actor_visibility::displayDistance(distance,maximum);
+            const float before=shown;
             const bool disabled=uiParameterDisabled;
             uiParameterDisabled|=!r.actorVisibilitySupported();
-            Row(UiText::ActorDrawDistance,Tr(UiText::ActorDrawDistanceHelp),distance,0,1000,0,"%.0f",5,false,"actor-draw-distance");
+            Row(UiText::ActorDrawDistance,Tr(UiText::ActorDrawDistanceHelp),shown,1,maximum,maximum,"%.0f",5,false,"actor-draw-distance",Tr(UiText::ActorDrawDistanceNative));
+            if(shown!=before || (r.actorVisibilitySupported()&&distance>=maximum))
+                distance=actor_visibility::savedDistance(shown,maximum);
             uiParameterDisabled=disabled;
             if(!r.actorVisibilitySupported())PanelNote(Tr(UiText::UnsupportedClient));
             break;

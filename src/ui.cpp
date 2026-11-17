@@ -1,5 +1,6 @@
 #include "imgui.h"
 #include "runtime.hpp"
+#include "actor_visibility.hpp"
 #include "version.hpp"
 #include "ui_branding.hpp"
 #include "ui_fonts.hpp"
@@ -204,7 +205,8 @@ float Snap(float value, float low, float high, float neutral, float step) {
     return std::abs(value - neutral) < step * .01f ? neutral : value;
 }
 void Row(UiText label, const char *help, float &value, float low, float high, float neutral,
-         const char *format = "%.2f", float step = .01f, bool clock = false, const char *stableId = nullptr) {
+         const char *format = "%.2f", float step = .01f, bool clock = false, const char *stableId = nullptr,
+         const char *maximumLabel = nullptr) {
     ImGui::BeginDisabled(uiParameterDisabled);
     if (stableId) ImGui::PushID(stableId); else ImGui::PushID(&value);
     const auto p = ImGui::GetCursorScreenPos();
@@ -242,7 +244,7 @@ void Row(UiText label, const char *help, float &value, float low, float high, fl
             if (std::sscanf(text, "%d:%d%c", &hours, &mins, &tail) == 2 && hours >= 0 && hours < 24 && mins >= 0 && mins < 60)
                 value = float(hours * 60 + mins);
         }
-    } else if (ImGui::InputFloat("##value", &value, 0, 0, format, ImGuiInputTextFlags_AutoSelectAll)) {
+    } else if (ImGui::InputFloat("##value", &value, 0, 0, maximumLabel&&value>=high?maximumLabel:format, ImGuiInputTextFlags_AutoSelectAll)) {
         value = std::isfinite(value) ? std::clamp(value, low, high) : neutral;
         if (std::abs(value - neutral) < step * .01f) value = neutral;
     }

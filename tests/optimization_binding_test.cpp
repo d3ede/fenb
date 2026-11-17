@@ -32,6 +32,8 @@ int wmain(int argc,wchar_t **argv) {
     if(!effects.owners()){puts("FAIL: pet effect-owner ABI discovery");return 6;}
     const auto actors=optimization_detail::discoverActors(effects);
     if(!actors){puts("FAIL: actor render-list ABI discovery");return 7;}
+    if(!std::isfinite(actors.maximum())||actors.maximum()<1||actors.maximum()>1000){puts("FAIL: native actor-distance maximum");return 8;}
+    printf("Native actor draw-distance maximum: %.0f\n",actors.maximum());
     std::array<std::array<unsigned char,5>,2> calls{};
     bool effectsInstalled=true;
     for(size_t i=0;i<2;++i){std::memcpy(calls[i].data(),effects.calls[i],5);effectsInstalled&=patches.call(effects.calls[i],calls[i].data(),reinterpret_cast<void *>(&optimization_detail::effectsHook));}
@@ -84,6 +86,13 @@ int wmain(int argc,wchar_t **argv) {
         }
     }
     printf("Actor render list: installed=%d restored=%d changed-NPC-field-rejected=%d. No game callback executed.\n",actorInstalled,actorRestored,actorGuardRejected);
+    bool rangeGuardRejected=false;
+    auto *range=const_cast<float *>(actors.distances);
+    if(VirtualProtect(range,sizeof(float),PAGE_READWRITE,&protection)) {
+        const float saved=*range;*range=0;
+        rangeGuardRejected=!optimization_detail::discoverActors(effects);*range=saved;
+        VirtualProtect(range,sizeof(float),protection,&ignored);
+    }
     printf("Pet SFX dispatch: installed=%d restored=%d changed-owner-layout-rejected=%d. No game callback executed.\n",effectsInstalled,effectsRestored,ownerGuardRejected);
     const bool hybrid=native_hybrid::install();
     const bool background=hybrid&&native_background::install();
@@ -91,7 +100,8 @@ int wmain(int argc,wchar_t **argv) {
     bool coexist=hybrid&&background&&alongside.owners()&&bool(optimization_detail::discoverActors(alongside));
     if(coexist) {
         Optimization option;Settings pets;pets.hidePetEffects=true;option.update(pets);
-        coexist=optimization_detail::state().effectsInstalled&&native_hybrid::installed&&native_background::installed;
+        coexist=coexist&&option.actorDistanceMaximum()==actors.maximum();
+        coexist=coexist&&optimization_detail::state().effectsInstalled&&native_hybrid::installed&&native_background::installed;
         pets.hidePetEffects=false;option.update(pets);
         coexist=coexist&&!optimization_detail::state().effectsInstalled&&native_hybrid::installed&&native_background::installed;
         pets.renderPlayers=pets.renderMonsters=pets.renderPets=false;option.update(pets);
@@ -105,5 +115,5 @@ int wmain(int argc,wchar_t **argv) {
     printf("Native effects ABI: install=%d restored=%d changed-skill-field-rejected=%d unknown-stack-rejected=%d. No game callback executed.\n",effectsInstalled,effectsRestored,effectsRejected,stackRejected);
     native_patch::imageOverride=nullptr;FreeLibrary(image);
     printf("Shop-sign ABI: install=%d restored=%d changed-layout-rejected=%d restored-layout-accepted=%d. No game callback executed.\n",installed,restored,rejected,acceptedAgain);
-    return installed&&restored&&rejected&&acceptedAgain&&effectsInstalled&&effectsRestored&&effectsRejected&&stackRejected&&ownerGuardRejected&&coexist&&actorInstalled&&actorRestored&&actorGuardRejected?0:1;
+    return installed&&restored&&rejected&&acceptedAgain&&effectsInstalled&&effectsRestored&&effectsRejected&&stackRejected&&ownerGuardRejected&&coexist&&actorInstalled&&actorRestored&&actorGuardRejected&&rangeGuardRejected?0:1;
 }

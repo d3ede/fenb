@@ -3,6 +3,13 @@
 
 // Called only for the guarded native render-list layout, never world updates.
 namespace actor_visibility {
+// Keep the saved zero sentinel internal: the UI runs from near to native.
+inline float displayDistance(float saved,float maximum) {
+    return saved>0&&std::isfinite(saved)?std::clamp(saved,1.f,maximum):maximum;
+}
+inline float savedDistance(float shown,float maximum) {
+    return shown>=maximum?0.f:std::clamp(shown,1.f,maximum);
+}
 template<class T> const T &field(const void *object,size_t offset) {
     return *reinterpret_cast<const T *>(static_cast<const unsigned char *>(object)+offset);
 }
