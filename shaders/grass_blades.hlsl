@@ -61,16 +61,21 @@ Output GrassBladeVS(Input i) {
     float phase=dot(root,float2(.19,.13))+Wind.w*Extra.x*1.35;
     float sway=(sin(phase)*.65+sin(phase*1.7+r3*6.2831853)*.35)*Wind.z;
     float2 lean=radial*(.28+r3*.2)*height+Wind.xy*sway*height;
-    float width=Shape.y*(1-t)*(.8+.4*sin(t*3.14159265))*growth*max(1,distance/18);
+    // A fuller curved leaf reads as a blade instead of a dark needle.
+    float width=Shape.y*(1-t)*(.9+.8*sin(t*3.14159265))*growth*max(1,distance/18);
     float3 p=float3(root.x+offset.x,surface.r-.018,root.y+offset.y);
     p.xz+=lean*t*t+side*i.blade.x*width*.5;
     p.y+=height*t;
-    float3 n=normalize(float3(radial.x,.35+t*.35,radial.y));
-    float light=.35+.65*abs(dot(n,SunDirection.xyz));
-    float3 tint=lerp(float3(.32,.55,.065),float3(.60,.48,.19),Look.z);
-    tint*=lerp(.78,1.22,r3);
+    // Soft, upward-biased leaf normals keep the native directional light while
+    // avoiding near-black strips at ground level. Both faces transmit some light.
+    float3 n=normalize(float3(radial.x*.45,.7+t*.4,radial.y*.45));
+    float light=.45+.55*abs(dot(n,SunDirection.xyz));
+    float leaf=frac(r3+i.blade.w*.61803399);
+    float3 fresh=lerp(float3(.35,.54,.12),float3(.45,.60,.16),leaf);
+    float3 tint=lerp(fresh,float3(.57,.48,.23),Look.z);
+    tint*=lerp(.92,1.08,r3);
     float3 color=tint*(Ambient.rgb+SunColor.rgb*light);
-    color*=lerp(1-Look.w*.7*saturate(1-distance/50),1.23,t);
+    color*=lerp(1-Look.w*.38*saturate(1-distance/50),1.12,t);
     color*=.8+surface.a*.4;
     float luma=dot(color,float3(.2126,.7152,.0722));
     color=lerp(luma,color,Look.y)*Look.x;
@@ -81,6 +86,6 @@ Output GrassBladeVS(Input i) {
     return o;
 }
 float4 GrassBladePS(Output i):COLOR0 {
-    float rib=.88+.12*(1-abs(i.leaf.x));
+    float rib=.94+.06*(1-abs(i.leaf.x));
     return float4(lerp(FogColor.rgb,i.color.rgb*rib,i.color.a),1);
 }
