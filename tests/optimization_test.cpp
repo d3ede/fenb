@@ -29,5 +29,19 @@ int main() {
     count=4;field<float>(player.data(),0x160)=std::numeric_limits<float>::infinity();
     {Filter scope(binding,settings);assert(data==entries&&count==4);}
     for(int i=0;i<4;++i)assert(field<void *>(texts[i].data(),0x78)==objects[i]);
+    int decorative=3,skills=4;
+    EffectsBinding effects{{&instruction,&instruction},reinterpret_cast<Render>(1),&decorative,&skills};
+    Settings visual;
+    {EffectsScope scope(effects,visual);assert(decorative==3&&skills==4);}
+    visual.hideDecorativeEffects=true;
+    {EffectsScope scope(effects,visual);assert(decorative==1&&skills==4);}
+    assert(decorative==3&&skills==4);
+    visual.hideSkillEffects=true;
+    {EffectsScope scope(effects,visual);assert(decorative==1&&skills==1);}
+    assert(decorative==3&&skills==4);
+    visual.hideDecorativeEffects=false;
+    {EffectsScope scope(effects,visual);assert(decorative==3&&skills==1);}
+    assert(decorative==3&&skills==4);
+    puts("PASS: independent native decoration/skill switches, disabled no-op and exact option restoration.");
     puts("PASS: shop-sign range, own sign, stable order, invalid-position fallback, bounded list and exact restoration.");
 }

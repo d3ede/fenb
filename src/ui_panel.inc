@@ -204,9 +204,8 @@ std::vector<PanelItem> PanelItems(Runtime &r) {
                 {"microcontrast",g(UiText::Image),g(UiText::MaterialMicrocontrast),&s.sharpening}};
     case 7:
         return {{"shops", g(UiText::PanelClient), g(UiText::PanelShops), &s.limitShopSigns},
-                {"background", g(UiText::PanelClient), g(UiText::PanelBackground), &s.backgroundActivity},
-                {"fps", g(UiText::PanelClient), g(UiText::PanelFPS), &s.unlockFps},
-                {"effects", Tr(UiText::Image), g(UiText::PanelShortcuts)}};
+                {"decorative", g(UiText::PanelClient), g(UiText::OptimizationDecorative), &s.hideDecorativeEffects, -1, g(UiText::OptimizationDecorativeTitle)},
+                {"skills", g(UiText::PanelClient), g(UiText::OptimizationSkills), &s.hideSkillEffects, -1, g(UiText::OptimizationSkillsTitle)}};
     }
     return {};
 }
@@ -554,6 +553,7 @@ void PanelParameters(Runtime &r, int item) {
     if (page == 7)
         switch (item) {
         case 0:
+            PanelNote(Tr(UiText::ShopSignHelp));
             {
                 bool disabled = uiParameterDisabled;
                 uiParameterDisabled = !r.shopOptimizationSupported() || !s.limitShopSigns;
@@ -564,24 +564,14 @@ void PanelParameters(Runtime &r, int item) {
             }
             break;
         case 1:
-            if (!r.backgroundActivitySupported())
+            PanelNote(Tr(UiText::OptimizationDecorativeHelp));
+            if (!r.nativeEffectOptimizationSupported())
                 PanelNote(Tr(UiText::UnsupportedClient));
             break;
         case 2:
-            if (!r.fpsUnlockSupported())
+            PanelNote(Tr(UiText::OptimizationSkillsHelp));
+            if (!r.nativeEffectOptimizationSupported())
                 PanelNote(Tr(UiText::UnsupportedClient));
-            break;
-        case 3:
-            ImGui::BeginDisabled(!s.enabled);
-            PanelToggle("water", "WaterFX", s.water);
-            PanelToggle("surfaces", Tr(UiText::SurfaceReflections), s.surfaceReflections);
-            PanelToggle("ssao", "SSAO", s.ssao);
-            PanelToggle("rays", Tr(UiText::SunRays), s.sunRays);
-            PanelToggle("dof", Tr(UiText::DepthOfField), s.dof);
-            PanelToggle("local", Tr(UiText::LocalLighting), s.localLighting);
-            PanelToggle("particles", Tr(UiText::SpellEffects), s.sfx);
-            PanelToggle("bloom", "Bloom", s.bloom);
-            ImGui::EndDisabled();
             break;
         }
     if (page == 4) {
@@ -819,7 +809,7 @@ void PanelEditor(Runtime &r) {
     if(r.editorPage==8)help=Tr(selected==0?UiText::MaterialsCoverage:selected==2?UiText::MaterialSnowNote:
                              selected==3?UiText::MaterialMicroNote:UiText::MaterialReliefHelp);
     if(r.editorPage==3)help=Tr(selected==0?UiText::PanelFXAAHelp:selected==1?UiText::PanelSMAAHelp:UiText::MSAAHelp);
-    if(r.editorPage==7&&selected<3)help=Tr(selected==0?UiText::ShopSignHelp:selected==1?UiText::BackgroundActivityHelp:UiText::UnlockFPSHelp);
+    if(r.editorPage==7)help=Tr(selected==0?UiText::ShopSignHelp:selected==1?UiText::OptimizationDecorativeHelp:UiText::OptimizationSkillsHelp);
     if(r.editorPage==5&&selected<2)help=Tr(selected==0?UiText::V2CursorSampleNote:UiText::V2MotionNote);
     ImGui::InvisibleButton("description", {std::max(1.f,w-(showEnable?40:5)),25});
     Tip(help);
@@ -830,17 +820,15 @@ void PanelEditor(Runtime &r) {
     if (r.editorPage == 7) {
         if (selected == 0)
             supported = r.shopOptimizationSupported();
-        if (selected == 1)
-            supported = r.backgroundActivitySupported();
-        if (selected == 2)
-            supported = r.fpsUnlockSupported();
+        if (selected > 0)
+            supported = r.nativeEffectOptimizationSupported();
     }
     if (showEnable) {
         ImGui::SetCursorScreenPos({p.x + w - 34, p.y + 3});
         const bool before = *item.enabled;
         ImGui::BeginDisabled((!supported && !*item.enabled) || (r.editorPage == 3 && !s.enabled));
         SquareSwitch("enabled", *item.enabled, {28, 18});
-        Tip(Tr(*item.enabled ? UiText::DisableEffect : UiText::EnableEffect),
+        Tip(r.editorPage==7?help:Tr(*item.enabled ? UiText::DisableEffect : UiText::EnableEffect),
             ImGuiHoveredFlags_AllowWhenDisabled);
         ImGui::EndDisabled();
         if (r.editorPage == 3 && *item.enabled != before && *item.enabled) {

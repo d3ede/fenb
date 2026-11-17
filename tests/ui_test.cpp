@@ -233,7 +233,12 @@ int main() {
     r.settings.language=Language::Spanish;r.settings.aoStrength=1.2f;selectItem("ssao");control("ssao","reset-section");
     CHECK(r.settings.aoStrength==Settings{}.aoStrength&&r.settings.language==Language::Spanish);
     activate(child(),"back");selectItem("optimization");CHECK(r.editorPage==7);
-    selectItem("effects");const bool oldAO=r.settings.ssao;control("effects","ssao");CHECK(r.settings.ssao!=oldAO);control("effects","ssao");CHECK(r.settings.ssao==oldAO);
+    CHECK(r.editorSelection[7]==0);
+    for(const char *duplicate:{"background","fps","effects"}){selectItem(duplicate);CHECK(r.editorSelection[7]==0);}
+    CHECK(!r.nativeEffectOptimizationSupported());
+    selectItem("decorative");CHECK(!r.settings.hideDecorativeEffects);control("decorative","enabled");CHECK(!r.settings.hideDecorativeEffects);
+    selectItem("skills");CHECK(!r.settings.hideSkillEffects);control("skills","enabled");CHECK(!r.settings.hideSkillEffects);
+    r.settings.hideSkillEffects=true;frame();control("skills","enabled");CHECK(!r.settings.hideSkillEffects&&!r.settings.hideDecorativeEffects);
     selectItem("shops");CHECK(!r.settings.limitShopSigns);CHECK(!r.shopOptimizationSupported());control("shops","enabled");CHECK(!r.settings.limitShopSigns);
     r.settings.language=Language::English;activate(child(),"back");selectItem("aa");CHECK(r.editorPage==3);
     r.settings.fxaa=true;r.settings.smaa=false;r.settings.msaaSamples=4;frame();
@@ -313,12 +318,14 @@ int main() {
         control("microcontrast","reset-section");CHECK(r.settings.sharpening&&r.settings.sharpeningStrength==Settings{}.sharpeningStrength&&r.settings.textureContrast==Settings{}.textureContrast&&r.settings.language==static_cast<Language>(language));
         CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-microcontrast.png").c_str()));control("microcontrast","enabled");CHECK(!r.settings.sharpening);
         struct View{int page,item;const wchar_t *name;};
-        const View views[]={{0,4,L"tone"},{0,7,L"bloom"},{1,0,L"water"},{1,6,L"reflections"},{1,7,L"trace"},{2,0,L"scene"},{3,0,L"antialiasing"},{4,0,L"time"},{4,1,L"weather"},{5,2,L"interface"},{7,3,L"optimization"}};
+        const View views[]={{0,4,L"tone"},{0,7,L"bloom"},{1,0,L"water"},{1,6,L"reflections"},{1,7,L"trace"},{2,0,L"scene"},{3,0,L"antialiasing"},{4,0,L"time"},{4,1,L"weather"},{5,2,L"interface"},{7,0,L"optimization-shops"},{7,1,L"optimization-decorative"},{7,2,L"optimization-skills"}};
         for(const auto &view:views){r.editorPage=view.page;r.editorSelection[view.page]=view.item;r.sceneSelection=0;frame();frame();CHECK(inspector());CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-"+view.name+L".png").c_str()));}
         r.editorPage=2;
         for(int effect=0;effect<11;++effect){r.sceneSelection=effect;frame();frame();CHECK(inspector());}
         io.DisplaySize={334,400};r.centerPanel=true;
         for(int page:{0,1,2,3,4,5,7,8}){r.editorPage=page;frame();frame();CHECK(inspector());CHECK(inspector()->Size.x>240);CHECK(inspector()->Pos.x>=0&&inspector()->Pos.x+inspector()->Size.x<=334);}
+        r.editorPage=7;
+        for(int item=0;item<3;++item){r.editorSelection[7]=item;frame();frame();CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-optimization-"+std::to_wstring(item)+L"-narrow.png").c_str()));}
         r.editorPage=8;r.editorSelection[8]=0;frame();frame();CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-materials-narrow.png").c_str()));
         CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-narrow.png").c_str()));
         r.editorPage=0;r.editorSelection[0]=4;frame();frame();activate(child(),"##panel-navigation");CHECK(!ImGui::GetCurrentContext()->OpenPopupStack.empty());

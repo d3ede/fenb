@@ -26,7 +26,23 @@ int wmain(int argc,wchar_t **argv) {
         }
     }
     const bool acceptedAgain=bool(optimization_detail::discover());
+    const auto effects=optimization_detail::discoverEffects();
+    if(!effects){puts("FAIL: native effect-filter ABI discovery");return 5;}
+    std::array<std::array<unsigned char,5>,2> calls{};
+    bool effectsInstalled=true;
+    for(size_t i=0;i<2;++i){std::memcpy(calls[i].data(),effects.calls[i],5);effectsInstalled&=patches.call(effects.calls[i],calls[i].data(),reinterpret_cast<void *>(&optimization_detail::effectsHook));}
+    effectsInstalled=effectsInstalled&&patches.apply();patches.clear();
+    bool effectsRestored=true;
+    for(size_t i=0;i<2;++i)effectsRestored&=!std::memcmp(calls[i].data(),effects.calls[i],5);
+    const int savedDecorative=*effects.decorative,savedSkills=*effects.skills;
+    Settings settings;settings.hideDecorativeEffects=settings.hideSkillEffects=true;
+    {optimization_detail::EffectsScope scope(effects,settings);effectsRestored&=*effects.decorative==1&&*effects.skills==1;}
+    effectsRestored&=*effects.decorative==savedDecorative&&*effects.skills==savedSkills;
+    bool effectsRejected=false;
+    const DWORD flags=scan.find("83 3D ?? ?? ?? ?? 00 74 09 83 BE E8 05 00 00 00 74 12 83 3D ?? ?? ?? ?? 00 74 49 83 BE E8 05 00 00 00 74 40");
+    if(flags){auto *offset=reinterpret_cast<unsigned char *>(image)+flags+11;DWORD protection=0,ignored=0;if(VirtualProtect(offset,1,PAGE_EXECUTE_READWRITE,&protection)){const auto saved=*offset;*offset^=4;effectsRejected=!optimization_detail::discoverEffects();*offset=saved;VirtualProtect(offset,1,protection,&ignored);}}
+    printf("Native effects ABI: install=%d restored=%d changed-skill-field-rejected=%d. No game callback executed.\n",effectsInstalled,effectsRestored,effectsRejected);
     native_patch::imageOverride=nullptr;FreeLibrary(image);
     printf("Shop-sign ABI: install=%d restored=%d changed-layout-rejected=%d restored-layout-accepted=%d. No game callback executed.\n",installed,restored,rejected,acceptedAgain);
-    return installed&&restored&&rejected&&acceptedAgain?0:1;
+    return installed&&restored&&rejected&&acceptedAgain&&effectsInstalled&&effectsRestored&&effectsRejected?0:1;
 }

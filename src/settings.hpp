@@ -48,6 +48,7 @@ struct Settings {
     bool unlockFps = false; // Opt-in continuous native updates with a guarded legacy fallback.
     bool backgroundActivity = false; // Independent opt-in to keep the world running while inactive.
     bool limitShopSigns = false;
+    bool hideDecorativeEffects = false, hideSkillEffects = false;
     float shopSignDistance = 40;
     bool timeOverride = false, freezeTime = true, weatherOverride = false;
     float timeMinutes = 720, weatherIntensity = 100;

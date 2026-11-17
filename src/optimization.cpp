@@ -36,6 +36,43 @@ Binding discover() {
     return {base+site+6,reinterpret_cast<Render>(base+render),reinterpret_cast<void ***>(base+data),
             reinterpret_cast<int *>(base+size),player};
 }
+struct EffectsBinding {
+    std::array<unsigned char *,2> calls{};
+    Render render=nullptr;
+    int *decorative=nullptr,*skills=nullptr;
+    explicit operator bool() const { return calls[0]&&calls[1]&&render&&decorative&&skills; }
+};
+EffectsBinding discoverEffects() {
+    const auto module=native_patch::image();
+    if((native_binding::cached.module!=module||!native_binding::cached.valid)&&!native_binding::prepare(module))return {};
+    client_detail::Image scan(module);
+    // Both world-render paths call the same RenderObject method. Hook the calls,
+    // leaving the application/environment vtable and simulation dispatch alone.
+    const DWORD a=scan.find("FF 75 B4 8B CF E8 ?? ?? ?? ?? 8B 4D FC 5F 5E 33 CD 5B");
+    const DWORD b=scan.find("FF 74 24 1C 8B CE E8 ?? ?? ?? ?? 8B 46 6C 89 44 24 38 E8");
+    const DWORD flags=scan.find("83 3D ?? ?? ?? ?? 00 74 09 83 BE E8 05 00 00 00 74 12 83 3D ?? ?? ?? ?? 00 74 49 83 BE E8 05 00 00 00 74 40");
+    if(!a||!b||!flags)return {};
+    const DWORD render=DWORD(a+10+int32_t(scan.value(a+6)));
+    if(render!=DWORD(b+11+int32_t(scan.value(b+7))) || flags<render || flags-render>8192 ||
+       !scan.bytes(render,"53 8B DC 83 EC 08 83 E4 F8 83 C4 04 55 8B 6B 04 89 6C 24 04 8B EC 6A FF") ||
+       !scan.bytes(render+37,"81 EC 68 02 00 00") ||
+       !scan.bytes(flags+0x5b,"83 B9 1C 03 00 00 00 75 29"))return {};
+    const DWORD decorative=scan.relative(scan.value(flags+2)),skills=scan.relative(scan.value(flags+20));
+    if(!decorative || skills!=decorative+4 || !scan.section(decorative,8,IMAGE_SCN_MEM_READ|IMAGE_SCN_MEM_WRITE))return {};
+    auto *base=reinterpret_cast<unsigned char *>(module);
+    return {{base+a+5,base+b+6},reinterpret_cast<Render>(base+render),
+            reinterpret_cast<int *>(base+decorative),reinterpret_cast<int *>(base+skills)};
+}
+struct EffectsScope {
+    int *decorative=nullptr,*skills=nullptr;
+    int previousDecorative=0,previousSkills=0;
+    EffectsScope(EffectsBinding binding,const Settings &settings) {
+        if(!binding)return;
+        if(settings.hideDecorativeEffects){decorative=binding.decorative;previousDecorative=*decorative;*decorative=1;}
+        if(settings.hideSkillEffects){skills=binding.skills;previousSkills=*skills;*skills=1;}
+    }
+    ~EffectsScope(){if(skills)*skills=previousSkills;if(decorative)*decorative=previousDecorative;}
+};
 struct Filter {
     Binding binding;
     void **original=nullptr;
@@ -68,11 +105,12 @@ struct Filter {
 };
 struct State {
     Binding binding=discover();
-    native_patch::Set patches;
+    EffectsBinding effects=discoverEffects();
+    native_patch::Set patches,effectPatches;
     std::recursive_mutex mutex;
     std::map<const Optimization *,Settings> owners;
     DWORD thread=0;
-    bool installed=false,rendering=false;
+    bool installed=false,rendering=false,effectsInstalled=false,effectsRendering=false;
 };
 State &state() { static State value;return value; }
 void __fastcall renderHook(void *dialog,void *,void *render2D) {
@@ -81,22 +119,41 @@ void __fastcall renderHook(void *dialog,void *,void *render2D) {
     bool filter=false;
     {
         std::lock_guard lock(shared.mutex);
-        filter=!shared.rendering && shared.thread==GetCurrentThreadId()&&!shared.owners.empty();
-        if(filter){shared.rendering=true;settings=shared.owners.begin()->second;}
+        auto owner=std::find_if(shared.owners.begin(),shared.owners.end(),[](const auto &entry){return entry.second.limitShopSigns;});
+        filter=!shared.rendering && shared.thread==GetCurrentThreadId()&&owner!=shared.owners.end();
+        if(filter){shared.rendering=true;settings=owner->second;}
     }
     if(filter) {
         { Filter scope(shared.binding,settings);shared.binding.render(dialog,render2D); }
         std::lock_guard lock(shared.mutex);shared.rendering=false;
     } else shared.binding.render(dialog,render2D);
 }
+void __fastcall effectsHook(void *world,void *,void *font) {
+    auto &shared=state();Settings settings;bool apply=false;
+    {
+        std::lock_guard lock(shared.mutex);
+        auto owner=std::find_if(shared.owners.begin(),shared.owners.end(),[](const auto &entry){return entry.second.hideDecorativeEffects||entry.second.hideSkillEffects;});
+        apply=!shared.effectsRendering&&shared.thread==GetCurrentThreadId()&&owner!=shared.owners.end();
+        if(apply){shared.effectsRendering=true;settings=owner->second;}
+    }
+    if(apply) {
+        {EffectsScope scope(shared.effects,settings);shared.effects.render(world,font);}
+        std::lock_guard lock(shared.mutex);shared.effectsRendering=false;
+    } else shared.effects.render(world,font);
+}
 }
 Optimization::~Optimization() { Settings disabled;update(disabled); }
 bool Optimization::supported() { return bool(optimization_detail::state().binding); }
+bool Optimization::effectsSupported() { return bool(optimization_detail::state().effects); }
 void Optimization::update(const Settings &settings) {
-    auto &s=optimization_detail::state();if(!s.binding)return;
+    auto &s=optimization_detail::state();if(!s.binding&&!s.effects)return;
     std::lock_guard lock(s.mutex);
-    if(settings.limitShopSigns) {
+    if((settings.limitShopSigns&&s.binding)||((settings.hideDecorativeEffects||settings.hideSkillEffects)&&s.effects))
         s.owners[this]=settings;
+    else s.owners.erase(this);
+    const bool shops=std::any_of(s.owners.begin(),s.owners.end(),[](const auto &entry){return entry.second.limitShopSigns;});
+    const bool effects=std::any_of(s.owners.begin(),s.owners.end(),[](const auto &entry){return entry.second.hideDecorativeEffects||entry.second.hideSkillEffects;});
+    if(shops&&s.binding) {
         if(!s.installed) {
             unsigned char expected[5];std::memcpy(expected,s.binding.call,5);
             int32_t displacement=0;std::memcpy(&displacement,expected+1,4);
@@ -105,6 +162,18 @@ void Optimization::update(const Settings &settings) {
                 s.installed=true;s.thread=GetCurrentThreadId();
             } else s.patches.clear();
         }
-    } else s.owners.erase(this);
-    if(s.installed&&s.owners.empty()&&!s.rendering){s.patches.clear();s.installed=false;}
+    }
+    if(s.installed&&!shops&&!s.rendering){s.patches.clear();s.installed=false;}
+    if(effects&&s.effects&&!s.effectsInstalled) {
+        bool valid=true;
+        for(auto *call:s.effects.calls) {
+            unsigned char expected[5];std::memcpy(expected,call,5);
+            int32_t displacement=0;std::memcpy(&displacement,expected+1,4);
+            valid=valid&&expected[0]==0xe8&&reinterpret_cast<uintptr_t>(call)+5+displacement==reinterpret_cast<uintptr_t>(s.effects.render);
+            if(!valid||!s.effectPatches.call(call,expected,reinterpret_cast<void *>(&optimization_detail::effectsHook))){valid=false;break;}
+        }
+        if(valid&&s.effectPatches.apply()){s.effectsInstalled=true;s.thread=GetCurrentThreadId();}
+        else s.effectPatches.clear();
+    }
+    if(s.effectsInstalled&&!effects&&!s.effectsRendering){s.effectPatches.clear();s.effectsInstalled=false;}
 }

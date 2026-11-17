@@ -48,8 +48,10 @@ int main() {
     {
         Settings opt;
         CHECK(!opt.limitShopSigns&&opt.shopSignDistance==40);
+        CHECK(!opt.hideDecorativeEffects&&!opt.hideSkillEffects);
+        opt.hideDecorativeEffects=opt.hideSkillEffects=true;
         opt.limitShopSigns=true;opt.shopSignDistance=25;opt.language=Language::Portuguese;
-        for(int i=0;i<BuiltInPresetCount;++i){opt.preset(i);CHECK(opt.limitShopSigns&&opt.shopSignDistance==25&&opt.language==Language::Portuguese);}
+        for(int i=0;i<BuiltInPresetCount;++i){opt.preset(i);CHECK(opt.limitShopSigns&&opt.shopSignDistance==25&&opt.language==Language::Portuguese&&opt.hideDecorativeEffects&&opt.hideSkillEffects);}
         CHECK(opt.save(L"build/optimization-settings.ini"));
         Settings restored;CHECK(restored.load(L"build/optimization-settings.ini"));
         CHECK(restored==opt);

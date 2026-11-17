@@ -1,11 +1,12 @@
-# FENB 0.7c
+# FENB 0.7f
 
 FENB is a graphics mod for Flyff, inspired by ENBSeries. It uses a Windows x86 Direct3D 9 proxy, C++20, precompiled shaders and a native Dear ImGui settings panel.
 
 ## Controls and profiles
 
-- **Optimization**, below WaterFX and above color correction, opens optional shop-sign range controls and shortcuts to the existing WaterFX, surface reflection, SSAO, sun ray, depth-of-field, local lighting, particle-processing and bloom switches. Shortcuts edit the same settings as their original pages. Disabling particle processing restores native particles; it does not hide native skills or auras.
+- **Optimization** contains shop-sign range, native decorative-effect hiding and player skill-effect hiding. It does not duplicate background activity, FPS unlock or the image-effect pages. All three options are off by default, independent of the FENB effects master and retained when changing image profiles or using Reset all. Explanations are limited to two sentences per option.
 - Shop-sign limiting is off by default and independent of the effects master switch. The radius is measured in world units from the local character. The local character's own sign is retained. On the verified Homesickness ABI, a scoped, bounded vendor-render list omits distant signs and restores the exact original pointer and count after rendering. It does not remove actors, modify shop contents, stop simulation or send trade requests. Unknown layouts disable this control. Image profiles and Reset all retain the user's shop-limit choice and radius.
+- Native effect controls use the client's existing non-skill/skill render predicates for player-owned SFX. Both native world-render call sites are validated before installing reversible hooks. The selected flags are overridden only during RenderObject and restored exactly on return; world processing, simulation dispatch and the application's environment-render vtable are unchanged. The switches include the local player's effects. Unknown field layouts or call targets disable these controls; an already-replaced call is not overwritten. This is separate from FENB's particle styling, which enhances existing effects instead of hiding them.
 
 Resource forwarding uses a bounded 256-entry thread-local lookup cache. Registering or retiring a wrapper publishes a registry generation; a cached lookup is reusable only for the same pointer and generation. Misses retain the synchronized registry lookup, including native pointers. The cache holds no COM references, changes no DirectX draw/state calls and does not alter shader processing, model visibility or effect settings. `tests/resource_benchmark.cpp` provides a repeatable resource-binding microbenchmark against a selected DLL; its timing is not a live-game FPS measurement.
 

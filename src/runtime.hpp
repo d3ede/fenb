@@ -118,6 +118,7 @@ class Runtime {
         return dirty_;
     }
     bool shopOptimizationSupported() { return optimization_.supported(); }
+    bool nativeEffectOptimizationSupported() { return optimization_.effectsSupported(); }
 
   private:
     static LRESULT CALLBACK WindowProc(HWND, UINT, WPARAM, LPARAM, UINT_PTR, DWORD_PTR);
