@@ -49,6 +49,14 @@ float4 NativeStage(float4 stage,float4 alpha,float4 art,float4 diffuse,float4 cu
     if(stage.w>1.5)opacity=Operation(stage.w,Argument(alpha.x,art,diffuse,current,constant),Argument(alpha.y,art,diffuse,current,constant)).a;
     return saturate(float4(rgb,opacity));
 }
+float3 PaintedSnow(float3 art) {
+    float brightness=dot(art,float3(.2126,.7152,.0722));
+    // Only bright, neutral/cool painted snow in exact winter atlases is eligible.
+    // Green needles and warm bark retain their original colors and silhouettes.
+    float mask=saturate((brightness-.5)*4)*
+        (1-saturate((art.g-max(art.r,art.b))*8))*saturate((art.b-art.r+.1)*8);
+    return lerp(art,float3(.99,.99,1)*(.5+brightness*.5),mask*Style.w*Style.x);
+}
 float4 ShadeMaterial(MaterialInput i,uniform bool smoothBark) {
     const float3 luma=float3(.2126,.7152,.0722);
     float4 art=tex2D(Art,i.uv);
@@ -96,6 +104,7 @@ float4 ShadeMaterial(MaterialInput i,uniform bool smoothBark) {
     }else{
         float3 detail=art.rgb-(nw+ne+sw+se)*.25;
         art.rgb=saturate(art.rgb+clamp(detail*Style.x*Style.y*fade*.1,-.025,.025));
+        if(ArtInfo.z>5.5)art.rgb=PaintedSnow(art.rgb);
     }
     float4 color=NativeStage(Stage0,Alpha0,art,diffuse,diffuse,Constant0);
     float4 layer=lerp(1,tex2D(Layer,i.blend),Alpha1.z);
@@ -114,3 +123,17 @@ float4 ShadeMaterial(MaterialInput i,uniform bool smoothBark) {
 }
 float4 MaterialPS(MaterialInput i):COLOR0 {return ShadeMaterial(i,false);}
 float4 MaterialBarkPS(MaterialInput i):COLOR0 {return ShadeMaterial(i,true);}
+// Thin foliage cards do not receive bark embossing, grain or broad highlights.
+// Preserve the native alpha, all active texture stages, lighting and fog.
+float4 MaterialSnowPS(MaterialInput i):COLOR0 {
+    float4 art=tex2D(Art,i.uv);art.rgb=PaintedSnow(art.rgb);
+    float4 color=NativeStage(Stage0,Alpha0,art,i.diffuse,i.diffuse,Constant0);
+    float4 layer=lerp(1,tex2D(Layer,i.blend),Alpha1.z);
+    color=NativeStage(Stage1,Alpha1,layer,i.diffuse,color,Constant1);
+    float4 extra=float4(i.extra.xy,0,Alpha2.w>3.5?i.extra.w:Alpha2.w>2.5?i.extra.z:1);
+    float4 shadow=lerp(1,tex2Dproj(Shadow,extra),Alpha2.z);
+    color=NativeStage(Stage2,Alpha2,shadow,i.diffuse,color,Constant2);
+    float fog=FogAmount(PixelFog.x<0?length(i.view):i.view.z,float4(abs(PixelFog.x),PixelFog.yzw));
+    color.rgb=lerp(FogColor.rgb,color.rgb,fog);
+    return color;
+}

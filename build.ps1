@@ -51,6 +51,8 @@ if ($LASTEXITCODE) { throw 'SFX shader compilation failed' }
 if($LASTEXITCODE){throw 'Material pixel shader compilation failed'}
 & './build/shaderc.exe' 'shaders/material.hlsl' 'src/generated/material_bark_ps.hpp' 'MaterialBarkPS' 'ps_2_a'
 if($LASTEXITCODE){throw 'Bark pixel shader compilation failed'}
+& './build/shaderc.exe' 'shaders/material.hlsl' 'src/generated/material_snow_ps.hpp' 'MaterialSnowPS' 'ps_2_a'
+if($LASTEXITCODE){throw 'Snow foliage pixel shader compilation failed'}
 & '.\build\shaderc.exe' 'shaders/smaa.hlsl' 'src/generated/smaa_shaders.hpp' 'smaa'
 if ($LASTEXITCODE) { throw 'SMAA shader compilation failed' }
 & './build/shaderc.exe' 'shaders/grass_capture.hlsl' 'src/generated/grass_capture_vs.hpp' 'GrassCaptureVS' 'vs_3_0'

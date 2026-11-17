@@ -4,6 +4,7 @@
 #include "generated/material_catalog.hpp"
 #include <generated/material_ps.hpp>
 #include <generated/material_bark_ps.hpp>
+#include <generated/material_snow_ps.hpp>
 #include <bcrypt.h>
 #include <cstring>
 
@@ -12,6 +13,7 @@ class MaterialFX {
     IDirect3DDevice9 *device_;
     Com<IDirect3DPixelShader9> ps_;
     Com<IDirect3DPixelShader9> barkPs_;
+    Com<IDirect3DPixelShader9> snowPs_;
     Com<IDirect3DTexture9> detail_;
     Com<IDirect3DBaseTexture9> savedDetail_;
     static constexpr D3DSAMPLERSTATETYPE DetailStates[] = {D3DSAMP_ADDRESSU,D3DSAMP_ADDRESSV,
@@ -73,7 +75,7 @@ class MaterialFX {
     }
     unsigned classify(IDirect3DTexture9 *texture) {
         DWORD kind=0,size=sizeof(kind);
-        if(SUCCEEDED(texture->GetPrivateData(MaterialTag,&kind,&size))&&size==sizeof(kind))return kind<=6?kind:0;
+        if(SUCCEEDED(texture->GetPrivateData(MaterialTag,&kind,&size))&&size==sizeof(kind))return kind<=7?kind:0;
         D3DSURFACE_DESC desc{};
         if(FAILED(texture->GetLevelDesc(0,&desc))||desc.Pool!=D3DPOOL_MANAGED||desc.Usage)return 0;
         UINT bytes=0,rows=desc.Height;
@@ -102,7 +104,7 @@ class MaterialFX {
 public:
     explicit MaterialFX(IDirect3DDevice9 *d):device_(d){}
     ~MaterialFX(){invalidate();if(hash_)BCryptCloseAlgorithmProvider(hash_,0);}
-    void invalidate(){end();ps_.out();barkPs_.out();detail_.out();detailFailed_=false;}
+    void invalidate(){end();ps_.out();barkPs_.out();snowPs_.out();detail_.out();detailFailed_=false;}
     bool begin(const Settings &s) {
         if(active_||!s.enabled||!s.materials||s.materialStrength<=0)return false;
         DWORD fvf=0,z=0,write=0,test=0,blend=0,src=0,dst=0,specular=0;
@@ -120,8 +122,8 @@ public:
         device_->GetRenderState(D3DRS_SRCBLEND,&src);device_->GetRenderState(D3DRS_DESTBLEND,&dst);
         device_->GetRenderState(D3DRS_SPECULARENABLE,&specular);
         DWORD clipPlanes=0;device_->GetRenderState(D3DRS_CLIPPLANEENABLE,&clipPlanes);
-        if(clipPlanes||!z||!write||(test&&kind!=6)||specular||
-           (blend&&(fvf!=0x212||src!=D3DBLEND_SRCALPHA||dst!=D3DBLEND_INVSRCALPHA)))return false;
+        if(clipPlanes||!z||(!write&&kind!=7)||(test&&kind!=6&&kind!=7)||specular||
+           (blend&&((fvf!=0x212&&kind!=7)||src!=D3DBLEND_SRCALPHA||dst!=D3DBLEND_INVSRCALPHA)))return false;
         D3DMATRIX view{},projection{};
         if(FAILED(device_->GetTransform(D3DTS_VIEW,&view))||FAILED(device_->GetTransform(D3DTS_PROJECTION,&projection))||
            std::abs(projection._34)<.00001f||std::abs(projection._44)>.00001f)return false;
@@ -189,8 +191,8 @@ public:
         const bool detailed=snowDetail||barkMips;
         p[13][0]=p[13][1]=6.f;
         p[13][2]=snowDetail?1.f:0.f;p[13][3]=kind==6?(barkMips?18.f:8.f):kind==3?10.f:kind==2?7.f:1.f;
-        auto &shader=barkMips?barkPs_:ps_;
-        if(!shader.p&&FAILED(device_->CreatePixelShader(barkMips?ShaderMaterialBarkPS:ShaderMaterialPS,shader.out())))return false;
+        auto &shader=kind==7?snowPs_:barkMips?barkPs_:ps_;
+        if(!shader.p&&FAILED(device_->CreatePixelShader(kind==7?ShaderMaterialSnowPS:barkMips?ShaderMaterialBarkPS:ShaderMaterialPS,shader.out())))return false;
         if(FAILED(device_->GetPixelShaderConstantF(0,savedPixel_[0],PixelConstants))||
            FAILED(device_->GetRenderState(D3DRS_FOGENABLE,&savedFog_)))return false;
         for(int index=0;index<2;++index) {

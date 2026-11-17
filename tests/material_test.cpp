@@ -47,7 +47,7 @@ struct Fixture {
     int fog=0,table=0,stateErrors=0;
     bool third=false;
     int shadowCoordinates=0;
-    bool followingNative=false,buffered=false,absolute=false,coplanar=false,cutout=false;
+    bool followingNative=false,buffered=false,absolute=false,coplanar=false,cutout=false,foliageBlend=false,depthWrite=true;
     D3DFORMAT depthFormat=D3DFMT_D24X8;
     float repeats=1,cameraDistance=3.2f,uStart=0,uSpan=1,vStart=0,vSpan=1,sunSide=1;
     explicit Fixture(IDirect3DDevice9 *device):d(device),fx(device){}
@@ -75,8 +75,8 @@ struct Fixture {
         if(orbit){view._11=view._33=std::cos(.16f);view._13=std::sin(.16f);view._31=-view._13;}
         d->SetTransform(D3DTS_WORLD,&world);d->SetTransform(D3DTS_VIEW,&view);d->SetTransform(D3DTS_PROJECTION,&projection);
         d->SetVertexShader(nullptr);d->SetPixelShader(nullptr);d->SetFVF(two?0x212:0x112);
-        for(auto pair:{std::pair{D3DRS_ZENABLE,DWORD(TRUE)},std::pair{D3DRS_ZWRITEENABLE,DWORD(TRUE)},std::pair{D3DRS_ZFUNC,DWORD(D3DCMP_LESSEQUAL)},
-            std::pair{D3DRS_ALPHATESTENABLE,DWORD(cutout)},std::pair{D3DRS_ALPHABLENDENABLE,DWORD(two)},
+        for(auto pair:{std::pair{D3DRS_ZENABLE,DWORD(TRUE)},std::pair{D3DRS_ZWRITEENABLE,DWORD(depthWrite)},std::pair{D3DRS_ZFUNC,DWORD(D3DCMP_LESSEQUAL)},
+            std::pair{D3DRS_ALPHATESTENABLE,DWORD(cutout)},std::pair{D3DRS_ALPHABLENDENABLE,DWORD(two||foliageBlend)},
             std::pair{D3DRS_ALPHAFUNC,DWORD(D3DCMP_GREATER)},std::pair{D3DRS_ALPHAREF,DWORD(100)},
             std::pair{D3DRS_SRCBLEND,DWORD(D3DBLEND_SRCALPHA)},std::pair{D3DRS_DESTBLEND,DWORD(D3DBLEND_INVSRCALPHA)},
             std::pair{D3DRS_CULLMODE,DWORD(D3DCULL_NONE)},std::pair{D3DRS_LIGHTING,DWORD(lit)},
@@ -176,6 +176,9 @@ struct Fixture {
         if(used){Com<IDirect3DBaseTexture9> detail;d->GetTexture(3,detail.out());stateErrors+=shadow.p&&detail.p==shadow.p;}
         auto hr=draw();
         fx.end();
+        DWORD restoredWrite=0,restoredTest=0,restoredBlend=0;
+        d->GetRenderState(D3DRS_ZWRITEENABLE,&restoredWrite);d->GetRenderState(D3DRS_ALPHATESTENABLE,&restoredTest);d->GetRenderState(D3DRS_ALPHABLENDENABLE,&restoredBlend);
+        stateErrors+=restoredWrite!=DWORD(depthWrite)||restoredTest!=DWORD(cutout)||restoredBlend!=DWORD(two||foliageBlend);
         Com<IDirect3DBaseTexture9> restoredTexture;d->GetTexture(3,restoredTexture.out());stateErrors+=restoredTexture.p!=shadow.p;
         for(size_t i=0;i<std::size(samplerKeys);++i){DWORD value=0;d->GetSamplerState(3,samplerKeys[i],&value);stateErrors+=value!=samplerValues[i];}
         const auto afterCoordinates=coordinates();stateErrors+=memcmp(beforeCoordinates.data(),afterCoordinates.data(),sizeof(beforeCoordinates))!=0;
@@ -207,11 +210,12 @@ int main(int argc,char **argv){
         HMODULE module=LoadLibraryExW(L"d3dx9_43.dll",nullptr,LOAD_LIBRARY_SEARCH_SYSTEM32);CHECK(module);
         using Load=HRESULT(WINAPI *)(IDirect3DDevice9 *,LPCWSTR,UINT,UINT,UINT,DWORD,D3DFORMAT,D3DPOOL,DWORD,DWORD,D3DCOLOR,void *,PALETTEENTRY *,IDirect3DTexture9 **);
         auto load=reinterpret_cast<Load>(GetProcAddress(module,"D3DXCreateTextureFromFileExW"));CHECK(load);
-        const char *files[]={"World/Texture/ground_n_ice02.dds","World/Texture/brick_MaFl01_new.dds","Model/Texture/Ctrl_HouFurCabWood01.dds","World/Texture/Bahara_Sand01_01.dds","World/Texture/Rartesia_Grass01.dds","Model/Texture/Obj_AzriaTree01-B2.dds"};
-        const wchar_t *names[]={L"snow",L"stone",L"wood",L"sand",L"grass",L"bark"};
+        const char *files[]={"World/Texture/ground_n_ice02.dds","World/Texture/brick_MaFl01_new.dds","Model/Texture/Ctrl_HouFurCabWood01.dds","World/Texture/Bahara_Sand01_01.dds","World/Texture/Rartesia_Grass01.dds","Model/Texture/Obj_AzriaTree01-B2.dds","Model/Texture/Obj_AzriaTree01-1.dds","Model/Texture/Obj_AzriaTree05-1.dds","Model/Texture/Obj_AzriaTree06-2.dds"};
+        const wchar_t *names[]={L"snow",L"stone",L"wood",L"sand",L"grass",L"bark",L"snow-needles",L"snow-canopy",L"snow-branches"};
         on.materialStrength=on.materialRelief=on.materialSnow=on.materialGlints=1;
-        for(int kind=0;kind<6;++kind){std::string path=std::string(argv[2])+"/"+files[kind];std::wstring wide(path.begin(),path.end());
+        for(int kind=0;kind<9;++kind){std::string path=std::string(argv[2])+"/"+files[kind];std::wstring wide(path.begin(),path.end());
             CHECK(SUCCEEDED(load(d,wide.c_str(),UINT(-1),UINT(-1),0,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,1,1,0,nullptr,nullptr,fixture.art.out())));
+            fixture.cutout=kind>=6;
             fixture.uStart=kind==2?.04f:0;fixture.uSpan=kind==2?.28f:1;
             fixture.vStart=kind==2?.1f:0;fixture.vSpan=kind==2?.8f:1;
             for(int distance=0;distance<2;++distance){fixture.repeats=.85f;fixture.cameraDistance=distance?6.4f:3.2f;
@@ -352,6 +356,38 @@ int main(int argc,char **argv){
     std::swap(singleLevel.p,fixture.art.p);
     fixture.followingNative=true;CHECK(Delta(fixture.render(off),fixture.render(raised))<=(msaa?2u:0u));
     fixture.followingNative=fixture.absolute=fixture.coplanar=false;
+    // Winter foliage is a thin alpha-masked card, not a raised bark surface.
+    // Its painted snow changes while green needles, warm branches and alpha stay native.
+    Com<IDirect3DTexture9> foliage;CHECK(SUCCEEDED(d->CreateTexture(64,64,1,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,foliage.out(),nullptr)));
+    D3DLOCKED_RECT foliageLock{};CHECK(SUCCEEDED(foliage->LockRect(0,&foliageLock,nullptr,0)));
+    for(UINT y=0;y<64;++y)for(UINT x=0;x<64;++x){int grain=int((x*17+y*13)%17)-8;
+        const DWORD rgb=y<21?D3DCOLOR_XRGB(164+grain,195+grain,212+grain):y<42?D3DCOLOR_XRGB(40,95,36):D3DCOLOR_XRGB(120,78,28);
+        ((DWORD *)((BYTE *)foliageLock.pBits+y*foliageLock.Pitch))[x]=(rgb&0xffffff)|(x*4<<24);}
+    foliage->UnlockRect(0);DWORD foliageKind=7;foliage->SetPrivateData(MaterialTag,&foliageKind,4,0);
+    std::swap(foliage.p,fixture.art.p);fixture.lit=false;fixture.cutout=true;
+    auto nativeFoliage=fixture.render(off),styledFoliage=fixture.render(raised);
+    CHECK(fixture.used&&Delta(fixture.render(off),fixture.render(neutral))<=2);
+    unsigned greenPixels=0,barkPixels=0,snowPixels=0;
+    for(size_t i=0;i<nativeFoliage.size();++i){DWORD a=nativeFoliage[i],b=styledFoliage[i];
+        CHECK((a==0xff293441)==(b==0xff293441));
+        const int red=(a>>16)&255,green=(a>>8)&255,blue=a&255;
+        unsigned delta=0;for(unsigned shift:{0u,8u,16u})delta=std::max(delta,unsigned(std::abs(int((a>>shift)&255)-int((b>>shift)&255))));
+        if(green>red+25&&green>blue+25){++greenPixels;CHECK(delta<=2);}
+        if(red>green+25&&green>blue+25){++barkPixels;CHECK(delta<=2);}
+        if(blue>red+25&&green>red+15&&delta>5)++snowPixels;
+    }
+    CHECK(greenPixels>100&&barkPixels>100&&snowPixels>100);
+    Settings snowOnly=raised;snowOnly.materialRelief=snowOnly.materialGlints=0;
+    CHECK(Delta(styledFoliage,fixture.render(snowOnly))<=(msaa?2u:0u));
+    for(bool write:{false,true})for(int fog:{0,1,2,3}){
+        fixture.depthWrite=write;fixture.foliageBlend=true;fixture.fog=fog;
+        auto a=fixture.render(off),b=fixture.render(neutral);CHECK(fixture.used&&Delta(a,b)<=2);
+        CHECK(Delta(a,fixture.render(raised))>5&&fixture.used);
+    }
+    fixture.fx.invalidate();CHECK(fixture.render(raised).size()==W*H&&fixture.used);
+    fixture.followingNative=true;CHECK(Delta(fixture.render(off),fixture.render(raised))<=(msaa?2u:0u));
+    fixture.followingNative=fixture.foliageBlend=false;fixture.depthWrite=true;fixture.fog=0;fixture.lit=true;
+    std::swap(foliage.p,fixture.art.p);
     kind=2;fixture.art->SetPrivateData(MaterialTag,&kind,4,0);fixture.render(raised);CHECK(!fixture.used);
     fixture.cutout=false;
     fixture.fx.invalidate();fixture.art->SetPrivateData(MaterialTag,&snowKind,4,0);fixture.repeats=.3f;
