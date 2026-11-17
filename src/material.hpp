@@ -14,7 +14,7 @@ class MaterialFX {
     Com<IDirect3DVertexShader9> vs_,rigidVS_;
     Com<IDirect3DPixelShader9> ps_;
     BCRYPT_ALG_HANDLE hash_ = nullptr;
-    static constexpr UINT VertexConstants = 55, PixelConstants = 14;
+    static constexpr UINT VertexConstants = 60, PixelConstants = 17;
     float savedVertex_[VertexConstants][4]{}, savedPixel_[PixelConstants][4]{};
     DWORD savedFog_ = 0;
     bool active_ = false;
@@ -74,7 +74,7 @@ public:
     void invalidate(){end();vs_.out();rigidVS_.out();ps_.out();}
     bool begin(const Settings &s) {
         if(active_||!s.enabled||!s.materials||s.materialStrength<=0)return false;
-        DWORD fvf=0,z=0,write=0,test=0,blend=0,src=0,dst=0,specular=0,lit=0,stage2=0;
+        DWORD fvf=0,z=0,write=0,test=0,blend=0,src=0,dst=0,specular=0,lit=0;
         if(FAILED(device_->GetFVF(&fvf))||(fvf!=0x112&&fvf!=0x212))return false;
         // Reject cached unknown artwork before querying the rest of the native pipeline.
         Com<IDirect3DBaseTexture9> base;
@@ -92,10 +92,8 @@ public:
         DWORD clipPlanes=0;device_->GetRenderState(D3DRS_CLIPPLANEENABLE,&clipPlanes);
         if(clipPlanes)return false;
         if(!z||!write||test||specular||(blend&&(fvf!=0x212||src!=D3DBLEND_SRCALPHA||dst!=D3DBLEND_INVSRCALPHA)))return false;
-        device_->GetTextureStageState(2,D3DTSS_COLOROP,&stage2);
-        if(stage2!=D3DTOP_DISABLE)return false;
         float v[VertexConstants][4]{},p[PixelConstants][4]{};
-        D3DMATRIX world{},view{},projection{},uv[2]{};
+        D3DMATRIX world{},view{},projection{},uv[3]{};
         if(FAILED(device_->GetTransform(D3DTS_WORLD,&world))||FAILED(device_->GetTransform(D3DTS_VIEW,&view))||
            FAILED(device_->GetTransform(D3DTS_PROJECTION,&projection))||std::abs(projection._34)<.00001f||
            std::abs(projection._44)>.00001f)return false;
@@ -105,9 +103,12 @@ public:
         if(!normalMatrix(worldView,normals))return false;
         memcpy(v[8],normals,sizeof(normals));
         const D3DTEXTURESTAGESTATETYPE stageKeys[]={D3DTSS_COLOROP,D3DTSS_COLORARG1,D3DTSS_COLORARG2,D3DTSS_ALPHAOP,D3DTSS_ALPHAARG1,D3DTSS_ALPHAARG2};
-        for(DWORD stage=0;stage<2;++stage) {
+        bool stopped=false;
+        for(DWORD stage=0;stage<3;++stage) {
             DWORD values[6]{},coord=0,transform=0,constant=0;
             for(int k=0;k<6;++k)device_->GetTextureStageState(stage,stageKeys[k],values+k);
+            if(stopped)values[0]=D3DTOP_DISABLE;
+            stopped|=values[0]==D3DTOP_DISABLE;
             if(!stage&&values[0]==D3DTOP_DISABLE)return false;
             if(values[0]!=D3DTOP_DISABLE) {
                 if(values[0]<D3DTOP_SELECTARG1||values[0]>D3DTOP_ADD||values[3]>D3DTOP_ADD)return false;
@@ -116,20 +117,33 @@ public:
             device_->GetTextureStageState(stage,D3DTSS_TEXCOORDINDEX,&coord);
             device_->GetTextureStageState(stage,D3DTSS_TEXTURETRANSFORMFLAGS,&transform);
             if(stage&&values[0]==D3DTOP_DISABLE){coord=0;transform=0;}
-            if(coord>1||(coord==1&&fvf!=0x212)||(transform!=D3DTTFF_DISABLE&&transform!=D3DTTFF_COUNT2))return false;
+            const bool generated=stage==2&&(coord&0xffff0000)==D3DTSS_TCI_CAMERASPACEPOSITION;
+            if(!generated&&(coord>1||(coord==1&&fvf!=0x212)))return false;
+            if(stage<2&&(transform!=D3DTTFF_DISABLE&&transform!=D3DTTFF_COUNT2))return false;
+            if(stage==2&&transform){
+                DWORD count=transform&7;
+                if((transform&~DWORD(D3DTTFF_PROJECTED|7))||count<2||count>4||
+                   ((transform&D3DTTFF_PROJECTED)&&count<3))return false;
+            }
             if(!stage&&coord)return false;
-            if(stage)v[13][1]=float(coord);
+            if(stage==1)v[13][1]=float(coord);
+            if(stage==2){
+                v[59][0]=generated?2.f:float(coord);
+                v[59][1]=(transform&D3DTTFF_PROJECTED)?float(transform&7):0;
+                if(values[0]!=D3DTOP_DISABLE){DWORD next=0;device_->GetTextureStageState(3,D3DTSS_COLOROP,&next);if(next!=D3DTOP_DISABLE)return false;}
+            }
             if(transform)device_->GetTransform(D3DTRANSFORMSTATETYPE(D3DTS_TEXTURE0+stage),uv+stage);
             else uv[stage]._11=uv[stage]._22=uv[stage]._33=uv[stage]._44=1;
-            memcpy(v[31+stage*4],uv+stage,sizeof(D3DMATRIX));
-            for(int k=0;k<4;++k)p[2+stage*2][k]=float(values[k]);
-            p[3+stage*2][0]=float(values[4]);p[3+stage*2][1]=float(values[5]);
+            memcpy(v[stage==2?55:31+stage*4],uv+stage,sizeof(D3DMATRIX));
+            const UINT pixel=stage==2?14:2+stage*2;
+            for(int k=0;k<4;++k)p[pixel][k]=float(values[k]);
+            p[pixel+1][0]=float(values[4]);p[pixel+1][1]=float(values[5]);
             if(stage&&values[0]!=D3DTOP_DISABLE) {
-                Com<IDirect3DBaseTexture9> layer;device_->GetTexture(1,layer.out());
-                p[5][2]=layer.p?1.f:0.f;
+                Com<IDirect3DBaseTexture9> layer;device_->GetTexture(stage,layer.out());
+                p[pixel+1][2]=layer.p?1.f:0.f;
                 if(layer.p&&layer->GetType()!=D3DRTYPE_TEXTURE)return false;
             }
-            device_->GetTextureStageState(stage,D3DTSS_CONSTANT,&constant);rgba(constant,p[7+stage]);
+            device_->GetTextureStageState(stage,D3DTSS_CONSTANT,&constant);rgba(constant,p[stage==2?16:7+stage]);
         }
         D3DMATERIAL9 material{};device_->GetMaterial(&material);
         DWORD ambient=0,factor=0,normalize=0;

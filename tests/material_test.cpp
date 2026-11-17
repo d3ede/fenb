@@ -41,9 +41,11 @@ bool Save(const std::vector<DWORD> &pixels,const std::wstring &path){
 struct Fixture {
     IDirect3DDevice9 *d;
     MaterialFX fx;
-    Com<IDirect3DTexture9> art,layer;
+    Com<IDirect3DTexture9> art,layer,shadow;
     bool two=false,lit=true,point=false,rangeFog=false,transform=false,used=false,scaled=false,orbit=false,zeroNormals=false;
     int fog=0,table=0,stateErrors=0;
+    bool third=false;
+    int shadowCoordinates=0;
     float repeats=1,cameraDistance=3.2f,uStart=0,uSpan=1,vStart=0,vSpan=1;
     explicit Fixture(IDirect3DDevice9 *device):d(device),fx(device){}
     std::vector<DWORD> render(const Settings &s){
@@ -82,8 +84,8 @@ struct Fixture {
         d->SetRenderState(D3DRS_FOGCOLOR,0xff526881);
         const float fogValues[]={.12f,1.f,12.f};const D3DRENDERSTATETYPE keys[]={D3DRS_FOGDENSITY,D3DRS_FOGSTART,D3DRS_FOGEND};
         for(int i=0;i<3;++i){DWORD bits;memcpy(&bits,fogValues+i,4);d->SetRenderState(keys[i],bits);}
-        d->SetTexture(0,art);d->SetTexture(1,layer);
-        for(DWORD stage=0;stage<2;++stage){
+        d->SetTexture(0,art);d->SetTexture(1,layer);d->SetTexture(2,shadow);
+        for(DWORD stage=0;stage<3;++stage){
             d->SetSamplerState(stage,D3DSAMP_MINFILTER,D3DTEXF_LINEAR);d->SetSamplerState(stage,D3DSAMP_MAGFILTER,D3DTEXF_LINEAR);
             d->SetSamplerState(stage,D3DSAMP_MIPFILTER,D3DTEXF_LINEAR);d->SetSamplerState(stage,D3DSAMP_ADDRESSU,D3DTADDRESS_WRAP);d->SetSamplerState(stage,D3DSAMP_ADDRESSV,D3DTADDRESS_WRAP);
             d->SetTextureStageState(stage,D3DTSS_TEXCOORDINDEX,stage);d->SetTextureStageState(stage,D3DTSS_TEXTURETRANSFORMFLAGS,transform?D3DTTFF_COUNT2:D3DTTFF_DISABLE);
@@ -93,7 +95,18 @@ struct Fixture {
         d->SetTextureStageState(0,D3DTSS_ALPHAOP,D3DTOP_MODULATE);d->SetTextureStageState(0,D3DTSS_ALPHAARG1,D3DTA_TEXTURE);d->SetTextureStageState(0,D3DTSS_ALPHAARG2,D3DTA_DIFFUSE);
         d->SetTextureStageState(1,D3DTSS_COLOROP,two?D3DTOP_SELECTARG1:D3DTOP_DISABLE);d->SetTextureStageState(1,D3DTSS_COLORARG1,D3DTA_CURRENT);
         d->SetTextureStageState(1,D3DTSS_ALPHAOP,D3DTOP_SELECTARG1);d->SetTextureStageState(1,D3DTSS_ALPHAARG1,D3DTA_TEXTURE);
-        d->SetTextureStageState(2,D3DTSS_COLOROP,D3DTOP_DISABLE);
+        d->SetTextureStageState(2,D3DTSS_COLOROP,third?D3DTOP_MODULATE:D3DTOP_DISABLE);
+        d->SetTextureStageState(2,D3DTSS_COLORARG1,D3DTA_CURRENT);d->SetTextureStageState(2,D3DTSS_COLORARG2,D3DTA_TEXTURE);
+        d->SetTextureStageState(2,D3DTSS_ALPHAOP,D3DTOP_SELECTARG1);d->SetTextureStageState(2,D3DTSS_ALPHAARG1,D3DTA_CURRENT);
+        d->SetTextureStageState(3,D3DTSS_COLOROP,D3DTOP_DISABLE);
+        auto shadowMatrix=identity;shadowMatrix._11=.18f;shadowMatrix._22=.24f;shadowMatrix._31=.17f;shadowMatrix._32=.23f;
+        if(shadowCoordinates>=2){shadowMatrix._31=shadowMatrix._32=0;shadowMatrix._41=.5f;shadowMatrix._42=.5f;}
+        if(shadowCoordinates==3){shadowMatrix._13=.03f;shadowMatrix._23=.02f;shadowMatrix._33=.05f;shadowMatrix._43=1;}
+        if(shadowCoordinates==4){shadowMatrix._14=.03f;shadowMatrix._24=.02f;shadowMatrix._34=.05f;shadowMatrix._44=1;}
+        d->SetTransform(D3DTS_TEXTURE2,&shadowMatrix);
+        d->SetTextureStageState(2,D3DTSS_TEXCOORDINDEX,shadowCoordinates>=2?D3DTSS_TCI_CAMERASPACEPOSITION:shadowCoordinates);
+        d->SetTextureStageState(2,D3DTSS_TEXTURETRANSFORMFLAGS,shadowCoordinates==0?D3DTTFF_DISABLE:
+            shadowCoordinates==3?D3DTTFF_COUNT3|D3DTTFF_PROJECTED:shadowCoordinates==4?D3DTTFF_COUNT4|D3DTTFF_PROJECTED:D3DTTFF_COUNT2);
         struct Vertex{float x,y,z,nx,ny,nz,u,v,a,b;};
         std::vector<float> vertices;
         auto vertex=[&](float x,float y){
@@ -105,12 +118,12 @@ struct Fixture {
         for(int y=0;y<12;++y)for(int x=0;x<20;++x){float l=-1.8f+x*3.6f/20,r=l+3.6f/20,t=1.2f-y*2.4f/12,b=t-2.4f/12;
             vertex(l,t);vertex(r,t);vertex(l,b);vertex(l,b);vertex(r,t);vertex(r,b);}
         if(FAILED(d->BeginScene()))return {};
-        float beforeVS[55][4]{},beforePS[14][4]{},afterVS[55][4]{},afterPS[14][4]{};
-        d->GetVertexShaderConstantF(0,beforeVS[0],55);d->GetPixelShaderConstantF(0,beforePS[0],14);
+        float beforeVS[60][4]{},beforePS[17][4]{},afterVS[60][4]{},afterPS[17][4]{};
+        d->GetVertexShaderConstantF(0,beforeVS[0],60);d->GetPixelShaderConstantF(0,beforePS[0],17);
         used=fx.begin(s);
         auto hr=d->DrawPrimitiveUP(D3DPT_TRIANGLELIST,20*12*2,vertices.data(),(two?10:8)*sizeof(float));
         fx.end();
-        d->GetVertexShaderConstantF(0,afterVS[0],55);d->GetPixelShaderConstantF(0,afterPS[0],14);
+        d->GetVertexShaderConstantF(0,afterVS[0],60);d->GetPixelShaderConstantF(0,afterPS[0],17);
         stateErrors+=memcmp(beforeVS,afterVS,sizeof(beforeVS))!=0||memcmp(beforePS,afterPS,sizeof(beforePS))!=0;
         DWORD restored=0;d->GetRenderState(D3DRS_FOGENABLE,&restored);stateErrors+=restored!=DWORD(bool(fog||table));
         d->EndScene();if(FAILED(hr))return {};
@@ -152,7 +165,8 @@ int main(int argc,char **argv){
     }
     CHECK(SUCCEEDED(d->CreateTexture(64,64,1,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,fixture.art.out(),nullptr)));
     CHECK(SUCCEEDED(d->CreateTexture(8,8,1,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,fixture.layer.out(),nullptr)));
-    for(auto *texture:{fixture.art.p,fixture.layer.p}){D3DSURFACE_DESC desc{};texture->GetLevelDesc(0,&desc);D3DLOCKED_RECT lock{};CHECK(SUCCEEDED(texture->LockRect(0,&lock,nullptr,0)));
+    CHECK(SUCCEEDED(d->CreateTexture(8,8,1,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,fixture.shadow.out(),nullptr)));
+    for(auto *texture:{fixture.art.p,fixture.layer.p,fixture.shadow.p}){D3DSURFACE_DESC desc{};texture->GetLevelDesc(0,&desc);D3DLOCKED_RECT lock{};CHECK(SUCCEEDED(texture->LockRect(0,&lock,nullptr,0)));
         for(UINT y=0;y<desc.Height;++y)for(UINT x=0;x<desc.Width;++x){int grain=int(20*std::sin(x*.5)*std::cos(y*.7));((DWORD *)((BYTE *)lock.pBits+y*lock.Pitch))[x]=D3DCOLOR_ARGB(128,110+grain,125+grain,145+grain);}texture->UnlockRect(0);}
     DWORD kind=2;fixture.art->SetPrivateData(MaterialTag,&kind,4,0);
     Settings neutral=on;neutral.materialRelief=neutral.materialGlints=neutral.materialSnow=0;
@@ -169,6 +183,20 @@ int main(int argc,char **argv){
     CHECK(Delta(fixture.render(off),fixture.render(neutral))<=2);
     fixture.scaled=fixture.orbit=false;fixture.point=false;
     fixture.zeroNormals=true;CHECK(Delta(fixture.render(off),fixture.render(neutral))<=2);fixture.zeroNormals=false;
+    // Native terrain combines artwork, blend coverage and a third projected mask.
+    // It must receive styling without losing that mask or its blend-map alpha.
+    kind=1;fixture.art->SetPrivateData(MaterialTag,&kind,4,0);
+    fixture.two=fixture.third=true;
+    for(int coordinates=0;coordinates<5;++coordinates)for(int fog:{0,3}){
+        fixture.shadowCoordinates=coordinates;fixture.fog=fog;
+        auto a=fixture.render(off),b=fixture.render(neutral),styled=fixture.render(on);
+        printf("Three-stage terrain coordinates=%d fog=%d: native delta=%u styled delta=%u\n",coordinates,fog,Delta(a,b),Delta(a,styled));
+        CHECK(fixture.used&&Delta(a,b)<=2&&Delta(a,styled)>5);
+    }
+    // Direct3D stops at the first disabled stage, even if later state is left enabled.
+    fixture.two=false;
+    CHECK(Delta(fixture.render(off),fixture.render(neutral))<=2&&fixture.used);
+    fixture.two=fixture.third=false;fixture.fog=fixture.shadowCoordinates=0;
     for(DWORD type=1;type<=5;++type){
         fixture.art->SetPrivateData(MaterialTag,&type,4,0);
         auto a=fixture.render(off),b=fixture.render(on);

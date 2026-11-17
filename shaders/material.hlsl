@@ -1,5 +1,6 @@
 sampler2D Art : register(s0);
 sampler2D Layer : register(s1);
+sampler2D Shadow : register(s2);
 row_major float4x4 Clip : register(c0);
 row_major float4x4 ViewWorld : register(c4);
 row_major float3x3 NormalMatrix : register(c8);
@@ -13,6 +14,8 @@ row_major float4x4 UV0 : register(c31);
 row_major float4x4 UV1 : register(c35);
 float4 Attenuation[8] : register(c39);
 float4 LightAmbient[8] : register(c47);
+row_major float4x4 UV2 : register(c55);
+float4 ExtraCoordinates : register(c59); // source UV0 / UV1 / view position, projected component
 float FogAmount(float depth, float4 settings) {
     if (settings.x < .5) return 1;
     if (settings.x < 1.5) return saturate(exp(-depth*settings.y));
@@ -22,7 +25,7 @@ float FogAmount(float depth, float4 settings) {
 struct MaterialInput { float3 position:POSITION; float3 normal:NORMAL; float2 uv:TEXCOORD0; float2 blend:TEXCOORD1; };
 struct MaterialOutput {
     float4 position:POSITION; float4 diffuse:COLOR0; float2 uv:TEXCOORD0; float2 blend:TEXCOORD1;
-    float3 view:TEXCOORD2; float3 normal:TEXCOORD3; float fog:TEXCOORD4;
+    float3 view:TEXCOORD2; float3 normal:TEXCOORD3; float fog:TEXCOORD4; float4 extra:TEXCOORD5;
 };
 MaterialOutput MaterialVS(MaterialInput i) {
     MaterialOutput o;
@@ -46,6 +49,9 @@ MaterialOutput MaterialVS(MaterialInput i) {
     o.normal=dot(n,n)>.00000001?normalize(n):float3(0,0,-1);
     o.uv=mul(float4(i.uv,1,0),UV0).xy;
     o.blend=mul(float4(Layout.y>.5?i.blend:i.uv,1,0),UV1).xy;
+    float4 extra=ExtraCoordinates.x>1.5?float4(o.view,1):float4(ExtraCoordinates.x>.5?i.blend:i.uv,1,0);
+    extra=mul(extra,UV2);
+    o.extra=float4(extra.xy,0,ExtraCoordinates.y>3.5?extra.w:ExtraCoordinates.y>2.5?extra.z:1);
     o.fog=FogAmount(VertexFog.x<0?length(o.view):o.view.z,float4(abs(VertexFog.x),VertexFog.yzw));
     return o;
 }
@@ -69,6 +75,9 @@ float4 PixelFog : register(c10);
 float4 SunDirection : register(c11);
 float4 SunColor : register(c12);
 float4 MaterialDiffuse : register(c13);
+float4 Stage2 : register(c14);
+float4 Alpha2 : register(c15);
+float4 Constant2 : register(c16);
 float4 Argument(float a,float4 texel,float4 diffuse,float4 current,float4 constant) {
     float k=fmod(a,16);
     float4 v=k==0?diffuse:k==1?current:k==2?texel:k==3?Factor:constant;
@@ -139,6 +148,9 @@ float4 MaterialPS(MaterialOutput i):COLOR0 {
     float4 layer=1;
     [branch]if(Alpha1.z>.5)layer=tex2D(Layer,i.blend);
     float4 color=NativeStage(Stage1,Alpha1,layer,float4(diffuse,i.diffuse.a),native,Constant1);
+    float4 shadow=1;
+    [branch]if(Alpha2.z>.5)shadow=tex2Dproj(Shadow,i.extra);
+    color=NativeStage(Stage2,Alpha2,shadow,float4(diffuse,i.diffuse.a),color,Constant2);
     float3 halfVector=normalize(light+normalize(-i.view));
     float sparkle=pow(saturate(dot(n,halfVector)),ArtInfo.z==1?128:ArtInfo.z==3?36:48);
     float glintScale=ArtInfo.z==1?.08:ArtInfo.z==3?.025:ArtInfo.z==2?.018:.008;
