@@ -69,10 +69,12 @@ add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/generated/sfx_shaders.hpp
 target_sources(d3d9 PRIVATE src/updater.cpp "${CMAKE_CURRENT_BINARY_DIR}/generated/sfx_shaders.hpp")
 target_sources(d3d9 PRIVATE src/optimization.cpp)
 target_sources(d3d9 PRIVATE "${FENB_MATERIAL_CATALOG}")
-add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/generated/material_ps.hpp"
+add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/generated/material_ps.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/material_bark_ps.hpp"
+  COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/generated"
   COMMAND shaderc "${CMAKE_CURRENT_SOURCE_DIR}/shaders/material.hlsl" "${CMAKE_CURRENT_BINARY_DIR}/generated/material_ps.hpp" MaterialPS ps_2_a
+  COMMAND shaderc "${CMAKE_CURRENT_SOURCE_DIR}/shaders/material.hlsl" "${CMAKE_CURRENT_BINARY_DIR}/generated/material_bark_ps.hpp" MaterialBarkPS ps_2_a
   DEPENDS shaderc shaders/material.hlsl)
-target_sources(d3d9 PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated/material_ps.hpp")
+target_sources(d3d9 PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated/material_ps.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/material_bark_ps.hpp")
 target_include_directories(d3d9 PRIVATE "${CMAKE_CURRENT_BINARY_DIR}" src "${IMGUI}")
 target_compile_definitions(d3d9 PRIVATE IMGUI_DISABLE_DEMO_WINDOWS IMGUI_DISABLE_DEBUG_TOOLS IMGUI_IMPL_WIN32_DISABLE_GAMEPAD IMGUI_USE_BGRA_PACKED_COLOR)
 target_link_libraries(d3d9 PRIVATE dxguid comctl32 dwmapi gdi32 imm32 bcrypt winmm)
@@ -106,7 +108,7 @@ else()
 endif()
 include(CTest)
 if(BUILD_TESTING)
-  add_executable(material-test tests/material_test.cpp "${FENB_MATERIAL_CATALOG}" "${CMAKE_CURRENT_BINARY_DIR}/generated/material_ps.hpp")
+  add_executable(material-test tests/material_test.cpp "${FENB_MATERIAL_CATALOG}" "${CMAKE_CURRENT_BINARY_DIR}/generated/material_ps.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/material_bark_ps.hpp")
   target_include_directories(material-test PRIVATE "${CMAKE_CURRENT_BINARY_DIR}" src)
   target_link_libraries(material-test PRIVATE dxguid bcrypt gdiplus "$<IF:$<CXX_COMPILER_ID:MSVC>,d3d9.lib,-ld3d9>")
   if(MINGW)

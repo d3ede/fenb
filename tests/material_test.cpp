@@ -173,7 +173,7 @@ struct Fixture {
             draw();d->SetTextureStageState(0,D3DTSS_COLORARG2,D3DTA_DIFFUSE);d->SetRenderState(D3DRS_ZFUNC,D3DCMP_EQUAL);
         }
         used=fx.begin(s);
-        if(used){Com<IDirect3DBaseTexture9> detail;d->GetTexture(3,detail.out());stateErrors+=detail.p==shadow.p;}
+        if(used){Com<IDirect3DBaseTexture9> detail;d->GetTexture(3,detail.out());stateErrors+=shadow.p&&detail.p==shadow.p;}
         auto hr=draw();
         fx.end();
         Com<IDirect3DBaseTexture9> restoredTexture;d->GetTexture(3,restoredTexture.out());stateErrors+=restoredTexture.p!=shadow.p;
@@ -284,8 +284,8 @@ int main(int argc,char **argv){
         if(type!=1)CHECK(Delta(a,b)<=12);
         CHECK(Delta(b,fixture.render(on))<=(msaa?2u:0u));
     }
-    // Maximum snow correction preserves the source's luminance pattern instead of
-    // replacing it with a neighborhood-average white color.
+    // Maximum snow correction compresses the painted mottling but retains a
+    // readable brightness pattern, rather than replacing it with a flat fill.
     D3DLOCKED_RECT snowLock{};CHECK(SUCCEEDED(fixture.art->LockRect(0,&snowLock,nullptr,0)));
     for(UINT y=0;y<64;++y)for(UINT x=0;x<64;++x){int grain=int(20*std::sin(x*.5)*std::cos(y*.7));
         ((DWORD *)((BYTE *)snowLock.pBits+y*snowLock.Pitch))[x]=D3DCOLOR_ARGB(128,180+grain,195+grain,220+grain);}
@@ -300,35 +300,62 @@ int main(int argc,char **argv){
     };
     const double sourceEnergy=energy(sourceSnow),correctedEnergy=energy(correctedSnow);
     printf("Snow luminance detail retained at maximum strength: %.2f%%\n",100*correctedEnergy/sourceEnergy);
-    CHECK(sourceEnergy>100&&correctedEnergy>sourceEnergy*.7&&correctedEnergy<sourceEnergy*1.4&&Delta(sourceSnow,correctedSnow)>0);
+    CHECK(sourceEnergy>100&&correctedEnergy>sourceEnergy*.4&&correctedEnergy<sourceEnergy*.75&&Delta(sourceSnow,correctedSnow)>0);
     // Relief must visibly change lighting, not merely the snow's color correction.
     Settings raised=snowStyle;raised.materialRelief=1;
+    // Resolve the finer grain in a close crop; it must fade rather than alias at distance.
+    fixture.repeats=.3f;correctedSnow=fixture.render(snowStyle);
     const auto raisedSnow=fixture.render(raised);
     printf("Snow relief 0 -> 1: RGB delta=%u\n",Delta(correctedSnow,raisedSnow));
-    CHECK(Delta(correctedSnow,raisedSnow)>=6);
+    CHECK(Delta(correctedSnow,raisedSnow)>=3&&Delta(correctedSnow,raisedSnow)<=12);
     CHECK(Delta(raisedSnow,fixture.render(raised))<=(msaa?2u:0u));
     fixture.sunSide=-1;
     auto reverseFlat=fixture.render(snowStyle),reverseRelief=fixture.render(raised);
     double lightingResponse=0;
     for(size_t i=0;i<raisedSnow.size();++i)lightingResponse+=std::abs(
         int(raisedSnow[i]&255)-int(correctedSnow[i]&255)-int(reverseRelief[i]&255)+int(reverseFlat[i]&255));
-    CHECK(lightingResponse>W*H*.1);fixture.sunSide=1;
+    CHECK(lightingResponse>W*H*.1);fixture.sunSide=1;fixture.repeats=1;
+    CHECK(Delta(fixture.render(snowStyle),fixture.render(raised))<=(msaa?2u:0u));
     // Only exact bark identities can opt into alpha-tested material draws. Native
     // alpha, depth coverage and a following unstyled draw must all remain intact.
+    CHECK(SUCCEEDED(d->CreateTexture(64,64,0,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,fixture.art.out(),nullptr)));
     D3DLOCKED_RECT barkLock{};CHECK(SUCCEEDED(fixture.art->LockRect(0,&barkLock,nullptr,0)));
     for(UINT y=0;y<64;++y)for(UINT x=0;x<64;++x){int grain=int(25*std::sin(x*.8)+8*std::cos(y*.4));
         ((DWORD *)((BYTE *)barkLock.pBits+y*barkLock.Pitch))[x]=D3DCOLOR_ARGB(x*4,150+grain,100+grain,45+grain);}
     fixture.art->UnlockRect(0);DWORD barkKind=6;fixture.art->SetPrivateData(MaterialTag,&barkKind,4,0);
+    for(UINT level=1;level<fixture.art->GetLevelCount();++level){
+        D3DSURFACE_DESC desc{};fixture.art->GetLevelDesc(level,&desc);D3DLOCKED_RECT src{},dst{};
+        CHECK(SUCCEEDED(fixture.art->LockRect(level-1,&src,nullptr,D3DLOCK_READONLY)));
+        CHECK(SUCCEEDED(fixture.art->LockRect(level,&dst,nullptr,0)));
+        for(UINT y=0;y<desc.Height;++y)for(UINT x=0;x<desc.Width;++x){DWORD pixel=0;
+            for(unsigned shift:{0u,8u,16u,24u}){unsigned sum=0;
+                for(UINT b=0;b<2;++b)for(UINT a=0;a<2;++a)sum+=(((DWORD *)((BYTE *)src.pBits+(y*2+b)*src.Pitch))[x*2+a]>>shift)&255;
+                pixel|=((sum+2)/4)<<shift;}
+            ((DWORD *)((BYTE *)dst.pBits+y*dst.Pitch))[x]=pixel;}
+        fixture.art->UnlockRect(level);fixture.art->UnlockRect(level-1);
+    }
     fixture.cutout=fixture.absolute=fixture.coplanar=true;
     auto nativeBark=fixture.render(off),neutralBark=fixture.render(neutral),styledBark=fixture.render(raised);
-    CHECK(fixture.used&&Delta(nativeBark,neutralBark)<=2&&Delta(nativeBark,styledBark)>=6);
+    const auto barkDelta=Delta(nativeBark,styledBark);
+    printf("Bark relief at maximum strength: RGB delta=%u\n",barkDelta);
+    CHECK(fixture.used&&Delta(nativeBark,neutralBark)<=2&&barkDelta>=6&&barkDelta<=48);
     for(size_t i=0;i<nativeBark.size();++i)CHECK((nativeBark[i]==0xff293441)==(styledBark[i]==0xff293441));
+    // A client upload without mipmaps uses the softer source-gradient fallback.
+    Com<IDirect3DTexture9> singleLevel;CHECK(SUCCEEDED(d->CreateTexture(64,64,1,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,singleLevel.out(),nullptr)));
+    D3DLOCKED_RECT original{},copy{};CHECK(SUCCEEDED(fixture.art->LockRect(0,&original,nullptr,D3DLOCK_READONLY)));
+    CHECK(SUCCEEDED(singleLevel->LockRect(0,&copy,nullptr,0)));
+    for(UINT y=0;y<64;++y)memcpy((BYTE *)copy.pBits+y*copy.Pitch,(BYTE *)original.pBits+y*original.Pitch,64*4);
+    singleLevel->UnlockRect(0);fixture.art->UnlockRect(0);singleLevel->SetPrivateData(MaterialTag,&barkKind,4,0);
+    std::swap(singleLevel.p,fixture.art.p);
+    CHECK(Delta(fixture.render(off),fixture.render(neutral))<=2&&fixture.used);
+    CHECK(Delta(fixture.render(off),fixture.render(raised))<=24&&fixture.used);
+    std::swap(singleLevel.p,fixture.art.p);
     fixture.followingNative=true;CHECK(Delta(fixture.render(off),fixture.render(raised))<=(msaa?2u:0u));
     fixture.followingNative=fixture.absolute=fixture.coplanar=false;
     kind=2;fixture.art->SetPrivateData(MaterialTag,&kind,4,0);fixture.render(raised);CHECK(!fixture.used);
     fixture.cutout=false;
-    fixture.fx.invalidate();fixture.art->SetPrivateData(MaterialTag,&barkKind,4,0);
-    const auto recreatedBark=fixture.render(raised);fixture.fx.invalidate();CHECK(Delta(recreatedBark,fixture.render(raised))<=(msaa?2u:0u));
+    fixture.fx.invalidate();fixture.art->SetPrivateData(MaterialTag,&snowKind,4,0);fixture.repeats=.3f;
+    const auto recreatedSnow=fixture.render(raised);fixture.fx.invalidate();CHECK(Delta(recreatedSnow,fixture.render(raised))<=(msaa?2u:0u));fixture.repeats=1;
     // A uniformly painted matte surface must not acquire procedural grain or relief,
     // even at maximum relief strength. Curved geometry still receives native lighting.
     D3DLOCKED_RECT flat{};CHECK(SUCCEEDED(fixture.art->LockRect(0,&flat,nullptr,0)));

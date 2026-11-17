@@ -49,16 +49,20 @@ float4 NativeStage(float4 stage,float4 alpha,float4 art,float4 diffuse,float4 cu
     if(stage.w>1.5)opacity=Operation(stage.w,Argument(alpha.x,art,diffuse,current,constant),Argument(alpha.y,art,diffuse,current,constant)).a;
     return saturate(float4(rgb,opacity));
 }
-float4 MaterialPS(MaterialInput i):COLOR0 {
+float4 ShadeMaterial(MaterialInput i,uniform bool smoothBark) {
     const float3 luma=float3(.2126,.7152,.0722);
     float4 art=tex2D(Art,i.uv);
-    float3 west=tex2D(Art,i.uv-float2(ArtInfo.x,0)).rgb;
-    float3 east=tex2D(Art,i.uv+float2(ArtInfo.x,0)).rgb;
-    float3 north=tex2D(Art,i.uv-float2(0,ArtInfo.y)).rgb;
-    float3 south=tex2D(Art,i.uv+float2(0,ArtInfo.y)).rgb;
     float2 dx=ddx(i.uv),dy=ddy(i.uv);
-    float fade=saturate(1-max(length(dx/ArtInfo.xy),length(dy/ArtInfo.xy))*.6);
-    float snow=ArtInfo.z<1.5?Style.w:0;
+    float footprint=max(length(dx/ArtInfo.xy),length(dy/ArtInfo.xy));
+    float fade=saturate(1-footprint*.6);
+    float bias=max(0,log2(2/max(footprint,.0001)));
+    // A wider, orthogonally smoothed gradient avoids embossing individual bark texels.
+    float2 radius=ArtInfo.xy*(ArtInfo.z>5.5?1.5:1);
+    float3 nw=smoothBark?tex2Dbias(SurfaceDetail,float4(i.uv-radius,0,bias)).rgb:tex2D(Art,i.uv-radius).rgb;
+    float3 ne=smoothBark?tex2Dbias(SurfaceDetail,float4(i.uv+float2(radius.x,-radius.y),0,bias)).rgb:tex2D(Art,i.uv+float2(radius.x,-radius.y)).rgb;
+    float3 sw=smoothBark?tex2Dbias(SurfaceDetail,float4(i.uv+float2(-radius.x,radius.y),0,bias)).rgb:tex2D(Art,i.uv+float2(-radius.x,radius.y)).rgb;
+    float3 se=smoothBark?tex2Dbias(SurfaceDetail,float4(i.uv+radius,0,bias)).rgb:tex2D(Art,i.uv+radius).rgb;
+    float snow=smoothBark?0:ArtInfo.z<1.5?Style.w:0;
     // Within the known bark atlas, preserve its painted white snow skirt.
     float bark=ArtInfo.z>5.5?saturate((art.r-art.b)*8):0;
     float structure=saturate(ArtInfo.z-1)*saturate(4-ArtInfo.z);
@@ -66,9 +70,11 @@ float4 MaterialPS(MaterialInput i):COLOR0 {
     float detailFade=DetailInfo.z*saturate(1-max(length(ddx(detailUV)*128),length(ddy(detailUV)*128))*.65);
     float4 micro=tex2D(SurfaceDetail,detailUV);
     float2 grain=(micro.rg*2-1)*detailFade;
-    float2 gradient=float2(dot(east-west,luma),dot(south-north,luma))*DetailInfo.w*fade;
-    gradient/=1+length(gradient)*(3-bark*2-structure);
-    gradient=gradient*(1-snow*.65)+grain*(snow*.6+bark*.1);
+    float2 gradient=float2(dot(ne+se-nw-sw,luma),dot(sw+se-nw-ne,luma))*.5*DetailInfo.w*fade;
+    gradient.y*=1-bark*.65;
+    gradient/=1+length(gradient)*(3-bark*1.5);
+    // Painted snow mottling is color variation, not a field of raised bubbles.
+    gradient=gradient*(1-snow)+grain*snow*.25;
     gradient*=Style.y;
     float3 n=normalize(i.normal+float3(0,0,-.0001));
     float3 tangent=ddx(i.view)*dy.y-ddy(i.view)*dx.y;
@@ -77,19 +83,19 @@ float4 MaterialPS(MaterialInput i):COLOR0 {
     tangent*=determinant<0?-1:1;
     float3 bitangent=cross(n,tangent)*(determinant<0?-1:1);
     float3 bumped=normalize(n-(tangent*gradient.x+bitangent*gradient.y));
-    float limit=.025+snow*.1+bark*.25+structure*.1;
+    float limit=.025+snow*.05+bark*.25+structure*.1;
     float delta=clamp(dot(bumped,SunDirection.xyz)-dot(n,SunDirection.xyz),-limit,limit);
     float4 diffuse=i.diffuse;
-    diffuse.rgb=saturate(diffuse.rgb+delta*SunColor.rgb*Style.x*(.35+snow*.4+bark*1.5+structure*.65));
+    diffuse.rgb=saturate(diffuse.rgb+delta*SunColor.rgb*Style.x*(.35+snow*.4+bark+structure*.65));
     if(ArtInfo.z<1.5){
         float brightness=dot(art.rgb,luma);
-        // Preserve the source luminance pattern; lift its brightness without averaging it away.
-        float3 clean=float3(.99,.99,1)*(brightness+.1*(1-brightness));
+        // Keep broad painted variation, but compress mottling rather than embossing it.
+        float3 clean=float3(.99,.99,1)*(.5+brightness*.5);
         art.rgb=lerp(art.rgb,clean,Style.w*Style.x);
         art.rgb=saturate(art.rgb+(micro.b-.5)*detailFade*Style.w*Style.x*.025);
     }else{
-        float3 detail=art.rgb-(west+east+north+south)*.25;
-        art.rgb=saturate(art.rgb+clamp(detail*Style.x*Style.y*fade*(.1+bark),-.025,.025));
+        float3 detail=art.rgb-(nw+ne+sw+se)*.25;
+        art.rgb=saturate(art.rgb+clamp(detail*Style.x*Style.y*fade*.1,-.025,.025));
     }
     float4 color=NativeStage(Stage0,Alpha0,art,diffuse,diffuse,Constant0);
     float4 layer=lerp(1,tex2D(Layer,i.blend),Alpha1.z);
@@ -101,8 +107,10 @@ float4 MaterialPS(MaterialInput i):COLOR0 {
     float3 halfVector=normalize(SunDirection.xyz+eye);
     color.rgb+=pow(saturate(dot(bumped,halfVector)),64)*SunColor.rgb*Style.x*Style.z*ArtInfo.w;
     float crystals=saturate((micro.a-.75)*8)*detailFade*snow;
-    color.rgb+=pow(saturate(dot(bumped,halfVector)),24)*crystals*SunColor.rgb*Style.x*Style.z*.1;
+    color.rgb+=pow(saturate(dot(bumped,halfVector)),64)*crystals*SunColor.rgb*Style.x*Style.z*.1;
     float fog=FogAmount(PixelFog.x<0?length(i.view):i.view.z,float4(abs(PixelFog.x),PixelFog.yzw));
     color.rgb=lerp(FogColor.rgb,color.rgb,fog);
     return color;
 }
+float4 MaterialPS(MaterialInput i):COLOR0 {return ShadeMaterial(i,false);}
+float4 MaterialBarkPS(MaterialInput i):COLOR0 {return ShadeMaterial(i,true);}

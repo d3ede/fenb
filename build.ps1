@@ -47,6 +47,8 @@ if ($LASTEXITCODE) { throw 'Scene FX shader compilation failed' }
 if ($LASTEXITCODE) { throw 'SFX shader compilation failed' }
 & './build/shaderc.exe' 'shaders/material.hlsl' 'src/generated/material_ps.hpp' 'MaterialPS' 'ps_2_a'
 if($LASTEXITCODE){throw 'Material pixel shader compilation failed'}
+& './build/shaderc.exe' 'shaders/material.hlsl' 'src/generated/material_bark_ps.hpp' 'MaterialBarkPS' 'ps_2_a'
+if($LASTEXITCODE){throw 'Bark pixel shader compilation failed'}
 & '.\build\shaderc.exe' 'shaders/smaa.hlsl' 'src/generated/smaa_shaders.hpp' 'smaa'
 if ($LASTEXITCODE) { throw 'SMAA shader compilation failed' }
 $imgui='vendor/imgui-1.92.9b'
