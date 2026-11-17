@@ -7,5 +7,6 @@ class Optimization {
     bool supported();
     bool effectsSupported();
     bool petEffectsSupported();
+    bool actorVisibilitySupported();
     void update(const Settings &);
 };

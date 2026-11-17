@@ -72,6 +72,10 @@ if ($Tests) {
     if($LASTEXITCODE){throw 'Optimization test build failed'}
     & './build/optimization-test.exe'
     if($LASTEXITCODE){throw 'Optimization test failed'}
+    & $cxx '-std=c++20' '-O2' '-static' '-Isrc' 'tests/actor_visibility_test.cpp' '-o' 'build/actor-visibility-test.exe'
+    if($LASTEXITCODE){throw 'Actor visibility test build failed'}
+    & './build/actor-visibility-test.exe'
+    if($LASTEXITCODE){throw 'Actor visibility test failed'}
     if($NativeTestImage) {
         & $cxx '-std=c++20' '-O2' '-static' '-municode' '-Isrc' @nativeAsmOptions 'tests/optimization_binding_test.cpp' '-lwinmm' '-luser32' '-o' 'build/optimization-binding-test.exe'
         if($LASTEXITCODE){throw 'Optimization binding test build failed'}

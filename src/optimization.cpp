@@ -1,6 +1,8 @@
 #include "optimization.hpp"
 #include "native_binding.hpp"
+#include "actor_visibility.hpp"
 #include <map>
+#include <sstream>
 
 namespace optimization_detail {
 template<class T> T &field(void *p,size_t offset) { return *reinterpret_cast<T *>(static_cast<unsigned char *>(p)+offset); }
@@ -85,22 +87,30 @@ EffectsBinding discoverEffects() {
     return result;
 }
 enum class Owner { Unknown,Other,Player,Pet };
-Owner owner(const EffectsBinding &binding,uint32_t id) {
+void *resolveActor(const EffectsBinding &binding,uint32_t id) {
     void *actor=nullptr;
     if(id==UINT32_MAX || !binding.resolve || !binding.ctrlMap ||
-       !binding.resolve(binding.ctrlMap,id,&actor) || !actor || (field<DWORD>(actor,4)&1u))return Owner::Unknown;
+       !binding.resolve(binding.ctrlMap,id,&actor) || !actor || (field<DWORD>(actor,4)&1u))return nullptr;
+    return actor;
+}
+Owner owner(const void *object) {
+    if(!object)return Owner::Unknown;
+    auto *actor=const_cast<void *>(object);
     if(field<DWORD>(actor,0x170)!=5)return Owner::Other;
     if(field<int>(actor,0x31c))return Owner::Player;
     const auto ai=field<DWORD>(actor,0x18c);
     return ai==5 || ai==9 ? Owner::Pet : Owner::Other;
 }
-bool hideSfx(const EffectsBinding &binding,const Settings &settings,void *effect) {
+bool hideSfx(const EffectsBinding &binding,const Settings &settings,void *effect,void *player=nullptr,bool actors=false) {
     if(!effect || !binding.owners() || field<DWORD>(effect,0x170)!=3)return false;
-    if(!settings.hidePetEffects && !settings.hideDecorativeEffects && !settings.hideSkillEffects)return false;
-    auto kind=owner(binding,field<uint32_t>(effect,0x5f8));
+    if(!settings.hidePetEffects && !settings.hideDecorativeEffects && !settings.hideSkillEffects &&
+       !(actors&&actor_visibility::changed(settings)))return false;
+    auto *actor=resolveActor(binding,field<uint32_t>(effect,0x5f8));
     // Detached/retargeted effects can retain a destination after their source
     // is unavailable. A valid monster source must not become a player effect.
-    if(kind==Owner::Unknown)kind=owner(binding,field<uint32_t>(effect,0x5fc));
+    if(!actor)actor=resolveActor(binding,field<uint32_t>(effect,0x5fc));
+    if(actors && !actor_visibility::visible(settings,actor,player))return true;
+    const auto kind=owner(actor);
     if(kind==Owner::Pet)return settings.hidePetEffects;
     if(kind!=Owner::Player)return false;
     return field<int>(effect,0x5e8)?settings.hideSkillEffects:settings.hideDecorativeEffects;
@@ -108,16 +118,19 @@ bool hideSfx(const EffectsBinding &binding,const Settings &settings,void *effect
 struct EffectContext {
     const EffectsBinding &binding;
     const Settings &settings;
+    void *player=nullptr;
+    bool actors=false;
 };
 thread_local const EffectContext *effectContext=nullptr;
 struct OwnerScope {
     const EffectContext *previous=effectContext;
     EffectContext context;
-    OwnerScope(const EffectsBinding &binding,const Settings &settings):context{binding,settings} { effectContext=&context; }
+    OwnerScope(const EffectsBinding &binding,const Settings &settings,void *player=nullptr,bool actors=false):
+        context{binding,settings,player,actors} { effectContext=&context; }
     ~OwnerScope(){effectContext=previous;}
 };
 void __fastcall sfxRenderHook(void *effect,void *,void *device) {
-    if(effectContext && hideSfx(effectContext->binding,effectContext->settings,effect))return;
+    if(effectContext && hideSfx(effectContext->binding,effectContext->settings,effect,effectContext->player,effectContext->actors))return;
     auto *table=field<void **>(effect,0);
     reinterpret_cast<Render>(table[9])(effect,device);
 }
@@ -131,16 +144,65 @@ struct EffectsScope {
     }
     ~EffectsScope(){if(skills)*skills=previousSkills;if(decorative)*decorative=previousDecorative;}
 };
+using Compare=int(__cdecl *)(const void *,const void *);
+using Sort=void(__cdecl *)(void *,size_t,size_t,Compare);
+struct ActorBinding {
+    unsigned char *sortCall=nullptr;
+    Sort sort=nullptr;
+    Compare compare=nullptr;
+    void **data=nullptr,**player=nullptr;
+    int *size=nullptr;
+    explicit operator bool() const { return sortCall&&sort&&compare&&data&&player&&size; }
+};
+DWORD findInside(const client_detail::Image &scan,DWORD start,DWORD length,const char *pattern) {
+    if(!start || !length || length>8192 || !scan.section(start,length,IMAGE_SCN_MEM_EXECUTE))return 0;
+    std::vector<unsigned char> code(length);if(!scan.read(start,code.data(),code.size()))return 0;
+    std::istringstream input(pattern);std::string token;std::vector<int> bytes;
+    while(input>>token)bytes.push_back(token=="??"?-1:std::stoi(token,nullptr,16));
+    if(bytes.empty()||bytes.size()>code.size())return 0;
+    DWORD result=0;
+    for(size_t i=0;i+bytes.size()<=code.size();++i) {
+        size_t j=0;while(j<bytes.size()&&(bytes[j]<0||code[i+j]==bytes[j]))++j;
+        if(j==bytes.size()){if(result)return 0;result=start+DWORD(i);}
+    }
+    return result;
+}
+ActorBinding discoverActors(const EffectsBinding &effects) {
+    if(!effects.owners())return {};
+    const auto module=native_patch::image();auto *base=reinterpret_cast<unsigned char *>(module);
+    client_detail::Image scan(module);
+    const DWORD render=DWORD(reinterpret_cast<unsigned char *>(effects.render)-base);
+    DWORD limit=findInside(scan,render,8192,"81 3D ?? ?? ?? ?? 88 13 00 00 0F 8D ?? ?? ?? ?? 8B 86 78 01 00 00");
+    if(!limit)limit=findInside(scan,render,8192,"81 3D ?? ?? ?? ?? 88 13 00 00 C7 86 B8 02 00 00 00 00 00 00 0F 8D ?? ?? ?? ?? 8B 86 78 01 00 00");
+    const DWORD sort=findInside(scan,limit,512,"6A 04 FF 35 ?? ?? ?? ?? 68 ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B 35 ?? ?? ?? ?? 83 C4 10 33 D2 85 F6");
+    const DWORD publish=sort?findInside(scan,sort+18,64,"8B 04 95 ?? ?? ?? ?? 8D 0C 95 ?? ?? ?? ?? 42 89 88 94 01 00 00 3B D6 7C E7"):0;
+    const DWORD peaceful=scan.find("33 C0 83 B9 E8 06 00 00 01 0F 94 C0 C3 CC CC CC");
+    if(sort<render || sort-render>8192 || !limit || limit<render || limit>=sort || sort-limit>512 ||
+       !peaceful || !scan.bytes(sort-5,"68") || publish<=sort || publish-sort>64)return {};
+    const DWORD count=scan.relative(scan.value(sort+4)),data=scan.relative(scan.value(sort+9));
+    const DWORD target=DWORD(sort+18+int32_t(scan.value(sort+14))),compare=scan.relative(scan.value(sort-4));
+    if(!data || !count || !compare || scan.relative(scan.value(limit+2))!=count ||
+       scan.relative(scan.value(sort+20))!=count || scan.relative(scan.value(publish+3))!=data ||
+       scan.relative(scan.value(publish+10))!=data ||
+       !scan.section(data,5000*sizeof(void *),IMAGE_SCN_MEM_READ|IMAGE_SCN_MEM_WRITE) ||
+       !scan.section(count,sizeof(int),IMAGE_SCN_MEM_READ|IMAGE_SCN_MEM_WRITE) ||
+       !scan.bytes(compare,"55 8B EC 8B 45 08 8B 08 8B 45 0C 8B 00 F3 0F 10 80 CC 02 00 00") ||
+       !scan.bytes(target,"8B FF 55 8B EC 81 EC 18 01 00 00 A1 ?? ?? ?? ?? 33 C5 89 45 FC 8B 45 08"))return {};
+    return {base+sort+13,reinterpret_cast<Sort>(base+target),reinterpret_cast<Compare>(base+compare),
+        reinterpret_cast<void **>(base+data),reinterpret_cast<void **>(native_binding::cached.address(0x842168)),
+        reinterpret_cast<int *>(base+count)};
+}
 struct Filter {
     Binding binding;
     void **original=nullptr;
     int count=0;
     std::array<void *,4096> visible{};
-    Filter(Binding b,const Settings &s):binding(b) {
-        if(!b || !s.limitShopSigns || !*b.player || *b.size<0 || *b.size>4096 || (*b.size&&!*b.data))return;
+    Filter(Binding b,const Settings &s,bool actors=false):binding(b) {
+        if(!b || (!s.limitShopSigns&&!(actors&&actor_visibility::changed(s))) ||
+           !*b.player || *b.size<0 || *b.size>4096 || (*b.size&&!*b.data))return;
         auto *player=*b.player;
         const auto *eye=reinterpret_cast<const float *>(static_cast<unsigned char *>(player)+0x160);
-        if(!std::isfinite(eye[0])||!std::isfinite(eye[1])||!std::isfinite(eye[2]))return;
+        const bool range=s.limitShopSigns&&std::isfinite(eye[0])&&std::isfinite(eye[1])&&std::isfinite(eye[2]);
         const double radius2=double(s.shopSignDistance)*s.shopSignDistance;
         size_t visibleCount=0;
         for(int i=0;i<*b.size;++i) {
@@ -148,10 +210,13 @@ struct Filter {
             auto *object=text?field<void *>(text,0x78):nullptr;
             bool keep=true;
             if(object && object!=player) {
+                if(actors)keep=actor_visibility::visible(s,object,player);
+                if(range&&keep) {
                 const auto *p=reinterpret_cast<const float *>(static_cast<unsigned char *>(object)+0x160);
                 const double x=double(p[0])-eye[0],y=double(p[1])-eye[1],z=double(p[2])-eye[2];
                 const double distance=x*x+y*y+z*z;
                 keep=!std::isfinite(distance)||distance<=radius2;
+                }
             }
             if(keep)visible[visibleCount++]=text;
         }
@@ -164,6 +229,7 @@ struct Filter {
 struct State {
     Binding binding=discover();
     EffectsBinding effects=discoverEffects();
+    ActorBinding actors=binding?discoverActors(effects):ActorBinding{};
     native_patch::Set patches,effectPatches;
     std::recursive_mutex mutex;
     std::map<const Optimization *,Settings> owners;
@@ -171,18 +237,39 @@ struct State {
     bool installed=false,rendering=false,effectsInstalled=false,effectsRendering=false;
 };
 State &state() { static State value;return value; }
+Settings combined(const std::map<const Optimization *,Settings> &owners) {
+    Settings result;
+    const auto distance=[](float &value,float next){if(next>0)value=value>0?std::min(value,next):next;};
+    for(const auto &[key,s]:owners) {
+        if(s.limitShopSigns){result.shopSignDistance=result.limitShopSigns?std::min(result.shopSignDistance,s.shopSignDistance):s.shopSignDistance;result.limitShopSigns=true;}
+        result.hideDecorativeEffects|=s.hideDecorativeEffects;result.hideSkillEffects|=s.hideSkillEffects;result.hidePetEffects|=s.hidePetEffects;
+        result.renderPlayers&=s.renderPlayers;result.renderMonsters&=s.renderMonsters;result.renderPets&=s.renderPets;
+        distance(result.playerDrawDistance,s.playerDrawDistance);distance(result.monsterDrawDistance,s.monsterDrawDistance);distance(result.petDrawDistance,s.petDrawDistance);
+    }
+    return result;
+}
+void __cdecl actorSortHook(void *objects,size_t count,size_t stride,Compare compare) {
+    const auto &binding=state().actors;
+    if(effectContext&&effectContext->actors&&objects==binding.data&&stride==sizeof(void *)&&
+       count<=5000&&*binding.size==int(count)&&compare==binding.compare) {
+        count=actor_visibility::compact(binding.data,count,effectContext->settings,effectContext->player);
+        *binding.size=int(count);
+    }
+    binding.sort(objects,count,stride,compare);
+}
 void __fastcall renderHook(void *dialog,void *,void *render2D) {
     auto &shared=state();
     Settings settings;
     bool filter=false;
     {
         std::lock_guard lock(shared.mutex);
-        auto owner=std::find_if(shared.owners.begin(),shared.owners.end(),[](const auto &entry){return entry.second.limitShopSigns;});
-        filter=!shared.rendering && shared.thread==GetCurrentThreadId()&&owner!=shared.owners.end();
-        if(filter){shared.rendering=true;settings=owner->second;}
+        settings=combined(shared.owners);
+        filter=!shared.rendering && shared.thread==GetCurrentThreadId()&&
+            (settings.limitShopSigns||(shared.actors&&actor_visibility::changed(settings)));
+        if(filter)shared.rendering=true;
     }
     if(filter) {
-        { Filter scope(shared.binding,settings);shared.binding.render(dialog,render2D); }
+        { Filter scope(shared.binding,settings,bool(shared.actors));shared.binding.render(dialog,render2D); }
         std::lock_guard lock(shared.mutex);shared.rendering=false;
     } else shared.binding.render(dialog,render2D);
 }
@@ -190,12 +277,14 @@ void __fastcall effectsHook(void *world,void *,void *font) {
     auto &shared=state();Settings settings;bool apply=false;
     {
         std::lock_guard lock(shared.mutex);
-        auto owner=std::find_if(shared.owners.begin(),shared.owners.end(),[](const auto &entry){return entry.second.hideDecorativeEffects||entry.second.hideSkillEffects||entry.second.hidePetEffects;});
-        apply=!shared.effectsRendering&&shared.thread==GetCurrentThreadId()&&owner!=shared.owners.end();
-        if(apply){shared.effectsRendering=true;settings=owner->second;}
+        settings=combined(shared.owners);
+        apply=!shared.effectsRendering&&shared.thread==GetCurrentThreadId()&&
+            (settings.hideDecorativeEffects||settings.hideSkillEffects||settings.hidePetEffects||(shared.actors&&actor_visibility::changed(settings)));
+        if(apply)shared.effectsRendering=true;
     }
     if(apply) {
-        {EffectsScope scope(shared.effects,settings);OwnerScope owners(shared.effects,settings);shared.effects.render(world,font);}
+        {EffectsScope scope(shared.effects,settings);OwnerScope owners(shared.effects,settings,
+            shared.actors?*shared.actors.player:nullptr,bool(shared.actors));shared.effects.render(world,font);}
         std::lock_guard lock(shared.mutex);shared.effectsRendering=false;
     } else shared.effects.render(world,font);
 }
@@ -204,15 +293,18 @@ Optimization::~Optimization() { Settings disabled;update(disabled); }
 bool Optimization::supported() { return bool(optimization_detail::state().binding); }
 bool Optimization::effectsSupported() { return bool(optimization_detail::state().effects); }
 bool Optimization::petEffectsSupported() { return optimization_detail::state().effects.owners(); }
+bool Optimization::actorVisibilitySupported() { return bool(optimization_detail::state().actors); }
 void Optimization::update(const Settings &settings) {
     auto &s=optimization_detail::state();if(!s.binding&&!s.effects)return;
     std::lock_guard lock(s.mutex);
     if((settings.limitShopSigns&&s.binding)||((settings.hideDecorativeEffects||settings.hideSkillEffects)&&s.effects)||
-       (settings.hidePetEffects&&s.effects.owners()))
+       (settings.hidePetEffects&&s.effects.owners())||(s.actors&&actor_visibility::changed(settings)))
         s.owners[this]=settings;
     else s.owners.erase(this);
-    const bool shops=std::any_of(s.owners.begin(),s.owners.end(),[](const auto &entry){return entry.second.limitShopSigns;});
-    const bool effects=std::any_of(s.owners.begin(),s.owners.end(),[](const auto &entry){return entry.second.hideDecorativeEffects||entry.second.hideSkillEffects||entry.second.hidePetEffects;});
+    const auto merged=optimization_detail::combined(s.owners);
+    const bool models=s.actors&&actor_visibility::changed(merged);
+    const bool shops=merged.limitShopSigns||models;
+    const bool effects=merged.hideDecorativeEffects||merged.hideSkillEffects||merged.hidePetEffects||models;
     if(shops&&s.binding) {
         if(!s.installed) {
             unsigned char expected[5];std::memcpy(expected,s.binding.call,5);
@@ -235,6 +327,12 @@ void Optimization::update(const Settings &settings) {
         if(valid&&s.effects.owners()) {
             const unsigned char expected[5]={0x8b,0x06,0xff,0x50,0x24};
             valid=s.effectPatches.call(s.effects.sfxCall,expected,reinterpret_cast<void *>(&optimization_detail::sfxRenderHook));
+        }
+        if(valid&&s.actors) {
+            unsigned char expected[5];std::memcpy(expected,s.actors.sortCall,5);
+            int32_t displacement=0;std::memcpy(&displacement,expected+1,4);
+            valid=expected[0]==0xe8&&reinterpret_cast<uintptr_t>(s.actors.sortCall)+5+displacement==reinterpret_cast<uintptr_t>(s.actors.sort)&&
+                s.effectPatches.call(s.actors.sortCall,expected,reinterpret_cast<void *>(&optimization_detail::actorSortHook));
         }
         if(valid&&s.effectPatches.apply()){s.effectsInstalled=true;s.thread=GetCurrentThreadId();}
         else s.effectPatches.clear();

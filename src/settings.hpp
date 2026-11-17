@@ -49,6 +49,8 @@ struct Settings {
     bool backgroundActivity = false; // Independent opt-in to keep the world running while inactive.
     bool limitShopSigns = false;
     bool hideDecorativeEffects = false, hideSkillEffects = false, hidePetEffects = false;
+    bool renderPlayers = true, renderMonsters = true, renderPets = true;
+    float playerDrawDistance = 0, monsterDrawDistance = 0, petDrawDistance = 0;
     float shopSignDistance = 40;
     bool timeOverride = false, freezeTime = true, weatherOverride = false;
     float timeMinutes = 720, weatherIntensity = 100;

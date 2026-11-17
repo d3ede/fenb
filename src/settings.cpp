@@ -81,6 +81,9 @@ void Settings::sanitize() {
     timeMinutes = std::round(timeMinutes);
     range(weatherIntensity, 0, 100, 100);
     range(shopSignDistance,5,100,40);
+    range(playerDrawDistance,0,1000,0);
+    range(monsterDrawDistance,0,1000,0);
+    range(petDrawDistance,0,1000,0);
     weatherType = std::clamp(weatherType, 0, 2);
     range(threshold, 0, 1, .72f);
     range(knee, .001f, .5f, .15f);
@@ -174,6 +177,12 @@ bool Settings::load(const std::wstring &path) {
         READ_BOOL("hide_decorative_effects", hideDecorativeEffects)
         READ_BOOL("hide_skill_effects", hideSkillEffects)
         READ_BOOL("hide_pet_effects", hidePetEffects)
+        READ_BOOL("render_players", renderPlayers)
+        READ_BOOL("render_monsters", renderMonsters)
+        READ_BOOL("render_pets", renderPets)
+        READ_FLOAT("player_draw_distance", playerDrawDistance)
+        READ_FLOAT("monster_draw_distance", monsterDrawDistance)
+        READ_FLOAT("pet_draw_distance", petDrawDistance)
         READ_FLOAT("shop_sign_distance", shopSignDistance)
         READ_BOOL("custom_cursor", customCursor)
         READ_BOOL("interface_motion", interfaceMotion)
@@ -278,6 +287,9 @@ bool Settings::save(const std::wstring &path) const {
         ok=false;
     if(fprintf(file,"\n[Optimization]\nlimit_shop_signs=%d\nshop_sign_distance=%.6f\n",limitShopSigns,shopSignDistance)<0)ok=false;
     if(fprintf(file,"hide_decorative_effects=%d\nhide_skill_effects=%d\nhide_pet_effects=%d\n",hideDecorativeEffects,hideSkillEffects,hidePetEffects)<0)ok=false;
+    if(fprintf(file,"render_players=%d\nrender_monsters=%d\nrender_pets=%d\n"
+        "player_draw_distance=%.6f\nmonster_draw_distance=%.6f\npet_draw_distance=%.6f\n",
+        renderPlayers,renderMonsters,renderPets,playerDrawDistance,monsterDrawDistance,petDrawDistance)<0)ok=false;
     if (fprintf(file, "\n[Interface]\ncustom_cursor=%d\ninterface_motion=%d\n",
                 customCursor, interfaceMotion) < 0)
         ok = false;
@@ -314,6 +326,8 @@ void Settings::preserveControls(const Settings &source) {
     KEEP(enabled) KEEP(customCursor) KEEP(interfaceMotion)
     KEEP(limitShopSigns) KEEP(shopSignDistance)
     KEEP(hideDecorativeEffects) KEEP(hideSkillEffects) KEEP(hidePetEffects)
+    KEEP(renderPlayers) KEEP(renderMonsters) KEEP(renderPets)
+    KEEP(playerDrawDistance) KEEP(monsterDrawDistance) KEEP(petDrawDistance)
     KEEP(openOnStart) KEEP(unlockFps) KEEP(backgroundActivity) KEEP(preciseWaterDepth) KEEP(msaaSamples) KEEP(panelPage) KEEP(language)
         KEEP(timeOverride) KEEP(timeMinutes) KEEP(freezeTime) KEEP(weatherOverride) KEEP(weatherType)
             KEEP(weatherIntensity)

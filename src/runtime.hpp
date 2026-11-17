@@ -120,6 +120,7 @@ class Runtime {
     bool shopOptimizationSupported() { return optimization_.supported(); }
     bool nativeEffectOptimizationSupported() { return optimization_.effectsSupported(); }
     bool petEffectOptimizationSupported() { return optimization_.petEffectsSupported(); }
+    bool actorVisibilitySupported() { return optimization_.actorVisibilitySupported(); }
 
   private:
     static LRESULT CALLBACK WindowProc(HWND, UINT, WPARAM, LPARAM, UINT_PTR, DWORD_PTR);

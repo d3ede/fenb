@@ -206,7 +206,10 @@ std::vector<PanelItem> PanelItems(Runtime &r) {
         return {{"shops", g(UiText::PanelClient), g(UiText::PanelShops), &s.limitShopSigns},
                 {"decorative", g(UiText::PanelClient), g(UiText::OptimizationDecorative), &s.hideDecorativeEffects, -1, g(UiText::OptimizationDecorativeTitle)},
                 {"skills", g(UiText::PanelClient), g(UiText::OptimizationSkills), &s.hideSkillEffects, -1, g(UiText::OptimizationSkillsTitle)},
-                {"pets", g(UiText::PanelClient), g(UiText::OptimizationPets), &s.hidePetEffects, -1, g(UiText::OptimizationPetsTitle)}};
+                {"pets", g(UiText::PanelClient), g(UiText::OptimizationPets), &s.hidePetEffects, -1, g(UiText::OptimizationPetsTitle)},
+                {"visible-players", g(UiText::ActorVisibility), g(UiText::VisiblePlayers), &s.renderPlayers, -1, g(UiText::VisiblePlayersTitle)},
+                {"visible-monsters", g(UiText::ActorVisibility), g(UiText::VisibleMonsters), &s.renderMonsters, -1, g(UiText::VisibleMonstersTitle)},
+                {"visible-pets", g(UiText::ActorVisibility), g(UiText::VisiblePets), &s.renderPets, -1, g(UiText::VisiblePetsTitle)}};
     }
     return {};
 }
@@ -579,6 +582,18 @@ void PanelParameters(Runtime &r, int item) {
             if (!r.petEffectOptimizationSupported())
                 PanelNote(Tr(UiText::UnsupportedClient));
             break;
+        case 4:
+        case 5:
+        case 6: {
+            PanelNote(Tr(item==4?UiText::VisiblePlayersHelp:item==5?UiText::VisibleMonstersHelp:UiText::VisiblePetsHelp));
+            float &distance=item==4?s.playerDrawDistance:item==5?s.monsterDrawDistance:s.petDrawDistance;
+            const bool disabled=uiParameterDisabled;
+            uiParameterDisabled|=!r.actorVisibilitySupported();
+            Row(UiText::ActorDrawDistance,Tr(UiText::ActorDrawDistanceHelp),distance,0,1000,0,"%.0f",5,false,"actor-draw-distance");
+            uiParameterDisabled=disabled;
+            if(!r.actorVisibilitySupported())PanelNote(Tr(UiText::UnsupportedClient));
+            break;
+        }
         }
     if (page == 4) {
         if (item == 0) {
@@ -816,7 +831,8 @@ void PanelEditor(Runtime &r) {
                              selected==3?UiText::MaterialMicroNote:UiText::MaterialReliefHelp);
     if(r.editorPage==3)help=Tr(selected==0?UiText::PanelFXAAHelp:selected==1?UiText::PanelSMAAHelp:UiText::MSAAHelp);
     if(r.editorPage==7)help=Tr(selected==0?UiText::ShopSignHelp:selected==1?UiText::OptimizationDecorativeHelp:
-                             selected==2?UiText::OptimizationSkillsHelp:UiText::OptimizationPetsHelp);
+                             selected==2?UiText::OptimizationSkillsHelp:selected==3?UiText::OptimizationPetsHelp:
+                             selected==4?UiText::VisiblePlayersHelp:selected==5?UiText::VisibleMonstersHelp:UiText::VisiblePetsHelp);
     if(r.editorPage==5&&selected<2)help=Tr(selected==0?UiText::V2CursorSampleNote:UiText::V2MotionNote);
     ImGui::InvisibleButton("description", {std::max(1.f,w-(showEnable?40:5)),25});
     Tip(help);
@@ -831,11 +847,14 @@ void PanelEditor(Runtime &r) {
             supported = r.nativeEffectOptimizationSupported();
         if (selected == 3)
             supported = r.petEffectOptimizationSupported();
+        if (selected >= 4)
+            supported = r.actorVisibilitySupported();
     }
     if (showEnable) {
         ImGui::SetCursorScreenPos({p.x + w - 34, p.y + 3});
         const bool before = *item.enabled;
-        ImGui::BeginDisabled((!supported && !*item.enabled) || (r.editorPage == 3 && !s.enabled));
+        const bool visibilityItem=r.editorPage==7&&selected>=4;
+        ImGui::BeginDisabled((!supported && (visibilityItem?*item.enabled:!*item.enabled)) || (r.editorPage == 3 && !s.enabled));
         SquareSwitch("enabled", *item.enabled, {28, 18});
         Tip(r.editorPage==7?help:Tr(*item.enabled ? UiText::DisableEffect : UiText::EnableEffect),
             ImGuiHoveredFlags_AllowWhenDisabled);

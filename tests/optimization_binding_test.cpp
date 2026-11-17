@@ -30,6 +30,8 @@ int wmain(int argc,wchar_t **argv) {
     const auto effects=optimization_detail::discoverEffects();
     if(!effects){puts("FAIL: native effect-filter ABI discovery");return 5;}
     if(!effects.owners()){puts("FAIL: pet effect-owner ABI discovery");return 6;}
+    const auto actors=optimization_detail::discoverActors(effects);
+    if(!actors){puts("FAIL: actor render-list ABI discovery");return 7;}
     std::array<std::array<unsigned char,5>,2> calls{};
     bool effectsInstalled=true;
     for(size_t i=0;i<2;++i){std::memcpy(calls[i].data(),effects.calls[i],5);effectsInstalled&=patches.call(effects.calls[i],calls[i].data(),reinterpret_cast<void *>(&optimization_detail::effectsHook));}
@@ -38,6 +40,10 @@ int wmain(int argc,wchar_t **argv) {
     effectsInstalled=effectsInstalled&&!std::memcmp(sfxCall,virtualCall,5)&&
         patches.call(effects.sfxCall,virtualCall,reinterpret_cast<void *>(&optimization_detail::sfxRenderHook));
     effectsInstalled=effectsInstalled&&patches.apply();patches.clear();
+    unsigned char sortCall[5];std::memcpy(sortCall,actors.sortCall,5);
+    const bool actorInstalled=patches.call(actors.sortCall,sortCall,reinterpret_cast<void *>(&optimization_detail::actorSortHook))&&patches.apply();
+    patches.clear();
+    const bool actorRestored=!std::memcmp(sortCall,actors.sortCall,5);
     bool effectsRestored=true;
     for(size_t i=0;i<2;++i)effectsRestored&=!std::memcmp(calls[i].data(),effects.calls[i],5);
     effectsRestored&=!std::memcmp(sfxCall,effects.sfxCall,5);
@@ -67,21 +73,37 @@ int wmain(int argc,wchar_t **argv) {
             VirtualProtect(aiField,1,protection,&ignored);
         }
     }
+    bool actorGuardRejected=false;
+    const DWORD peace=scan.find("33 C0 83 B9 E8 06 00 00 01 0F 94 C0 C3 CC CC CC");
+    if(peace) {
+        auto *offset=reinterpret_cast<unsigned char *>(image)+peace+4;
+        if(VirtualProtect(offset,1,PAGE_EXECUTE_READWRITE,&protection)) {
+            const auto saved=*offset;*offset^=4;
+            actorGuardRejected=!optimization_detail::discoverActors(effects);*offset=saved;
+            VirtualProtect(offset,1,protection,&ignored);
+        }
+    }
+    printf("Actor render list: installed=%d restored=%d changed-NPC-field-rejected=%d. No game callback executed.\n",actorInstalled,actorRestored,actorGuardRejected);
     printf("Pet SFX dispatch: installed=%d restored=%d changed-owner-layout-rejected=%d. No game callback executed.\n",effectsInstalled,effectsRestored,ownerGuardRejected);
     const bool hybrid=native_hybrid::install();
     const bool background=hybrid&&native_background::install();
     const auto alongside=optimization_detail::discoverEffects();
-    bool coexist=hybrid&&background&&alongside.owners();
+    bool coexist=hybrid&&background&&alongside.owners()&&bool(optimization_detail::discoverActors(alongside));
     if(coexist) {
         Optimization option;Settings pets;pets.hidePetEffects=true;option.update(pets);
         coexist=optimization_detail::state().effectsInstalled&&native_hybrid::installed&&native_background::installed;
         pets.hidePetEffects=false;option.update(pets);
         coexist=coexist&&!optimization_detail::state().effectsInstalled&&native_hybrid::installed&&native_background::installed;
+        pets.renderPlayers=pets.renderMonsters=pets.renderPets=false;option.update(pets);
+        coexist=coexist&&optimization_detail::state().effectsInstalled&&optimization_detail::state().installed&&native_hybrid::installed&&native_background::installed;
+        pets=Settings{};option.update(pets);
+        coexist=coexist&&!optimization_detail::state().effectsInstalled&&!optimization_detail::state().installed&&
+            !std::memcmp(sortCall,actors.sortCall,5)&&native_hybrid::installed&&native_background::installed;
     }
     native_background::uninstall();native_hybrid::uninstall();
     printf("Pet filters with native FPS/background hooks: installed and removed independently=%d.\n",coexist);
     printf("Native effects ABI: install=%d restored=%d changed-skill-field-rejected=%d unknown-stack-rejected=%d. No game callback executed.\n",effectsInstalled,effectsRestored,effectsRejected,stackRejected);
     native_patch::imageOverride=nullptr;FreeLibrary(image);
     printf("Shop-sign ABI: install=%d restored=%d changed-layout-rejected=%d restored-layout-accepted=%d. No game callback executed.\n",installed,restored,rejected,acceptedAgain);
-    return installed&&restored&&rejected&&acceptedAgain&&effectsInstalled&&effectsRestored&&effectsRejected&&stackRejected&&ownerGuardRejected&&coexist?0:1;
+    return installed&&restored&&rejected&&acceptedAgain&&effectsInstalled&&effectsRestored&&effectsRejected&&stackRejected&&ownerGuardRejected&&coexist&&actorInstalled&&actorRestored&&actorGuardRejected?0:1;
 }

@@ -49,12 +49,18 @@ int main() {
         Settings opt;
         CHECK(!opt.limitShopSigns&&opt.shopSignDistance==40);
         CHECK(!opt.hideDecorativeEffects&&!opt.hideSkillEffects&&!opt.hidePetEffects);
+        CHECK(opt.renderPlayers&&opt.renderMonsters&&opt.renderPets&&opt.playerDrawDistance==0&&opt.monsterDrawDistance==0&&opt.petDrawDistance==0);
+        opt.renderPlayers=opt.renderMonsters=opt.renderPets=false;
+        opt.playerDrawDistance=125;opt.monsterDrawDistance=250;opt.petDrawDistance=35;
         opt.hideDecorativeEffects=opt.hideSkillEffects=opt.hidePetEffects=true;
         opt.limitShopSigns=true;opt.shopSignDistance=25;opt.language=Language::Portuguese;
         for(int i=0;i<BuiltInPresetCount;++i){opt.preset(i);CHECK(opt.limitShopSigns&&opt.shopSignDistance==25&&opt.language==Language::Portuguese&&opt.hideDecorativeEffects&&opt.hideSkillEffects&&opt.hidePetEffects);}
+        CHECK(!opt.renderPlayers&&!opt.renderMonsters&&!opt.renderPets&&opt.playerDrawDistance==125&&opt.monsterDrawDistance==250&&opt.petDrawDistance==35);
         CHECK(opt.save(L"build/optimization-settings.ini"));
         Settings restored;CHECK(restored.load(L"build/optimization-settings.ini"));
         CHECK(restored==opt);
+        opt.playerDrawDistance=std::numeric_limits<float>::infinity();opt.monsterDrawDistance=-1;opt.petDrawDistance=2000;
+        opt.sanitize();CHECK(opt.playerDrawDistance==0&&opt.monsterDrawDistance==0&&opt.petDrawDistance==1000);
         opt.shopSignDistance=std::numeric_limits<float>::quiet_NaN();opt.sanitize();CHECK(opt.shopSignDistance==40);
         opt.shopSignDistance=200;opt.sanitize();CHECK(opt.shopSignDistance==100);
         opt.shopSignDistance=-5;opt.sanitize();CHECK(opt.shopSignDistance==5);
