@@ -9,6 +9,7 @@
 #include "state_guard.hpp"
 #include "water.hpp"
 #include "sfx.hpp"
+#include "material.hpp"
 #include <commctrl.h>
 #ifdef FENB_DIAGNOSTICS
 #include "pipeline_probe.hpp"
@@ -33,7 +34,8 @@ FILETIME FileTime(const std::wstring &path) {
 } // namespace
 Runtime::Runtime(IDirect3DDevice9 *device)
     : device_(device), effects_(std::make_unique<Effects>(device)),
-      water_(std::make_unique<WaterFX>(device)), sfx_(std::make_unique<SfxFX>(device)) {
+      water_(std::make_unique<WaterFX>(device)), sfx_(std::make_unique<SfxFX>(device)),
+      materials_(std::make_unique<MaterialFX>(device)) {
     configPath = ModuleDirectory() + L"FENB.ini";
     settings.load(configPath);
     recognizeProfile();
@@ -181,6 +183,7 @@ void Runtime::invalidate() {
     effects_->invalidate();
     water_->invalidate();
     sfx_->invalidate();
+    materials_->invalidate();
     if (context_) {
         ContextScope scope(context_);
         ImGui_ImplDX9_InvalidateDeviceObjects();
@@ -256,6 +259,10 @@ void Runtime::beforeWaterDraw(UINT upStride, DrawCall draw) {
         drawFVF_ == 0x112 && (settings.nightFoliage > 0 || settings.lightingBalance) && sceneBackbuffer_ &&
         drawTarget_ == sceneBackbuffer_)
         effects_->sceneFX().beginFoliage(settings);
+    if (!lost_ && !hudStarted_ && settings.enabled && settings.materials && !compare &&
+        !vertexShaderActive_ && fvfKnown_ && (drawFVF_ == 0x112 || drawFVF_ == 0x212) &&
+        sceneBackbuffer_ && drawTarget_ == sceneBackbuffer_)
+        materials_->begin(settings);
     if (lost_ || hudStarted_ || !settings.enabled || !settings.water || compare || vertexShaderActive_ ||
         !fvfKnown_ || drawFVF_ != 0x152 || !sceneBackbuffer_ || drawTarget_ != sceneBackbuffer_)
         return;
@@ -284,6 +291,7 @@ void Runtime::environmentDraw(D3DPRIMITIVETYPE type, UINT start, UINT count) {
                                      water_->materialTag(static_cast<IDirect3DTexture9 *>(texture.p)));
 }
 void Runtime::afterWaterDraw(bool up, bool indexed) {
+    materials_->end();
     sfx_->end(up,indexed);
     effects_->sceneFX().endSky();
     effects_->sceneFX().endFoliage();

@@ -12,6 +12,7 @@ struct PanelBranding;
 class Effects;
 class WaterFX;
 class SfxFX;
+class MaterialFX;
 #ifdef FENB_DIAGNOSTICS
 class PipelineProbe;
 #endif
@@ -42,7 +43,7 @@ class Runtime {
     bool compare = false;
     bool centerPanel = true;
     bool resetEditorSelection = true;
-    std::array<int, 8> editorSelection{};
+    std::array<int, 9> editorSelection{};
     int sceneSelection = 0;
     unsigned waterDraws = 0, lastWaterDraws = 0;
     int editorPage = 0;
@@ -131,6 +132,7 @@ class Runtime {
     std::unique_ptr<Effects> effects_;
     std::unique_ptr<WaterFX> water_;
     std::unique_ptr<SfxFX> sfx_;
+    std::unique_ptr<MaterialFX> materials_;
     FpsLimiter fpsLimiter_;
     Environment environment_;
     Optimization optimization_;

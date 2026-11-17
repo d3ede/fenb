@@ -33,6 +33,19 @@ int main() {
     }
     Settings s;
     {
+        Settings materials;
+        CHECK(!materials.materials&&materials.materialStrength==.75f&&materials.materialSnow==.75f);
+        materials.materials=true;materials.materialRelief=2;materials.materialGlints=-1;
+        materials.materialSnow=std::numeric_limits<float>::quiet_NaN();materials.sanitize();
+        CHECK(materials.materialRelief==1&&materials.materialGlints==0&&materials.materialSnow==.75f);
+        materials.language=Language::Russian;
+        CHECK(materials.save(L"build/material-settings.ini"));Settings restored;
+        CHECK(restored.load(L"build/material-settings.ini")&&restored==materials);
+        restored.resetSceneSection(15);
+        CHECK(restored.materials&&restored.materialRelief==.6f&&restored.language==Language::Russian);
+        DeleteFileW(L"build/material-settings.ini");
+    }
+    {
         Settings opt;
         CHECK(!opt.limitShopSigns&&opt.shopSignDistance==40);
         opt.limitShopSigns=true;opt.shopSignDistance=25;opt.language=Language::Portuguese;

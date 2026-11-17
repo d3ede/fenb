@@ -14,6 +14,7 @@ inline void InvalidateWaterTag(IDirect3DResource9 *resource) {
         resource->FreePrivateData(WaterTag);
         resource->FreePrivateData(EmitterTag);
         resource->FreePrivateData(SfxTag);
+        resource->FreePrivateData(MaterialTag);
     }
 }
 inline void InvalidateWaterSurface(IDirect3DSurface9 *surface) {

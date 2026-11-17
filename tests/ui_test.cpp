@@ -182,6 +182,7 @@ int main() {
         io.AddKeyEvent(ImGuiKey_Enter,true);frame();io.AddKeyEvent(ImGuiKey_Enter,false);frame();
     };
     // Header controls retain stable IDs independent of language and subpage titles.
+    activate(panel,"materials-tab");CHECK(r.editorPage==8);
     activate(panel,"world-tab");CHECK(r.editorPage==4);
     activate(panel,"image-tab");CHECK(r.editorPage==0);
     for (std::size_t i : {1u, 2u, 3u, 0u}) {
@@ -294,19 +295,31 @@ int main() {
         const std::wstring locale(LanguageCodes[language],LanguageCodes[language]+2);
         activate(panel,"##language");frame();CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-language.png").c_str()));ImGui::ClosePopupToLevel(0,true);frame();
         activate(panel,"menu");CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-actions.png").c_str()));ImGui::ClosePopupToLevel(0,true);frame();
-        r.editorPage=0;r.editorSelection[0]=8;frame();frame();
-        r.settings.sharpening=false;control("sharpen","enabled");CHECK(r.settings.sharpening);
-        ImGui::ActivateItemByID(numeric("sharpen",r.settings.sharpeningStrength));frame();input("0.8");CHECK(r.settings.sharpeningStrength==.8f);
-        ImGui::ActivateItemByID(numeric("sharpen",r.settings.textureContrast));frame();input("0.9");CHECK(r.settings.textureContrast==.9f);
-        control("sharpen","reset-section");CHECK(r.settings.sharpening&&r.settings.sharpeningStrength==Settings{}.sharpeningStrength&&r.settings.textureContrast==Settings{}.textureContrast&&r.settings.language==static_cast<Language>(language));
-        CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-sharpening.png").c_str()));control("sharpen","enabled");CHECK(!r.settings.sharpening);
+        activate(panel,"materials-tab");r.editorSelection[8]=0;frame();frame();
+        r.settings.materials=false;activate(navigation()->ParentWindow,"materials-master");CHECK(r.settings.materials);
+        ImGui::ActivateItemByID(numeric("appearance",r.settings.materialStrength));frame();input("0.9");CHECK(r.settings.materialStrength==.9f);
+        control("appearance","reset-section");CHECK(r.settings.materials&&r.settings.materialStrength==Settings{}.materialStrength);
+        CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-materials.png").c_str()));
+        r.editorSelection[8]=1;frame();frame();
+        ImGui::ActivateItemByID(numeric("relief",r.settings.materialRelief));frame();input("0.9");CHECK(r.settings.materialRelief==.9f);
+        control("relief","reset-section");CHECK(r.settings.materialRelief==Settings{}.materialRelief);
+        CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-material-relief.png").c_str()));
+        r.editorSelection[8]=2;frame();frame();
+        CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-material-snow.png").c_str()));
+        r.editorSelection[8]=3;frame();frame();
+        r.settings.sharpening=false;control("microcontrast","enabled");CHECK(r.settings.sharpening);
+        ImGui::ActivateItemByID(numeric("microcontrast",r.settings.sharpeningStrength));frame();input("0.8");CHECK(r.settings.sharpeningStrength==.8f);
+        ImGui::ActivateItemByID(numeric("microcontrast",r.settings.textureContrast));frame();input("0.9");CHECK(r.settings.textureContrast==.9f);
+        control("microcontrast","reset-section");CHECK(r.settings.sharpening&&r.settings.sharpeningStrength==Settings{}.sharpeningStrength&&r.settings.textureContrast==Settings{}.textureContrast&&r.settings.language==static_cast<Language>(language));
+        CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-microcontrast.png").c_str()));control("microcontrast","enabled");CHECK(!r.settings.sharpening);
         struct View{int page,item;const wchar_t *name;};
         const View views[]={{0,4,L"tone"},{0,7,L"bloom"},{1,0,L"water"},{1,6,L"reflections"},{1,7,L"trace"},{2,0,L"scene"},{3,0,L"antialiasing"},{4,0,L"time"},{4,1,L"weather"},{5,2,L"interface"},{7,3,L"optimization"}};
         for(const auto &view:views){r.editorPage=view.page;r.editorSelection[view.page]=view.item;r.sceneSelection=0;frame();frame();CHECK(inspector());CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-"+view.name+L".png").c_str()));}
         r.editorPage=2;
         for(int effect=0;effect<11;++effect){r.sceneSelection=effect;frame();frame();CHECK(inspector());}
         io.DisplaySize={334,400};r.centerPanel=true;
-        for(int page:{0,1,2,3,4,5,7}){r.editorPage=page;frame();frame();CHECK(inspector());CHECK(inspector()->Size.x>240);CHECK(inspector()->Pos.x>=0&&inspector()->Pos.x+inspector()->Size.x<=334);}
+        for(int page:{0,1,2,3,4,5,7,8}){r.editorPage=page;frame();frame();CHECK(inspector());CHECK(inspector()->Size.x>240);CHECK(inspector()->Pos.x>=0&&inspector()->Pos.x+inspector()->Size.x<=334);}
+        r.editorPage=8;r.editorSelection[8]=0;frame();frame();CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-materials-narrow.png").c_str()));
         CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-narrow.png").c_str()));
         r.editorPage=0;r.editorSelection[0]=4;frame();frame();activate(child(),"##panel-navigation");CHECK(!ImGui::GetCurrentContext()->OpenPopupStack.empty());
         auto *navPopup=ImGui::GetCurrentContext()->OpenPopupStack.back().Window;CHECK(navPopup->Pos.x>=0&&navPopup->Pos.x+navPopup->Size.x<=334);

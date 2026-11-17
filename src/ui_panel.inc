@@ -166,8 +166,7 @@ std::vector<PanelItem> PanelItems(Runtime &r) {
                 {"tone", g(UiText::PanelColor), g(UiText::PanelTone), &s.color},
                 {"lights", g(UiText::PanelColor), g(UiText::PanelLights), &s.color},
                 {"color", g(UiText::PanelColor), g(UiText::PanelColorBalance), &s.color},
-                {"bloom", g(UiText::PanelEffects), "Bloom", &s.bloom},
-                {"sharpen", g(UiText::PanelEffects), g(UiText::PanelSharpen), &s.sharpening}};
+                {"bloom", g(UiText::PanelEffects), "Bloom", &s.bloom}};
     case 1:
         return {{"waves", g(UiText::PanelSurface), g(UiText::PanelWaves)},
                 {"material", g(UiText::PanelMaterial), g(UiText::PanelWaterColor)},
@@ -198,6 +197,11 @@ std::vector<PanelItem> PanelItems(Runtime &r) {
         return {{"cursor", g(UiText::PanelInterface), g(UiText::PanelCursor), &s.customCursor},
                 {"motion", g(UiText::PanelInterface), g(UiText::PanelMotion), &s.interfaceMotion},
                 {"language", g(UiText::PanelInterface), g(UiText::PanelLanguage)}};
+    case 8:
+        return {{"appearance",g(UiText::MaterialsTab),g(UiText::MaterialAppearance),&s.materials},
+                {"relief",g(UiText::MaterialsTab),g(UiText::MaterialRelief)},
+                {"snow",g(UiText::MaterialsTab),g(UiText::MaterialSnow)},
+                {"microcontrast",g(UiText::Image),g(UiText::MaterialMicrocontrast),&s.sharpening}};
     case 7:
         return {{"shops", g(UiText::PanelClient), g(UiText::PanelShops), &s.limitShopSigns},
                 {"background", g(UiText::PanelClient), g(UiText::PanelBackground), &s.backgroundActivity},
@@ -208,6 +212,8 @@ std::vector<PanelItem> PanelItems(Runtime &r) {
 }
 const char *PanelTitle(int page) {
     switch (page) {
+    case 8:
+        return Tr(UiText::MaterialsTab);
     case 0:
         return Tr(UiText::Image);
     case 1:
@@ -226,6 +232,8 @@ const char *PanelTitle(int page) {
 }
 const char *PanelDescription(int page) {
     switch (page) {
+    case 8:
+        return Tr(UiText::MaterialsDescription);
     case 0:
         return Tr(UiText::PanelImageDescription);
     case 1:
@@ -277,6 +285,7 @@ void PanelToggle(const char *id, const char *label, bool &value, const char *hel
     ImGui::Dummy({w, 32});
 }
 void ResetPanelParameters(int page, int item, Settings &s) {
+    if(page==8){s.resetSceneSection(item==3?14:15);return;}
     const Settings d;
 #define DF(x) s.x = d.x
     if (page == 0)
@@ -297,9 +306,6 @@ void ResetPanelParameters(int page, int item, Settings &s) {
             break;
         case 7:
             s.resetBloom();
-            break;
-        case 8:
-            s.resetSceneSection(14);
             break;
         }
     if (page == 1)
@@ -378,6 +384,22 @@ void PanelParameters(Runtime &r, int item) {
     }
 #define SR(label, help, field, lo, hi, fmt, step)                                                            \
     Row(UiText::label, Tr(UiText::help), s.field, lo, hi, d.field, fmt, step)
+    if(page==8) {
+        if(item==0) {
+            SR(Strength, MaterialStrengthHelp, materialStrength, 0, 1, "%.2f", .05f);
+            PanelNote(Tr(UiText::MaterialsCoverage));
+        } else if(item==1) {
+            SR(MaterialRelief, MaterialReliefHelp, materialRelief, 0, 1, "%.2f", .05f);
+            SR(MaterialGlints, MaterialGlintsHelp, materialGlints, 0, 1, "%.2f", .05f);
+        } else if(item==2) {
+            SR(MaterialSnowLook, MaterialSnowHelp, materialSnow, 0, 1, "%.2f", .05f);
+            PanelNote(Tr(UiText::MaterialSnowNote));
+        } else {
+            PanelNote(Tr(UiText::MaterialMicroNote));
+            SR(Strength, SharpeningHelp, sharpeningStrength, 0, 1, "%.2f", .05f);
+            SR(TextureContrast, TextureContrastHelp, textureContrast, 0, 1, "%.2f", .05f);
+        }
+    }
     if (page == 0)
         switch (item) {
         case 4:
@@ -405,11 +427,6 @@ void PanelParameters(Runtime &r, int item) {
             s.bloomScale = q ? 2 : 4;
             break;
         }
-        case 8:
-            PanelNote(Tr(UiText::Sharpening));
-            SR(Strength, SharpeningHelp, sharpeningStrength, 0, 1, "%.2f", .05f);
-            SR(TextureContrast, TextureContrastHelp, textureContrast, 0, 1, "%.2f", .05f);
-            break;
         }
     if (page == 1)
         switch (item) {
@@ -630,6 +647,9 @@ struct PanelMaster {
 };
 PanelMaster EditorMaster(Runtime &r) {
     switch (r.editorPage) {
+    case 8:
+        if(r.editorSelection[8]==3)return {nullptr,nullptr,nullptr,false};
+        return {Tr(UiText::MaterialsTab), &r.settings.materials, "materials-master", false};
     case 0:
         return {Tr(UiText::ColorCorrection), &r.settings.color, "color-master", false};
     case 1:
@@ -680,7 +700,7 @@ void PanelMasterControl(PanelMaster master, float width) {
     ImGui::Dummy({width, 28});
 }
 void PanelEditor(Runtime &r) {
-    if (r.editorPage < 0 || r.editorPage >= 8)
+    if (r.editorPage < 0 || r.editorPage >= 9)
         r.editorPage = 0;
     if (r.editorPage == 6) {
         r.editorPage = 1;
@@ -812,7 +832,8 @@ void PanelEditor(Runtime &r) {
     const auto p = ImGui::GetCursorScreenPos();
     const float w = ImGui::GetContentRegionAvail().x;
     auto *draw = ImGui::GetWindowDrawList();
-    const bool showEnable = item.enabled && !(r.editorPage == 0 && selected >= 4 && selected <= 6);
+    const bool showEnable = item.enabled && !(r.editorPage == 0 && selected >= 4 && selected <= 6) &&
+                            !(r.editorPage == 8 && selected == 0);
     draw->PushClipRect(p, {p.x + w - (showEnable ? 40 : 5), p.y + 25}, true);
     TextAt(draw, {p.x + 4, p.y + 2}, item.title ? item.title : item.label, Text, 16, uiEmphasis);
     draw->PopClipRect();
@@ -853,6 +874,7 @@ void PanelEditor(Runtime &r) {
     uiParameterDisabled = r.editorPage == 1 ? (!s.water || !s.enabled)
                           : item.enabled    ? !*item.enabled
                                             : false;
+    if(r.editorPage==8)uiParameterDisabled|=!s.enabled || (selected<3&&!s.materials);
     if (r.editorPage == 0 || r.editorPage == 3 || (r.editorPage == 4 && selected == 1) ||
         (r.editorPage == 2 && selected != 8))
         uiParameterDisabled |= !s.enabled;
@@ -892,7 +914,7 @@ void DrawPanelEditor(Runtime &r) {
     const auto p = ImGui::GetCursorScreenPos();
     auto *draw = ImGui::GetWindowDrawList();
     ImGui::PushFont(nullptr, 12);
-    if (r.editorPage != 0 && r.editorPage != 4) {
+    if (r.editorPage != 0 && r.editorPage != 4 && r.editorPage != 8) {
         const float width = ImGui::CalcTextSize(Tr(UiText::Image)).x + 12;
         if (PanelTextButton("back", Tr(UiText::Image), {width, 25}))
             r.editorPage = 0;

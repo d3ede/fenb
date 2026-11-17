@@ -161,6 +161,7 @@ bool SurfaceBatchFrame(IDirect3DDevice9 *d,int mutation,std::vector<DWORD> &pixe
     if(FAILED(texture->LockRect(0,&lock,nullptr,0)))return false;
     for(int y=0;y<2;++y)for(int x=0;x<2;++x)((DWORD*)((BYTE*)lock.pBits+y*lock.Pitch))[x]=0xff505050;
     texture->UnlockRect(0);DWORD tag=32;texture->SetPrivateData(EmitterTag,&tag,4,0);
+    DWORD material=2;texture->SetPrivateData(MaterialTag,&material,4,0);
     if(FAILED(d->Clear(0,nullptr,D3DCLEAR_TARGET|D3DCLEAR_ZBUFFER,0xff202830,1,0)) || FAILED(d->BeginScene()))return false;
     D3DMATRIX identity{};identity._11=identity._22=identity._33=identity._44=1;
     auto projection=identity;projection._33=100.f/99.9f;projection._34=1;projection._43=-.1f*projection._33;projection._44=0;
@@ -197,7 +198,7 @@ int main(){
     auto path=Directory()+L"FENB.ini";Settings saved;saved.load(path);Settings s;s.openOnStart=false;s.exposure=2;s.bloomStrength=1;s.smaa=true;
     s.fog=true;s.fogStart=0;s.fogDensity=.03f;s.fogFalloff=0;
     s.surfaceReflections=true;s.surfaceStrength=1;s.surfaceRoughness=.2f;
-    s.sharpening=true;s.sharpeningStrength=1;s.save(path);
+    s.sharpening=true;s.sharpeningStrength=1;s.materials=true;s.save(path);
     struct Restore{Settings settings;std::wstring path;~Restore(){settings.save(path);}}restore{saved,path};
     WNDCLASSW wc{};wc.lpfnWndProc=DefWindowProcW;wc.hInstance=GetModuleHandleW(nullptr);wc.lpszClassName=L"FENBHudTest";RegisterClassW(&wc);
     HWND window=CreateWindowW(wc.lpszClassName,L"HUD test",WS_OVERLAPPEDWINDOW,0,0,320,240,nullptr,nullptr,wc.hInstance,nullptr);

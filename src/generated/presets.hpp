@@ -106,6 +106,11 @@ inline void ApplyBuiltInVisuals(Settings &s, int index) {
     s.sharpening = false;
     s.sharpeningStrength = 0.450000f;
     s.textureContrast = 0.650000f;
+    s.materials = false;
+    s.materialStrength = 0.750000f;
+    s.materialRelief = 0.600000f;
+    s.materialGlints = 0.350000f;
+    s.materialSnow = 0.750000f;
     switch(index) {
     case 1: // Default (High-end PC)
     s.sceneQuality = true;

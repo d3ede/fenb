@@ -9,6 +9,11 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT MSVC)
   add_compile_definitions(FENB_CLANG_ASM_BLOCKS)
 endif()
 find_program(FENB_NODE_EXECUTABLE node REQUIRED)
+set(FENB_MATERIAL_CATALOG "${CMAKE_CURRENT_SOURCE_DIR}/src/generated/material_catalog.hpp")
+add_custom_command(OUTPUT "${FENB_MATERIAL_CATALOG}"
+  COMMAND "${FENB_NODE_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/material-catalog.mjs"
+  DEPENDS tools/material-catalog.mjs tools/materials.json
+  WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
 add_custom_command(OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/src/generated/ui_cursor.hpp"
   COMMAND "${FENB_NODE_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/embed-cursor.mjs" "${CMAKE_CURRENT_SOURCE_DIR}/src/generated/ui_cursor.hpp"
   DEPENDS tools/embed-cursor.mjs assets/cursors/fenb-pointer.svg
@@ -63,6 +68,18 @@ add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/generated/sfx_shaders.hpp
   DEPENDS shaderc shaders/sfx.hlsl)
 target_sources(d3d9 PRIVATE src/updater.cpp "${CMAKE_CURRENT_BINARY_DIR}/generated/sfx_shaders.hpp")
 target_sources(d3d9 PRIVATE src/optimization.cpp)
+target_sources(d3d9 PRIVATE "${FENB_MATERIAL_CATALOG}")
+add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/generated/material_rigid_vs.hpp"
+  COMMAND shaderc "${CMAKE_CURRENT_SOURCE_DIR}/shaders/material.hlsl" "${CMAKE_CURRENT_BINARY_DIR}/generated/material_rigid_vs.hpp" MaterialRigidVS vs_3_0
+  DEPENDS shaderc shaders/material.hlsl)
+target_sources(d3d9 PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated/material_rigid_vs.hpp")
+foreach(stage IN ITEMS vs ps)
+  string(TOUPPER "${stage}" entry_suffix)
+  add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/generated/material_${stage}.hpp"
+    COMMAND shaderc "${CMAKE_CURRENT_SOURCE_DIR}/shaders/material.hlsl" "${CMAKE_CURRENT_BINARY_DIR}/generated/material_${stage}.hpp" "Material${entry_suffix}" "${stage}_3_0"
+    DEPENDS shaderc shaders/material.hlsl)
+  target_sources(d3d9 PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated/material_${stage}.hpp")
+endforeach()
 target_include_directories(d3d9 PRIVATE "${CMAKE_CURRENT_BINARY_DIR}" src "${IMGUI}")
 target_compile_definitions(d3d9 PRIVATE IMGUI_DISABLE_DEMO_WINDOWS IMGUI_DISABLE_DEBUG_TOOLS IMGUI_IMPL_WIN32_DISABLE_GAMEPAD IMGUI_USE_BGRA_PACKED_COLOR)
 target_link_libraries(d3d9 PRIVATE dxguid comctl32 dwmapi gdi32 imm32 bcrypt winmm)
@@ -96,6 +113,14 @@ else()
 endif()
 include(CTest)
 if(BUILD_TESTING)
+  add_executable(material-test tests/material_test.cpp "${FENB_MATERIAL_CATALOG}" "${CMAKE_CURRENT_BINARY_DIR}/generated/material_vs.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/material_rigid_vs.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/material_ps.hpp")
+  target_include_directories(material-test PRIVATE "${CMAKE_CURRENT_BINARY_DIR}" src)
+  target_link_libraries(material-test PRIVATE dxguid bcrypt gdiplus "$<IF:$<CXX_COMPILER_ID:MSVC>,d3d9.lib,-ld3d9>")
+  if(MINGW)
+    target_link_options(material-test PRIVATE -static)
+  endif()
+  add_test(NAME material COMMAND material-test)
+  add_test(NAME material-msaa COMMAND material-test --msaa)
   add_executable(resource-cache-test tests/resource_cache_test.cpp)
   target_include_directories(resource-cache-test PRIVATE src)
   if(MSVC)

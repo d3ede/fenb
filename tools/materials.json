@@ -1,0 +1,1037 @@
+[
+  {
+    "file": "World/Texture/Bahara_Rockwall01.dds",
+    "kind": 2,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "e6874ff3968cb36e2db3b37f27c560831b63a7a627a59691e9730cd1ea5b6b24",
+    "sourceHash": "ca2341bb0ada15c6d8a54d2ffa1d52839f86c0d28b7ceec405d29ce2db7f2a48",
+    "uploadHash": "441d5314bf2af686b8606c6184e88bd537cc32e1ac73b5a9834649a35ba7a69f"
+  },
+  {
+    "file": "World/Texture/Bahara_Rockwall02.dds",
+    "kind": 2,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "5e20ffceb387a2e08de49399964fba644adb5e3f5fb2ac6b1778bd2867d318a1",
+    "sourceHash": "816d49eb42b10c73d8e1cd6625c2d55385d87cd625c2c52cd862ec3a185cea45",
+    "uploadHash": "4bd6bde4ad1194eaa35f50f97bfe5b5847c06dcfcc760579c22a1f9498c33a4a"
+  },
+  {
+    "file": "World/Texture/Bahara_Rockwall03.dds",
+    "kind": 2,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "8ec196955d570acd730af0e5e9ffc747385c9b8027b7bcf7bfcc3f1002bcedea",
+    "sourceHash": "f8110d582bcc0d1aff70e42a6189824506e8ae90bcadc8e74f3e197746c1bcae",
+    "uploadHash": "475a176de02e4fd35be60c2bffdf9dc5795c5a53e024fb8b21843a965e66ff0a"
+  },
+  {
+    "file": "World/Texture/Bahara_Sand01_01.dds",
+    "kind": 4,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "7818c7a349e733e1678e6459644e0fe9893042d262f69be73f90e3d746a2fbeb",
+    "sourceHash": "cf1abfc0a2b0f6114160ae9ac9c9af7b0d5d76d7c5a1d98c2e25d844230d6197",
+    "uploadHash": "b332834352749c5e380331af466de02667247a60e18314745206968fcb5371ad"
+  },
+  {
+    "file": "World/Texture/Bahara_Sand01_02.dds",
+    "kind": 4,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "1fe170de84c93a173c1f8fce3972aead514c45c341482fac53ed874b80a67741",
+    "sourceHash": "f69d4b1f5dc913e2550c18af604d80ab0940988fdde86101f94ed0c5ea362883",
+    "uploadHash": "7ae48de14c2c6021ca837e5394c211d0ea3e5db350117dd64bd7ad8049b7bdbf"
+  },
+  {
+    "file": "World/Texture/Bahara_Sand01_03.dds",
+    "kind": 4,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "35beac3a607a90205e9627d08cc33630e1e38e6b4e59e51f2bbb3b1e1d757524",
+    "sourceHash": "b48e162d1b29a0687c03964e937a451d1859ac01cbe8b088eeacd7d62c1b39d7",
+    "uploadHash": "b5e68dd3dee4c8dae0cc958132d1bed1646ee090ea9c05f6c46f4063de70b741"
+  },
+  {
+    "file": "World/Texture/Behe_Ground01.dds",
+    "kind": 5,
+    "width": 512,
+    "height": 512,
+    "decodedHash": "83fe5969f1ca4d5cb22e3c09cda969cf9dbc7a19c5fadff7c40e40b852820afe",
+    "sourceHash": "4ee051e1d13a5233e87fe0850351d67fe1f4c8295f1bd8ba0d242b897b3cfff7",
+    "uploadHash": "c9fac69114934f0dbb13fca46aa04721943e06319b17f50aa3e45ba1872a018c"
+  },
+  {
+    "file": "World/Texture/Behe_Ground02.dds",
+    "kind": 5,
+    "width": 512,
+    "height": 512,
+    "decodedHash": "a5fd34928800816cf20be9ea81bdee8a550e65e91f256d35f70553a6b1df2f32",
+    "sourceHash": "166b3871a937d560d516dcfb479e1585ed947efb4930d5f9f41bd4cf5aa38eb7",
+    "uploadHash": "a4429f23ac8af161471ae7a8c9c3a689d59ee5e50912584031d818597ae056d5"
+  },
+  {
+    "file": "World/Texture/Behe_Ground03.dds",
+    "kind": 5,
+    "width": 512,
+    "height": 512,
+    "decodedHash": "aad31775f1dad905f5e9ac0c7083c0fd1bb523086b15812c419ba3b12d531a2e",
+    "sourceHash": "b1b1f856d652c45f5b1ab4398d0a31c23dabd0987f55a3ad992b3c7d79853bff",
+    "uploadHash": "f9bb04e24c27ce9e1a41147495f08331e07fada21623b18d45258153eee3941a"
+  },
+  {
+    "file": "World/Texture/Behe_Ground04.dds",
+    "kind": 5,
+    "width": 512,
+    "height": 512,
+    "decodedHash": "e981a69b604942dcbdaacd1edba3f5229667b1d26ba8405a872c8c591b44d7fd",
+    "sourceHash": "9a53a40c3f17ae51bf58de52c6c9fd347ae56f37c5d39dbc36ab2c1683647286",
+    "uploadHash": "2a1296df4629b5ea01f4ff4e16f547af0210ca7641d2fea84c221ac5a4f2bdc9"
+  },
+  {
+    "file": "World/Texture/Behe_Ground05.DDS",
+    "kind": 5,
+    "width": 512,
+    "height": 512,
+    "decodedHash": "d7ac7740296d018fd8d15610ae5947ef765e70df824632c737faed0eabefdd9d",
+    "sourceHash": "26a1093cea17df03bb463c7bcc2fa0816400b67eaad381817495447532001934",
+    "uploadHash": "f48edd705c5f52d007c2e118b7f5634e7da8b4089e653b9b0e2a4f6d9697a5ad"
+  },
+  {
+    "file": "World/Texture/brick_MaFl01_new.dds",
+    "kind": 2,
+    "width": 512,
+    "height": 512,
+    "decodedHash": "c4f5aaf9ff9965336ceb98bf8bc6ece2b2ac109b8474a227332070af39b831a1",
+    "sourceHash": "aa3dcdd6d067b16600c140befaa72910528992e7d5a7b0d81c05a1a8b56595c3",
+    "uploadHash": "9880147723806e89dd400d8ad4bfc50aba844b6b7facaf3fda6b6104f2f76e2a"
+  },
+  {
+    "file": "World/Texture/brick_MaFl01.dds",
+    "kind": 2,
+    "width": 512,
+    "height": 512,
+    "decodedHash": "3a326c374573cd78f6e5426dd2f40f95b2482bcc49b9661f2bfe40ae79782cae",
+    "sourceHash": "79fdbf03af90b47828de741635eb5795482893a768f1c9c59405ff094f38db24",
+    "uploadHash": "53e76b79fbcdd5d9e6d0f51f372edd94afb62e179cfb7d5fd49dba4b5d9ad66e"
+  },
+  {
+    "file": "World/Texture/brick_MaSa01.dds",
+    "kind": 2,
+    "width": 512,
+    "height": 512,
+    "decodedHash": "d58fdae13b5ddc38e5515e4af0cc7e356b96e7863ea6704eebbb97fd659e2717",
+    "sourceHash": "8268643cfca1b954d67c7f631e38fe1c1331e0aa46c34d944beae93d7204dfc7",
+    "uploadHash": "5d2278ab3727a3b5241ed6ead97f61af19d82820dfc71f46466aec364e5cb225"
+  },
+  {
+    "file": "World/Texture/brick_MaSa02.dds",
+    "kind": 2,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "6e04e9f29821666db417a222ec1f6c6249954faadbf16051ac1d50c852e27a51",
+    "sourceHash": "bcad08b35950810a1694b71f9663ba7a5d20254e32b71b8f3bd393d2b029fe36",
+    "uploadHash": "a4e32fd621c402f5d61697283ea194bec5e8c1ebd2c2a743913f745cde837e23"
+  },
+  {
+    "file": "World/Texture/brick_RiGarden01.dds",
+    "kind": 2,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "eaf58bd32fc7074fae74961ca28190ff8d17541f807ff5d637fd93c626f60019",
+    "sourceHash": "9f2a20f124bc4726c331912ce2dfffd73e8241cc394978807f32e7e1245dfc59",
+    "uploadHash": "49f4116dece9f3464ed1bb728326981370e81da5e0b046da12165d27a059c8fc"
+  },
+  {
+    "file": "World/Texture/brick-MaMa01.dds",
+    "kind": 2,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "4f96a533445dd30ba33475a10c07279c2be90ea1fa7cfffb56ba93bc970c1b80",
+    "sourceHash": "e0cf0d14429d29c22b0653e5b0e662c54e77bbe7d77ae7a9b5c19523ba7ed82a",
+    "uploadHash": "98f288727cffa5745d48c48730d3b55ac5d27acca3ca03b5cafbc07bb6a0219a"
+  },
+  {
+    "file": "World/Texture/Cisland_sand_01.dds",
+    "kind": 4,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "a82cf3550174b0b566360edd99f947b81a6a0ee783821fdb6caaaf3f162ea676",
+    "sourceHash": "aae01d9616bb14afeb35d9da8668ce2eded0d2ac79d49c33c5d09f9942ecfd8d",
+    "uploadHash": "362a2c5fe7842f9eec4fda52e25465bf799d06585f8fa071186861e5630c1337"
+  },
+  {
+    "file": "World/Texture/Cisland_sand_02.dds",
+    "kind": 4,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "5646596c645f83cd500d917fa5ede9fbe16ca645bda01e6f59cc401012b23e55",
+    "sourceHash": "22431beb5a9b18d77397c72bbc7afb8390fca31032dd63eabe5346e0354b8a65",
+    "uploadHash": "84e50e9b9d4a6ab05da5be3d8ee20a7d49e2358133f04ba8a54a711d7110cb03"
+  },
+  {
+    "file": "World/Texture/Cisland_sand_05.dds",
+    "kind": 4,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "7e91055124452cafefb127fab2438dc9c3214db20a7052205dd89173fdd12d0e",
+    "sourceHash": "9dfb249c9ddc8a6ec2f87e20865a6172bf0d5d658e7ab63de7726199f9cb2aba",
+    "uploadHash": "5446c9b5b4e213c8648092b0db90abe4918f0accf6194b3b9bab23ea41516f72"
+  },
+  {
+    "file": "World/Texture/Cisland_sand_06.dds",
+    "kind": 4,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "9466e10c900f11168a73e6b5aed7813693d29ad372a5117b52db912790d3f597",
+    "sourceHash": "6ac3860a57de64291c0b42f964148b5a48bed2755fe697de937b37ddbd4672e8",
+    "uploadHash": "5be40d691fa861d860eb946298df7956c57ddb20ccbe9ea67f8d0d6043a3aa77"
+  },
+  {
+    "file": "World/Texture/Cisland_sand_07.dds",
+    "kind": 4,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "2fb9fc4f6f583d647b390c4584474df6e7f036e4da66c1908d03391ac9ffe3ea",
+    "sourceHash": "962e8f1366d39507ef459d781acf829761ef45087abab3352e1bed2a5163816c",
+    "uploadHash": "5ce84504f3b6bdf3d422c9e8c7ac8c30fa31c50569e6ab5eb5210dee73633cac"
+  },
+  {
+    "file": "World/Texture/Cisland_sand_08.dds",
+    "kind": 4,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "c7368ea1a71df7224de85efe401ccc751e9411e1cc904ef4d48c9b1a6fe4f410",
+    "sourceHash": "a8423a799a8eb9fc6df26fb8280ad6fcfd2bce8ffbbdab4be6851fd4f7bdc160",
+    "uploadHash": "97290a58615630f48606cb80abb50b46d450a391ccc6537a89b53dd4a779d024"
+  },
+  {
+    "file": "World/Texture/Cisland_sand_09.dds",
+    "kind": 4,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "7e9c57da756121c36a65be2e54a2f8dd9a66c112a3f8c54ffd7578d6a29d047a",
+    "sourceHash": "a93c7a4e73361d67894b4068c967c080ec07649ddae01d00d8c7b2a4f9a81fa7",
+    "uploadHash": "0549c81bfa92ebc276fb98deb8fa8fa17b0e9d87cacf77ccb96e7c2874d4583e"
+  },
+  {
+    "file": "World/Texture/Cisland_sand.dds",
+    "kind": 4,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "79bdd6a603a54a84da62675b555bf5cfbaefae7d15b1e61cbc40e6cde795a3fb",
+    "sourceHash": "6eebeb44b5c5b95b52d76bb5439c411cbf4250469f67b7bb84645461fb0e1284",
+    "uploadHash": "c84270bb4b88b2f76622e54e497766e1c578008d6a48c9b3effd572692492426"
+  },
+  {
+    "file": "World/Texture/Colosseum_Ground01_01.dds",
+    "kind": 5,
+    "width": 512,
+    "height": 512,
+    "decodedHash": "8799f8b84f3812109517a4d339f0c6f19f6353d200a659bfadffb8eb0164cee7",
+    "sourceHash": "92656de381df183a2334781eea67ddba1e849081fd2d0a872248ca693d6957b7",
+    "uploadHash": "fc318326852b765cd90e9db1cb8dddf0dd77954222efb9376d089c3a845f774e"
+  },
+  {
+    "file": "World/Texture/Colosseum_Ground01.dds",
+    "kind": 5,
+    "width": 512,
+    "height": 512,
+    "decodedHash": "98f8d0514d04df11b2adabfb4381cd95dbb14a16b9f470ff5653f4b22b40d5a9",
+    "sourceHash": "8743493434c42fb6a0e1062fdaee7152b4e5d37a032c0d8b6dd8ebfb1e117eef",
+    "uploadHash": "d9162a88da32e50369882d472bd1d410b8aca6cba65871ac6ba2eb187d8f6130"
+  },
+  {
+    "file": "World/Texture/Colosseum_Ground02.dds",
+    "kind": 5,
+    "width": 512,
+    "height": 512,
+    "decodedHash": "7ff4728a6e3eedac1b771cc6f2199a3e2414c84ff02b542345009f5ffff9d7f6",
+    "sourceHash": "334f3e6fef100148e1d3ee2451da7879766d8816f9fe7a95e4f68696123f4117",
+    "uploadHash": "d33ffdd601d668ecc45ee273724a2be74536edc27c835c6702fd7a3b557b8227"
+  },
+  {
+    "file": "World/Texture/DarkRartesiaGrass_01.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "a5ce365b44947283c8a4fe6f67014a24a293b07876e04e07f05a2a8f1beb7d13",
+    "sourceHash": "656fb2d6d2142ecbbf81b3eb689755bf18a4639c98fde2a417e3b78527013164",
+    "uploadHash": "86e76cba2ee13ce07e6027098694c86fa023f4cdae1230c6c4a64d69146b93ab"
+  },
+  {
+    "file": "World/Texture/DarkRartesiaRock_01.dds",
+    "kind": 2,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "177cc75bcf118dccb78b10e4c692a41143ee4604fd76804bb277b3fe8b6c5533",
+    "sourceHash": "c28da5c1732de53dd4168c4f830a489029e0607a74c0c5a9e6454677ac7f02ba",
+    "uploadHash": "5ea5a4e3ead7082250152715a95f2400ca03d334ee3203dd2b9649f58de5bf7d"
+  },
+  {
+    "file": "World/Texture/DuDkPrStone01.dds",
+    "kind": 2,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "210d5db2193262e942747c45d8b468edbda222424c20cf99c32f886ea0e6ed60",
+    "sourceHash": "d242f389251fd859a4e51b5fd18313f31e3a0cfe0d9ffbe9b283d748fec97de0",
+    "uploadHash": "a6455511e4b32a137406be775d6730f860763437ace23f896933d66437ab3e5d"
+  },
+  {
+    "file": "World/Texture/ground_clay001.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "2416599925ee1567d93c8a28f3562eac02b1e9de452fb86defec962b73f6c03a",
+    "sourceHash": "4e4cd627ce358da90c62695689e1f853f413779c8a062b23b85bf353ce750255",
+    "uploadHash": "82e73174917997903f2e0fb417e16be1d4a2fb0d8aebfb4abba0de273c5c977a"
+  },
+  {
+    "file": "World/Texture/ground_clay002.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "ad429b785289d4ca260fe91b44e91618e3d93d5f0011472042a1af72aa623515",
+    "sourceHash": "1c33f1e82f80fb6c92226d2ab6f2124926b3e6f3dbc52fbc8dba3e62d985c881",
+    "uploadHash": "9876883edf7cd0297e8a1e8ed7504cbdf3229cbf897c25560b1b8a2b33bdb288"
+  },
+  {
+    "file": "World/Texture/ground_clay003.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "52431db3df05a37ae9a7396d456fe9347ae16af7866feb541b1457ca77afbfcf",
+    "sourceHash": "1e56cf611b88876b8544f80edac6a88ee8856f0f4df998c39638df6bbe1a57f5",
+    "uploadHash": "c7f25a2922af4825f8f5f47220eef69beee77c62831cf29682f1d5f0dd86cf9d"
+  },
+  {
+    "file": "World/Texture/ground_clay004.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "0f6bc4b729d2ba05075fccd86ffb07a30acecaf5c77981bfd58075ae75721db9",
+    "sourceHash": "4f0315c35242f363411ce676acd5eba2d5cfb62a8fa9462194c34267687a1a23",
+    "uploadHash": "12ed976b59dc85036efccc072f99eb63cd95f199fd066a4c481d99dd725e5612"
+  },
+  {
+    "file": "World/Texture/ground_clay005.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "d49de52b954204e1444be18d3fb5fa7eb748ddb7deeb21ced072e05bfdecfa75",
+    "sourceHash": "a4253ba812ec6f21ba49a2975b68abdb772727ccc1b6b097658d52cb740ad65e",
+    "uploadHash": "24fe868233c724d86602b3ee6c288fbf257410824fab9a4c2f55a73b6ca24d79"
+  },
+  {
+    "file": "World/Texture/ground_clay006.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "6c48e740467904c00a1b0112026c29b97ed77fc383fff1cfd7f01a5a10100a71",
+    "sourceHash": "1203e9aa498661c4c4924ac70f5e8ccbf76999fb431e1bebe15e4f88ab9c5951",
+    "uploadHash": "49535d6fddf49c372b6cadc4cfed309d13e2dbe78efedd8e1c5fda34963cb918"
+  },
+  {
+    "file": "World/Texture/ground_clay007.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "029f263546057584af0e928b45958db3071df6b71c415d87c07637865c8ba99c",
+    "sourceHash": "fb2f3853a1ade9775d7acda8b0a4d7bcb5171848ea4fc0e245fcb287de1ba156",
+    "uploadHash": "c1804de035a536e120e74c0c4b9ba8295d5317eec2fa1e174f83f7156a14ea11"
+  },
+  {
+    "file": "World/Texture/ground_clay009.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "d49de52b954204e1444be18d3fb5fa7eb748ddb7deeb21ced072e05bfdecfa75",
+    "sourceHash": "a4253ba812ec6f21ba49a2975b68abdb772727ccc1b6b097658d52cb740ad65e",
+    "uploadHash": "24fe868233c724d86602b3ee6c288fbf257410824fab9a4c2f55a73b6ca24d79"
+  },
+  {
+    "file": "World/Texture/ground_farm01.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "a2f39bb058c46dd7fc5faa2c55d160166a1c9b0a9c12d521fb5dd623c69e8c9c",
+    "sourceHash": "c02d22abc107e17103f07f72e756961f3242872be2a0fa8940a393ec31e8eb20",
+    "uploadHash": "f3918d5d14654237e380c36d96a05f8851af62789c261eb551fe45b3db3e9857"
+  },
+  {
+    "file": "World/Texture/ground_farm02.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "825a24d362e7e7449f82c9e02b813f18b29553e6aa55f563221c81041e58570a",
+    "sourceHash": "0efc6305d3b21d0397245e7cf70b03bdc3cce5b4337061bc284ea3d7ef3e79ea",
+    "uploadHash": "bae40971b9ede6231926236a496b9a93f34b85bd6670e79ce3c60702ff2975ed"
+  },
+  {
+    "file": "World/Texture/ground_lawn001.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "fc603d6b63e0fb2f40f1236c339e239d46b4e2762e5107a5904527cc2ce0dbda",
+    "sourceHash": "cac19aabe93003ede3328dbdf17e6f77ce2edaed273bd86db8238091216419b5",
+    "uploadHash": "f1e54130da2e27afc90fd7e9705f18c67e6f2d8c4783109d73bdf1c4f007db24"
+  },
+  {
+    "file": "World/Texture/ground_lawn002.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "68253e0d63b4b271e17f4dc847343b5ceafb81e476a4062542093c084242d170",
+    "sourceHash": "2b2803042165f94fa750dd0e0d3a411efbcd368f51d2fc8106ec9371bd43c63b",
+    "uploadHash": "7f42c37dc3a972ea3919573124785ccc063a1da40285bbc3115f0a436e24911a"
+  },
+  {
+    "file": "World/Texture/ground_lawn003.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "e7d10cacfa7e377465b933014564bade559c741bd8369dd2cc7b0462c13f165e",
+    "sourceHash": "451a1675d368c4c25bafa052f3e089a8be30cf05db6cca15cebf6cdef712a2fb",
+    "uploadHash": "1f46c3841ba6a7e7c6b42014cd11b717bb5fdf39f79f874337743be0e6efba2e"
+  },
+  {
+    "file": "World/Texture/ground_lawn004.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "3974a0946acd282b5ea29a7c3604cbc199dad5d78e250c1bda791fe5dfbe6055",
+    "sourceHash": "3115b0d19d8a97067516e46c9ae80b48dae3f17240a53f768e1562ea8de9a8e0",
+    "uploadHash": "d510755bd759c5c397dd460a2196ba750a6f39d22ed8bf57659eae33d505d59f"
+  },
+  {
+    "file": "World/Texture/ground_lawn005.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "68253e0d63b4b271e17f4dc847343b5ceafb81e476a4062542093c084242d170",
+    "sourceHash": "2b2803042165f94fa750dd0e0d3a411efbcd368f51d2fc8106ec9371bd43c63b",
+    "uploadHash": "7f42c37dc3a972ea3919573124785ccc063a1da40285bbc3115f0a436e24911a"
+  },
+  {
+    "file": "World/Texture/ground_lawn006.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "e7d10cacfa7e377465b933014564bade559c741bd8369dd2cc7b0462c13f165e",
+    "sourceHash": "451a1675d368c4c25bafa052f3e089a8be30cf05db6cca15cebf6cdef712a2fb",
+    "uploadHash": "1f46c3841ba6a7e7c6b42014cd11b717bb5fdf39f79f874337743be0e6efba2e"
+  },
+  {
+    "file": "World/Texture/ground_lawn007.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "000b58fd491a7b73e3fe2de321a53d13af923dae769e7e4d20058b3f8696a71d",
+    "sourceHash": "aa9371d99daae056507101241cb3043f4bed6f0ab86b62309c72e10d3720f1a3",
+    "uploadHash": "bd475d3e4d6c58af22fa2c2f57d0176145a73d618f849d778eb392f172e1bde7"
+  },
+  {
+    "file": "World/Texture/ground_lawn0071.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "27da15bc858ba01b8ad20bd3afaa69c2a9989b7d9f88e5f55d583fd6ce9eceb4",
+    "sourceHash": "9d115c63814486cada64b35a69583d1871c4341596bb87cc108e0e9864d8f019",
+    "uploadHash": "7b95980e701e99780414a4c20d4f6db8342ae3636fde57e3cd94ef88a03ba4b9"
+  },
+  {
+    "file": "World/Texture/ground_lawn008.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "7a755471ffac2b0bfe630727a76a992359b9bfd5c3a5a63c404154065d4b63f9",
+    "sourceHash": "962c8ccb41d7eb85a0867bd2f4baca9176fbfb8553250ecb55212338191d096e",
+    "uploadHash": "76c6e8e0b07034b6d2657ce474da863370ac7343d7fe54af2094f8644dca6c3f"
+  },
+  {
+    "file": "World/Texture/ground_n_clay_lawn001.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "5272cddfe5c070f5cbc8c946d1c35c8b054e390f447d9739252c8f1fd3136e2b",
+    "sourceHash": "5a9cfc7d3f9a7ba94377be8b6e63d34b7485a0b38d0c24a7874dace4518f6524",
+    "uploadHash": "ca65669457247f5216aa709db65253be66e2b2e11354e2301bdd8df1b25ce468"
+  },
+  {
+    "file": "World/Texture/ground_n_clay.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "998949f372bc9ae28ebba84c93014d25bc5324aa444afd6ec5a8f69d8ed9e4e9",
+    "sourceHash": "c251be3da9271d8b9287b8709f6676d4db56b8bfdd25a42f0389333ddc071a9c",
+    "uploadHash": "dd6fc6a7a3b2fa6c34cff0aae30549ac9ce82cece4c80f7435a8aff680e519c5"
+  },
+  {
+    "file": "World/Texture/ground_n_clay001.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "3ddbab7290d0006c6f248b666b3986089c4c641ff48f56a9453e1bf999d4f367",
+    "sourceHash": "92bc970cf53c644e2eb6b850d02da397d6aa67ce5828feab19ec9a97d73c58c8",
+    "uploadHash": "89b36576bd8af722ddb6b18105b6b717817877dd50811a91c756ffdee796aea7"
+  },
+  {
+    "file": "World/Texture/ground_n_clay002.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "acff2a6f9b9ce6d5b883ed4f9b480b6369b3e348ac6d076dba98cfb6439b262e",
+    "sourceHash": "77cc82f70b98635c1662061061efdedd2a612258294af10b0110d27ace54d6ae",
+    "uploadHash": "df75123339a6ec22df929d3caa07c4362abb5f5f62bd5e7d9c4be1530d74574f"
+  },
+  {
+    "file": "World/Texture/ground_n_clay003.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "210577f5aa0f137f77a4aab6477e39963d85acfae8cf5179a850b373339128fd",
+    "sourceHash": "bfbeb6c5146b4e8b33d0df75203e40f9d1dc5f8340f964bd52966c28b49941d4",
+    "uploadHash": "599947c538cc533b8741d468fa8624a145715643a8c2303da90c28bd37afdc4c"
+  },
+  {
+    "file": "World/Texture/ground_n_clay004.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "0b6ebc188f64d93d7cf9d9e12abd1f6db74ea3f8a575f53a636246412df2d2c7",
+    "sourceHash": "4170b2244ce17d337b4bb53c2cd1dcaa3257b6e31a7226a5cfffb49a27833b8e",
+    "uploadHash": "519baa817461b423fa0b076b3f9420dd2a4c651c922e42ad14a9c9d6aee68d6d"
+  },
+  {
+    "file": "World/Texture/ground_n_clay005.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "16b674d7e05fa958f9112fa5a5a29431f3de71cc2391a427210f1c40d0d8e982",
+    "sourceHash": "cd8045a12435e12dcaef53c6ef713dafce7b758dcd66bb526a2dbdc79de473f4",
+    "uploadHash": "a01d5f6adde278d58fcca521d5f1f4652ec84169e3881d19aa09d2bc587f775e"
+  },
+  {
+    "file": "World/Texture/ground_n_clay006.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "e15d1f136218d4fd938abbc8d11db0bcea15e1ac4e433cf5022ec849b972b4f6",
+    "sourceHash": "191d7712476c6695acb167f9d7efbbb4df4d6354936230cf54ceb4b84f59ce51",
+    "uploadHash": "c7833d8e5f8e4483a186798a26105d9660b348e4e3cb11bc9a6663652abaae77"
+  },
+  {
+    "file": "World/Texture/ground_n_clay007.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "64a58d3af32751198284c141f3cf8293f2dee43346e3dbd264e404d78beb9458",
+    "sourceHash": "e1e6137196a91ff8cf4c1c68b4574e7cdb709536548defc16e8d3e827041f954",
+    "uploadHash": "58f7e67c5146288898f8bdfdd71cfd7fedd36da3ff190288a7a43a7d551fb516"
+  },
+  {
+    "file": "World/Texture/ground_n_clay008.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "50b18a55b53f03683178105a0ccb66753aecca944b578cb0b6a6c05088591734",
+    "sourceHash": "ac2049a9d0e1f2deffe1255df794d39a6e3468ac9509579792440b45a868566e",
+    "uploadHash": "781bc28f72ed660533acf69e31a9f4c5f32f01896991d1929d92198c5ad5f972"
+  },
+  {
+    "file": "World/Texture/ground_n_ice01.dds",
+    "kind": 2,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "cb2c4c75fd59ba406bbf0ac56f7c206a724d9e931e3f398d196111cc2d9fbcfc",
+    "sourceHash": "cda9c2095eb569c40a48df78343662433e34d77d9358110d61ddfcf0565f3253",
+    "uploadHash": "07d06ef5d89efc859e0de052528c884396f9e6372ba11f8c10c2454ba1ef7c7a"
+  },
+  {
+    "file": "World/Texture/ground_n_ice02.dds",
+    "kind": 1,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "3ba76868c455fc980134030e1b167e11f6d8eb040c995fb5c742952a38b89d1e",
+    "sourceHash": "2bc80d7393deb81c08cc9fe8b20d2c7e2df8f0079ead81e67ab5f7cd1ac3e8c6",
+    "uploadHash": "f4915bf10cfaab06ddf79f39b8e9ebed9bf843ae9117f3e5f2c99e9b3bb29492"
+  },
+  {
+    "file": "World/Texture/ground_n_ice03.dds",
+    "kind": 1,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "14cd83866f13608546ffb523290e9a39f2219542965da2840ae4e503746d6e2d",
+    "sourceHash": "9ce6826e78b5bcd39e0681f392895667ae8f6eb541593c8cdb9e2eb11e109cbe",
+    "uploadHash": "12d787fa7390c095ba148ed601ab1a291a9542c1fd4de2de69357e5a995debb0"
+  },
+  {
+    "file": "World/Texture/ground_n_ice04.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "9a7a7993750146641755c3c505df82d2af945b1ea5ba5de5e2524809ec6b77fe",
+    "sourceHash": "b7a3a34d22992247b06febefc56852c1f7911c1a1984144f067c8a5dff4c1213",
+    "uploadHash": "04cfd4cdeb6346dc796c6d4a3e4b9bb5bf898b985c43cd6b7f7c7e018d1d9000"
+  },
+  {
+    "file": "World/Texture/ground_n_ice05.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "cb25dfb8e29168d9761c651d74967e9ffcd368acad45190205a0b76b2e76d337",
+    "sourceHash": "dd68035de4748fac08889254f1a030c83088a1ce5e9bcf793f9cec107fb1bf65",
+    "uploadHash": "d2525407735c8b1cba243b3c796f4f0c2ab8a0df60ad19e0d2b0371733bcd808"
+  },
+  {
+    "file": "World/Texture/ground_n_ice06.dds",
+    "kind": 2,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "fcab6b85d14d0a91209dd0c48cf6d7df39405e02a2a6bead4e2c65909e7b3c01",
+    "sourceHash": "07d28ff43cf899d008126958a804f9e0f3dad1dc4db6bb165f2bd5e9264a54b0",
+    "uploadHash": "f190efb0a13e8d1cccab5bbd9814ab2bd49a73a21db32f5526eccfeb148338fd"
+  },
+  {
+    "file": "World/Texture/ground_n_ice07.dds",
+    "kind": 2,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "eea9b653e66b11b8512763f20e58aeba5e293d12ad89bbb78fbeb902688df8b6",
+    "sourceHash": "fc924b5ca943a40cc6489de6f42380b6121562853fe339c79f6a294140154571",
+    "uploadHash": "6f24074b372c0d0f3ff84838f2adff7ef287a4d34db8f95cf39c75ddbb9128fd"
+  },
+  {
+    "file": "World/Texture/ground_n_lawn001.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "3636b0bb84127798aca5cef05d42ddb6f3415b7c08d5ba00999cd4330e5910fc",
+    "sourceHash": "66910ca1db3d1df3fa59b10b24a011e60d5c2ebe1a327c70a7fe910eb4ea6e94",
+    "uploadHash": "667314d17433235899f0625167561194732de16fa189ff7ac23ef406336dc111"
+  },
+  {
+    "file": "World/Texture/ground_n_lawn002.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "8a619f0907335cad23f82b07672b3c06247d843743a11b219b21e1d36eafb751",
+    "sourceHash": "95f15a382fe870b8081553326648f8affe8278a15ed4849f0a3920dea33e8006",
+    "uploadHash": "e4e8039c0930798fb64807f0226e718d3b30864c4aaedc4122a866e879caaa2f"
+  },
+  {
+    "file": "World/Texture/ground_n_lay_lawn002.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "a6bcf3827d384f455ba426d9452350294f35f868d35c5e15f56112eecf81d8ff",
+    "sourceHash": "213ea7c7037d78e29f0d51d613f95c475cd404e35a9c568b13ab760c5e18f475",
+    "uploadHash": "bc9bc75100587fdd7881a7aa145938bac4fc35e24458b818afdb3d62b8b902df"
+  },
+  {
+    "file": "World/Texture/ground_n_volvic01.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "ebebb37db6f3ea9e9ed587acf34296d3c796971086f9064b4abd6fcf936f33dd",
+    "sourceHash": "b273eaae66fd6a9ddfa720946f952dbcdf2719b0182c1430ae59a8b7a9a60dc1",
+    "uploadHash": "0665ebe99e9a43c350055cdf88e3520b4a0b006f8a28c5b1ec6432edfa3829ee"
+  },
+  {
+    "file": "World/Texture/ground_n_volvic02.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "a668f6008e3f60b47eb7ff37f2cb534422ad3ceb8caf8fd07c9cf3290c1d2c4a",
+    "sourceHash": "1639c6a72c6444895039d1c2309834f75c95bf1de5d9bd49b343cb3654da1f99",
+    "uploadHash": "d2e57a07b24776812bd7737048f6fe8462461f8505dfe1e9949edf2fd018f43f"
+  },
+  {
+    "file": "World/Texture/ground_n_volvic03.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "919f328a6a1e4cb0a4215a172610d227ddce8ecad14e40d4b5baeda47484860d",
+    "sourceHash": "a21aa2fa8693e6846b6c4dafa17a50a07b89d8c8899a0746ef601a91731cef4f",
+    "uploadHash": "b3e56c4cbb437fae729f3a27011e208e2ff2fbcbe71e8c570f1a1cdb736bfdcc"
+  },
+  {
+    "file": "World/Texture/ground_precipice01.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "ce714a5eaee3595ab8926969b842eab023fe7946f626ba1b897abd165e54cf54",
+    "sourceHash": "07c338591fac4a74f5f2c840a62acfa08cfe12bfe36c357b7077b0853b79f651",
+    "uploadHash": "15c95b4fd97b546052729490ad61af761b8357ef04ede59b30804ba3772024f2"
+  },
+  {
+    "file": "World/Texture/Harmonin_sand01.dds",
+    "kind": 4,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "876e4c19d2700361644793aa5b7e168ace2d9b485bdb9889b42ebd2600c824c8",
+    "sourceHash": "f51c2c150420295c32543e614389e3d988550b3948ff5b0ef497f1d0cf6ba09b",
+    "uploadHash": "82dd1ad4b6e79e21bf3ccba05ed0c717f071312a6f88fee20aa0239ffd5983b5"
+  },
+  {
+    "file": "World/Texture/Harmonin_sand02.dds",
+    "kind": 4,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "3f439f0c6c16719b48c1d6859367f251ab2c4bda77aa58bb5d67dfbb665524c8",
+    "sourceHash": "4922af58a1f1df9b6919d5d6a56e485c2d9268b64f559eb6faa1417020e16378",
+    "uploadHash": "0f51976b129ce0ac62c48c62b16fa82eb175f86872e0ec6a8ebb9e4acf610ae6"
+  },
+  {
+    "file": "World/Texture/Herneos_inground01_01.dds",
+    "kind": 5,
+    "width": 512,
+    "height": 512,
+    "decodedHash": "5fde9a9df489751dc93e3f4dde2ebe41e3601769ccf57a07948e61cdd740237f",
+    "sourceHash": "bd8e5fdd7e33fa3574c19d9000019ca96f37758224a10f154bd54b537a25838c",
+    "uploadHash": "a865be5b116dc5c7da3c440591d0858c2599df669a4b26b659e415585f0647b4"
+  },
+  {
+    "file": "World/Texture/Herneos_SandGround01.dds",
+    "kind": 4,
+    "width": 512,
+    "height": 512,
+    "decodedHash": "38186fe5eba6cdfd78961b9cfee44e50a1925984d4d3a90b1e398015c68f31c1",
+    "sourceHash": "b1b419fa47d833effe00a835be260f38f759ae03af865efea46a4de5c78e1327",
+    "uploadHash": "884682d94f5e8344b02cf1310cc630d483c97c5ca9cb28361506783c08b8307d"
+  },
+  {
+    "file": "World/Texture/Herneos_SandGround02.dds",
+    "kind": 4,
+    "width": 512,
+    "height": 512,
+    "decodedHash": "6e19c35cc907377e6c6a73f36ab72b66535cd630c144f2c19fef7746684d4c3f",
+    "sourceHash": "e97c5d9d638bddf00b41166bf73a56bcc4fddc060abe2ddff277f1506245eefe",
+    "uploadHash": "875b3d133b07265b587bc14b8a039e5a4e085b42e43165bc2690f2115897e2a8"
+  },
+  {
+    "file": "World/Texture/Herneos_SandGround03.dds",
+    "kind": 4,
+    "width": 512,
+    "height": 512,
+    "decodedHash": "4b39a03bf086132511c533f4ce102e515b9d6542eb05c272fa6acffe51362610",
+    "sourceHash": "a8064595bfd6e88c5a2927a2cddabb8377c0452742230daa4b0b2586d5c175fc",
+    "uploadHash": "ea7259553e4f190eb49237174ab68a3138ac33aa64b127b896a5aba3b4d1751e"
+  },
+  {
+    "file": "World/Texture/Herneos_SandGround04.dds",
+    "kind": 4,
+    "width": 512,
+    "height": 512,
+    "decodedHash": "142fb5a62c3730bd0d68fc2ae7dd47383d6db2e746667eeecf4f9dfb7034f829",
+    "sourceHash": "308e5cad4b28897ed1896caaf90908795ec47dfbb082d509df03839a5b6c253a",
+    "uploadHash": "ccf2d3b87002fa189784df8cc84439c874b0de57273e24b493649dbaeb458955"
+  },
+  {
+    "file": "World/Texture/Herneos_SandGround05.dds",
+    "kind": 4,
+    "width": 512,
+    "height": 512,
+    "decodedHash": "b28ec85aa91f5ee75a897cc9604315941a5bee17ea432bf299819d39d222ec3e",
+    "sourceHash": "9fdd8d51c0995f9edad14ee6c0ac2b5ce6bbf9ee2755d7ee7994e5fbd0111639",
+    "uploadHash": "ca95ca2eb17dfcc6a7a72078d82277f04bf1e6f9b1b6e227784db5f13e3a072e"
+  },
+  {
+    "file": "World/Texture/Kalgas_rockground01.dds",
+    "kind": 2,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "355b8f190dea9ec6118537e9a90ec2bd836b9daa26a14232bedcd8a98bec00a8",
+    "sourceHash": "a97e339fe80881cb63f307227a6f1cb7200cee042cd233ab6fcea377f890cc35",
+    "uploadHash": "fe829411139c7572cf6e4565fb903b102acea37700c92e4991e3ca98ac6ea28a"
+  },
+  {
+    "file": "World/Texture/Kalgas_rockground02.dds",
+    "kind": 2,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "44aed6136a691347ae877ce5d068287339de2365740938260f547becc86aaabd",
+    "sourceHash": "026c9861de71158fcde6b37c3dcdf43b6710be9ebdeb4880847160a326a35ba9",
+    "uploadHash": "59f7d561a60ad7d0e76bf30b4bceb63e4bc21eb19768b181c2f634f6af649961"
+  },
+  {
+    "file": "World/Texture/Kalgas_rockground03.dds",
+    "kind": 2,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "d8688606cb4a7c350d57d8f2104bfacdcb790a426abf1a613f90ba7cd88a79bf",
+    "sourceHash": "4e3101492410ca6509de94bfe79202f752ad869f8a332aa5e9d000c8dc58662c",
+    "uploadHash": "0181208bfa93b23ab137467303a6c862f30a1cbf943cbb6c6ee8e0cc4c97caa8"
+  },
+  {
+    "file": "World/Texture/Kalilun_Grass01.dds",
+    "kind": 5,
+    "width": 512,
+    "height": 512,
+    "decodedHash": "ccf59d5e330c2d21049d1878340145ad8f5822d9fa9a56ae07f34ee269d5ed45",
+    "sourceHash": "5bce575134073564fd8f4d0dbc63d68bc6888ff159ef042c3429e68517320c53",
+    "uploadHash": "bebf8c73531511801bf5bccf19b4548f19905e1732b3d45cfc0103a29b11dda9"
+  },
+  {
+    "file": "World/Texture/Kalilun_Grass02.dds",
+    "kind": 5,
+    "width": 512,
+    "height": 512,
+    "decodedHash": "288c216f3e7e2cd60307bb3be71014c81717c7c1de766efbd56fa7f9e473d312",
+    "sourceHash": "dcbd2df23dc25ecab0d7f19df36f76c43d994d29404cddac81b92a8650ddc7e3",
+    "uploadHash": "243a5dece02b785a47630581e254f6b882b7e529ba85dd8c679c906c67b70300"
+  },
+  {
+    "file": "World/Texture/Kalilun_Ground01.dds",
+    "kind": 5,
+    "width": 512,
+    "height": 512,
+    "decodedHash": "3d4d1d47cba0542fb1de4dc645d112853516fac5bf9ec0f280cb8ce64f4fefa9",
+    "sourceHash": "2424bf4c5f1e36b34aa9e58afe46718ee92d74ce99ab9056767b0fb1a969c37a",
+    "uploadHash": "dbc8a4ddbbf52260f1194ea1d5a4309cf99995d728c4c771a2705bcf2e289866"
+  },
+  {
+    "file": "World/Texture/Kalilun_Ground02.dds",
+    "kind": 5,
+    "width": 512,
+    "height": 512,
+    "decodedHash": "844c3fdaabee8b5ef9190fdd5ce55a5b913f44fff5505d5614b3e2ac1f04a396",
+    "sourceHash": "d6e352b548c74bbc496310052883f1222fd625403bc6da2a03058b223bc3ff89",
+    "uploadHash": "f7a97c3a20608b4bc61b955e873526b892c06d4618bc47fb4a189493288a4667"
+  },
+  {
+    "file": "World/Texture/MaFlPrStone01.dds",
+    "kind": 2,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "aabba855c5016a8c8aaba4cc874ee971fb84379074701227c0fc4bb780460a0f",
+    "sourceHash": "a5ecb294ee8c717e4f851a3e87cb5361566e72643a614ff3a315ebe47fa64fdb",
+    "uploadHash": "da90c5a1d170bee314f105d1ed5af3ed7beabbedc62a43232b8ab2fe9d4eb703"
+  },
+  {
+    "file": "World/Texture/MaFlPrStone02.dds",
+    "kind": 2,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "9214b9c1edbe37f2096f12a1dbbca3803f29545a69477c223069182318298e2e",
+    "sourceHash": "ea0a914160fff1bd9b609fb5ec2ee78b85a40ef8f05f291c758add24a0b729b5",
+    "uploadHash": "2a3f9dd15904d980f31476bcf33807f8c5b2ce58428457a811aa9f70613bc4ea"
+  },
+  {
+    "file": "World/Texture/NewFlrock01.dds",
+    "kind": 2,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "ebd30e0ebf0c50f95d43d8243c383b68ba52ad12c485ab4db184a47039f46081",
+    "sourceHash": "f164b7d3d4ea8f7da2f09fff8fe965b3c445b3928b276661759bffc71f3fe359",
+    "uploadHash": "121c2b0c2010363ef31e6b4b34a5d3cca92b0cd01479dd3f3b9e36c9682f6556"
+  },
+  {
+    "file": "World/Texture/Rartesia_BossGround01.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "4f08ab5d351afa2ce348a7a5d68b94d73ea57524ab6cc7d6f7783f96cb7ce4dc",
+    "sourceHash": "89701888c4c9cb8d48897b632a2e8a43ec04febfed9bb0940dd5404b029816b5",
+    "uploadHash": "13e085f8763faf810fd59ee50e7eca9cfbf8a6b7a3056e8db21f32998983f066"
+  },
+  {
+    "file": "World/Texture/Rartesia_BossGround02.dds",
+    "kind": 5,
+    "width": 512,
+    "height": 512,
+    "decodedHash": "056180919e738f8e94b09c914b340e01ec1c4afba37aad948d2200259d05fc2f",
+    "sourceHash": "d17d0ac709b64e3381c9b8b2e5f423ffa0d5dbd099b87f70475b61f39c285b73",
+    "uploadHash": "4c3cfffe1cf0768d21fee5f453b827e4aba7b5b4c539adbab5d551980c5bfe31"
+  },
+  {
+    "file": "World/Texture/Rartesia_Grass01.dds",
+    "kind": 5,
+    "width": 512,
+    "height": 512,
+    "decodedHash": "d5678c27bd99fe3199908345befadb7b663de7ca7ddfd5220f454beffd162c7e",
+    "sourceHash": "72d6c2f802f6edb585131fa1367f901d094f1f1ac0e01b736f2964ef4f1e605a",
+    "uploadHash": "e537ec18993f1b410fc8e7a70cf886423648a7588b82abf68c61627a0747a924"
+  },
+  {
+    "file": "World/Texture/Rartesia_Grass02.dds",
+    "kind": 5,
+    "width": 512,
+    "height": 512,
+    "decodedHash": "3501b201647ffbb438ced424b4539dbea5035dd2debf6fa2716ed6f08e8e94b4",
+    "sourceHash": "bb4fb36da6f5101ffd15d85904fca8968f4f6c44961ff558010ee4ac5574d49e",
+    "uploadHash": "1a8fc1a49096f387bf26c663c85a7a3e1b245683d1e30b02f3c20bc70703d442"
+  },
+  {
+    "file": "World/Texture/Rartesia_Grass03.dds",
+    "kind": 5,
+    "width": 512,
+    "height": 512,
+    "decodedHash": "7361342fd8ac1409c0cad4939ddbc571efbb598605c4d7526ca060cdc87aa582",
+    "sourceHash": "1621e18cd7e8974108564cc2fc31f7703b3cbae979ec1dd6a33910df2e6aedf4",
+    "uploadHash": "e7273e1ca2aad24148b6a7bfce1a4f91c7c47a04d9be640c3277a5688f3f39af"
+  },
+  {
+    "file": "World/Texture/Rartesia_Grass04.dds",
+    "kind": 5,
+    "width": 512,
+    "height": 512,
+    "decodedHash": "80fb8d31fac94317078df4ae0feab1f19825bc088774048d81dbc959aed955c3",
+    "sourceHash": "0f01034607fe7a8b518eed0a1d0f2b8846633c458a239db4e490f5a465545498",
+    "uploadHash": "de81ec9ff6f92db684e4163b7c130e5315f1290ac741dcd5c7404c8086a93923"
+  },
+  {
+    "file": "World/Texture/Rartesia_sand01.dds",
+    "kind": 4,
+    "width": 512,
+    "height": 512,
+    "decodedHash": "4345ffdf276d9f607092bc736461a4cccb4933fd96a0747da5e4c039e00ed424",
+    "sourceHash": "9e2cb5d060174ac11ce88e211a2cd344c669fff5cd7b1a0344f37d3d62bd5426",
+    "uploadHash": "8a7fc30fc7bb14e7dc37d59d997785570123015473edf08e168ad48318ce3d5e"
+  },
+  {
+    "file": "World/Texture/Rartesia_sand02.dds",
+    "kind": 4,
+    "width": 512,
+    "height": 512,
+    "decodedHash": "3dda37163fef94017da82cba7a5ffb0d8ba8afb90d657ec06ed30e663c577b43",
+    "sourceHash": "00c9d5060bdf468863b8acd7b8f8417b4e61dc58b116289ac5d2c83d638a5de4",
+    "uploadHash": "ad3794f48586a42611237c3e03fe098a269300eda236bde296aa63d389738f24"
+  },
+  {
+    "file": "World/Texture/rock_FlGray01.dds",
+    "kind": 2,
+    "width": 128,
+    "height": 128,
+    "decodedHash": "12efc1d3c05418f42853031932c17b27e1e7bda4fb75685fb3d8533b6ed2379a",
+    "sourceHash": "4747ae197d189b3d79259894e5d6b1aadbe4408d6f34b6c6d6291a2289adb359",
+    "uploadHash": "1ad9f1c9c87d46546f877cfc5fc3eedc253773389d8a05db4a42041d1fa235c5"
+  },
+  {
+    "file": "World/Texture/rock_FlGray02.dds",
+    "kind": 2,
+    "width": 128,
+    "height": 128,
+    "decodedHash": "453129acd9b37965f9b6d8178bd8ac0c87a0c546409c21845c681c73e3fbda6a",
+    "sourceHash": "4349b3c7f2015a091eec54284539391b8d45c6bd6f7f4ea0d50291404a79adba",
+    "uploadHash": "e63b5a0152572002dfb35707a5fb144b5d7667e8e649edb07510c66892f3b87d"
+  },
+  {
+    "file": "World/Texture/rock_volvic05.dds",
+    "kind": 2,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "8f94c93f4d1a7b5ab19d2cd4f98a1471b8f5bf568a62679fcbbe1c4ccfbfef3d",
+    "sourceHash": "97b9ba53d878c62c69af5df8c61e55cadd2a14992b3e7095c698a726d43393c1",
+    "uploadHash": "46916737dd54d8a71b1bcc236fb8f7d74e8785516ad5cad5802059688a9a80c1"
+  },
+  {
+    "file": "World/Texture/rock_volvic06.dds",
+    "kind": 2,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "0aef90f6e9a870a63817b477f45f8fede53c8fbd1c99a4144af560699390eb92",
+    "sourceHash": "74664da89553842a5fb1000645662b1c40e39e276326112d31bba64bf0015038",
+    "uploadHash": "4691ac448aac5fd8e03d3bb2e9f35a7a4efbcfec7036bf573a48e0ff32c26b1f"
+  },
+  {
+    "file": "World/Texture/rock-brown01.dds",
+    "kind": 2,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "d952304fd449d0e7726e3ada54beb926ec19a5e2dc1cc6070022dcb1204e19f8",
+    "sourceHash": "77b8f873065bbd1b4cb67906ba3d5a46710f82b4d9a81c8e6441e318cf538dae",
+    "uploadHash": "bce3a5f9fa060c99419e73faf307a00907f0df5c84566135da9a1856f3e165b3"
+  },
+  {
+    "file": "World/Texture/rock-brown02.dds",
+    "kind": 2,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "56c12e1834bc58020f35fffbfc553f2b4ffc7b044b211f955d49b47bfe250537",
+    "sourceHash": "edb0556d3c35bbd005fab9b0eb3f89012fb23ba60ae4a176e405694a97de0509",
+    "uploadHash": "b80ac16006491f932d0be5f56800c8a4f16d73fed3e60544e00d23d5dffa8588"
+  },
+  {
+    "file": "World/Texture/rock10M.dds",
+    "kind": 2,
+    "width": 128,
+    "height": 128,
+    "decodedHash": "9f53c1d48c30f8313b38d7cc8e84abbc4535031357fc4b677e2784b488457247",
+    "sourceHash": "088f7e50db69f5741d142e1250444850b6e611f3b623a8bc325d27c04e607c4a",
+    "uploadHash": "53f3b921e790ea9c11786af2d6ab0674dd49704fae2d1071731c6048dd4436a5"
+  },
+  {
+    "file": "World/Texture/rock12M.dds",
+    "kind": 2,
+    "width": 128,
+    "height": 128,
+    "decodedHash": "5f5dc345cc67d4948f803a1304647925ddde1f42c3f233f476251d7ee3b40d71",
+    "sourceHash": "34e88d1af7c2f7d9462742f8fcb4b9b98dda53eb05a185b2450e04309e4938ae",
+    "uploadHash": "1caa233225ed7ae2bfbb3b8d42b98fbb3d1e598973b356d23ce3a65b97259574"
+  },
+  {
+    "file": "World/Texture/rustia_ground01.dds",
+    "kind": 5,
+    "width": 512,
+    "height": 512,
+    "decodedHash": "4bcdea31fec046d9e1b725fea9cacac79feb6eb023123d65a0d890914d7d225e",
+    "sourceHash": "ec49b9c7f2a9b7eccc20715a01b9ddc6c44a4095654c98d89970f03594236409",
+    "uploadHash": "b5fa558c473d2ab706379b4b97933f9e16f9949cfd0b72a38e1d8bc17c98850a"
+  },
+  {
+    "file": "World/Texture/rustia_ground02.dds",
+    "kind": 5,
+    "width": 512,
+    "height": 512,
+    "decodedHash": "ec11c85f7f84b1f2db83439f2748a819ac5f7883790875289e5ef05ab2392d53",
+    "sourceHash": "9bda7872a35268a5bafe3b35ec28006ce607446ebda31ac3e1c2d3ec689782f0",
+    "uploadHash": "94b3c473f9d9fee7be4dc30c9fb244c8f971babe4bef539b5070c4153bf1c9bc"
+  },
+  {
+    "file": "World/Texture/Upresia_Ground01_01.dds",
+    "kind": 5,
+    "width": 512,
+    "height": 512,
+    "decodedHash": "c1041c7e4efce95ffd7fd56682febf982deccab924a73f270a13bfd463cca211",
+    "sourceHash": "f3cddf8920c2b609db3cc08cb94a089163df6a8f114248d7e3b7b969b9edaa23",
+    "uploadHash": "f17c64fca93131a953bbdea1c06d5e0573a24376624cf7965ee5577a375cfaed"
+  },
+  {
+    "file": "World/Texture/Upresia_Ground01.dds",
+    "kind": 5,
+    "width": 512,
+    "height": 512,
+    "decodedHash": "b2bff5c81cd405df12bc0312dd35d015aa0d4f48e5b2795859b2265cb4e46968",
+    "sourceHash": "af37711d00a4ceec87b1e0b71fdee2aa121e7c01a95dced2f4ff79f9cbf7bea3",
+    "uploadHash": "151360d893f4c7a375d427623587b66998a2ab1b9be28c7a2aa623b292c1aaa0"
+  },
+  {
+    "file": "Model/Texture/Ctrl_HouFurCabWood01.dds",
+    "kind": 3,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "4f482f5712d36f4168c6d081d673b0594bd853d58b702a8734caf60490cc507a",
+    "sourceHash": "2e55c9f3ac91a584ebfa349fe68f91cc7991830b676c8b9e9f9801467ec55c2b",
+    "uploadHash": "4d4438a4744d4bfb5033da06ac81e07f93a08bfa80e48986ec7bbbdf04f0b7b2"
+  },
+  {
+    "file": "Model/Texture/Ctrl_HouFurTabWood01-01.dds",
+    "kind": 3,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "8dad59a786a34156a30cb27eb2c48f47eee4539fd4559f7c97cbc87e1759922f",
+    "sourceHash": "cd054102b65faacddbdb23d30aed0265f0b2a435841411bc88af3b4943952070",
+    "uploadHash": "96c68a02636a01eea0a9619eb8d350b0a02f91aa53757b3726fa393afcd8c150"
+  },
+  {
+    "file": "Model/Texture/Ctrl_HouFurWarWood01.dds",
+    "kind": 3,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "e7a0053483054b3f4e3b5eaa19654f2225761b17c6b86dbc70dc29b3e7b332b3",
+    "sourceHash": "024362bfd25c50ec6670ecca750a199d3814c46c94b4328d04f88dd8e1e2db08",
+    "uploadHash": "83a75d8674b572af8c3a55cd00084294766c0c90bb8e41fff9ff5cc26c4b881b"
+  }
+]

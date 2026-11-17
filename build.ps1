@@ -15,6 +15,8 @@ node tools/embed-logo.mjs
 if ($LASTEXITCODE) { throw 'Logo embedding failed' }
 node tools/embed-presets.mjs
 if ($LASTEXITCODE) { throw 'Profile embedding failed' }
+node tools/material-catalog.mjs
+if($LASTEXITCODE){throw 'Material catalog generation failed'}
 node tools/embed-updater.mjs
 if ($LASTEXITCODE) { throw 'Updater embedding failed' }
 & $cxx '-std=c++20' '-O2' '-static' 'tools/shaderc.cpp' '-ld3dcompiler' '-o' 'build/shaderc.exe'
@@ -43,6 +45,12 @@ if ($LASTEXITCODE) { throw 'Caustics compilation failed' }
 if ($LASTEXITCODE) { throw 'Scene FX shader compilation failed' }
 & '.\build\shaderc.exe' 'shaders/sfx.hlsl' 'src/generated/sfx_shaders.hpp' 'sfx'
 if ($LASTEXITCODE) { throw 'SFX shader compilation failed' }
+& './build/shaderc.exe' 'shaders/material.hlsl' 'src/generated/material_vs.hpp' 'MaterialVS' 'vs_3_0'
+if($LASTEXITCODE){throw 'Material vertex shader compilation failed'}
+& './build/shaderc.exe' 'shaders/material.hlsl' 'src/generated/material_rigid_vs.hpp' 'MaterialRigidVS' 'vs_3_0'
+if($LASTEXITCODE){throw 'Rigid material vertex shader compilation failed'}
+& './build/shaderc.exe' 'shaders/material.hlsl' 'src/generated/material_ps.hpp' 'MaterialPS' 'ps_3_0'
+if($LASTEXITCODE){throw 'Material pixel shader compilation failed'}
 & '.\build\shaderc.exe' 'shaders/smaa.hlsl' 'src/generated/smaa_shaders.hpp' 'smaa'
 if ($LASTEXITCODE) { throw 'SMAA shader compilation failed' }
 $imgui='vendor/imgui-1.92.9b'
@@ -91,6 +99,12 @@ if ($Tests) {
         & './build/native-binding-test.exe' $NativePresentationTestImage '--presentation'
         if($LASTEXITCODE){throw 'Presentation binding tests failed'}
     }
+    & $cxx '-std=c++20' '-O2' '-static' '-Isrc' 'tests/material_test.cpp' '-ld3d9' '-ldxguid' '-lbcrypt' '-lgdiplus' '-o' 'build/material-test.exe'
+    if($LASTEXITCODE){throw 'Material test build failed'}
+    & './build/material-test.exe'
+    if($LASTEXITCODE){throw 'Material tests failed'}
+    & './build/material-test.exe' '--msaa'
+    if($LASTEXITCODE){throw 'MSAA material tests failed'}
     & $cxx '-std=c++20' '-O2' '-static' '-Isrc' 'tests/settings_test.cpp' 'src/settings.cpp' '-o' 'build/settings-test.exe'
     if ($LASTEXITCODE) { throw 'Settings test build failed' }
     & '.\build\settings-test.exe'
