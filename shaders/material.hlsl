@@ -90,21 +90,13 @@ float4 NativeStage(float4 stage,float4 alpha,float4 art,float4 diffuse,float4 cu
     if(stage.w>1.5)opacity=Operation(stage.w,Argument(alpha.x,art,diffuse,current,constant),Argument(alpha.y,art,diffuse,current,constant)).a;
     return saturate(float4(rgb,opacity));
 }
-// Differentiable value noise in material UVs. No screen-space grain or animation.
-float3 Grain(float2 p) {
-    float2 cell=floor(p),f=frac(p),s=f*f*(3-2*f),ds=6*f*(1-f);
-    float4 h=frac(sin(float4(dot(cell,float2(127.1,311.7)),dot(cell+float2(1,0),float2(127.1,311.7)),
-                 dot(cell+float2(0,1),float2(127.1,311.7)),dot(cell+1,float2(127.1,311.7))))*43758.5453);
-    return float3(lerp(lerp(h.x,h.y,s.x),lerp(h.z,h.w,s.x),s.y),
-                  lerp(h.y-h.x,h.w-h.z,s.y)*ds.x,lerp(h.z-h.x,h.w-h.y,s.x)*ds.y);
-}
 float4 MaterialPS(MaterialOutput i):COLOR0 {
     float2 dx=ddx(i.uv),dy=ddy(i.uv);
     float4 art=tex2D(Art,i.uv);
     float3 n=normalize(i.normal),light=SunDirection.xyz;
     float3 diffuse=i.diffuse.rgb;
     [branch]if(Style.x>0) {
-        bool snow=ArtInfo.z==1,wood=ArtInfo.z==3,sand=ArtInfo.z==4;
+        bool snow=ArtInfo.z==1,wood=ArtInfo.z==3;
         float2 texel=ArtInfo.xy;
         const float3 luma=float3(.2126,.7152,.0722);
         float3 west=tex2Dgrad(Art,i.uv-float2(texel.x,0),dx,dy).rgb;
@@ -112,12 +104,12 @@ float4 MaterialPS(MaterialOutput i):COLOR0 {
         float3 north=tex2Dgrad(Art,i.uv-float2(0,texel.y),dx,dy).rgb;
         float3 south=tex2Dgrad(Art,i.uv+float2(0,texel.y),dx,dy).rgb;
         float left=dot(west,luma),right=dot(east,luma),up=dot(north,luma),down=dot(south,luma);
-        float2 frequency=snow?110:sand?75:wood?float2(160,16):55;
-        float footprint=max(length(dx*frequency),length(dy*frequency));
-        float fade=1-smoothstep(.25,.95,footprint);
-        float3 grain=Grain(i.uv*frequency);
-        float2 gradient=float2(right-left,down-up)*(snow?.5:wood?2.5:3.5);
-        gradient+=grain.yz*fade*(snow?.14:sand?.32:wood?.55:.5);
+        // Follow the painted artwork instead of adding a second procedural surface.
+        float footprint=max(length(dx/texel),length(dy/texel));
+        float fade=1-smoothstep(.7,1.8,footprint);
+        float2 gradient=float2(right-left,down-up)*(snow?.3:wood?.7:.8)*Style.y*fade;
+        // Compress steep source edges so painted outlines do not become deep grooves.
+        gradient/=1+length(gradient)*6.7;
         float3 px=ddx(i.view),py=ddy(i.view);
         float determinant=dx.x*dy.y-dx.y*dy.x;
         float3 tangent=px*dy.y-py*dx.y;
@@ -126,8 +118,8 @@ float4 MaterialPS(MaterialOutput i):COLOR0 {
         tangent*=determinant<0?-1:1;
         float3 bitangent=cross(n,tangent)*(determinant<0?-1:1);
         gradient*=abs(determinant)>.0000000001?1:0;
-        float3 bumped=normalize(n-(tangent*gradient.x+bitangent*gradient.y)*Style.y);
-        float delta=dot(bumped,light)-dot(n,light);
+        float3 bumped=normalize(n-(tangent*gradient.x+bitangent*gradient.y));
+        float delta=clamp(dot(bumped,light)-dot(n,light),-.04,.04);
         diffuse=saturate(diffuse+delta*SunColor.rgb*(ArtInfo.w>.5?MaterialDiffuse.rgb:.35)*Style.x);
         if(snow) {
             float brightness=(left+right+up+down)*.25;
@@ -136,12 +128,10 @@ float4 MaterialPS(MaterialOutput i):COLOR0 {
             art.rgb=lerp(art.rgb,clean,Style.w*Style.x*mask);
         } else {
             // Recover magnified source detail from the same four samples used for relief.
-            float magnified=1-smoothstep(.65,1.5,max(length(dx/texel),length(dy/texel)));
+            float magnified=1-smoothstep(.65,1.5,footprint);
             float3 detail=art.rgb-(west+east+north+south)*.25;
-            art.rgb=saturate(art.rgb+clamp(detail*Style.y*Style.x*.6*magnified,-.035,.035));
+            art.rgb=saturate(art.rgb+clamp(detail*Style.y*Style.x*.22*magnified,-.012,.012));
         }
-        // Low-amplitude surface color structure helps read fine relief even in soft ambient light.
-        art.rgb*=1+(grain.x-.5)*fade*Style.y*Style.x*(snow?.045:sand?.07:.10);
         n=bumped;
     }
     // Preserve native alpha/blend-map coverage and stage saturation order.
@@ -151,7 +141,7 @@ float4 MaterialPS(MaterialOutput i):COLOR0 {
     float4 color=NativeStage(Stage1,Alpha1,layer,float4(diffuse,i.diffuse.a),native,Constant1);
     float3 halfVector=normalize(light+normalize(-i.view));
     float sparkle=pow(saturate(dot(n,halfVector)),ArtInfo.z==1?128:ArtInfo.z==3?36:48);
-    float glintScale=ArtInfo.z==1?.32:ArtInfo.z==3?.25:ArtInfo.z==2?.06:.025;
+    float glintScale=ArtInfo.z==1?.08:ArtInfo.z==3?.025:ArtInfo.z==2?.018:.008;
     color.rgb+=sparkle*SunColor.rgb*Style.z*Style.x*glintScale;
     float fog=PixelFog.x>.5?FogAmount(i.view.z,PixelFog):i.fog;
     color.rgb=lerp(FogColor.rgb,color.rgb,fog);

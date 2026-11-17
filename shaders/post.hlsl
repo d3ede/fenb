@@ -47,12 +47,12 @@ float4 Composite(float2 uv : TEXCOORD0) : COLOR0 {
         float span = high - low;
         float nearMean = (north + south + west + east) * .25;
         float edgeGuard = 1 - smoothstep(.12, .30, span);
-        float fine = (center - nearMean) * 2.2 * smoothstep(.003, .015, span);
+        float fine = (center - nearMean) * 1.25 * smoothstep(.003, .015, span);
         float textureBand = 0;
         [branch] if (Options.w > 0) {
             // Four diagonal samples cover the scale of painted stone/wood detail.
             // Skipping this band retains the four-read fine-detail mode.
-            float2 radius = Step.xy * 7;
+            float2 radius = Step.xy * 3.5;
             float a = dot(tex2Dlod(Scene, float4(uv + radius, 0, 0)).rgb, lumaWeights);
             float b = dot(tex2Dlod(Scene, float4(uv - radius, 0, 0)).rgb, lumaWeights);
             float c = dot(tex2Dlod(Scene, float4(uv + radius * float2(-1,1), 0, 0)).rgb, lumaWeights);
@@ -64,16 +64,15 @@ float4 Composite(float2 uv : TEXCOORD0) : COLOR0 {
             // Reject samples across large brightness discontinuities. A plain
             // wide blur would emboss silhouettes and lay halos over flat surfaces.
             float4 samples = float4(a,b,c,d);
-            float4 weights = saturate(1 - abs(samples-center)/.24);
+            float4 weights = saturate(1 - abs(samples-center)/.12);
             float wideMean = (center+dot(samples,weights))/(1+dot(weights,1));
-            textureBand = (nearMean - wideMean) * 5.5 * Options.w * structure;
+            textureBand = (nearMean - wideMean) * 1.4 * Options.w * structure;
         }
         float tones = smoothstep(.015,.08,center) * (1 - smoothstep(.86,.99,center));
         float correction = (fine + textureBand) * Options.z * edgeGuard * tones;
-        correction = clamp(correction, -.14 * Options.z, .14 * Options.z);
-        // Permit controlled peak enhancement, unlike the old extrema clamp which
-        // erased the strongest texture detail. Keep chroma and highlight headroom.
-        float margin = (high-low) * .35;
+        // Keep painted midtones and soft shading, including with old saved strengths.
+        correction = clamp(correction, -.045 * Options.z, .045 * Options.z);
+        float margin = (high-low) * .08;
         correction = clamp(correction, low-center-margin, high-center+margin);
         correction = clamp(correction, -min(source.r,min(source.g,source.b)),
                             1-max(source.r,max(source.g,source.b)));

@@ -142,7 +142,7 @@ int main(int argc,char **argv){
             fixture.uStart=kind==2?.04f:0;fixture.uSpan=kind==2?.28f:1;
             fixture.vStart=kind==2?.1f:0;fixture.vSpan=kind==2?.8f:1;
             for(int distance=0;distance<2;++distance){fixture.repeats=.85f;fixture.cameraDistance=distance?6.4f:3.2f;
-                auto a=fixture.render(off),b=fixture.render(on);CHECK(fixture.used&&Delta(a,b)>5);
+                auto a=fixture.render(off),b=fixture.render(on);CHECK(fixture.used&&Delta(a,b)>0);
                 std::wstring prefix=std::wstring(L"artifacts/materials/")+names[kind]+(distance?L"-wide":L"-close");
                 CHECK(Save(a,prefix+L"-off.png")&&Save(b,prefix+L"-on.png"));
                 printf("Material %d distance %d: maximum RGB delta=%u\n",kind,distance,Delta(a,b));
@@ -169,7 +169,23 @@ int main(int argc,char **argv){
     CHECK(Delta(fixture.render(off),fixture.render(neutral))<=2);
     fixture.scaled=fixture.orbit=false;fixture.point=false;
     fixture.zeroNormals=true;CHECK(Delta(fixture.render(off),fixture.render(neutral))<=2);fixture.zeroNormals=false;
-    for(DWORD type=1;type<=5;++type){fixture.art->SetPrivateData(MaterialTag,&type,4,0);auto a=fixture.render(off),b=fixture.render(on);CHECK(fixture.used&&Delta(a,b)>5);if(type==2)CHECK(Delta(a,b)>20);CHECK(Delta(b,fixture.render(on))<=(msaa?2u:0u));}
+    for(DWORD type=1;type<=5;++type){
+        fixture.art->SetPrivateData(MaterialTag,&type,4,0);
+        auto a=fixture.render(off),b=fixture.render(on);
+        CHECK(fixture.used&&Delta(a,b)>0);
+        // Ordinary painted materials retain their tones instead of acquiring deep grooves.
+        if(type!=1)CHECK(Delta(a,b)<=12);
+        CHECK(Delta(b,fixture.render(on))<=(msaa?2u:0u));
+    }
+    // A uniformly painted matte surface must not acquire procedural grain or relief,
+    // even at maximum relief strength. Curved geometry still receives native lighting.
+    D3DLOCKED_RECT flat{};CHECK(SUCCEEDED(fixture.art->LockRect(0,&flat,nullptr,0)));
+    for(UINT y=0;y<64;++y)for(UINT x=0;x<64;++x)
+        ((DWORD *)((BYTE *)flat.pBits+y*flat.Pitch))[x]=D3DCOLOR_ARGB(128,110,125,145);
+    fixture.art->UnlockRect(0);
+    DWORD matte=2;fixture.art->SetPrivateData(MaterialTag,&matte,4,0);
+    Settings flatStyle=on;flatStyle.materialRelief=flatStyle.materialStrength=1;flatStyle.materialGlints=0;
+    CHECK(Delta(fixture.render(off),fixture.render(flatStyle))<=2);
     on.materialStrength=0;auto a=fixture.render(off),b=fixture.render(on);
     CHECK(!fixture.used&&Delta(a,b)<=(msaa?2u:0u));
     on.materialStrength=.75f;InvalidateWaterTag(fixture.art);fixture.render(on);CHECK(!fixture.used);
