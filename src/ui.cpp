@@ -576,21 +576,22 @@ void DrawPanel(Runtime &r, const PanelBranding &branding) {
     auto *d = ImGui::GetWindowDrawList();
     const float brandEnd = HeaderBrand(d, origin, size.x, branding);
     float tabX = brandEnd + 2;
-    const float tabFont=size.x<440?11.f:13.f, tabPadding=size.x<440?10.f:20.f;
+    const float tabFont=size.x<440?11.f:13.f;
+    const float tabInset=size.x<440?5.f:8.f, tabGap=size.x<440?3.f:4.f;
     ImGui::PushFont(uiEmphasis, tabFont);
     const int tabPages[]={0,8,4};
     const UiText tabNames[]={UiText::Image,UiText::MaterialsTab,UiText::WorldTab};
     const char *tabIds[]={"image-tab","materials-tab","world-tab"};
     for (int i=0;i<3;++i) {
         const char *label = Tr(tabNames[i]);
-        const float w = ImGui::CalcTextSize(label).x+tabPadding;
+        const float w = ImGui::CalcTextSize(label).x+2*tabInset;
         ImGui::SetCursorPos({tabX,7});
         if (ImGui::InvisibleButton(tabIds[i],{w,32},ImGuiButtonFlags_EnableNav)) r.editorPage=tabPages[i];
         const bool selected = i ? r.editorPage==tabPages[i] : r.editorPage<4 || r.editorPage==6 || r.editorPage==7;
         if (ImGui::IsItemHovered()) d->AddRectFilled({origin.x+tabX,origin.y+7},{origin.x+tabX+w,origin.y+39},Raised,2);
-        TextAt(d,{origin.x+tabX+tabPadding*.5f,origin.y+15},label,selected?Lavender:Muted,tabFont);
-        if(selected) d->AddRectFilled({origin.x+tabX+10,origin.y+37},{origin.x+tabX+w-10,origin.y+39},Accent,1);
-        tabX+=w+(size.x<440?3:8);
+        TextAt(d,{origin.x+tabX+tabInset,origin.y+15},label,selected?Lavender:Muted,tabFont);
+        if(selected) d->AddRectFilled({origin.x+tabX+tabInset,origin.y+37},{origin.x+tabX+w-tabInset,origin.y+39},Accent,1);
+        tabX+=w+tabGap;
     }
     ImGui::PopFont();
     // On small displays move language controls onto a second header row.

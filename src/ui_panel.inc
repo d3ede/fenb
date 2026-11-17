@@ -387,15 +387,12 @@ void PanelParameters(Runtime &r, int item) {
     if(page==8) {
         if(item==0) {
             SR(Strength, MaterialStrengthHelp, materialStrength, 0, 1, "%.2f", .05f);
-            PanelNote(Tr(UiText::MaterialsCoverage));
         } else if(item==1) {
             SR(MaterialRelief, MaterialReliefHelp, materialRelief, 0, 1, "%.2f", .05f);
             SR(MaterialGlints, MaterialGlintsHelp, materialGlints, 0, 1, "%.2f", .05f);
         } else if(item==2) {
             SR(MaterialSnowLook, MaterialSnowHelp, materialSnow, 0, 1, "%.2f", .05f);
-            PanelNote(Tr(UiText::MaterialSnowNote));
         } else {
-            PanelNote(Tr(UiText::MaterialMicroNote));
             SR(Strength, SharpeningHelp, sharpeningStrength, 0, 1, "%.2f", .05f);
             SR(TextureContrast, TextureContrastHelp, textureContrast, 0, 1, "%.2f", .05f);
         }
@@ -517,12 +514,7 @@ void PanelParameters(Runtime &r, int item) {
         }
         }
     if (page == 3) {
-        if (item == 0)
-            PanelNote(Tr(UiText::PanelFXAAHelp));
-        if (item == 1)
-            PanelNote(Tr(UiText::PanelSMAAHelp));
         if (item == 2) {
-            PanelNote(Tr(UiText::MSAAHelp));
             const unsigned active = r.activeMSAA();
             char current[64];
             std::snprintf(current, sizeof(current), Tr(active ? UiText::MSAAActive : UiText::MSAAOff),
@@ -562,7 +554,6 @@ void PanelParameters(Runtime &r, int item) {
     if (page == 7)
         switch (item) {
         case 0:
-            PanelNote(Tr(UiText::ShopSignHelp));
             {
                 bool disabled = uiParameterDisabled;
                 uiParameterDisabled = !r.shopOptimizationSupported() || !s.limitShopSigns;
@@ -573,12 +564,10 @@ void PanelParameters(Runtime &r, int item) {
             }
             break;
         case 1:
-            PanelNote(Tr(UiText::BackgroundActivityHelp));
             if (!r.backgroundActivitySupported())
                 PanelNote(Tr(UiText::UnsupportedClient));
             break;
         case 2:
-            PanelNote(Tr(UiText::UnlockFPSHelp));
             if (!r.fpsUnlockSupported())
                 PanelNote(Tr(UiText::UnsupportedClient));
             break;
@@ -618,10 +607,6 @@ void PanelParameters(Runtime &r, int item) {
         }
     }
     if (page == 5) {
-        if (item == 0)
-            PanelNote(Tr(UiText::V2CursorSampleNote));
-        if (item == 1)
-            PanelNote(Tr(UiText::V2MotionNote));
         if (item == 2) {
             ImGui::PushFont(nullptr, 13);
             ImGui::PushStyleVar(ImGuiStyleVar_SelectableTextAlign, ImVec2(0, .5f));
@@ -647,9 +632,6 @@ struct PanelMaster {
 };
 PanelMaster EditorMaster(Runtime &r) {
     switch (r.editorPage) {
-    case 8:
-        if(r.editorSelection[8]==3)return {nullptr,nullptr,nullptr,false};
-        return {Tr(UiText::MaterialsTab), &r.settings.materials, "materials-master", false};
     case 0:
         return {Tr(UiText::ColorCorrection), &r.settings.color, "color-master", false};
     case 1:
@@ -832,8 +814,15 @@ void PanelEditor(Runtime &r) {
     const auto p = ImGui::GetCursorScreenPos();
     const float w = ImGui::GetContentRegionAvail().x;
     auto *draw = ImGui::GetWindowDrawList();
-    const bool showEnable = item.enabled && !(r.editorPage == 0 && selected >= 4 && selected <= 6) &&
-                            !(r.editorPage == 8 && selected == 0);
+    const bool showEnable = item.enabled && !(r.editorPage == 0 && selected >= 4 && selected <= 6);
+    const char *help = r.editorPage == 2 ? Tr(sceneItems[selected].description) : PanelDescription(r.editorPage);
+    if(r.editorPage==8)help=Tr(selected==0?UiText::MaterialsCoverage:selected==2?UiText::MaterialSnowNote:
+                             selected==3?UiText::MaterialMicroNote:UiText::MaterialReliefHelp);
+    if(r.editorPage==3)help=Tr(selected==0?UiText::PanelFXAAHelp:selected==1?UiText::PanelSMAAHelp:UiText::MSAAHelp);
+    if(r.editorPage==7&&selected<3)help=Tr(selected==0?UiText::ShopSignHelp:selected==1?UiText::BackgroundActivityHelp:UiText::UnlockFPSHelp);
+    if(r.editorPage==5&&selected<2)help=Tr(selected==0?UiText::V2CursorSampleNote:UiText::V2MotionNote);
+    ImGui::InvisibleButton("description", {std::max(1.f,w-(showEnable?40:5)),25});
+    Tip(help);
     draw->PushClipRect(p, {p.x + w - (showEnable ? 40 : 5), p.y + 25}, true);
     TextAt(draw, {p.x + 4, p.y + 2}, item.title ? item.title : item.label, Text, 16, uiEmphasis);
     draw->PopClipRect();
@@ -861,16 +850,10 @@ void PanelEditor(Runtime &r) {
                 s.fxaa = false;
         }
     }
-    ImGui::SetCursorScreenPos({p.x + 4, p.y + 29});
-    ImGui::PushFont(nullptr, 12);
-    ImGui::PushTextWrapPos(w - 5);
-    ImGui::TextDisabled("%s", r.editorPage == 2 ? Tr(sceneItems[selected].description)
-                                                : PanelDescription(r.editorPage));
-    ImGui::PopTextWrapPos();
-    ImGui::PopFont();
-    const float bodyY = std::max(p.y + 53, ImGui::GetCursorScreenPos().y + 9);
+    const float bodyY = p.y + 34;
     draw->AddLine({p.x + 4, bodyY - 8}, {p.x + w - 5, bodyY - 8}, Line);
     ImGui::SetCursorScreenPos({p.x, bodyY});
+    ImGui::Dummy({0,0});
     uiParameterDisabled = r.editorPage == 1 ? (!s.water || !s.enabled)
                           : item.enabled    ? !*item.enabled
                                             : false;

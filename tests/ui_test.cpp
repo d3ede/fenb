@@ -208,7 +208,7 @@ int main() {
     auto numeric=[&](const char *scope,float &value){const void *pointer=&value;auto row=ImHashData(&pointer,sizeof(pointer),inspector()->GetID(scope));return ImHashStr("##value",0,row);};
     CHECK(r.editorSelection[0]==4 && inspector());
     const auto body=inspector()->Pos;
-    const float width=inspector()->Size.x, rowY=body.y+53;
+    const float width=inspector()->Size.x, rowY=body.y+34;
     r.settings.exposure=.8f;frame();
     click(body.x+115,rowY+31);mouse(body.x+115,rowY+31,true);
     CHECK(r.settings.exposure==0);frame();CHECK(r.settings.exposure==0);mouse(body.x+115,rowY+31,false);
@@ -296,7 +296,7 @@ int main() {
         activate(panel,"##language");frame();CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-language.png").c_str()));ImGui::ClosePopupToLevel(0,true);frame();
         activate(panel,"menu");CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-actions.png").c_str()));ImGui::ClosePopupToLevel(0,true);frame();
         activate(panel,"materials-tab");r.editorSelection[8]=0;frame();frame();
-        r.settings.materials=false;activate(navigation()->ParentWindow,"materials-master");CHECK(r.settings.materials);
+        r.settings.materials=false;control("appearance","enabled");CHECK(r.settings.materials);
         ImGui::ActivateItemByID(numeric("appearance",r.settings.materialStrength));frame();input("0.9");CHECK(r.settings.materialStrength==.9f);
         control("appearance","reset-section");CHECK(r.settings.materials&&r.settings.materialStrength==Settings{}.materialStrength);
         CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-materials.png").c_str()));
