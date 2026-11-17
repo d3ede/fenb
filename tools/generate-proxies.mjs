@@ -50,7 +50,7 @@ for (const [,type,parent,body] of definitions) {
         before=before.trimEnd()+`\n#ifdef FENB_DIAGNOSTICS\n        runtime_->captureDraw("${name}",${names[0]},${count},${vertices},${stride},${data},${first});\n#endif\n        `;
         const geometry=name==='DrawPrimitive'?`{${names[0]},${names[1]},${count}}`:
           name==='DrawIndexedPrimitive'?`{${names[0]},${names[4]},${count},${names[2]},${names[3]},${names[1]},true}`:'{}';
-        before+=`if (${count} && (runtime_->settings.localLighting || runtime_->settings.surfaceReflections)) runtime_->emitterDraw([&](){return ${call};},${geometry}); `;
+        before+=`if (${count} && (runtime_->settings.localLighting || runtime_->settings.surfaceReflections || runtime_->settings.grass)) runtime_->emitterDraw([&](){return ${call};},${geometry}); `;
         before+=`if (${count}) runtime_->beforeWaterDraw(${stride},[&](){return ${call};}); `;
         after+=`runtime_->afterWaterDraw(${up},${up&&indexed}); `;
       }

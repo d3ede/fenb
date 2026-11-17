@@ -1,0 +1,28 @@
+// Local world-space terrain coverage. Never changes the native world/depth draw.
+sampler2D Art:register(s0);
+sampler2D BlendMap:register(s1);
+row_major float4x4 World:register(c0);
+row_major float4x4 Tex0:register(c4);
+row_major float4x4 Tex1:register(c8);
+float4 Map:register(c12); // center xz, radius, texel size
+float4 Material:register(c0); // grass, blend map, opacity, height/luminance write
+struct Input {float3 position:POSITION;float3 normal:NORMAL;float2 uv:TEXCOORD0;float2 blend:TEXCOORD1;};
+struct Output {float4 position:POSITION;float3 world:TEXCOORD0;float2 uv:TEXCOORD1;float2 blend:TEXCOORD2;};
+Output GrassCaptureVS(Input i) {
+    Output o;float4 p=mul(float4(i.position,1),World);
+    o.world=p.xyz;
+    o.position=float4((p.x-Map.x)/Map.z,(p.z-Map.y)/Map.z,.5,1);
+    o.position.xy+=float2(-Map.w,Map.w);
+    o.uv=mul(float4(i.uv,1,0),Tex0).xy;
+    o.blend=mul(float4(i.blend,1,0),Tex1).xy;
+    return o;
+}
+float4 GrassCapturePS(Output i):COLOR0 {
+    float4 art=tex2D(Art,i.uv);
+    float opacity=Material.z<0?1:Material.y>.5?tex2D(BlendMap,i.blend).a:art.a*Material.z;
+    clip(opacity-.0001);
+    float3 n=cross(ddx(i.world),ddy(i.world));
+    float slope=abs(n.y)*rsqrt(max(dot(n,n),1e-12));
+    return float4(i.world.y,Material.x,slope,Material.w>.5?dot(art.rgb,float3(.2126,.7152,.0722)):opacity);
+}
+float4 GrassHidePS():COLOR0 {clip(-1);return 0;}

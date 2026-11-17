@@ -306,6 +306,15 @@ int main() {
     for(int language=0;language<static_cast<int>(LanguageCount);++language){
         r.settings.language=static_cast<Language>(language);
         const std::wstring locale(LanguageCodes[language],LanguageCodes[language]+2);
+        r.editorPage=9;r.editorSelection[9]=0;frame();frame();
+        r.settings.grass=false;control("grass","enabled");CHECK(r.settings.grass);
+        ImGui::ActivateItemByID(numeric("grass",r.settings.grassDistance));frame();input("55");CHECK(r.settings.grassDistance==55);
+        CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-grass-coverage.png").c_str()));
+        r.editorSelection[9]=1;frame();frame();
+        ImGui::ActivateItemByID(numeric("grass-shape",r.settings.grassHeight));frame();input("0.85");CHECK(r.settings.grassHeight==.85f);
+        control("grass-shape","reset-section");CHECK(r.settings.grass&&r.settings.grassHeight==Settings{}.grassHeight&&r.settings.grassDistance==55);
+        CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-grass-shape.png").c_str()));
+        for(int page:{2,3}){r.editorSelection[9]=page;frame();frame();CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-grass-"+std::to_wstring(page)+L".png").c_str()));}
         activate(panel,"##language");frame();CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-language.png").c_str()));ImGui::ClosePopupToLevel(0,true);frame();
         activate(panel,"menu");CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-actions.png").c_str()));ImGui::ClosePopupToLevel(0,true);frame();
         activate(panel,"materials-tab");r.editorSelection[8]=0;frame();frame();
@@ -331,7 +340,7 @@ int main() {
         r.editorPage=2;
         for(int effect=0;effect<11;++effect){r.sceneSelection=effect;frame();frame();CHECK(inspector());}
         io.DisplaySize={334,400};r.centerPanel=true;
-        for(int page:{0,1,2,3,4,5,7,8}){r.editorPage=page;frame();frame();CHECK(inspector());CHECK(inspector()->Size.x>240);CHECK(inspector()->Pos.x>=0&&inspector()->Pos.x+inspector()->Size.x<=334);}
+        for(int page:{0,1,2,3,4,5,7,8,9}){r.editorPage=page;frame();frame();CHECK(inspector());CHECK(inspector()->Size.x>240);CHECK(inspector()->Pos.x>=0&&inspector()->Pos.x+inspector()->Size.x<=334);}
         r.editorPage=7;
         for(int item=0;item<7;++item){r.editorSelection[7]=item;frame();frame();CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-optimization-"+std::to_wstring(item)+L"-narrow.png").c_str()));}
         r.editorPage=8;r.editorSelection[8]=0;frame();frame();CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-materials-narrow.png").c_str()));

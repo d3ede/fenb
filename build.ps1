@@ -17,6 +17,8 @@ node tools/embed-presets.mjs
 if ($LASTEXITCODE) { throw 'Profile embedding failed' }
 node tools/material-catalog.mjs
 if($LASTEXITCODE){throw 'Material catalog generation failed'}
+node tools/grass-catalog.mjs
+if($LASTEXITCODE){throw 'Grass catalog generation failed'}
 node tools/embed-updater.mjs
 if ($LASTEXITCODE) { throw 'Updater embedding failed' }
 & $cxx '-std=c++20' '-O2' '-static' 'tools/shaderc.cpp' '-ld3dcompiler' '-o' 'build/shaderc.exe'
@@ -51,8 +53,18 @@ if($LASTEXITCODE){throw 'Material pixel shader compilation failed'}
 if($LASTEXITCODE){throw 'Bark pixel shader compilation failed'}
 & '.\build\shaderc.exe' 'shaders/smaa.hlsl' 'src/generated/smaa_shaders.hpp' 'smaa'
 if ($LASTEXITCODE) { throw 'SMAA shader compilation failed' }
+& './build/shaderc.exe' 'shaders/grass_capture.hlsl' 'src/generated/grass_capture_vs.hpp' 'GrassCaptureVS' 'vs_3_0'
+if($LASTEXITCODE){throw 'GrassCaptureVS compilation failed'}
+& './build/shaderc.exe' 'shaders/grass_capture.hlsl' 'src/generated/grass_capture_ps.hpp' 'GrassCapturePS' 'ps_3_0'
+if($LASTEXITCODE){throw 'GrassCapturePS compilation failed'}
+& './build/shaderc.exe' 'shaders/grass_capture.hlsl' 'src/generated/grass_hide_ps.hpp' 'GrassHidePS' 'ps_2_a'
+if($LASTEXITCODE){throw 'GrassHidePS compilation failed'}
+& './build/shaderc.exe' 'shaders/grass_blades.hlsl' 'src/generated/grass_blade_vs.hpp' 'GrassBladeVS' 'vs_3_0'
+if($LASTEXITCODE){throw 'GrassBladeVS compilation failed'}
+& './build/shaderc.exe' 'shaders/grass_blades.hlsl' 'src/generated/grass_blade_ps.hpp' 'GrassBladePS' 'ps_3_0'
+if($LASTEXITCODE){throw 'GrassBladePS compilation failed'}
 $imgui='vendor/imgui-1.92.9b'
-$sources=@('src/exports.cpp','src/generated/exports.cpp','src/proxy.cpp','src/generated/proxies.cpp','src/settings.cpp','src/runtime.cpp','src/effects.cpp','src/water.cpp','src/scene_fx.cpp','src/fps_limiter.cpp','src/environment.cpp','src/optimization.cpp','src/ui.cpp','src/updater.cpp',
+$sources=@('src/exports.cpp','src/generated/exports.cpp','src/proxy.cpp','src/generated/proxies.cpp','src/settings.cpp','src/runtime.cpp','src/effects.cpp','src/water.cpp','src/scene_fx.cpp','src/grass.cpp','src/fps_limiter.cpp','src/environment.cpp','src/optimization.cpp','src/ui.cpp','src/updater.cpp',
     "$imgui/imgui.cpp","$imgui/imgui_draw.cpp","$imgui/imgui_tables.cpp","$imgui/imgui_widgets.cpp","$imgui/backends/imgui_impl_win32.cpp","$imgui/backends/imgui_impl_dx9.cpp")
 $options=@('-std=c++20','-Os','-static','-shared','-fno-rtti','-ffunction-sections','-fdata-sections','-DIMGUI_DISABLE_DEMO_WINDOWS','-DIMGUI_DISABLE_DEBUG_TOOLS','-DIMGUI_IMPL_WIN32_DISABLE_GAMEPAD','-DIMGUI_USE_BGRA_PACKED_COLOR',"-I$imgui",'-Isrc','-Wall','-Wextra','-Wno-unused-parameter')
 $options+=$nativeAsmOptions
@@ -103,6 +115,14 @@ if ($Tests) {
         & './build/native-binding-test.exe' $NativePresentationTestImage '--presentation'
         if($LASTEXITCODE){throw 'Presentation binding tests failed'}
     }
+    & $cxx '-std=c++20' '-O2' '-static' '-Isrc' 'tests/grass_test.cpp' 'src/grass.cpp' '-ld3d9' '-ldxguid' '-lbcrypt' '-lgdiplus' '-o' 'build/grass-test.exe'
+    if($LASTEXITCODE){throw 'Grass test build failed'}
+    & './build/grass-test.exe'
+    if($LASTEXITCODE){throw 'Grass tests failed'}
+    & './build/grass-test.exe' '--msaa'
+    if($LASTEXITCODE){throw 'MSAA grass tests failed'}
+    & './build/grass-test.exe' '--mixed'
+    if($LASTEXITCODE){throw 'Mixed vertex-processing grass tests failed'}
     & $cxx '-std=c++20' '-O2' '-static' '-Isrc' 'tests/material_test.cpp' '-ld3d9' '-ldxguid' '-lbcrypt' '-lgdiplus' '-o' 'build/material-test.exe'
     if($LASTEXITCODE){throw 'Material test build failed'}
     & './build/material-test.exe'
@@ -204,7 +224,7 @@ if ($Tests) {
         if($LASTEXITCODE){throw 'Probe test failed'}
     }
     $runtimeOptions=@($options | Where-Object { $_ -ne '-shared' }) + @('-lwinmm','-DFENB_UPDATER_OFFLINE_TESTS')
-    $runtimeSources=@('tests/runtime_test.cpp','src/settings.cpp','src/runtime.cpp','src/effects.cpp','src/water.cpp','src/scene_fx.cpp','src/fps_limiter.cpp','src/environment.cpp','src/optimization.cpp','src/ui.cpp','src/updater.cpp',
+    $runtimeSources=@('tests/runtime_test.cpp','src/settings.cpp','src/runtime.cpp','src/effects.cpp','src/water.cpp','src/scene_fx.cpp','src/grass.cpp','src/fps_limiter.cpp','src/environment.cpp','src/optimization.cpp','src/ui.cpp','src/updater.cpp',
         "$imgui/imgui.cpp","$imgui/imgui_draw.cpp","$imgui/imgui_tables.cpp","$imgui/imgui_widgets.cpp","$imgui/backends/imgui_impl_win32.cpp","$imgui/backends/imgui_impl_dx9.cpp")
     if($Diagnostics){$runtimeSources+='src/pipeline_probe.cpp'}
     & $cxx @runtimeOptions @runtimeSources '-ld3d9' '-ldxguid' '-lcomctl32' '-ldwmapi' '-lgdi32' '-limm32' '-lbcrypt' '-o' 'build/runtime-test.exe'

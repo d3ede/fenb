@@ -133,6 +133,7 @@ void Settings::sanitize() {
 #include "scene_settings.inc"
 #undef SCENE_BOOL
 #undef SCENE_FLOAT
+    grassQuality=std::round(grassQuality);
 }
 void Settings::resetSceneSection(int group) {
 #define SCENE_BOOL(g, m, k, d)

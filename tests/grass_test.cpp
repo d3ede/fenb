@@ -1,0 +1,193 @@
+#include "grass.hpp"
+#include <gdiplus.h>
+#include <cstdio>
+#include <cstring>
+#include <filesystem>
+
+#define CHECK(x) do{if(!(x)){printf("FAIL %d: %s\n",__LINE__,#x);return 1;}}while(0)
+namespace {
+constexpr UINT Width=1000,Height=700;
+D3DMATRIX Identity(){D3DMATRIX m{};m._11=m._22=m._33=m._44=1;return m;}
+struct Vertex{float x,y,z,nx,ny,nz,u,v,a,b;};
+float Ground(float x,float z){return .45f*std::sin(x*.19f)+.25f*std::cos(z*.23f);}
+std::vector<DWORD> Read(IDirect3DDevice9 *d){
+    Com<IDirect3DSurface9> target,read,resolved;d->GetRenderTarget(0,target.out());
+    D3DSURFACE_DESC desc{};target->GetDesc(&desc);
+    if(desc.MultiSampleType!=D3DMULTISAMPLE_NONE){
+        if(FAILED(d->CreateRenderTarget(Width,Height,desc.Format,D3DMULTISAMPLE_NONE,0,FALSE,resolved.out(),nullptr))||FAILED(d->StretchRect(target,nullptr,resolved,nullptr,D3DTEXF_NONE)))return {};
+        std::swap(target.p,resolved.p);
+    }
+    if(FAILED(d->CreateOffscreenPlainSurface(Width,Height,D3DFMT_X8R8G8B8,D3DPOOL_SYSTEMMEM,read.out(),nullptr))||FAILED(d->GetRenderTargetData(target,read)))return {};
+    D3DLOCKED_RECT lock{};if(FAILED(read->LockRect(&lock,nullptr,D3DLOCK_READONLY)))return {};
+    std::vector<DWORD> p(Width*Height);for(UINT y=0;y<Height;++y)memcpy(p.data()+y*Width,(BYTE *)lock.pBits+y*lock.Pitch,Width*4);read->UnlockRect();return p;
+}
+bool Save(const std::vector<DWORD> &pixels,const wchar_t *path){
+    UINT n=0,size=0;Gdiplus::GetImageEncodersSize(&n,&size);std::vector<BYTE> bytes(size);auto *enc=(Gdiplus::ImageCodecInfo *)bytes.data();Gdiplus::GetImageEncoders(n,size,enc);CLSID png{};
+    for(UINT i=0;i<n;++i)if(!wcscmp(enc[i].MimeType,L"image/png"))png=enc[i].Clsid;
+    Gdiplus::Bitmap image(Width,Height,Width*4,PixelFormat32bppRGB,(BYTE *)pixels.data());return image.Save(path,&png,nullptr)==Gdiplus::Ok;
+}
+unsigned Delta(const std::vector<DWORD> &a,const std::vector<DWORD> &b){unsigned result=0;
+    if(a.size()!=b.size()||a.empty())return 999;
+    for(size_t i=0;i<a.size();++i)for(unsigned shift:{0u,8u,16u})result=std::max(result,unsigned(std::abs(int((a[i]>>shift)&255)-int((b[i]>>shift)&255))));return result;
+}
+}
+struct GrassFXFixture {
+    static bool started(const GrassFX &g){return g.started_;}
+    static bool failed(const GrassFX &g){return g.failed_;}
+    static UINT count(const GrassFX &g){UINT n=0;for(auto &b:g.bands_)n+=b.count;return n;}
+    static std::array<float,4> surface(GrassFX &g,float x,float z){
+        std::array<float,4> v{};Com<IDirect3DSurface9> read;
+        if(FAILED(g.device_->CreateOffscreenPlainSurface(g.resolution_,g.resolution_,D3DFMT_A32B32G32R32F,D3DPOOL_SYSTEMMEM,read.out(),nullptr))||
+            FAILED(g.device_->GetRenderTargetData(g.groundSurface_,read)))return v;
+        UINT px=UINT(std::clamp((x-g.map_[0])/(2*g.map_[2])+.5f,0.f,.999f)*g.resolution_);
+        UINT py=UINT(std::clamp(.5f-(z-g.map_[1])/(2*g.map_[2]),0.f,.999f)*g.resolution_);
+        D3DLOCKED_RECT lock{};if(SUCCEEDED(read->LockRect(&lock,nullptr,D3DLOCK_READONLY))){memcpy(v.data(),(BYTE *)lock.pBits+py*lock.Pitch+px*16,16);read->UnlockRect();}return v;
+    }
+};
+int main(int argc,char **argv){
+    setvbuf(stdout,nullptr,_IONBF,0);
+    bool msaa=false,mixed=false;const char *assets=nullptr,*proxy=nullptr;
+    for(int arg=1;arg<argc;++arg){if(!strcmp(argv[arg],"--msaa"))msaa=true;else if(!strcmp(argv[arg],"--mixed"))mixed=true;else if(!strcmp(argv[arg],"--proxy")&&arg+1<argc)proxy=argv[++arg];else assets=argv[arg];}
+    Gdiplus::GdiplusStartupInput startup;ULONG_PTR token;Gdiplus::GdiplusStartup(&token,&startup,nullptr);
+    WNDCLASSW wc{};wc.lpfnWndProc=DefWindowProcW;wc.hInstance=GetModuleHandleW(nullptr);wc.lpszClassName=L"FENBGrass";RegisterClassW(&wc);
+    auto window=CreateWindowW(wc.lpszClassName,L"FENB grass",WS_OVERLAPPEDWINDOW,0,0,Width,Height,nullptr,nullptr,wc.hInstance,nullptr);
+    Com<IDirect3D9> root;
+    if(proxy){
+        const auto dll=std::filesystem::absolute(proxy);const auto config=dll.parent_path()/L"FENB.ini";
+        FILE *f=_wfopen(config.c_str(),L"wb");CHECK(f);
+        fputs("[General]\nenabled=1\nopen_on_start=0\nunlock_fps=0\n[Bloom]\nbloom=0\n[Color]\ncolor=0\n[WaterFX]\nwater=0\n[SceneFX]\ngrass=1\ngrass_quality=2\ngrass_wind=0\n",f);fclose(f);
+        const auto module=LoadLibraryW(dll.c_str());CHECK(module);
+        using Create=IDirect3D9*(WINAPI *)(UINT);auto create=reinterpret_cast<Create>(GetProcAddress(module,"Direct3DCreate9"));CHECK(create);root.p=create(D3D_SDK_VERSION);
+    }else root.p=Direct3DCreate9(D3D_SDK_VERSION);
+    CHECK(root.p);
+    D3DPRESENT_PARAMETERS pp{};pp.Windowed=TRUE;pp.SwapEffect=D3DSWAPEFFECT_DISCARD;pp.hDeviceWindow=window;
+    pp.BackBufferWidth=Width;pp.BackBufferHeight=Height;pp.BackBufferFormat=D3DFMT_X8R8G8B8;pp.EnableAutoDepthStencil=TRUE;pp.AutoDepthStencilFormat=D3DFMT_D24X8;
+    if(msaa){pp.MultiSampleType=D3DMULTISAMPLE_8_SAMPLES;CHECK(SUCCEEDED(root->CheckDeviceMultiSampleType(0,D3DDEVTYPE_HAL,pp.BackBufferFormat,TRUE,pp.MultiSampleType,nullptr)));}
+    Com<IDirect3DDevice9> d;CHECK(SUCCEEDED(root->CreateDevice(0,D3DDEVTYPE_HAL,window,mixed?D3DCREATE_MIXED_VERTEXPROCESSING:D3DCREATE_HARDWARE_VERTEXPROCESSING,&pp,d.out())));
+    if(mixed)CHECK(SUCCEEDED(d->SetSoftwareVertexProcessing(TRUE)));
+    GrassFX grass(d);CHECK(grass.supported());
+    Com<IDirect3DTexture9> art;
+    if(assets){
+        auto module=LoadLibraryExW(L"d3dx9_43.dll",nullptr,LOAD_LIBRARY_SEARCH_SYSTEM32);
+        using Load=HRESULT(WINAPI *)(IDirect3DDevice9 *,LPCWSTR,UINT,UINT,UINT,DWORD,D3DFORMAT,D3DPOOL,DWORD,DWORD,D3DCOLOR,void *,PALETTEENTRY *,IDirect3DTexture9 **);
+        auto load=reinterpret_cast<Load>(GetProcAddress(module,"D3DXCreateTextureFromFileExW"));CHECK(load);
+        std::string path=std::string(assets)+"/World/Texture/ground_lawn001.dds";std::wstring wide(path.begin(),path.end());
+        CHECK(SUCCEEDED(load(d,wide.c_str(),UINT(-1),UINT(-1),0,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,1,1,0,nullptr,nullptr,art.out())));
+    }else{
+        CHECK(SUCCEEDED(d->CreateTexture(32,32,1,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,art.out(),nullptr)));
+        D3DLOCKED_RECT lock{};art->LockRect(0,&lock,nullptr,0);
+        for(UINT y=0;y<32;++y)for(UINT x=0;x<32;++x)((DWORD *)((BYTE *)lock.pBits+y*lock.Pitch))[x]=D3DCOLOR_ARGB(255,75+(x*17+y*13)%20,100+(x*19+y*23)%25,24);
+        art->UnlockRect(0);DWORD kind=1;art->SetPrivateData(GrassTag,&kind,4,0);
+    }
+    std::vector<Vertex> vertices;std::vector<WORD> indices;
+    constexpr int Grid=48;
+    for(int z=0;z<=Grid;++z)for(int x=0;x<=Grid;++x){float wx=-30+x*60.f/Grid,wz=-12+z*70.f/Grid;
+        float nx=-.45f*.19f*std::cos(wx*.19f),nz=.25f*.23f*std::sin(wz*.23f),length=std::sqrt(nx*nx+nz*nz+1);
+        vertices.push_back({wx,Ground(wx,wz),wz,nx/length,1/length,nz/length,wx*.18f,wz*.18f,0,0});}
+    for(int z=0;z<Grid;++z)for(int x=0;x<Grid;++x){WORD a=WORD(z*(Grid+1)+x),b=a+Grid+1;indices.insert(indices.end(),{a,b,WORD(a+1),WORD(a+1),b,WORD(b+1)});}
+    Com<IDirect3DVertexBuffer9> vb;Com<IDirect3DIndexBuffer9> ib;
+    const DWORD usage=D3DUSAGE_WRITEONLY|(mixed?D3DUSAGE_SOFTWAREPROCESSING:0);
+    CHECK(SUCCEEDED(d->CreateVertexBuffer(UINT(vertices.size()*sizeof(Vertex)),usage,0,D3DPOOL_MANAGED,vb.out(),nullptr)));
+    CHECK(SUCCEEDED(d->CreateIndexBuffer(UINT(indices.size()*2),usage,D3DFMT_INDEX16,D3DPOOL_MANAGED,ib.out(),nullptr)));
+    void *data=nullptr;vb->Lock(0,0,&data,0);memcpy(data,vertices.data(),vertices.size()*sizeof(Vertex));vb->Unlock();
+    ib->Lock(0,0,&data,0);memcpy(data,indices.data(),indices.size()*2);ib->Unlock();
+    const auto identity=Identity();auto view=identity;
+    // Camera at (0,2.3,-5), looking gently down into the field.
+    float angle=.16f,c=std::cos(angle),s=std::sin(angle);
+    view._22=c;view._23=-s;view._32=s;view._33=c;
+    const float eye[]={0,2.3f,-5};for(int axis=0;axis<3;++axis)view.m[3][axis]=-(eye[0]*view.m[0][axis]+eye[1]*view.m[1][axis]+eye[2]*view.m[2][axis]);
+    auto projection=identity;projection._11=1.2f;projection._22=1.2f*Width/Height;projection._33=200/199.9f;projection._34=1;projection._43=-.1f*projection._33;projection._44=0;
+    Settings settings;settings.grass=true;settings.grassQuality=2;settings.grassWind=0;
+    bool road=false,roadGradient=false,roadProp=false;DWORD roadAlpha=255;unsigned stateErrors=0;
+    Com<IDirect3DTexture9> dirt,coverage;
+    CHECK(SUCCEEDED(d->CreateTexture(8,8,1,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,dirt.out(),nullptr)));
+    CHECK(SUCCEEDED(d->CreateTexture(8,8,1,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,coverage.out(),nullptr)));
+    {D3DLOCKED_RECT lock{};dirt->LockRect(0,&lock,nullptr,0);for(int y=0;y<8;++y)for(int x=0;x<8;++x)((DWORD *)((BYTE *)lock.pBits+y*lock.Pitch))[x]=0xff826a40;dirt->UnlockRect(0);}
+    auto render=[&](bool on){
+        StateGuard outer(d);grass.beginFrame(on);
+        d->Clear(0,nullptr,D3DCLEAR_TARGET|D3DCLEAR_ZBUFFER,0xff9aaeb7,1,0);
+        d->SetTransform(D3DTS_WORLD,&identity);d->SetTransform(D3DTS_VIEW,&view);d->SetTransform(D3DTS_PROJECTION,&projection);
+        d->SetVertexShader(nullptr);d->SetPixelShader(nullptr);d->SetFVF(0x212);
+        d->SetRenderState(D3DRS_ZENABLE,TRUE);d->SetRenderState(D3DRS_ZWRITEENABLE,TRUE);d->SetRenderState(D3DRS_ZFUNC,D3DCMP_LESSEQUAL);
+        d->SetRenderState(D3DRS_CULLMODE,D3DCULL_NONE);d->SetRenderState(D3DRS_ALPHATESTENABLE,FALSE);d->SetRenderState(D3DRS_ALPHABLENDENABLE,FALSE);
+        d->SetRenderState(D3DRS_LIGHTING,TRUE);d->SetRenderState(D3DRS_AMBIENT,0xff60605a);
+        D3DMATERIAL9 material{};material.Diffuse={1,1,1,1};material.Ambient={1,1,1,1};d->SetMaterial(&material);
+        D3DLIGHT9 light{};light.Type=D3DLIGHT_DIRECTIONAL;light.Direction={.3f,-.86f,.4f};light.Diffuse={.65f,.65f,.55f,1};d->SetLight(0,&light);d->LightEnable(0,TRUE);
+        d->SetRenderState(D3DRS_FOGENABLE,FALSE);
+        d->SetTexture(0,art);d->SetTexture(1,nullptr);
+        d->SetTextureStageState(0,D3DTSS_COLOROP,D3DTOP_MODULATE);d->SetTextureStageState(0,D3DTSS_COLORARG1,D3DTA_TEXTURE);d->SetTextureStageState(0,D3DTSS_COLORARG2,D3DTA_DIFFUSE);
+        d->SetTextureStageState(1,D3DTSS_COLOROP,D3DTOP_DISABLE);d->SetTextureStageState(1,D3DTSS_ALPHAOP,D3DTOP_DISABLE);
+        for(DWORD stage=0;stage<2;++stage){d->SetTextureStageState(stage,D3DTSS_TEXCOORDINDEX,stage);d->SetTextureStageState(stage,D3DTSS_TEXTURETRANSFORMFLAGS,D3DTTFF_DISABLE);
+            d->SetSamplerState(stage,D3DSAMP_MINFILTER,D3DTEXF_LINEAR);d->SetSamplerState(stage,D3DSAMP_MAGFILTER,D3DTEXF_LINEAR);d->SetSamplerState(stage,D3DSAMP_MIPFILTER,D3DTEXF_LINEAR);}
+        d->SetStreamSource(0,vb,0,sizeof(Vertex));d->SetIndices(ib);
+        d->BeginScene();const SurfaceDraw geometry{D3DPT_TRIANGLELIST,0,UINT(indices.size()/3),0,UINT(vertices.size()),0,true};
+        auto draw=[&](){return d->DrawIndexedPrimitive(D3DPT_TRIANGLELIST,0,0,UINT(vertices.size()),0,UINT(indices.size()/3));};
+        if(on&&!proxy)grass.capture(settings,draw,geometry);draw();
+        if(road){
+            D3DLOCKED_RECT lock{};coverage->LockRect(0,&lock,nullptr,0);
+            for(int y=0;y<8;++y)for(int x=0;x<8;++x)((DWORD *)((BYTE *)lock.pBits+y*lock.Pitch))[x]=D3DCOLOR_ARGB(roadGradient?x*255/7:roadAlpha,255,255,255);coverage->UnlockRect(0);
+            std::vector<Vertex> strip;
+            for(int segment=0;segment<48;++segment){float a=-12+segment*70.f/48,b=a+70.f/48;
+                for(auto p:{std::pair{-1.5f,a},std::pair{-1.5f,b},std::pair{1.5f,a},std::pair{1.5f,a},std::pair{-1.5f,b},std::pair{1.5f,b}})
+                    strip.push_back({p.first,Ground(p.first,p.second)+.005f,p.second,0,1,0,p.first,p.second,roadGradient?(p.first+1.5f)/3:.5f,.5f});}
+            d->SetTexture(0,dirt);d->SetTexture(1,coverage);
+            d->SetRenderState(D3DRS_ALPHABLENDENABLE,TRUE);d->SetRenderState(D3DRS_SRCBLEND,D3DBLEND_SRCALPHA);d->SetRenderState(D3DRS_DESTBLEND,D3DBLEND_INVSRCALPHA);
+            d->SetTextureStageState(1,D3DTSS_COLOROP,D3DTOP_SELECTARG1);d->SetTextureStageState(1,D3DTSS_COLORARG1,D3DTA_CURRENT);
+            d->SetTextureStageState(1,D3DTSS_ALPHAOP,D3DTOP_SELECTARG1);d->SetTextureStageState(1,D3DTSS_ALPHAARG1,D3DTA_TEXTURE);
+            if(roadProp){d->SetFVF(0x112);d->SetRenderState(D3DRS_ALPHABLENDENABLE,FALSE);d->SetTextureStageState(1,D3DTSS_COLOROP,D3DTOP_DISABLE);}
+            auto drawRoad=[&](){return d->DrawPrimitiveUP(D3DPT_TRIANGLELIST,UINT(strip.size()/3),strip.data(),sizeof(Vertex));};
+            if(on&&!proxy)grass.capture(settings,drawRoad);drawRoad();
+        }
+        if(on&&!proxy){
+            if(!mixed){d->SetStreamSourceFreq(0,D3DSTREAMSOURCE_INDEXEDDATA|3);d->SetStreamSourceFreq(1,D3DSTREAMSOURCE_INSTANCEDATA|1);}
+            grass.draw(settings);
+            stateErrors+=d->GetSoftwareVertexProcessing()!=BOOL(mixed);
+            UINT a=0,b=0;d->GetStreamSourceFreq(0,&a);d->GetStreamSourceFreq(1,&b);
+            stateErrors+=a!=(mixed?1u:D3DSTREAMSOURCE_INDEXEDDATA|3)||b!=(mixed?1u:D3DSTREAMSOURCE_INSTANCEDATA|1);
+            d->SetStreamSourceFreq(0,1);d->SetStreamSourceFreq(1,1);
+        }
+        if(proxy){
+            struct Hud {float x,y,z,w;DWORD color;};const Hud marker[]={{8,8,0,1,0xffdc2020},{64,8,0,1,0xffdc2020},{8,30,0,1,0xffdc2020},{64,30,0,1,0xffdc2020}};
+            d->SetVertexShader(nullptr);d->SetPixelShader(nullptr);d->SetFVF(D3DFVF_XYZRHW|D3DFVF_DIFFUSE);d->SetRenderState(D3DRS_ZENABLE,FALSE);d->SetRenderState(D3DRS_LIGHTING,FALSE);
+            d->SetTexture(0,nullptr);d->SetTextureStageState(0,D3DTSS_COLOROP,D3DTOP_SELECTARG1);d->SetTextureStageState(0,D3DTSS_COLORARG1,D3DTA_DIFFUSE);
+            d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP,2,marker,sizeof(Hud));
+        }
+        d->EndScene();return Read(d);
+    };
+    if(proxy){auto result=render(true);CHECK(result.size()==Width*Height);CreateDirectoryW(L"artifacts/grass",nullptr);
+        CHECK(Save(result,L"artifacts/grass/field-proxy.png"));CHECK((result[15*Width+15]&0xffffff)==0xdc2020);puts("PASS: native proxy grass draw completed before the untouched HUD.");return 0;}
+    auto off=render(false),on=render(true);
+    printf("Grass started=%d failed=%d instances=%u bytes=%zu\n",GrassFXFixture::started(grass),GrassFXFixture::failed(grass),GrassFXFixture::count(grass),grass.bytes());
+    CHECK(off.size()==Width*Height&&on.size()==off.size());CHECK(GrassFXFixture::started(grass)&&!GrassFXFixture::failed(grass));
+    unsigned changed=0;for(size_t i=0;i<off.size();++i)changed+=off[i]!=on[i];printf("Changed pixels: %u\n",changed);CHECK(changed>10000);
+    CreateDirectoryW(L"artifacts/grass",nullptr);CHECK(Save(off,L"artifacts/grass/field-off.png")&&Save(on,L"artifacts/grass/field-on.png"));
+    CHECK(!stateErrors);auto repeated=render(true);unsigned large=0;double total=0;
+    for(size_t px=0;px<on.size();++px){unsigned delta=0;for(unsigned shift:{0u,8u,16u})
+        delta=std::max(delta,unsigned(std::abs(int((on[px]>>shift)&255)-int((repeated[px]>>shift)&255))));
+        large+=delta>2;total+=delta;}
+    printf("Repeated frame RGB delta=%u large=%u mean=%.6f\n",Delta(repeated,on),large,total/on.size());
+    // Native MSAA depth rounding can flip a sub-sample at thin blade intersections.
+    // Keep the affected area and mean change tiny; a whole-field shimmer must fail.
+    if(msaa)CHECK(Delta(repeated,on)<=32&&large<on.size()/1000&&total<on.size()*.005);
+    else CHECK(Delta(repeated,on)==0);
+    for(DWORD alpha:{0u,128u,255u}){road=true;roadAlpha=alpha;auto result=render(true);CHECK(result.size()==on.size()&&!GrassFXFixture::failed(grass));
+        const auto sample=GrassFXFixture::surface(grass,0,8);printf("Road alpha=%lu coverage=%.3f height=%.3f\n",alpha,sample[1],sample[0]);
+        CHECK(std::abs(sample[1]-(1-alpha/255.f))<.01f);CHECK(std::abs(sample[0]-Ground(0,8))<.03f);
+        if(alpha==255)CHECK(Save(result,L"artifacts/grass/field-road.png"));}
+    roadGradient=true;CHECK(render(true).size()==on.size()&&!GrassFXFixture::failed(grass));
+    const auto left=GrassFXFixture::surface(grass,-1,8),middle=GrassFXFixture::surface(grass,0,8),right=GrassFXFixture::surface(grass,1,8);
+    CHECK(left[1]>.8f&&middle[1]>.45f&&middle[1]<.55f&&right[1]<.2f);
+    roadGradient=false;roadProp=true;CHECK(render(true).size()==on.size()&&!GrassFXFixture::failed(grass));CHECK(GrassFXFixture::surface(grass,0,8)[1]<.01f);roadProp=false;
+    road=false;
+    settings.grassHeight=.2f;auto shortGrass=render(true);settings.grassHeight=.95f;auto tallGrass=render(true);CHECK(shortGrass!=tallGrass);
+    CHECK(Save(shortGrass,L"artifacts/grass/field-short.png")&&Save(tallGrass,L"artifacts/grass/field-tall.png"));
+    settings.grassHeight=.55f;
+    for(int q=0;q<3;++q){settings.grassQuality=float(q);auto result=render(true);CHECK(!GrassFXFixture::failed(grass)&&GrassFXFixture::count(grass)>0&&result!=off);}
+    settings.grassQuality=2;settings.grassDistance=100;settings.grassDensity=3;
+    CHECK(render(true).size()==on.size()&&!GrassFXFixture::failed(grass));CHECK(GrassFXFixture::count(grass)<=80000&&grass.bytes()<24*1024*1024);
+    settings.grassDistance=40;settings.grassDensity=1.25f;settings.grassWind=.5f;
+    const auto windy=render(true);Sleep(80);CHECK(windy!=render(true));settings.grassWind=0;
+    grass.invalidate();CHECK(!grass.bytes());CHECK(render(true).size()==on.size()&&!GrassFXFixture::failed(grass));
+    CHECK(!stateErrors);
+    puts("PASS: instanced grass on native buffered terrain with preserved source geometry.");return 0;
+}

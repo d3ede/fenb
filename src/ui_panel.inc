@@ -192,7 +192,13 @@ std::vector<PanelItem> PanelItems(Runtime &r) {
                 {"msaa", g(UiText::PanelMethods), "MSAA"}};
     case 4:
         return {{"time", g(UiText::PanelWorld), Tr(UiText::TimeOfDay), &s.timeOverride},
-                {"weather", g(UiText::PanelWorld), Tr(UiText::WeatherOverride), &s.weatherOverride}};
+                {"weather", g(UiText::PanelWorld), Tr(UiText::WeatherOverride), &s.weatherOverride},
+                {"grass",g(UiText::Vegetation),g(UiText::Grass),nullptr,9}};
+    case 9:
+        return {{"grass",g(UiText::Grass),g(UiText::GrassCoverage),&s.grass},
+                {"grass-shape",g(UiText::Grass),g(UiText::GrassShape)},
+                {"grass-wind",g(UiText::Grass),g(UiText::GrassWind)},
+                {"grass-color",g(UiText::Grass),g(UiText::GrassColor)}};
     case 5:
         return {{"cursor", g(UiText::PanelInterface), g(UiText::PanelCursor), &s.customCursor},
                 {"motion", g(UiText::PanelInterface), g(UiText::PanelMotion), &s.interfaceMotion},
@@ -215,6 +221,7 @@ std::vector<PanelItem> PanelItems(Runtime &r) {
 }
 const char *PanelTitle(int page) {
     switch (page) {
+    case 9:return Tr(UiText::Grass);
     case 8:
         return Tr(UiText::MaterialsTab);
     case 0:
@@ -235,6 +242,7 @@ const char *PanelTitle(int page) {
 }
 const char *PanelDescription(int page) {
     switch (page) {
+    case 9:return Tr(UiText::GrassHelp);
     case 8:
         return Tr(UiText::MaterialsDescription);
     case 0:
@@ -288,6 +296,12 @@ void PanelToggle(const char *id, const char *label, bool &value, const char *hel
     ImGui::Dummy({w, 32});
 }
 void ResetPanelParameters(int page, int item, Settings &s) {
+    if(page==9){const Settings d;
+        if(item==0){s.grassQuality=d.grassQuality;s.grassDistance=d.grassDistance;s.grassDensity=d.grassDensity;s.grassSlope=d.grassSlope;s.grassFade=d.grassFade;}
+        if(item==1){s.grassHeight=d.grassHeight;s.grassWidth=d.grassWidth;s.grassVariation=d.grassVariation;}
+        if(item==2){s.grassWind=d.grassWind;s.grassWindSpeed=d.grassWindSpeed;s.grassWindDirection=d.grassWindDirection;}
+        if(item==3){s.grassBrightness=d.grassBrightness;s.grassSaturation=d.grassSaturation;s.grassDryness=d.grassDryness;s.grassShading=d.grassShading;}
+        return;}
     if(page==8){s.resetSceneSection(item==3?14:15);return;}
     const Settings d;
 #define DF(x) s.x = d.x
@@ -387,6 +401,33 @@ void PanelParameters(Runtime &r, int item) {
     }
 #define SR(label, help, field, lo, hi, fmt, step)                                                            \
     Row(UiText::label, Tr(UiText::help), s.field, lo, hi, d.field, fmt, step)
+    if(page==9){
+        switch(item){
+        case 0:{
+            const char *quality[]={Tr(UiText::GrassLow),Tr(UiText::GrassMedium),Tr(UiText::High)};
+            int q=int(std::round(s.grassQuality));PanelCombo(UiText::Quality,"grass-quality",q,quality,3);s.grassQuality=float(q);
+            Tip(Tr(UiText::GrassQualityHelp));
+            SR(Distance,GrassDistanceHelp,grassDistance,5,100,"%.0f",5);
+            SR(Density,GrassDensityHelp,grassDensity,.25f,3,"%.2f",.1f);
+            SR(GrassSlope,GrassSlopeHelp,grassSlope,0,60,"%.0f°",5);
+            SR(GrassFade,GrassFadeHelp,grassFade,.1f,.5f,"%.2f",.05f);
+            break;}
+        case 1:
+            SR(GrassHeight,GrassHeightHelp,grassHeight,.1f,1.5f,"%.2f",.05f);
+            SR(GrassWidth,GrassWidthHelp,grassWidth,.01f,.08f,"%.3f",.005f);
+            SR(GrassVariation,GrassVariationHelp,grassVariation,0,1,"%.2f",.05f);break;
+        case 2:
+            SR(Strength,GrassWindHelp,grassWind,0,1.5f,"%.2f",.05f);
+            SR(GrassWindSpeed,GrassWindSpeedHelp,grassWindSpeed,0,3,"%.2f",.1f);
+            SR(GrassWindDirection,GrassWindDirectionHelp,grassWindDirection,0,360,"%.0f°",15);break;
+        case 3:
+            SR(GrassBrightness,GrassBrightnessHelp,grassBrightness,.5f,1.5f,"%.2f",.05f);
+            SR(Saturation,SaturationHelp,grassSaturation,.5f,1.5f,"%.2f",.05f);
+            SR(GrassDryness,GrassDrynessHelp,grassDryness,0,1,"%.2f",.05f);
+            SR(GrassShading,GrassShadingHelp,grassShading,0,1,"%.2f",.05f);break;
+        }
+        if(!r.grassSupported())PanelNote(Tr(UiText::GrassUnavailable));
+    }
     if(page==8) {
         if(item==0) {
             SR(Strength, MaterialStrengthHelp, materialStrength, 0, 1, "%.2f", .05f);
@@ -514,6 +555,7 @@ void PanelParameters(Runtime &r, int item) {
             ImGui::EndDisabled();
             uiParameterDisabled = disabled;
             break;
+
         }
         }
     if (page == 3) {
@@ -693,7 +735,7 @@ void PanelMasterControl(PanelMaster master, float width) {
     ImGui::Dummy({width, 28});
 }
 void PanelEditor(Runtime &r) {
-    if (r.editorPage < 0 || r.editorPage >= 9)
+    if (r.editorPage < 0 || r.editorPage >= 10)
         r.editorPage = 0;
     if (r.editorPage == 6) {
         r.editorPage = 1;
@@ -840,6 +882,7 @@ void PanelEditor(Runtime &r) {
     TextAt(draw, {p.x + 4, p.y + 2}, item.title ? item.title : item.label, Text, 16, uiEmphasis);
     draw->PopClipRect();
     bool supported = true;
+    if(r.editorPage==9)supported=r.grassSupported();
     if (r.editorPage == 7) {
         if (selected == 0)
             supported = r.shopOptimizationSupported();
@@ -874,6 +917,7 @@ void PanelEditor(Runtime &r) {
                           : item.enabled    ? !*item.enabled
                                             : false;
     if(r.editorPage==8)uiParameterDisabled|=!s.enabled || (selected<3&&!s.materials);
+    if(r.editorPage==9)uiParameterDisabled|=!s.enabled||!s.grass||!supported;
     if (r.editorPage == 0 || r.editorPage == 3 || (r.editorPage == 4 && selected == 1) ||
         (r.editorPage == 2 && selected != 8))
         uiParameterDisabled |= !s.enabled;
@@ -914,9 +958,10 @@ void DrawPanelEditor(Runtime &r) {
     auto *draw = ImGui::GetWindowDrawList();
     ImGui::PushFont(nullptr, 12);
     if (r.editorPage != 0 && r.editorPage != 4 && r.editorPage != 8) {
-        const float width = ImGui::CalcTextSize(Tr(UiText::Image)).x + 12;
-        if (PanelTextButton("back", Tr(UiText::Image), {width, 25}))
-            r.editorPage = 0;
+        const auto parent=r.editorPage==9?UiText::WorldTab:UiText::Image;
+        const float width = ImGui::CalcTextSize(Tr(parent)).x + 12;
+        if (PanelTextButton("back", Tr(parent), {width, 25}))
+            r.editorPage = r.editorPage==9?4:0;
         TextAt(draw, {p.x + width + 1, p.y + 6}, "/", Muted, 12);
         TextAt(draw, {p.x + width + 14, p.y + 6}, PanelTitle(r.editorPage), Text, 12);
     } else {

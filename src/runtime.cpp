@@ -10,6 +10,7 @@
 #include "water.hpp"
 #include "sfx.hpp"
 #include "material.hpp"
+#include "grass.hpp"
 #include <commctrl.h>
 #ifdef FENB_DIAGNOSTICS
 #include "pipeline_probe.hpp"
@@ -35,9 +36,10 @@ FILETIME FileTime(const std::wstring &path) {
 Runtime::Runtime(IDirect3DDevice9 *device)
     : device_(device), effects_(std::make_unique<Effects>(device)),
       water_(std::make_unique<WaterFX>(device)), sfx_(std::make_unique<SfxFX>(device)),
-      materials_(std::make_unique<MaterialFX>(device)) {
+      materials_(std::make_unique<MaterialFX>(device)),grass_(std::make_unique<GrassFX>(device)) {
     configPath = ModuleDirectory() + L"FENB.ini";
     settings.load(configPath);
+    grass_->beginFrame(settings.enabled&&settings.grass);
     recognizeProfile();
     Com<IDirect3DSwapChain9> chain;
     D3DPRESENT_PARAMETERS presentation{};
@@ -184,6 +186,7 @@ void Runtime::invalidate() {
     water_->invalidate();
     sfx_->invalidate();
     materials_->invalidate();
+    grass_->invalidate();
     if (context_) {
         ContextScope scope(context_);
         ImGui_ImplDX9_InvalidateDeviceObjects();
@@ -230,6 +233,7 @@ void Runtime::afterPresent(HRESULT result) {
     }
 }
 void Runtime::resetFrame() {
+    grass_->beginFrame(settings.enabled&&settings.grass&&!compare);
     sfx_->beginFrame(settings.enabled && (settings.sfx || (settings.water && settings.sfxWake > 0)) && !compare);
     effects_->sceneFX().beginFrame();
     lastWaterDraws = waterDraws;
@@ -263,6 +267,9 @@ void Runtime::beforeWaterDraw(UINT upStride, DrawCall draw) {
         !vertexShaderActive_ && fvfKnown_ && (drawFVF_ == 0x112 || drawFVF_ == 0x212) &&
         sceneBackbuffer_ && drawTarget_ == sceneBackbuffer_)
         materials_->begin(settings);
+    if(!lost_&&!hudStarted_&&settings.enabled&&settings.grass&&!compare&&!vertexShaderActive_&&fvfKnown_&&
+        (drawFVF_==0x112||drawFVF_==0x102||drawFVF_==0x142)&&sceneBackbuffer_&&drawTarget_==sceneBackbuffer_)
+        grass_->beginNative(settings);
     if (lost_ || hudStarted_ || !settings.enabled || !settings.water || compare || vertexShaderActive_ ||
         !fvfKnown_ || drawFVF_ != 0x152 || !sceneBackbuffer_ || drawTarget_ != sceneBackbuffer_)
         return;
@@ -291,6 +298,7 @@ void Runtime::environmentDraw(D3DPRIMITIVETYPE type, UINT start, UINT count) {
                                      water_->materialTag(static_cast<IDirect3DTexture9 *>(texture.p)));
 }
 void Runtime::afterWaterDraw(bool up, bool indexed) {
+    grass_->endNative();
     materials_->end();
     sfx_->end(up,indexed);
     effects_->sceneFX().endSky();
@@ -305,13 +313,15 @@ void Runtime::emitterDraw(DrawCall draw, SurfaceDraw geometry) {
         effects_->sceneFX().captureEmitter(settings, draw);
     if (settings.surfaceReflections && !hudStarted_)
         effects_->sceneFX().captureSurface(settings, draw, geometry);
+    if(settings.grass&&!hudStarted_&&sawWorld_)grass_->capture(settings,draw,geometry);
 }
 void Runtime::surfaceBarrier() {
     auto &scene=effects_->sceneFX();
-    if(lost_ || !scene.pendingSurfaces())return;
+    if(lost_ || (!scene.pendingSurfaces()&&!grass_->pending()))return;
     const bool ownScene=!inScene_;
     if(ownScene && FAILED(device_->BeginScene()))return;
     scene.flushSurfaces();
+    grass_->flush();
     if(ownScene)device_->EndScene();
 }
 void Runtime::beforeDraw(UINT primitives, UINT vertices) {
@@ -386,6 +396,7 @@ void Runtime::finishWorld() {
 #endif
     if (!sawWorld_ || !settings.enabled || compare)
         return;
+    if(settings.grass)grass_->draw(settings,!inScene_);
     if (!settings.postEnabled()) {
         if(settings.water && settings.sfxWake>0 && waterDraws>0)sfx_->snapshotWorld();
         return;
@@ -530,8 +541,9 @@ void Runtime::beforePresent(IDirect3DSwapChain9 *provided, DWORD flags, HWND win
     device_->EndScene();
 }
 double Runtime::gpuBytes() const {
-    return double(effects_->bytes() + water_->bytes() + sfx_->bytes());
+    return double(effects_->bytes() + water_->bytes() + sfx_->bytes()+grass_->bytes());
 }
+bool Runtime::grassSupported(){return grass_->supported();}
 unsigned Runtime::activeMSAA() const {
     Com<IDirect3DSwapChain9> chain;
     D3DPRESENT_PARAMETERS p{};

@@ -106,8 +106,30 @@ else()
   target_compile_options(d3d9 PRIVATE -Os -ffunction-sections -fdata-sections)
   target_link_options(d3d9 PRIVATE -static -Wl,--gc-sections,--kill-at,--exclude-all-symbols)
 endif()
+
+set(FENB_GRASS_CATALOG "${CMAKE_CURRENT_SOURCE_DIR}/src/generated/grass_catalog.hpp")
+add_custom_command(OUTPUT "${FENB_GRASS_CATALOG}"
+  COMMAND "${FENB_NODE_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/grass-catalog.mjs"
+  DEPENDS tools/grass-catalog.mjs tools/grass-materials.json
+  WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_capture_vs.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_capture_ps.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_hide_ps.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_blade_vs.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_blade_ps.hpp"
+  COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/generated"
+  COMMAND shaderc "${CMAKE_CURRENT_SOURCE_DIR}/shaders/grass_capture.hlsl" "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_capture_vs.hpp" GrassCaptureVS vs_3_0
+  COMMAND shaderc "${CMAKE_CURRENT_SOURCE_DIR}/shaders/grass_capture.hlsl" "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_capture_ps.hpp" GrassCapturePS ps_3_0
+  COMMAND shaderc "${CMAKE_CURRENT_SOURCE_DIR}/shaders/grass_capture.hlsl" "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_hide_ps.hpp" GrassHidePS ps_2_a
+  COMMAND shaderc "${CMAKE_CURRENT_SOURCE_DIR}/shaders/grass_blades.hlsl" "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_blade_vs.hpp" GrassBladeVS vs_3_0
+  COMMAND shaderc "${CMAKE_CURRENT_SOURCE_DIR}/shaders/grass_blades.hlsl" "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_blade_ps.hpp" GrassBladePS ps_3_0
+  DEPENDS shaderc shaders/grass_capture.hlsl shaders/grass_blades.hlsl)
+set(FENB_GRASS_SHADERS "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_capture_vs.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_capture_ps.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_hide_ps.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_blade_vs.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_blade_ps.hpp")
+target_sources(d3d9 PRIVATE src/grass.cpp "${FENB_GRASS_CATALOG}" ${FENB_GRASS_SHADERS})
+
 include(CTest)
 if(BUILD_TESTING)
+  add_executable(grass-test tests/grass_test.cpp src/grass.cpp "${FENB_GRASS_CATALOG}" ${FENB_GRASS_SHADERS})
+  target_include_directories(grass-test PRIVATE "${CMAKE_CURRENT_BINARY_DIR}" src)
+  target_link_libraries(grass-test PRIVATE dxguid bcrypt gdiplus "$<IF:$<CXX_COMPILER_ID:MSVC>,d3d9.lib,-ld3d9>")
+  add_test(NAME grass COMMAND grass-test)
+  set_tests_properties(grass PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
   add_executable(material-test tests/material_test.cpp "${FENB_MATERIAL_CATALOG}" "${CMAKE_CURRENT_BINARY_DIR}/generated/material_ps.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/material_bark_ps.hpp")
   target_include_directories(material-test PRIVATE "${CMAKE_CURRENT_BINARY_DIR}" src)
   target_link_libraries(material-test PRIVATE dxguid bcrypt gdiplus "$<IF:$<CXX_COMPILER_ID:MSVC>,d3d9.lib,-ld3d9>")
@@ -319,7 +341,7 @@ if(BUILD_TESTING)
   target_include_directories(hud-test PRIVATE src)
   target_link_libraries(hud-test PRIVATE d3d9 dxguid)
   add_test(NAME hud-preservation COMMAND hud-test)
-  add_executable(runtime-test tests/runtime_test.cpp src/runtime.cpp src/settings.cpp src/effects.cpp src/water.cpp src/scene_fx.cpp src/fps_limiter.cpp src/environment.cpp src/ui.cpp
+  add_executable(runtime-test tests/runtime_test.cpp src/runtime.cpp src/settings.cpp src/effects.cpp src/water.cpp src/scene_fx.cpp src/grass.cpp src/fps_limiter.cpp src/environment.cpp src/ui.cpp
     "${CMAKE_CURRENT_BINARY_DIR}/generated/shaders.hpp"
     "${IMGUI}/imgui.cpp" "${IMGUI}/imgui_draw.cpp" "${IMGUI}/imgui_tables.cpp" "${IMGUI}/imgui_widgets.cpp"
     "${IMGUI}/backends/imgui_impl_dx9.cpp" "${IMGUI}/backends/imgui_impl_win32.cpp")
@@ -327,7 +349,7 @@ if(BUILD_TESTING)
   target_sources(runtime-test PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated/reflection_ps.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/reflection_color_ps.hpp")
   target_sources(runtime-test PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated/sfx_shaders.hpp")
   target_sources(runtime-test PRIVATE src/updater.cpp)
-  target_sources(runtime-test PRIVATE src/optimization.cpp)
+  target_sources(runtime-test PRIVATE src/optimization.cpp ${FENB_GRASS_SHADERS} "${FENB_GRASS_CATALOG}")
   target_compile_definitions(runtime-test PRIVATE FENB_UPDATER_OFFLINE_TESTS)
   target_include_directories(runtime-test PRIVATE "${CMAKE_CURRENT_BINARY_DIR}" src "${IMGUI}")
   target_compile_definitions(runtime-test PRIVATE IMGUI_DISABLE_DEMO_WINDOWS IMGUI_DISABLE_DEBUG_TOOLS IMGUI_IMPL_WIN32_DISABLE_GAMEPAD IMGUI_USE_BGRA_PACKED_COLOR)

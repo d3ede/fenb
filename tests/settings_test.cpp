@@ -33,6 +33,15 @@ int main() {
     }
     Settings s;
     {
+        Settings grass;CHECK(!grass.grass&&grass.grassHeight==.55f&&grass.grassQuality==1);
+        grass.grass=true;grass.grassHeight=10;grass.grassDensity=-1;grass.grassQuality=1.7f;
+        grass.grassWind=std::numeric_limits<float>::quiet_NaN();grass.language=Language::Russian;grass.sanitize();
+        CHECK(grass.grassHeight==1.5f&&grass.grassDensity==.25f&&grass.grassQuality==2&&grass.grassWind==.35f);
+        CHECK(grass.save(L"build/grass-settings.ini"));Settings restored;CHECK(restored.load(L"build/grass-settings.ini")&&restored==grass);
+        restored.resetSceneSection(16);CHECK(restored.grass&&restored.grassHeight==.55f&&restored.language==Language::Russian);
+        DeleteFileW(L"build/grass-settings.ini");
+    }
+    {
         Settings materials;
         CHECK(!materials.materials&&materials.materialStrength==.75f&&materials.materialSnow==.75f);
         materials.materials=true;materials.materialRelief=2;materials.materialGlints=-1;

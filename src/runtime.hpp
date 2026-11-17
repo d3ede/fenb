@@ -13,6 +13,7 @@ class Effects;
 class WaterFX;
 class SfxFX;
 class MaterialFX;
+class GrassFX;
 #ifdef FENB_DIAGNOSTICS
 class PipelineProbe;
 #endif
@@ -43,7 +44,7 @@ class Runtime {
     bool compare = false;
     bool centerPanel = true;
     bool resetEditorSelection = true;
-    std::array<int, 9> editorSelection{};
+    std::array<int, 10> editorSelection{};
     int sceneSelection = 0;
     unsigned waterDraws = 0, lastWaterDraws = 0;
     int editorPage = 0;
@@ -84,6 +85,7 @@ class Runtime {
     }
     bool backgroundActivitySupported() { return fpsLimiter_.backgroundSupported(); }
     bool environmentSupported() { return environment_.supported(); }
+    bool grassSupported();
     float environmentMinutes() const { return environment_.minutes(settings); }
     void beforeDraw(UINT primitives = 0, UINT vertices = 0);
     void targetCleared(DWORD flags, DWORD rectangles);
@@ -136,6 +138,7 @@ class Runtime {
     std::unique_ptr<WaterFX> water_;
     std::unique_ptr<SfxFX> sfx_;
     std::unique_ptr<MaterialFX> materials_;
+    std::unique_ptr<GrassFX> grass_;
     FpsLimiter fpsLimiter_;
     Environment environment_;
     Optimization optimization_;

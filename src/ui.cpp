@@ -587,7 +587,7 @@ void DrawPanel(Runtime &r, const PanelBranding &branding) {
         const float w = ImGui::CalcTextSize(label).x+2*tabInset;
         ImGui::SetCursorPos({tabX,7});
         if (ImGui::InvisibleButton(tabIds[i],{w,32},ImGuiButtonFlags_EnableNav)) r.editorPage=tabPages[i];
-        const bool selected = i ? r.editorPage==tabPages[i] : r.editorPage<4 || r.editorPage==6 || r.editorPage==7;
+        const bool selected = i ? (r.editorPage==tabPages[i]||(i==2&&r.editorPage==9)) : r.editorPage<4 || r.editorPage==6 || r.editorPage==7;
         if (ImGui::IsItemHovered()) d->AddRectFilled({origin.x+tabX,origin.y+7},{origin.x+tabX+w,origin.y+39},Raised,2);
         TextAt(d,{origin.x+tabX+tabInset,origin.y+15},label,selected?Lavender:Muted,tabFont);
         if(selected) d->AddRectFilled({origin.x+tabX+tabInset,origin.y+37},{origin.x+tabX+w-tabInset,origin.y+39},Accent,1);
