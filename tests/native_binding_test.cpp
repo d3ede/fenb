@@ -7,6 +7,7 @@
 #include "native_app.hpp"
 #include "native_hybrid.hpp"
 #include "visual_camera.hpp"
+#include "fps_limiter.hpp"
 #if __has_include("native_sfx_follow.hpp")
 #include "native_sfx_follow.hpp"
 #define FENB_BINDING_SFX 1
@@ -185,6 +186,57 @@ bool presentationRoundTrip(HMODULE image) {
     if(!VirtualProtect(entry,1,protection,&ignored))return false;
     return rejected;
 }
+bool fpsAndBackgroundRoundTrip(HMODULE image) {
+    // The entrypoint-free mapping has never constructed its application. Set
+    // only the local singleton's vtable, as its constructor would, for discovery.
+    client_detail::Image scan(image);
+    const auto app=scan.relative(scan.value(native_binding::cached.rva(0xe2fc0)+1));
+    const auto type=scan.string(".?AVCNeuzApp@@");
+    const auto table=type>=8?scan.typeTable(type-8):0;
+    if(!app || !table)return false;
+    auto **singleton=reinterpret_cast<void **>(reinterpret_cast<unsigned char *>(image)+app);
+    auto *previous=*singleton;
+    *singleton=reinterpret_cast<unsigned char *>(image)+table;
+    auto binding=fps_detail::InspectImage(image);
+    if(!binding){*singleton=previous;return false;}
+    const auto tick=*binding.lastTick;
+    const auto elapsed=*binding.elapsed;
+    const auto flag=*binding.enabled;
+    bool ok=true;
+    // Exercise the production owner/order path, including cold ABI discovery
+    // after FrameMove is replaced. Never invoke a mapped game callback.
+    for(bool backgroundFirst:{false,true}) {
+        native_binding::cached={};
+        fps_detail::State state(binding);
+        FpsLimiter limiter(state);
+        if(backgroundFirst) {
+            limiter.update(false,true);
+            ok=ok && native_background::installed && !state.nativeHybrid &&
+                *binding.enabled==flag && backgroundEntrypointsInstalled();
+        }
+        limiter.update(true,true);
+        const bool combined=limiter.active() && state.nativeHybrid && native_hybrid::installed &&
+            native_background::installed && state.owners==1 && state.backgroundOwners==1 &&
+            *binding.enabled==0 && *binding.frameMove!=binding.originalMove && backgroundEntrypointsInstalled();
+        limiter.update(true,false);
+        const bool unlockOnly=state.nativeHybrid && !native_background::installed &&
+            state.owners==1 && !state.backgroundOwners && *binding.enabled==0;
+        limiter.update(false,true);
+        const bool backgroundOnly=!state.nativeHybrid && native_background::installed &&
+            !state.owners && state.backgroundOwners==1 && *binding.enabled==flag && backgroundEntrypointsInstalled();
+        limiter.update(false,false);
+        const bool restored=!native_hybrid::installed && !native_background::installed &&
+            !state.owners && !state.backgroundOwners && *binding.frameMove==binding.originalMove && *binding.enabled==flag;
+        std::printf("FPS/background production lifecycle (background first=%d): combined=%d unlock-only=%d background-only=%d restored=%d\n",
+            backgroundFirst,combined,unlockOnly,backgroundOnly,restored);
+        ok=ok && combined && unlockOnly && backgroundOnly && restored;
+    }
+    // Disabling the real limiter resets these mutable clock fields; restore
+    // the disposable fixture's initial values for the full-image byte audit.
+    *binding.lastTick=tick;*binding.elapsed=elapsed;
+    *singleton=previous;
+    return ok;
+}
 }
 int wmain(int argc,wchar_t **argv) {
     const bool presentationOnly=argc==3 && !wcscmp(argv[2],L"--presentation");
@@ -248,6 +300,7 @@ int wmain(int argc,wchar_t **argv) {
     }
     if(ok)ok=rejectionAndMutableData(image) && identical(before);
     if(ok)ok=presentationRoundTrip(image) && identical(before);
+    if(ok)ok=fpsAndBackgroundRoundTrip(image) && identical(before);
     native_patch::imageOverride=nullptr;FreeLibrary(image);
     if(!ok) return 1;
     std::puts("All native bindings installed twice on an entrypoint-free PE mapping and restored every mapped byte and page protection. No native game callback was executed.");

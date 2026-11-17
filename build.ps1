@@ -87,7 +87,9 @@ if ($Tests) {
         $testBinary="build/$($nativeTest.Replace('_','-'))-test.exe"
         $nativeOptions=@()
         if($nativeTest -eq 'native_binding'){$nativeOptions+='-municode'}
-        & $cxx '-std=c++20' '-O2' '-static' '-Isrc' @nativeAsmOptions @nativeOptions "tests/${nativeTest}_test.cpp" '-lwinmm' '-luser32' '-o' $testBinary
+        $nativeSources=@("tests/${nativeTest}_test.cpp")
+        if($nativeTest -eq 'native_binding'){$nativeSources+='src/fps_limiter.cpp'}
+        & $cxx '-std=c++20' '-O2' '-static' '-Isrc' @nativeAsmOptions @nativeOptions @nativeSources '-lwinmm' '-luser32' '-o' $testBinary
         if($LASTEXITCODE){throw "$nativeTest test build failed"}
         if($nativeTest -eq 'native_binding') {
             if(!$NativeTestImage){Write-Host 'Native binding execution skipped: supply -NativeTestImage with a disposable client PE.';continue}

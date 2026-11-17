@@ -2,8 +2,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
 // Private PE inputs remain local. Only normalized ABI probes and reference IDs are emitted.
-const referenceFile=process.argv[2],candidateFile=process.argv[3];
-if(!referenceFile||!candidateFile)throw Error('Usage: node tools/generate-native-bindings.mjs <reference PE copy> <candidate PE copy>');
+const referenceFile=process.argv[2],candidateFile=process.argv[3],compatibilityFiles=process.argv.slice(4);
+if(!referenceFile||!candidateFile)throw Error('Usage: node tools/generate-native-bindings.mjs <reference PE copy> <candidate PE copy> [additional compatible PE copies...]');
 fs.mkdirSync('build/native-binding-generator',{recursive:true});
 const toolchain=fs.readdirSync('.tools').filter(n=>/^llvm-mingw-.*-ucrt-x86_64$/.test(n)).sort().at(-1);
 const objdump=path.resolve('.tools',toolchain,'bin/llvm-objdump.exe');
@@ -16,6 +16,7 @@ function pe(file){
  return{b,base,size,sections,section,offset,reloc,value(rva){const p=offset(rva);return p===null?0:b.readUInt32LE(p);}};
 }
 const old=pe(referenceFile),cur=pe(candidateFile);
+const compatible=compatibilityFiles.map(pe);
 const mask=new Uint8Array(old.size),xref=new Map();
 for(const rva of old.reloc){mask.fill(1,rva,rva+4);const target=old.value(rva)-old.base;if(old.section(rva)?.flags&0x20000000){if(!xref.has(target))xref.set(target,[]);xref.get(target).push(rva);}}
 const disasm=disassemble(referenceFile,'reference');const branches=[];
@@ -27,7 +28,7 @@ function find(image,pat){let best=[],bestAt=0,run=[];for(let i=0;i<=pat.length;i
  for(const s of image.sections.filter(s=>s.flags&0x20000000)){let p=s.raw-1;while((p=image.b.indexOf(needle,p+1))>=0&&p<s.raw+s.rawSize){const start=p-bestAt;if(start<s.raw||start+pat.length>s.raw+s.rawSize)continue;if(pat.every((v,i)=>v<0||v===image.b[start+i]))result.push(s.rva+start-s.raw);if(result.length>1)return result;}}
  return result;
 }
-function codeProbe(point,operand=null){for(const n of [128,96,64,48,32])for(const back of [16,8,0]){const start=point-back,p=pattern(start,n);if(!p)continue;const a=find(old,p);if(a.length!==1||a[0]!==start)continue;const b=find(cur,p);if(b.length!==1)continue;const value=operand===null?b[0]+back:cur.value(b[0]+back)-cur.base;
+function codeProbe(point,operand=null){for(const n of [128,96,64,48,32])for(const back of [16,8,0]){const start=point-back,p=pattern(start,n);if(!p)continue;const a=find(old,p);if(a.length!==1||a[0]!==start)continue;const b=find(cur,p);if(b.length!==1||compatible.some(image=>find(image,p).length!==1))continue;const value=operand===null?b[0]+back:cur.value(b[0]+back)-cur.base;
  return{rva:value,probe:{start,pattern:p.map(v=>v<0?'??':v.toString(16).padStart(2,'0')).join(' '),offset:back,follow:operand!==null}};}}
 const roots=new Set();for(const f of ['native_animation.hpp','native_app.hpp','native_background.hpp','native_camera.hpp','native_layer_time.hpp','native_mover.hpp','native_mover_legacy.hpp','native_mover_services.hpp','native_sfx_follow.hpp','native_sfx_time.hpp','native_world.hpp']){for(const m of fs.readFileSync('src/'+f,'utf8').split('inline bool install()')[1].matchAll(/\b0x[0-9a-f]{5,}\b/gi)){const rva=Number(m[0]);if(old.section(rva))roots.add(rva);}}
 // One existing world adapter owns this call's loop/reset semantics. All other

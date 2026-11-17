@@ -55,7 +55,9 @@ EffectsBinding discoverEffects() {
     const DWORD render=DWORD(a+10+int32_t(scan.value(a+6)));
     if(render!=DWORD(b+11+int32_t(scan.value(b+7))) || flags<render || flags-render>8192 ||
        !scan.bytes(render,"53 8B DC 83 EC 08 83 E4 F8 83 C4 04 55 8B 6B 04 89 6C 24 04 8B EC 6A FF") ||
-       !scan.bytes(render+37,"81 EC 68 02 00 00") ||
+       // Supported client rebuilds use either local-stack size; the guarded
+       // thiscall entry, both callers and all accessed fields are identical.
+       !(scan.bytes(render+37,"81 EC 68 02 00 00") || scan.bytes(render+37,"81 EC 60 02 00 00")) ||
        !scan.bytes(flags+0x5b,"83 B9 1C 03 00 00 00 75 29"))return {};
     const DWORD decorative=scan.relative(scan.value(flags+2)),skills=scan.relative(scan.value(flags+20));
     if(!decorative || skills!=decorative+4 || !scan.section(decorative,8,IMAGE_SCN_MEM_READ|IMAGE_SCN_MEM_WRITE))return {};
