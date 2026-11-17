@@ -3,6 +3,7 @@
 sampler2D Art:register(s0);
 sampler2D Layer:register(s1);
 sampler2D Shadow:register(s2);
+sampler2D SurfaceDetail:register(s3);
 float4 Style : register(c0); // strength, relief, glints, snow appearance
 float4 ArtInfo : register(c1); // texel xy, exact material kind, highlight scale
 float4 Stage0 : register(c2);
@@ -16,7 +17,7 @@ float4 FogColor : register(c9);
 float4 PixelFog : register(c10);
 float4 SunDirection : register(c11);
 float4 SunColor : register(c12);
-
+float4 DetailInfo : register(c13); // detail UV scale, availability, source slope scale
 float4 Stage2 : register(c14);
 float4 Alpha2 : register(c15);
 float4 Constant2 : register(c16);
@@ -57,26 +58,38 @@ float4 MaterialPS(MaterialInput i):COLOR0 {
     float3 south=tex2D(Art,i.uv+float2(0,ArtInfo.y)).rgb;
     float2 dx=ddx(i.uv),dy=ddy(i.uv);
     float fade=saturate(1-max(length(dx/ArtInfo.xy),length(dy/ArtInfo.xy))*.6);
-    float2 gradient=float2(dot(east-west,luma),dot(south-north,luma))*Style.y*fade;
-    gradient/=1+length(gradient)*6;
-    float3 n=normalize(i.normal+float3(0,0,-.00000001));
+    float snow=ArtInfo.z<1.5?Style.w:0;
+    // Within the known bark atlas, preserve its painted white snow skirt.
+    float bark=ArtInfo.z>5.5?saturate((art.r-art.b)*8):0;
+    float structure=saturate(ArtInfo.z-1)*saturate(4-ArtInfo.z);
+    float2 detailUV=i.uv*DetailInfo.xy;
+    float detailFade=DetailInfo.z*saturate(1-max(length(ddx(detailUV)*128),length(ddy(detailUV)*128))*.65);
+    float4 micro=tex2D(SurfaceDetail,detailUV);
+    float2 grain=(micro.rg*2-1)*detailFade;
+    float2 gradient=float2(dot(east-west,luma),dot(south-north,luma))*DetailInfo.w*fade;
+    gradient/=1+length(gradient)*(3-bark*2-structure);
+    gradient=gradient*(1-snow*.65)+grain*(snow*.6+bark*.1);
+    gradient*=Style.y;
+    float3 n=normalize(i.normal+float3(0,0,-.0001));
     float3 tangent=ddx(i.view)*dy.y-ddy(i.view)*dx.y;
     tangent-=n*dot(n,tangent);tangent*=rsqrt(max(dot(tangent,tangent),1e-20));
     float determinant=dx.x*dy.y-dx.y*dy.x;
     tangent*=determinant<0?-1:1;
     float3 bitangent=cross(n,tangent)*(determinant<0?-1:1);
     float3 bumped=normalize(n-(tangent*gradient.x+bitangent*gradient.y));
-    float delta=clamp(dot(bumped,SunDirection.xyz)-dot(n,SunDirection.xyz),-.025,.025);
+    float limit=.025+snow*.1+bark*.25+structure*.1;
+    float delta=clamp(dot(bumped,SunDirection.xyz)-dot(n,SunDirection.xyz),-limit,limit);
     float4 diffuse=i.diffuse;
-    diffuse.rgb=saturate(diffuse.rgb+delta*SunColor.rgb*Style.x*.35);
+    diffuse.rgb=saturate(diffuse.rgb+delta*SunColor.rgb*Style.x*(.35+snow*.4+bark*1.5+structure*.65));
     if(ArtInfo.z<1.5){
         float brightness=dot(art.rgb,luma);
         // Preserve the source luminance pattern; lift its brightness without averaging it away.
-        float3 clean=float3(.97,.99,1)*(brightness+.12*(1-brightness));
+        float3 clean=float3(.99,.99,1)*(brightness+.1*(1-brightness));
         art.rgb=lerp(art.rgb,clean,Style.w*Style.x);
+        art.rgb=saturate(art.rgb+(micro.b-.5)*detailFade*Style.w*Style.x*.025);
     }else{
         float3 detail=art.rgb-(west+east+north+south)*.25;
-        art.rgb=saturate(art.rgb+clamp(detail*Style.x*Style.y*fade*.12,-.008,.008));
+        art.rgb=saturate(art.rgb+clamp(detail*Style.x*Style.y*fade*(.1+bark),-.025,.025));
     }
     float4 color=NativeStage(Stage0,Alpha0,art,diffuse,diffuse,Constant0);
     float4 layer=lerp(1,tex2D(Layer,i.blend),Alpha1.z);
@@ -84,9 +97,11 @@ float4 MaterialPS(MaterialInput i):COLOR0 {
     float4 extra=float4(i.extra.xy,0,Alpha2.w>3.5?i.extra.w:Alpha2.w>2.5?i.extra.z:1);
     float4 shadow=lerp(1,tex2Dproj(Shadow,extra),Alpha2.z);
     color=NativeStage(Stage2,Alpha2,shadow,diffuse,color,Constant2);
-    float3 eye=normalize(-i.view+float3(0,0,-.00000001));
+    float3 eye=normalize(-i.view+float3(0,0,-.0001));
     float3 halfVector=normalize(SunDirection.xyz+eye);
     color.rgb+=pow(saturate(dot(bumped,halfVector)),64)*SunColor.rgb*Style.x*Style.z*ArtInfo.w;
+    float crystals=saturate((micro.a-.75)*8)*detailFade*snow;
+    color.rgb+=pow(saturate(dot(bumped,halfVector)),24)*crystals*SunColor.rgb*Style.x*Style.z*.1;
     float fog=FogAmount(PixelFog.x<0?length(i.view):i.view.z,float4(abs(PixelFog.x),PixelFog.yzw));
     color.rgb=lerp(FogColor.rgb,color.rgb,fog);
     return color;

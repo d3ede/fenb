@@ -12,7 +12,7 @@ function add(digest, kind) {
 }
 for (const item of JSON.parse(fs.readFileSync(new URL('./materials.json', import.meta.url)))) {
   if (![item.decodedHash, item.sourceHash, item.uploadHash ?? item.decodedHash].every(v => /^[a-f0-9]{64}$/.test(v)) ||
-      !Number.isInteger(item.kind) || item.kind < 1 || item.kind > 5)
+      !Number.isInteger(item.kind) || item.kind < 1 || item.kind > 6)
     throw Error('Invalid material metadata: ' + item.file);
   add(item.decodedHash, item.kind);
   if (item.uploadHash) add(item.uploadHash, item.kind);

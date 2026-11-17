@@ -47,9 +47,9 @@ struct Fixture {
     int fog=0,table=0,stateErrors=0;
     bool third=false;
     int shadowCoordinates=0;
-    bool followingNative=false,buffered=false,absolute=false,coplanar=false;
+    bool followingNative=false,buffered=false,absolute=false,coplanar=false,cutout=false;
     D3DFORMAT depthFormat=D3DFMT_D24X8;
-    float repeats=1,cameraDistance=3.2f,uStart=0,uSpan=1,vStart=0,vSpan=1;
+    float repeats=1,cameraDistance=3.2f,uStart=0,uSpan=1,vStart=0,vSpan=1,sunSide=1;
     explicit Fixture(IDirect3DDevice9 *device):d(device),fx(device){}
     std::vector<DWORD> render(const Settings &s){
         StateGuard guard(d);if(!guard.valid())return {};
@@ -76,7 +76,8 @@ struct Fixture {
         d->SetTransform(D3DTS_WORLD,&world);d->SetTransform(D3DTS_VIEW,&view);d->SetTransform(D3DTS_PROJECTION,&projection);
         d->SetVertexShader(nullptr);d->SetPixelShader(nullptr);d->SetFVF(two?0x212:0x112);
         for(auto pair:{std::pair{D3DRS_ZENABLE,DWORD(TRUE)},std::pair{D3DRS_ZWRITEENABLE,DWORD(TRUE)},std::pair{D3DRS_ZFUNC,DWORD(D3DCMP_LESSEQUAL)},
-            std::pair{D3DRS_ALPHATESTENABLE,DWORD(FALSE)},std::pair{D3DRS_ALPHABLENDENABLE,DWORD(two)},
+            std::pair{D3DRS_ALPHATESTENABLE,DWORD(cutout)},std::pair{D3DRS_ALPHABLENDENABLE,DWORD(two)},
+            std::pair{D3DRS_ALPHAFUNC,DWORD(D3DCMP_GREATER)},std::pair{D3DRS_ALPHAREF,DWORD(100)},
             std::pair{D3DRS_SRCBLEND,DWORD(D3DBLEND_SRCALPHA)},std::pair{D3DRS_DESTBLEND,DWORD(D3DBLEND_INVSRCALPHA)},
             std::pair{D3DRS_CULLMODE,DWORD(D3DCULL_NONE)},std::pair{D3DRS_LIGHTING,DWORD(lit)},
             std::pair{D3DRS_SPECULARENABLE,DWORD(FALSE)},std::pair{D3DRS_NORMALIZENORMALS,DWORD(TRUE)},
@@ -84,7 +85,7 @@ struct Fixture {
         D3DMATERIAL9 material{};material.Diffuse={.9f,.95f,1,.8f};material.Ambient={1,1,1,1};d->SetMaterial(&material);
         for(DWORD index=0;index<8;++index)d->LightEnable(index,FALSE);
         D3DLIGHT9 sun{};sun.Type=D3DLIGHT_DIRECTIONAL;sun.Diffuse={.78f,.75f,.7f,1};
-        sun.Direction={.38f,-.48f,.79f};float length=std::sqrt(.38f*.38f+.48f*.48f+.79f*.79f);
+        sun.Direction={.38f*sunSide,-.48f,.79f};float length=std::sqrt(.38f*.38f+.48f*.48f+.79f*.79f);
         sun.Direction.x/=length;sun.Direction.y/=length;sun.Direction.z/=length;
         d->SetLight(0,&sun);d->LightEnable(0,TRUE);
         if(point){D3DLIGHT9 light{};light.Type=D3DLIGHT_POINT;light.Position={-1,1,1};light.Diffuse={.2f,.07f,.03f,1};
@@ -160,6 +161,11 @@ struct Fixture {
             auto matrix=identity;matrix._11=.7f;matrix._31=.17f;d->SetTransform(D3DTRANSFORMSTATETYPE(D3DTS_TEXTURE3+index),&matrix);
         }
         const auto beforeCoordinates=coordinates();
+        d->SetTexture(3,shadow);
+        constexpr D3DSAMPLERSTATETYPE samplerKeys[]={D3DSAMP_ADDRESSU,D3DSAMP_ADDRESSV,D3DSAMP_MINFILTER,D3DSAMP_MAGFILTER,
+            D3DSAMP_MIPFILTER,D3DSAMP_SRGBTEXTURE,D3DSAMP_MAXMIPLEVEL,D3DSAMP_MIPMAPLODBIAS};
+        const DWORD samplerValues[]={D3DTADDRESS_CLAMP,D3DTADDRESS_MIRROR,D3DTEXF_POINT,D3DTEXF_POINT,D3DTEXF_POINT,TRUE,2,0x3e800000};
+        for(size_t i=0;i<std::size(samplerKeys);++i)d->SetSamplerState(3,samplerKeys[i],samplerValues[i]);
         float beforeVS[96][4]{},beforePS[17][4]{},afterVS[96][4]{},afterPS[17][4]{};
         d->GetVertexShaderConstantF(0,beforeVS[0],96);d->GetPixelShaderConstantF(0,beforePS[0],17);
         if(coplanar){
@@ -167,8 +173,11 @@ struct Fixture {
             draw();d->SetTextureStageState(0,D3DTSS_COLORARG2,D3DTA_DIFFUSE);d->SetRenderState(D3DRS_ZFUNC,D3DCMP_EQUAL);
         }
         used=fx.begin(s);
+        if(used){Com<IDirect3DBaseTexture9> detail;d->GetTexture(3,detail.out());stateErrors+=detail.p==shadow.p;}
         auto hr=draw();
         fx.end();
+        Com<IDirect3DBaseTexture9> restoredTexture;d->GetTexture(3,restoredTexture.out());stateErrors+=restoredTexture.p!=shadow.p;
+        for(size_t i=0;i<std::size(samplerKeys);++i){DWORD value=0;d->GetSamplerState(3,samplerKeys[i],&value);stateErrors+=value!=samplerValues[i];}
         const auto afterCoordinates=coordinates();stateErrors+=memcmp(beforeCoordinates.data(),afterCoordinates.data(),sizeof(beforeCoordinates))!=0;
         DWORD afterFVF=0;d->GetFVF(&afterFVF);Com<IDirect3DVertexDeclaration9> afterDecl;d->GetVertexDeclaration(afterDecl.out());
         if(beforeFVF!=afterFVF||beforeDecl.p!=afterDecl.p){printf("Input state changed: FVF %lx -> %lx declaration %p -> %p\n",beforeFVF,afterFVF,beforeDecl.p,afterDecl.p);++stateErrors;}
@@ -198,9 +207,10 @@ int main(int argc,char **argv){
         HMODULE module=LoadLibraryExW(L"d3dx9_43.dll",nullptr,LOAD_LIBRARY_SEARCH_SYSTEM32);CHECK(module);
         using Load=HRESULT(WINAPI *)(IDirect3DDevice9 *,LPCWSTR,UINT,UINT,UINT,DWORD,D3DFORMAT,D3DPOOL,DWORD,DWORD,D3DCOLOR,void *,PALETTEENTRY *,IDirect3DTexture9 **);
         auto load=reinterpret_cast<Load>(GetProcAddress(module,"D3DXCreateTextureFromFileExW"));CHECK(load);
-        const char *files[]={"World/Texture/ground_n_ice02.dds","World/Texture/brick_MaFl01_new.dds","Model/Texture/Ctrl_HouFurCabWood01.dds","World/Texture/Bahara_Sand01_01.dds","World/Texture/Rartesia_Grass01.dds"};
-        const wchar_t *names[]={L"snow",L"stone",L"wood",L"sand",L"grass"};
-        for(int kind=0;kind<5;++kind){std::string path=std::string(argv[2])+"/"+files[kind];std::wstring wide(path.begin(),path.end());
+        const char *files[]={"World/Texture/ground_n_ice02.dds","World/Texture/brick_MaFl01_new.dds","Model/Texture/Ctrl_HouFurCabWood01.dds","World/Texture/Bahara_Sand01_01.dds","World/Texture/Rartesia_Grass01.dds","Model/Texture/Obj_AzriaTree01-B2.dds"};
+        const wchar_t *names[]={L"snow",L"stone",L"wood",L"sand",L"grass",L"bark"};
+        on.materialStrength=on.materialRelief=on.materialSnow=on.materialGlints=1;
+        for(int kind=0;kind<6;++kind){std::string path=std::string(argv[2])+"/"+files[kind];std::wstring wide(path.begin(),path.end());
             CHECK(SUCCEEDED(load(d,wide.c_str(),UINT(-1),UINT(-1),0,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,1,1,0,nullptr,nullptr,fixture.art.out())));
             fixture.uStart=kind==2?.04f:0;fixture.uSpan=kind==2?.28f:1;
             fixture.vStart=kind==2?.1f:0;fixture.vSpan=kind==2?.8f:1;
@@ -208,6 +218,8 @@ int main(int argc,char **argv){
                 auto a=fixture.render(off),b=fixture.render(on);CHECK(fixture.used&&Delta(a,b)>0);
                 std::wstring prefix=std::wstring(L"artifacts/materials/")+names[kind]+(distance?L"-wide":L"-close");
                 CHECK(Save(a,prefix+L"-off.png")&&Save(b,prefix+L"-on.png"));
+                Settings flat=on;flat.materialRelief=0;
+                CHECK(Save(fixture.render(flat),prefix+L"-relief0.png"));
                 printf("Material %d distance %d: maximum RGB delta=%u\n",kind,distance,Delta(a,b));
             }
         }
@@ -289,6 +301,34 @@ int main(int argc,char **argv){
     const double sourceEnergy=energy(sourceSnow),correctedEnergy=energy(correctedSnow);
     printf("Snow luminance detail retained at maximum strength: %.2f%%\n",100*correctedEnergy/sourceEnergy);
     CHECK(sourceEnergy>100&&correctedEnergy>sourceEnergy*.7&&correctedEnergy<sourceEnergy*1.4&&Delta(sourceSnow,correctedSnow)>0);
+    // Relief must visibly change lighting, not merely the snow's color correction.
+    Settings raised=snowStyle;raised.materialRelief=1;
+    const auto raisedSnow=fixture.render(raised);
+    printf("Snow relief 0 -> 1: RGB delta=%u\n",Delta(correctedSnow,raisedSnow));
+    CHECK(Delta(correctedSnow,raisedSnow)>=6);
+    CHECK(Delta(raisedSnow,fixture.render(raised))<=(msaa?2u:0u));
+    fixture.sunSide=-1;
+    auto reverseFlat=fixture.render(snowStyle),reverseRelief=fixture.render(raised);
+    double lightingResponse=0;
+    for(size_t i=0;i<raisedSnow.size();++i)lightingResponse+=std::abs(
+        int(raisedSnow[i]&255)-int(correctedSnow[i]&255)-int(reverseRelief[i]&255)+int(reverseFlat[i]&255));
+    CHECK(lightingResponse>W*H*.1);fixture.sunSide=1;
+    // Only exact bark identities can opt into alpha-tested material draws. Native
+    // alpha, depth coverage and a following unstyled draw must all remain intact.
+    D3DLOCKED_RECT barkLock{};CHECK(SUCCEEDED(fixture.art->LockRect(0,&barkLock,nullptr,0)));
+    for(UINT y=0;y<64;++y)for(UINT x=0;x<64;++x){int grain=int(25*std::sin(x*.8)+8*std::cos(y*.4));
+        ((DWORD *)((BYTE *)barkLock.pBits+y*barkLock.Pitch))[x]=D3DCOLOR_ARGB(x*4,150+grain,100+grain,45+grain);}
+    fixture.art->UnlockRect(0);DWORD barkKind=6;fixture.art->SetPrivateData(MaterialTag,&barkKind,4,0);
+    fixture.cutout=fixture.absolute=fixture.coplanar=true;
+    auto nativeBark=fixture.render(off),neutralBark=fixture.render(neutral),styledBark=fixture.render(raised);
+    CHECK(fixture.used&&Delta(nativeBark,neutralBark)<=2&&Delta(nativeBark,styledBark)>=6);
+    for(size_t i=0;i<nativeBark.size();++i)CHECK((nativeBark[i]==0xff293441)==(styledBark[i]==0xff293441));
+    fixture.followingNative=true;CHECK(Delta(fixture.render(off),fixture.render(raised))<=(msaa?2u:0u));
+    fixture.followingNative=fixture.absolute=fixture.coplanar=false;
+    kind=2;fixture.art->SetPrivateData(MaterialTag,&kind,4,0);fixture.render(raised);CHECK(!fixture.used);
+    fixture.cutout=false;
+    fixture.fx.invalidate();fixture.art->SetPrivateData(MaterialTag,&barkKind,4,0);
+    const auto recreatedBark=fixture.render(raised);fixture.fx.invalidate();CHECK(Delta(recreatedBark,fixture.render(raised))<=(msaa?2u:0u));
     // A uniformly painted matte surface must not acquire procedural grain or relief,
     // even at maximum relief strength. Curved geometry still receives native lighting.
     D3DLOCKED_RECT flat{};CHECK(SUCCEEDED(fixture.art->LockRect(0,&flat,nullptr,0)));

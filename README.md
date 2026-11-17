@@ -28,7 +28,7 @@ A graphics mod inspired by ENBSeries, with adjustable effects and an in-game set
 | | Features |
 | --- | --- |
 | **Color & bloom** | Adjust exposure, contrast, saturation, temperature and soft light bloom. |
-| **Materials** | A dedicated tab for subtle relief and restrained light-dependent highlights on recognized snow, stone, wood, sand and ground, preserving the game's painted style. Snow has a separate appearance control. Uses the original artwork without added grain, texture-file replacement or geometry. Off by default. Optional image microcontrast is available separately in this tab. |
+| **Materials** | A dedicated tab for light-dependent relief and highlights on recognized snow, stone, wood, sand and ground. Includes Azria tree bark and fine snow grain, with a separate snow appearance control. Preserves the original texture files and geometry. Off by default. Optional image microcontrast is available separately in this tab. |
 | **Light & atmosphere** | SSAO, sun rays, a smooth sun core and halo, reconstructed sky/cloud textures and fine night stars, distance and height fog, depth of field, brightness adaptation and local lighting. |
 | **Time & weather** | Live time-of-day controls, freeze time and clear/rain/snow with adjustable intensity on the supported Homesickness client. Time works with image effects disabled. Switch either override off to follow the game. |
 | **WaterFX** | Animated wave shading, refraction, depth-based absorption, optional caustics and refractive footsteps. Separate Sky Only / SSR Performance / SSR Quality modes, reflection resolution and tracing controls. |

@@ -10,19 +10,79 @@
 class MaterialFX {
     IDirect3DDevice9 *device_;
     Com<IDirect3DPixelShader9> ps_;
+    Com<IDirect3DTexture9> detail_;
+    Com<IDirect3DBaseTexture9> savedDetail_;
+    static constexpr D3DSAMPLERSTATETYPE DetailStates[] = {D3DSAMP_ADDRESSU,D3DSAMP_ADDRESSV,
+        D3DSAMP_MINFILTER,D3DSAMP_MAGFILTER,D3DSAMP_MIPFILTER,D3DSAMP_SRGBTEXTURE,
+        D3DSAMP_MAXMIPLEVEL,D3DSAMP_MIPMAPLODBIAS};
+    DWORD savedSampler_[std::size(DetailStates)]{};
     BCRYPT_ALG_HANDLE hash_ = nullptr;
     static constexpr UINT PixelConstants = 17;
     float savedPixel_[PixelConstants][4]{};
     struct Coordinates { DWORD index=0,transform=0,wrap=0; D3DMATRIX matrix{}; } savedCoordinates_[2];
     DWORD savedFog_ = 0;
     bool active_ = false;
+    bool detailSaved_ = false;
+    bool detailFailed_ = false;
+    bool detailTexture() {
+        if(detail_.p)return true;
+        if(detailFailed_)return false;
+        constexpr unsigned size=128;
+        // Periodic, deterministic height field. Generated once, sampled in material UVs,
+        // and filtered through a complete mip chain rather than screen-space noise.
+        auto random=[](unsigned x,unsigned y,unsigned seed) {
+            unsigned h=x*0x9e3779b9u+y*0x85ebca6bu+seed;
+            h^=h>>16;h*=0x7feb352du;h^=h>>15;h*=0x846ca68bu;h^=h>>16;
+            return float(h&65535)/65535;
+        };
+        auto noise=[&](float x,float y,unsigned grid,unsigned seed) {
+            x*=grid/float(size);y*=grid/float(size);
+            unsigned ix=unsigned(x),iy=unsigned(y);float a=x-ix,b=y-iy;
+            a=a*a*(3-2*a);b=b*b*(3-2*b);
+            float p=random(ix%grid,iy%grid,seed),q=random((ix+1)%grid,iy%grid,seed);
+            float r=random(ix%grid,(iy+1)%grid,seed),t=random((ix+1)%grid,(iy+1)%grid,seed);
+            return (p+(q-p)*a)*(1-b)+(r+(t-r)*a)*b;
+        };
+        std::vector<float> heights(size*size);
+        for(unsigned y=0;y<size;++y)for(unsigned x=0;x<size;++x)
+            heights[y*size+x]=noise(float(x),float(y),32,31)*.65f+noise(float(x),float(y),64,89)*.35f;
+        std::vector<DWORD> pixels(size*size);
+        auto byte=[](float v){return DWORD(std::clamp(v,0.f,1.f)*255+.5f);};
+        for(unsigned y=0;y<size;++y)for(unsigned x=0;x<size;++x) {
+            float dx=heights[y*size+(x+1)%size]-heights[y*size+(x+size-1)%size];
+            float dy=heights[((y+1)%size)*size+x]-heights[((y+size-1)%size)*size+x];
+            pixels[y*size+x]=(byte(random(x,y,127))<<24)|(byte(.5f+dx*1.4f)<<16)|
+                (byte(.5f+dy*1.4f)<<8)|byte(heights[y*size+x]);
+        }
+        if(FAILED(device_->CreateTexture(size,size,0,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,detail_.out(),nullptr))){detailFailed_=true;return false;}
+        unsigned width=size;
+        for(UINT level=0;level<detail_->GetLevelCount();++level) {
+            D3DLOCKED_RECT lock{};
+            if(FAILED(detail_->LockRect(level,&lock,nullptr,0))){detail_.out();detailFailed_=true;return false;}
+            for(unsigned y=0;y<width;++y)memcpy((BYTE *)lock.pBits+y*lock.Pitch,pixels.data()+y*width,width*4);
+            detail_->UnlockRect(level);
+            if(width==1)break;
+            std::vector<DWORD> next(width*width/4);
+            for(unsigned y=0;y<width/2;++y)for(unsigned x=0;x<width/2;++x) {
+                DWORD v=0;
+                for(unsigned shift:{0u,8u,16u,24u}) {
+                    unsigned sum=0;
+                    for(unsigned b=0;b<2;++b)for(unsigned a=0;a<2;++a)sum+=(pixels[(y*2+b)*width+x*2+a]>>shift)&255;
+                    v|=((sum+2)/4)<<shift;
+                }
+                next[y*(width/2)+x]=v;
+            }
+            pixels=std::move(next);width/=2;
+        }
+        return true;
+    }
     static void rgba(DWORD v,float *out) {
         for(int i=0;i<3;++i)out[i]=float((v>>(16-8*i))&255)/255;
         out[3]=float(v>>24)/255;
     }
     unsigned classify(IDirect3DTexture9 *texture) {
         DWORD kind=0,size=sizeof(kind);
-        if(SUCCEEDED(texture->GetPrivateData(MaterialTag,&kind,&size))&&size==sizeof(kind))return kind<=5?kind:0;
+        if(SUCCEEDED(texture->GetPrivateData(MaterialTag,&kind,&size))&&size==sizeof(kind))return kind<=6?kind:0;
         D3DSURFACE_DESC desc{};
         if(FAILED(texture->GetLevelDesc(0,&desc))||desc.Pool!=D3DPOOL_MANAGED||desc.Usage)return 0;
         UINT bytes=0,rows=desc.Height;
@@ -51,7 +111,7 @@ class MaterialFX {
 public:
     explicit MaterialFX(IDirect3DDevice9 *d):device_(d){}
     ~MaterialFX(){invalidate();if(hash_)BCryptCloseAlgorithmProvider(hash_,0);}
-    void invalidate(){end();ps_.out();}
+    void invalidate(){end();ps_.out();detail_.out();detailFailed_=false;}
     bool begin(const Settings &s) {
         if(active_||!s.enabled||!s.materials||s.materialStrength<=0)return false;
         DWORD fvf=0,z=0,write=0,test=0,blend=0,src=0,dst=0,specular=0;
@@ -69,7 +129,7 @@ public:
         device_->GetRenderState(D3DRS_SRCBLEND,&src);device_->GetRenderState(D3DRS_DESTBLEND,&dst);
         device_->GetRenderState(D3DRS_SPECULARENABLE,&specular);
         DWORD clipPlanes=0;device_->GetRenderState(D3DRS_CLIPPLANEENABLE,&clipPlanes);
-        if(clipPlanes||!z||!write||test||specular||
+        if(clipPlanes||!z||!write||(test&&kind!=6)||specular||
            (blend&&(fvf!=0x212||src!=D3DBLEND_SRCALPHA||dst!=D3DBLEND_INVSRCALPHA)))return false;
         D3DMATRIX view{},projection{};
         if(FAILED(device_->GetTransform(D3DTS_VIEW,&view))||FAILED(device_->GetTransform(D3DTS_PROJECTION,&projection))||
@@ -132,7 +192,10 @@ public:
         D3DSURFACE_DESC desc{};texture->GetLevelDesc(0,&desc);
         p[0][0]=s.materialStrength;p[0][1]=s.materialRelief;p[0][2]=s.materialGlints;p[0][3]=s.materialSnow;
         p[1][0]=1.f/desc.Width;p[1][1]=1.f/desc.Height;p[1][2]=float(kind);
-        p[1][3]=kind==1?.02f:kind==3?.012f:kind==2?.008f:.005f;
+        p[1][3]=kind==1?.02f:(kind==3||kind==6)?.012f:kind==2?.008f:.005f;
+        const bool detailed=(kind==1||kind==6)&&detailTexture();
+        p[13][0]=kind==1?2.f:3.f;p[13][1]=kind==1?2.f:.35f;
+        p[13][2]=detailed?1.f:0.f;p[13][3]=kind==6?15.f:kind==3?10.f:kind==2?7.f:1.f;
         if(!ps_.p&&FAILED(device_->CreatePixelShader(ShaderMaterialPS,ps_.out())))return false;
         if(FAILED(device_->GetPixelShaderConstantF(0,savedPixel_[0],PixelConstants))||
            FAILED(device_->GetRenderState(D3DRS_FOGENABLE,&savedFog_)))return false;
@@ -143,7 +206,21 @@ public:
                FAILED(device_->GetTransform(D3DTRANSFORMSTATETYPE(D3DTS_TEXTURE0+stage),&saved.matrix))||
                FAILED(device_->GetRenderState(D3DRENDERSTATETYPE(D3DRS_WRAP3+index),&saved.wrap)))return false;
         }
+        if(FAILED(device_->GetTexture(3,savedDetail_.out())))return false;
+        if(detailed) {
+            for(size_t i=0;i<std::size(DetailStates);++i)
+                if(FAILED(device_->GetSamplerState(3,DetailStates[i],savedSampler_+i))){savedDetail_.out();return false;}
+        }
         active_=true;
+        detailSaved_=detailed;
+        // SM2a flattens the optional sample: never read a stale client binding,
+        // even for materials that do not use the generated detail map.
+        if(FAILED(device_->SetTexture(3,detailed?detail_.p:nullptr))){end();return false;}
+        if(detailed) {
+            const DWORD values[]={D3DTADDRESS_WRAP,D3DTADDRESS_WRAP,D3DTEXF_LINEAR,D3DTEXF_LINEAR,D3DTEXF_LINEAR,FALSE,0,0};
+            for(size_t i=0;i<std::size(DetailStates);++i)
+                if(FAILED(device_->SetSamplerState(3,DetailStates[i],values[i]))){end();return false;}
+        }
         D3DMATRIX identity{};identity._11=identity._22=identity._33=identity._44=1;
         // The native vertex converter supplies view position and normal in spare coordinates.
         // It retains the original POSITION/depth calculations for coplanar terrain layers.
@@ -160,6 +237,11 @@ public:
     }
     void end() {
         if(!active_)return;
+        device_->SetTexture(3,savedDetail_);savedDetail_.out();
+        if(detailSaved_) {
+            for(size_t i=0;i<std::size(DetailStates);++i)device_->SetSamplerState(3,DetailStates[i],savedSampler_[i]);
+            detailSaved_=false;
+        }
         device_->SetPixelShaderConstantF(0,savedPixel_[0],PixelConstants);
         for(int index=0;index<2;++index) {
             const auto &saved=savedCoordinates_[index];const DWORD stage=3+index;
