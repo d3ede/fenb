@@ -50,13 +50,13 @@ void GrassFX::invalidate(){
     resolution_=0;bufferBytes_=0;builtQuality_=-1;started_=false;clear_=true;failed_=false;checked_=false;
 }
 void GrassFX::beginFrame(bool enabled){
-    endNative();pending_.clear();worldTarget_.out();worldDepth_.out();started_=false;clear_=true;overflow_=false;draws_=0;
+    endNative();pending_.clear();worldTarget_.out();worldDepth_.out();started_=false;clear_=true;
     if(!enabled&&enabled_)invalidate();
     enabled_=enabled;
 }
 unsigned GrassFX::classify(IDirect3DTexture9 *texture){
     DWORD kind=0,size=4;
-    if(SUCCEEDED(texture->GetPrivateData(GrassTag,&kind,&size))&&size==4)return kind<=2?kind:0;
+    if(SUCCEEDED(texture->GetPrivateData(GrassTag,&kind,&size))&&size==4)return kind<=3?kind:0;
     D3DSURFACE_DESC desc{};
     if(FAILED(texture->GetLevelDesc(0,&desc))||desc.Pool!=D3DPOOL_MANAGED||desc.Usage)return 0;
     UINT bytes=0,rows=desc.Height;
@@ -174,12 +174,10 @@ bool GrassFX::initialize(const Settings &s){
     started_=true;return true;
 }
 void GrassFX::capture(const Settings &s,DrawCall draw,SurfaceDraw geometry){
-    if(!enabled_||failed_||overflow_||!s.enabled||!s.grass)return;
+    if(!enabled_||failed_||!s.enabled||!s.grass)return;
     DWORD fvf=0,z=0,write=0,test=0,blend=0,src=0,dst=0;
     if(FAILED(device_->GetFVF(&fvf))||(fvf!=0x212&&fvf!=0x112))return;
-    if(fvf==0x112&&!started_)return;
     D3DMATRIX world{};device_->GetTransform(D3DTS_WORLD,&world);
-    if(fvf==0x112&&std::hypot(world._41-eye_[0],world._43-eye_[2])>map_[2]+12)return;
     Com<IDirect3DVertexShader9> vs;Com<IDirect3DPixelShader9> ps;
     device_->GetVertexShader(vs.out());device_->GetPixelShader(ps.out());if(vs.p||ps.p)return;
     device_->GetRenderState(D3DRS_ZENABLE,&z);device_->GetRenderState(D3DRS_ZWRITEENABLE,&write);
@@ -189,9 +187,10 @@ void GrassFX::capture(const Settings &s,DrawCall draw,SurfaceDraw geometry){
     DWORD clip=0;device_->GetRenderState(D3DRS_CLIPPLANEENABLE,&clip);if(clip)return;
     Com<IDirect3DBaseTexture9> art;device_->GetTexture(0,art.out());
     if(!art.p||art->GetType()!=D3DRTYPE_TEXTURE)return;
-    unsigned kind=fvf==0x212?classify(static_cast<IDirect3DTexture9 *>(art.p)):0;
-    if(!started_&&(kind!=1||!initialize(s)))return;
-    if(++draws_>2048){pending_.clear();overflow_=true;started_=false;return;}
+    const unsigned kind=classify(static_cast<IDirect3DTexture9 *>(art.p));
+    const bool ground=kind==1||kind==3;
+    if(!started_&&(!ground||!initialize(s)))return;
+    if(fvf==0x112&&!ground&&std::hypot(world._41-eye_[0],world._43-eye_[2])>map_[2]+12)return;
     auto command=std::make_unique<Command>();command->draw=geometry;command->fvf=fvf;command->blend=blend!=0;
     command->matrices[0]=world;
     D3DMATRIX view{},projection{};device_->GetTransform(D3DTS_VIEW,&view);device_->GetTransform(D3DTS_PROJECTION,&projection);
@@ -214,7 +213,7 @@ void GrassFX::capture(const Settings &s,DrawCall draw,SurfaceDraw geometry){
             blendMap=arg==D3DTA_TEXTURE;
         }
     }
-    command->material[0]=kind==1?1.f:0.f;command->material[1]=blendMap?1.f:0.f;
+    command->material[0]=kind==3?2.f:kind==1?1.f:0.f;command->material[1]=blendMap?1.f:0.f;
     command->material[2]=-1;
     if(blend){command->material[2]=1;
         if(!blendMap){DWORD lighting=0;device_->GetRenderState(D3DRS_LIGHTING,&lighting);

@@ -133,5 +133,41 @@
     "decodedHash": "fcd0682e1206f754011168b1fe25f3802c0960ebb4a878969412a31ad026b4f6",
     "sourceHash": "6ea4e4dd92e89e7278863b48a074724bca1bf5c2aed39490fdca161760d026ce",
     "uploadHash": "517eb9abab943790475cd08f5ff3dd18646f540482ebfe45f4e48326fdf8d870"
+  },
+  {
+    "file": "World/Texture/ground_clay001.dds",
+    "kind": 3,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "2416599925ee1567d93c8a28f3562eac02b1e9de452fb86defec962b73f6c03a",
+    "sourceHash": "4e4cd627ce358da90c62695689e1f853f413779c8a062b23b85bf353ce750255",
+    "uploadHash": "82e73174917997903f2e0fb417e16be1d4a2fb0d8aebfb4abba0de273c5c977a"
+  },
+  {
+    "file": "World/Texture/ground_clay003.dds",
+    "kind": 3,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "52431db3df05a37ae9a7396d456fe9347ae16af7866feb541b1457ca77afbfcf",
+    "sourceHash": "1e56cf611b88876b8544f80edac6a88ee8856f0f4df998c39638df6bbe1a57f5",
+    "uploadHash": "c7f25a2922af4825f8f5f47220eef69beee77c62831cf29682f1d5f0dd86cf9d"
+  },
+  {
+    "file": "World/Texture/ground_clay006.dds",
+    "kind": 3,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "6c48e740467904c00a1b0112026c29b97ed77fc383fff1cfd7f01a5a10100a71",
+    "sourceHash": "1203e9aa498661c4c4924ac70f5e8ccbf76999fb431e1bebe15e4f88ab9c5951",
+    "uploadHash": "49535d6fddf49c372b6cadc4cfed309d13e2dbe78efedd8e1c5fda34963cb918"
+  },
+  {
+    "file": "World/Texture/rustia_lawn01.dds",
+    "kind": 1,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "32769facb24a29ccdc126131886c4ece6721ca66e055677c78e29f118eb20765",
+    "sourceHash": "77acfc45fd72ddad28ee7e7905833b18eec00c7c9304be016be70b62d94f5b73",
+    "uploadHash": "8ce5037404f8912936d9dc3c8404a089a28b226dbd84061a6ad7d4a94414bc4c"
   }
 ]

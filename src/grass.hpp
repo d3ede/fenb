@@ -40,11 +40,11 @@ class GrassFX {
     D3DMATRIX view_{},projection_{};
     D3DVIEWPORT9 viewport_{};
     float eye_[4]{},map_[4]{},sunDirection_[4]{},sunColor_[4]{},ambient_[4]{},fog_[4]{},fogColor_[4]{};
-    unsigned resolution_=0,draws_=0;
+    unsigned resolution_=0;
     DWORD worldSrgb_=FALSE;
     int builtQuality_=-1;
     float builtDensity_=0,builtDistance_=0;
-    bool enabled_=false,started_=false,clear_=true,failed_=false,overflow_=false,hidden_=false,checked_=false,capable_=false;
+    bool enabled_=false,started_=false,clear_=true,failed_=false,hidden_=false,checked_=false,capable_=false;
     size_t bufferBytes_=0;
     unsigned classify(IDirect3DTexture9 *);
     bool programs();
