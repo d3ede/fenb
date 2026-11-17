@@ -205,7 +205,8 @@ std::vector<PanelItem> PanelItems(Runtime &r) {
     case 7:
         return {{"shops", g(UiText::PanelClient), g(UiText::PanelShops), &s.limitShopSigns},
                 {"decorative", g(UiText::PanelClient), g(UiText::OptimizationDecorative), &s.hideDecorativeEffects, -1, g(UiText::OptimizationDecorativeTitle)},
-                {"skills", g(UiText::PanelClient), g(UiText::OptimizationSkills), &s.hideSkillEffects, -1, g(UiText::OptimizationSkillsTitle)}};
+                {"skills", g(UiText::PanelClient), g(UiText::OptimizationSkills), &s.hideSkillEffects, -1, g(UiText::OptimizationSkillsTitle)},
+                {"pets", g(UiText::PanelClient), g(UiText::OptimizationPets), &s.hidePetEffects, -1, g(UiText::OptimizationPetsTitle)}};
     }
     return {};
 }
@@ -573,6 +574,11 @@ void PanelParameters(Runtime &r, int item) {
             if (!r.nativeEffectOptimizationSupported())
                 PanelNote(Tr(UiText::UnsupportedClient));
             break;
+        case 3:
+            PanelNote(Tr(UiText::OptimizationPetsHelp));
+            if (!r.petEffectOptimizationSupported())
+                PanelNote(Tr(UiText::UnsupportedClient));
+            break;
         }
     if (page == 4) {
         if (item == 0) {
@@ -809,7 +815,8 @@ void PanelEditor(Runtime &r) {
     if(r.editorPage==8)help=Tr(selected==0?UiText::MaterialsCoverage:selected==2?UiText::MaterialSnowNote:
                              selected==3?UiText::MaterialMicroNote:UiText::MaterialReliefHelp);
     if(r.editorPage==3)help=Tr(selected==0?UiText::PanelFXAAHelp:selected==1?UiText::PanelSMAAHelp:UiText::MSAAHelp);
-    if(r.editorPage==7)help=Tr(selected==0?UiText::ShopSignHelp:selected==1?UiText::OptimizationDecorativeHelp:UiText::OptimizationSkillsHelp);
+    if(r.editorPage==7)help=Tr(selected==0?UiText::ShopSignHelp:selected==1?UiText::OptimizationDecorativeHelp:
+                             selected==2?UiText::OptimizationSkillsHelp:UiText::OptimizationPetsHelp);
     if(r.editorPage==5&&selected<2)help=Tr(selected==0?UiText::V2CursorSampleNote:UiText::V2MotionNote);
     ImGui::InvisibleButton("description", {std::max(1.f,w-(showEnable?40:5)),25});
     Tip(help);
@@ -822,6 +829,8 @@ void PanelEditor(Runtime &r) {
             supported = r.shopOptimizationSupported();
         if (selected > 0)
             supported = r.nativeEffectOptimizationSupported();
+        if (selected == 3)
+            supported = r.petEffectOptimizationSupported();
     }
     if (showEnable) {
         ImGui::SetCursorScreenPos({p.x + w - 34, p.y + 3});

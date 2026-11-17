@@ -6,5 +6,6 @@ class Optimization {
     ~Optimization();
     bool supported();
     bool effectsSupported();
+    bool petEffectsSupported();
     void update(const Settings &);
 };

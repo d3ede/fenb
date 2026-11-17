@@ -173,6 +173,7 @@ bool Settings::load(const std::wstring &path) {
         READ_BOOL("limit_shop_signs", limitShopSigns)
         READ_BOOL("hide_decorative_effects", hideDecorativeEffects)
         READ_BOOL("hide_skill_effects", hideSkillEffects)
+        READ_BOOL("hide_pet_effects", hidePetEffects)
         READ_FLOAT("shop_sign_distance", shopSignDistance)
         READ_BOOL("custom_cursor", customCursor)
         READ_BOOL("interface_motion", interfaceMotion)
@@ -276,7 +277,7 @@ bool Settings::save(const std::wstring &path) const {
                 waterTraceDistance,waterTraceBias,waterTraceThickness,waterReflectionConfidence,waterSoftFallback)<0)
         ok=false;
     if(fprintf(file,"\n[Optimization]\nlimit_shop_signs=%d\nshop_sign_distance=%.6f\n",limitShopSigns,shopSignDistance)<0)ok=false;
-    if(fprintf(file,"hide_decorative_effects=%d\nhide_skill_effects=%d\n",hideDecorativeEffects,hideSkillEffects)<0)ok=false;
+    if(fprintf(file,"hide_decorative_effects=%d\nhide_skill_effects=%d\nhide_pet_effects=%d\n",hideDecorativeEffects,hideSkillEffects,hidePetEffects)<0)ok=false;
     if (fprintf(file, "\n[Interface]\ncustom_cursor=%d\ninterface_motion=%d\n",
                 customCursor, interfaceMotion) < 0)
         ok = false;
@@ -312,7 +313,7 @@ void Settings::preserveControls(const Settings &source) {
 #define KEEP(member) member = source.member;
     KEEP(enabled) KEEP(customCursor) KEEP(interfaceMotion)
     KEEP(limitShopSigns) KEEP(shopSignDistance)
-    KEEP(hideDecorativeEffects) KEEP(hideSkillEffects)
+    KEEP(hideDecorativeEffects) KEEP(hideSkillEffects) KEEP(hidePetEffects)
     KEEP(openOnStart) KEEP(unlockFps) KEEP(backgroundActivity) KEEP(preciseWaterDepth) KEEP(msaaSamples) KEEP(panelPage) KEEP(language)
         KEEP(timeOverride) KEEP(timeMinutes) KEEP(freezeTime) KEEP(weatherOverride) KEEP(weatherType)
             KEEP(weatherIntensity)

@@ -1,4 +1,5 @@
 #include "optimization.cpp"
+#include "native_hybrid.hpp"
 #include <cstdio>
 void Log(const char *) {}
 int wmain(int argc,wchar_t **argv) {
@@ -28,12 +29,18 @@ int wmain(int argc,wchar_t **argv) {
     const bool acceptedAgain=bool(optimization_detail::discover());
     const auto effects=optimization_detail::discoverEffects();
     if(!effects){puts("FAIL: native effect-filter ABI discovery");return 5;}
+    if(!effects.owners()){puts("FAIL: pet effect-owner ABI discovery");return 6;}
     std::array<std::array<unsigned char,5>,2> calls{};
     bool effectsInstalled=true;
     for(size_t i=0;i<2;++i){std::memcpy(calls[i].data(),effects.calls[i],5);effectsInstalled&=patches.call(effects.calls[i],calls[i].data(),reinterpret_cast<void *>(&optimization_detail::effectsHook));}
+    unsigned char sfxCall[5];std::memcpy(sfxCall,effects.sfxCall,5);
+    const unsigned char virtualCall[5]={0x8b,0x06,0xff,0x50,0x24};
+    effectsInstalled=effectsInstalled&&!std::memcmp(sfxCall,virtualCall,5)&&
+        patches.call(effects.sfxCall,virtualCall,reinterpret_cast<void *>(&optimization_detail::sfxRenderHook));
     effectsInstalled=effectsInstalled&&patches.apply();patches.clear();
     bool effectsRestored=true;
     for(size_t i=0;i<2;++i)effectsRestored&=!std::memcmp(calls[i].data(),effects.calls[i],5);
+    effectsRestored&=!std::memcmp(sfxCall,effects.sfxCall,5);
     const int savedDecorative=*effects.decorative,savedSkills=*effects.skills;
     Settings settings;settings.hideDecorativeEffects=settings.hideSkillEffects=true;
     {optimization_detail::EffectsScope scope(effects,settings);effectsRestored&=*effects.decorative==1&&*effects.skills==1;}
@@ -49,8 +56,32 @@ int wmain(int argc,wchar_t **argv) {
         stackRejected=!optimization_detail::discoverEffects();*stackSize=saved;
         VirtualProtect(stackSize,1,protection,&ignored);
     }
+    bool ownerGuardRejected=false;
+    const DWORD pet=scan.find("83 BE 1C 03 00 00 00 75 60 83 BE 8C 01 00 00 05 75 57 8D 45 F8 B9 ?? ?? ?? ?? 50 FF B6 40 03 00 00 E8");
+    if(pet) {
+        auto *aiField=reinterpret_cast<unsigned char *>(image)+pet+11;
+        if(VirtualProtect(aiField,1,PAGE_EXECUTE_READWRITE,&protection)) {
+            const auto saved=*aiField;*aiField^=4;
+            const auto changed=optimization_detail::discoverEffects();
+            ownerGuardRejected=bool(changed)&&!changed.owners();*aiField=saved;
+            VirtualProtect(aiField,1,protection,&ignored);
+        }
+    }
+    printf("Pet SFX dispatch: installed=%d restored=%d changed-owner-layout-rejected=%d. No game callback executed.\n",effectsInstalled,effectsRestored,ownerGuardRejected);
+    const bool hybrid=native_hybrid::install();
+    const bool background=hybrid&&native_background::install();
+    const auto alongside=optimization_detail::discoverEffects();
+    bool coexist=hybrid&&background&&alongside.owners();
+    if(coexist) {
+        Optimization option;Settings pets;pets.hidePetEffects=true;option.update(pets);
+        coexist=optimization_detail::state().effectsInstalled&&native_hybrid::installed&&native_background::installed;
+        pets.hidePetEffects=false;option.update(pets);
+        coexist=coexist&&!optimization_detail::state().effectsInstalled&&native_hybrid::installed&&native_background::installed;
+    }
+    native_background::uninstall();native_hybrid::uninstall();
+    printf("Pet filters with native FPS/background hooks: installed and removed independently=%d.\n",coexist);
     printf("Native effects ABI: install=%d restored=%d changed-skill-field-rejected=%d unknown-stack-rejected=%d. No game callback executed.\n",effectsInstalled,effectsRestored,effectsRejected,stackRejected);
     native_patch::imageOverride=nullptr;FreeLibrary(image);
     printf("Shop-sign ABI: install=%d restored=%d changed-layout-rejected=%d restored-layout-accepted=%d. No game callback executed.\n",installed,restored,rejected,acceptedAgain);
-    return installed&&restored&&rejected&&acceptedAgain&&effectsInstalled&&effectsRestored&&effectsRejected&&stackRejected?0:1;
+    return installed&&restored&&rejected&&acceptedAgain&&effectsInstalled&&effectsRestored&&effectsRejected&&stackRejected&&ownerGuardRejected&&coexist?0:1;
 }

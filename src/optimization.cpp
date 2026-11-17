@@ -5,6 +5,7 @@
 namespace optimization_detail {
 template<class T> T &field(void *p,size_t offset) { return *reinterpret_cast<T *>(static_cast<unsigned char *>(p)+offset); }
 using Render=void(__thiscall *)(void *,void *);
+using Resolve=BOOL(__thiscall *)(void *,uint32_t,void **);
 struct Binding {
     unsigned char *call=nullptr;
     Render render=nullptr;
@@ -40,7 +41,11 @@ struct EffectsBinding {
     std::array<unsigned char *,2> calls{};
     Render render=nullptr;
     int *decorative=nullptr,*skills=nullptr;
+    unsigned char *sfxCall=nullptr;
+    Resolve resolve=nullptr;
+    void *ctrlMap=nullptr;
     explicit operator bool() const { return calls[0]&&calls[1]&&render&&decorative&&skills; }
+    bool owners() const { return bool(*this)&&sfxCall&&resolve&&ctrlMap; }
 };
 EffectsBinding discoverEffects() {
     const auto module=native_patch::image();
@@ -62,8 +67,59 @@ EffectsBinding discoverEffects() {
     const DWORD decorative=scan.relative(scan.value(flags+2)),skills=scan.relative(scan.value(flags+20));
     if(!decorative || skills!=decorative+4 || !scan.section(decorative,8,IMAGE_SCN_MEM_READ|IMAGE_SCN_MEM_WRITE))return {};
     auto *base=reinterpret_cast<unsigned char *>(module);
-    return {{base+a+5,base+b+6},reinterpret_cast<Render>(base+render),
+    EffectsBinding result{{base+a+5,base+b+6},reinterpret_cast<Render>(base+render),
             reinterpret_cast<int *>(base+decorative),reinterpret_cast<int *>(base+skills)};
+    // Replace only the complete five-byte virtual render dispatch. ECX and
+    // the device argument have already been set by the native SFX-only loop.
+    const DWORD draw=scan.find("8B 85 ?? ?? ?? ?? 8B CE FF 70 6C 8B 06 FF 50 24 47 3B 3D");
+    // Native pet movement distinguishes egg/system pets (9) and following
+    // pets (5) through CObj::m_dwAIInterface, not a model-name/asset heuristic.
+    const DWORD egg=scan.find("83 BE 8C 01 00 00 09 75 66 8B 86 88 01 00 00 85 C0 74 5C 8D 4D F8");
+    const DWORD pet=scan.find("83 BE 1C 03 00 00 00 75 60 83 BE 8C 01 00 00 05 75 57 8D 45 F8 B9 ?? ?? ?? ?? 50 FF B6 40 03 00 00 E8");
+    auto *resolve=native_binding::cached.address(0x2d7180),*map=native_binding::cached.address(0x86c12c);
+    if(draw>=render && draw-render<8192 && egg && pet>egg && pet-egg<512 && resolve && map &&
+       base+DWORD(pet+38+int32_t(scan.value(pet+34)))==resolve &&
+       reinterpret_cast<uintptr_t>(map)==scan.value(pet+22)) {
+        result.sfxCall=base+draw+11;result.resolve=reinterpret_cast<Resolve>(resolve);result.ctrlMap=map;
+    }
+    return result;
+}
+enum class Owner { Unknown,Other,Player,Pet };
+Owner owner(const EffectsBinding &binding,uint32_t id) {
+    void *actor=nullptr;
+    if(id==UINT32_MAX || !binding.resolve || !binding.ctrlMap ||
+       !binding.resolve(binding.ctrlMap,id,&actor) || !actor || (field<DWORD>(actor,4)&1u))return Owner::Unknown;
+    if(field<DWORD>(actor,0x170)!=5)return Owner::Other;
+    if(field<int>(actor,0x31c))return Owner::Player;
+    const auto ai=field<DWORD>(actor,0x18c);
+    return ai==5 || ai==9 ? Owner::Pet : Owner::Other;
+}
+bool hideSfx(const EffectsBinding &binding,const Settings &settings,void *effect) {
+    if(!effect || !binding.owners() || field<DWORD>(effect,0x170)!=3)return false;
+    if(!settings.hidePetEffects && !settings.hideDecorativeEffects && !settings.hideSkillEffects)return false;
+    auto kind=owner(binding,field<uint32_t>(effect,0x5f8));
+    // Detached/retargeted effects can retain a destination after their source
+    // is unavailable. A valid monster source must not become a player effect.
+    if(kind==Owner::Unknown)kind=owner(binding,field<uint32_t>(effect,0x5fc));
+    if(kind==Owner::Pet)return settings.hidePetEffects;
+    if(kind!=Owner::Player)return false;
+    return field<int>(effect,0x5e8)?settings.hideSkillEffects:settings.hideDecorativeEffects;
+}
+struct EffectContext {
+    const EffectsBinding &binding;
+    const Settings &settings;
+};
+thread_local const EffectContext *effectContext=nullptr;
+struct OwnerScope {
+    const EffectContext *previous=effectContext;
+    EffectContext context;
+    OwnerScope(const EffectsBinding &binding,const Settings &settings):context{binding,settings} { effectContext=&context; }
+    ~OwnerScope(){effectContext=previous;}
+};
+void __fastcall sfxRenderHook(void *effect,void *,void *device) {
+    if(effectContext && hideSfx(effectContext->binding,effectContext->settings,effect))return;
+    auto *table=field<void **>(effect,0);
+    reinterpret_cast<Render>(table[9])(effect,device);
 }
 struct EffectsScope {
     int *decorative=nullptr,*skills=nullptr;
@@ -134,12 +190,12 @@ void __fastcall effectsHook(void *world,void *,void *font) {
     auto &shared=state();Settings settings;bool apply=false;
     {
         std::lock_guard lock(shared.mutex);
-        auto owner=std::find_if(shared.owners.begin(),shared.owners.end(),[](const auto &entry){return entry.second.hideDecorativeEffects||entry.second.hideSkillEffects;});
+        auto owner=std::find_if(shared.owners.begin(),shared.owners.end(),[](const auto &entry){return entry.second.hideDecorativeEffects||entry.second.hideSkillEffects||entry.second.hidePetEffects;});
         apply=!shared.effectsRendering&&shared.thread==GetCurrentThreadId()&&owner!=shared.owners.end();
         if(apply){shared.effectsRendering=true;settings=owner->second;}
     }
     if(apply) {
-        {EffectsScope scope(shared.effects,settings);shared.effects.render(world,font);}
+        {EffectsScope scope(shared.effects,settings);OwnerScope owners(shared.effects,settings);shared.effects.render(world,font);}
         std::lock_guard lock(shared.mutex);shared.effectsRendering=false;
     } else shared.effects.render(world,font);
 }
@@ -147,14 +203,16 @@ void __fastcall effectsHook(void *world,void *,void *font) {
 Optimization::~Optimization() { Settings disabled;update(disabled); }
 bool Optimization::supported() { return bool(optimization_detail::state().binding); }
 bool Optimization::effectsSupported() { return bool(optimization_detail::state().effects); }
+bool Optimization::petEffectsSupported() { return optimization_detail::state().effects.owners(); }
 void Optimization::update(const Settings &settings) {
     auto &s=optimization_detail::state();if(!s.binding&&!s.effects)return;
     std::lock_guard lock(s.mutex);
-    if((settings.limitShopSigns&&s.binding)||((settings.hideDecorativeEffects||settings.hideSkillEffects)&&s.effects))
+    if((settings.limitShopSigns&&s.binding)||((settings.hideDecorativeEffects||settings.hideSkillEffects)&&s.effects)||
+       (settings.hidePetEffects&&s.effects.owners()))
         s.owners[this]=settings;
     else s.owners.erase(this);
     const bool shops=std::any_of(s.owners.begin(),s.owners.end(),[](const auto &entry){return entry.second.limitShopSigns;});
-    const bool effects=std::any_of(s.owners.begin(),s.owners.end(),[](const auto &entry){return entry.second.hideDecorativeEffects||entry.second.hideSkillEffects;});
+    const bool effects=std::any_of(s.owners.begin(),s.owners.end(),[](const auto &entry){return entry.second.hideDecorativeEffects||entry.second.hideSkillEffects||entry.second.hidePetEffects;});
     if(shops&&s.binding) {
         if(!s.installed) {
             unsigned char expected[5];std::memcpy(expected,s.binding.call,5);
@@ -173,6 +231,10 @@ void Optimization::update(const Settings &settings) {
             int32_t displacement=0;std::memcpy(&displacement,expected+1,4);
             valid=valid&&expected[0]==0xe8&&reinterpret_cast<uintptr_t>(call)+5+displacement==reinterpret_cast<uintptr_t>(s.effects.render);
             if(!valid||!s.effectPatches.call(call,expected,reinterpret_cast<void *>(&optimization_detail::effectsHook))){valid=false;break;}
+        }
+        if(valid&&s.effects.owners()) {
+            const unsigned char expected[5]={0x8b,0x06,0xff,0x50,0x24};
+            valid=s.effectPatches.call(s.effects.sfxCall,expected,reinterpret_cast<void *>(&optimization_detail::sfxRenderHook));
         }
         if(valid&&s.effectPatches.apply()){s.effectsInstalled=true;s.thread=GetCurrentThreadId();}
         else s.effectPatches.clear();

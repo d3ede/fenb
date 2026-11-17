@@ -73,7 +73,7 @@ if ($Tests) {
     & './build/optimization-test.exe'
     if($LASTEXITCODE){throw 'Optimization test failed'}
     if($NativeTestImage) {
-        & $cxx '-std=c++20' '-O2' '-static' '-municode' '-Isrc' 'tests/optimization_binding_test.cpp' '-o' 'build/optimization-binding-test.exe'
+        & $cxx '-std=c++20' '-O2' '-static' '-municode' '-Isrc' @nativeAsmOptions 'tests/optimization_binding_test.cpp' '-lwinmm' '-luser32' '-o' 'build/optimization-binding-test.exe'
         if($LASTEXITCODE){throw 'Optimization binding test build failed'}
         & './build/optimization-binding-test.exe' $NativeTestImage
         if($LASTEXITCODE){throw 'Optimization binding test failed'}
