@@ -45,11 +45,7 @@ if ($LASTEXITCODE) { throw 'Caustics compilation failed' }
 if ($LASTEXITCODE) { throw 'Scene FX shader compilation failed' }
 & '.\build\shaderc.exe' 'shaders/sfx.hlsl' 'src/generated/sfx_shaders.hpp' 'sfx'
 if ($LASTEXITCODE) { throw 'SFX shader compilation failed' }
-& './build/shaderc.exe' 'shaders/material.hlsl' 'src/generated/material_vs.hpp' 'MaterialVS' 'vs_3_0'
-if($LASTEXITCODE){throw 'Material vertex shader compilation failed'}
-& './build/shaderc.exe' 'shaders/material.hlsl' 'src/generated/material_rigid_vs.hpp' 'MaterialRigidVS' 'vs_3_0'
-if($LASTEXITCODE){throw 'Rigid material vertex shader compilation failed'}
-& './build/shaderc.exe' 'shaders/material.hlsl' 'src/generated/material_ps.hpp' 'MaterialPS' 'ps_3_0'
+& './build/shaderc.exe' 'shaders/material.hlsl' 'src/generated/material_ps.hpp' 'MaterialPS' 'ps_2_a'
 if($LASTEXITCODE){throw 'Material pixel shader compilation failed'}
 & '.\build\shaderc.exe' 'shaders/smaa.hlsl' 'src/generated/smaa_shaders.hpp' 'smaa'
 if ($LASTEXITCODE) { throw 'SMAA shader compilation failed' }

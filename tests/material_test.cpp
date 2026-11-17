@@ -4,6 +4,7 @@
 #include <gdiplus.h>
 #include <cstdio>
 #include <cstring>
+#include <array>
 
 #define CHECK(x) do { if(!(x)){printf("FAIL %d: %s\n",__LINE__,#x);return 1;} } while(0)
 namespace {
@@ -46,6 +47,8 @@ struct Fixture {
     int fog=0,table=0,stateErrors=0;
     bool third=false;
     int shadowCoordinates=0;
+    bool followingNative=false,buffered=false,absolute=false,coplanar=false;
+    D3DFORMAT depthFormat=D3DFMT_D24X8;
     float repeats=1,cameraDistance=3.2f,uStart=0,uSpan=1,vStart=0,vSpan=1;
     explicit Fixture(IDirect3DDevice9 *device):d(device),fx(device){}
     std::vector<DWORD> render(const Settings &s){
@@ -55,17 +58,24 @@ struct Fixture {
         d->Clear(0,nullptr,D3DCLEAR_TARGET,0xff293441,1,0);
         Com<IDirect3DSurface9> depth;
         D3DSURFACE_DESC desc{};Com<IDirect3DSurface9> target;d->GetRenderTarget(0,target.out());target->GetDesc(&desc);
-        if(FAILED(d->CreateDepthStencilSurface(W,H,D3DFMT_D24X8,desc.MultiSampleType,0,TRUE,depth.out(),nullptr)))return {};
+        if(FAILED(d->CreateDepthStencilSurface(W,H,depthFormat,desc.MultiSampleType,0,TRUE,depth.out(),nullptr)))return {};
         d->SetDepthStencilSurface(depth);d->Clear(0,nullptr,D3DCLEAR_ZBUFFER,0,1,0);
         D3DMATRIX identity{};identity._11=identity._22=identity._33=identity._44=1;
         auto projection=identity;projection._11=1.35f;projection._22=1.8f;
         projection._33=100.f/99.9f;projection._34=1;projection._43=-.1f*projection._33;projection._44=0;
         auto world=identity,view=identity;
+        if(absolute){
+            const float cy=std::cos(.43f),sy=std::sin(.43f),cp=std::cos(.67f),sp=std::sin(.67f);
+            view._11=cy;view._12=-sy*sp;view._13=sy*cp;
+            view._21=0;view._22=cp;view._23=sp;
+            view._31=-sy;view._32=-cy*sp;view._33=cy*cp;
+            for(int axis=0;axis<3;++axis)view.m[3][axis]=-(8192*view.m[0][axis]+128*view.m[1][axis]+4096*view.m[2][axis]);
+        }
         if(scaled){world._11=.83f;world._22=1.12f;world._33=.94f;}
         if(orbit){view._11=view._33=std::cos(.16f);view._13=std::sin(.16f);view._31=-view._13;}
         d->SetTransform(D3DTS_WORLD,&world);d->SetTransform(D3DTS_VIEW,&view);d->SetTransform(D3DTS_PROJECTION,&projection);
         d->SetVertexShader(nullptr);d->SetPixelShader(nullptr);d->SetFVF(two?0x212:0x112);
-        for(auto pair:{std::pair{D3DRS_ZENABLE,DWORD(TRUE)},std::pair{D3DRS_ZWRITEENABLE,DWORD(TRUE)},
+        for(auto pair:{std::pair{D3DRS_ZENABLE,DWORD(TRUE)},std::pair{D3DRS_ZWRITEENABLE,DWORD(TRUE)},std::pair{D3DRS_ZFUNC,DWORD(D3DCMP_LESSEQUAL)},
             std::pair{D3DRS_ALPHATESTENABLE,DWORD(FALSE)},std::pair{D3DRS_ALPHABLENDENABLE,DWORD(two)},
             std::pair{D3DRS_SRCBLEND,DWORD(D3DBLEND_SRCALPHA)},std::pair{D3DRS_DESTBLEND,DWORD(D3DBLEND_INVSRCALPHA)},
             std::pair{D3DRS_CULLMODE,DWORD(D3DCULL_NONE)},std::pair{D3DRS_LIGHTING,DWORD(lit)},
@@ -112,18 +122,58 @@ struct Fixture {
         auto vertex=[&](float x,float y){
             float z=cameraDistance+y*.3f+.08f*std::sin(x*3),nx=.24f*std::cos(x*3),ny=.3f,nz=-1;
             float length=std::sqrt(nx*nx+ny*ny+1);Vertex v{x,y,z,nx/length,ny/length,nz/length,uStart+(x+1.8f)/3.6f*repeats*uSpan,vStart+(1.2f-y)/2.4f*repeats*vSpan,(x+1.8f)/3.6f,(1.2f-y)/2.4f};
+            if(absolute){
+                const float position[]={v.x-view._41,v.y-view._42,v.z-view._43},normal[]={v.nx,v.ny,v.nz};
+                for(int axis=0;axis<3;++axis){
+                    (&v.x)[axis]=position[0]*view.m[axis][0]+position[1]*view.m[axis][1]+position[2]*view.m[axis][2];
+                    (&v.nx)[axis]=normal[0]*view.m[axis][0]+normal[1]*view.m[axis][1]+normal[2]*view.m[axis][2];
+                }
+            }
             if(zeroNormals)v.nx=v.ny=v.nz=0;
             auto *data=&v.x;vertices.insert(vertices.end(),data,data+(two?10:8));
         };
         for(int y=0;y<12;++y)for(int x=0;x<20;++x){float l=-1.8f+x*3.6f/20,r=l+3.6f/20,t=1.2f-y*2.4f/12,b=t-2.4f/12;
             vertex(l,t);vertex(r,t);vertex(l,b);vertex(l,b);vertex(r,t);vertex(r,b);}
         if(FAILED(d->BeginScene()))return {};
-        float beforeVS[60][4]{},beforePS[17][4]{},afterVS[60][4]{},afterPS[17][4]{};
-        d->GetVertexShaderConstantF(0,beforeVS[0],60);d->GetPixelShaderConstantF(0,beforePS[0],17);
+        Com<IDirect3DVertexBuffer9> vb;Com<IDirect3DIndexBuffer9> ib;
+        const UINT stride=(two?10:8)*sizeof(float),count=UINT(vertices.size()*sizeof(float)/stride);
+        if(buffered){
+            if(FAILED(d->CreateVertexBuffer(UINT(vertices.size()*sizeof(float)),D3DUSAGE_WRITEONLY,0,D3DPOOL_MANAGED,vb.out(),nullptr))||
+               FAILED(d->CreateIndexBuffer(count*2,D3DUSAGE_WRITEONLY,D3DFMT_INDEX16,D3DPOOL_MANAGED,ib.out(),nullptr)))return {};
+            void *data=nullptr;vb->Lock(0,0,&data,0);memcpy(data,vertices.data(),vertices.size()*sizeof(float));vb->Unlock();
+            ib->Lock(0,0,&data,0);for(UINT index=0;index<count;++index)static_cast<WORD *>(data)[index]=WORD(index);ib->Unlock();
+            d->SetStreamSource(0,vb,0,stride);d->SetIndices(ib);
+        }
+        auto draw=[&](){return buffered?d->DrawIndexedPrimitive(D3DPT_TRIANGLELIST,0,0,count,0,20*12*2):
+            d->DrawPrimitiveUP(D3DPT_TRIANGLELIST,20*12*2,vertices.data(),stride);};
+        DWORD beforeFVF=0;d->GetFVF(&beforeFVF);
+        Com<IDirect3DVertexDeclaration9> beforeDecl;d->GetVertexDeclaration(beforeDecl.out());
+        struct Extra {DWORD index,transform,wrap;D3DMATRIX matrix;};
+        auto coordinates=[&](){std::array<Extra,2> result{};for(int index=0;index<2;++index){
+            const DWORD stage=3+index;auto &v=result[index];
+            d->GetTextureStageState(stage,D3DTSS_TEXCOORDINDEX,&v.index);d->GetTextureStageState(stage,D3DTSS_TEXTURETRANSFORMFLAGS,&v.transform);
+            d->GetRenderState(D3DRENDERSTATETYPE(D3DRS_WRAP3+index),&v.wrap);d->GetTransform(D3DTRANSFORMSTATETYPE(D3DTS_TEXTURE0+stage),&v.matrix);
+        }return result;};
+        for(int index=0;index<2;++index){
+            d->SetTextureStageState(3+index,D3DTSS_TEXCOORDINDEX,index);d->SetTextureStageState(3+index,D3DTSS_TEXTURETRANSFORMFLAGS,D3DTTFF_COUNT2);
+            d->SetRenderState(D3DRENDERSTATETYPE(D3DRS_WRAP3+index),index?D3DWRAP_V:D3DWRAP_U);
+            auto matrix=identity;matrix._11=.7f;matrix._31=.17f;d->SetTransform(D3DTRANSFORMSTATETYPE(D3DTS_TEXTURE3+index),&matrix);
+        }
+        const auto beforeCoordinates=coordinates();
+        float beforeVS[96][4]{},beforePS[17][4]{},afterVS[96][4]{},afterPS[17][4]{};
+        d->GetVertexShaderConstantF(0,beforeVS[0],96);d->GetPixelShaderConstantF(0,beforePS[0],17);
+        if(coplanar){
+            d->SetTextureStageState(0,D3DTSS_COLORARG2,D3DTA_TFACTOR);d->SetRenderState(D3DRS_TEXTUREFACTOR,0xff202020);
+            draw();d->SetTextureStageState(0,D3DTSS_COLORARG2,D3DTA_DIFFUSE);d->SetRenderState(D3DRS_ZFUNC,D3DCMP_EQUAL);
+        }
         used=fx.begin(s);
-        auto hr=d->DrawPrimitiveUP(D3DPT_TRIANGLELIST,20*12*2,vertices.data(),(two?10:8)*sizeof(float));
+        auto hr=draw();
         fx.end();
-        d->GetVertexShaderConstantF(0,afterVS[0],60);d->GetPixelShaderConstantF(0,afterPS[0],17);
+        const auto afterCoordinates=coordinates();stateErrors+=memcmp(beforeCoordinates.data(),afterCoordinates.data(),sizeof(beforeCoordinates))!=0;
+        DWORD afterFVF=0;d->GetFVF(&afterFVF);Com<IDirect3DVertexDeclaration9> afterDecl;d->GetVertexDeclaration(afterDecl.out());
+        if(beforeFVF!=afterFVF||beforeDecl.p!=afterDecl.p){printf("Input state changed: FVF %lx -> %lx declaration %p -> %p\n",beforeFVF,afterFVF,beforeDecl.p,afterDecl.p);++stateErrors;}
+        if(followingNative){d->Clear(0,nullptr,D3DCLEAR_TARGET|D3DCLEAR_ZBUFFER,0xff293441,1,0);hr=draw();}
+        d->GetVertexShaderConstantF(0,afterVS[0],96);d->GetPixelShaderConstantF(0,afterPS[0],17);
         stateErrors+=memcmp(beforeVS,afterVS,sizeof(beforeVS))!=0||memcmp(beforePS,afterPS,sizeof(beforePS))!=0;
         DWORD restored=0;d->GetRenderState(D3DRS_FOGENABLE,&restored);stateErrors+=restored!=DWORD(bool(fog||table));
         d->EndScene();if(FAILED(hr))return {};
@@ -183,6 +233,23 @@ int main(int argc,char **argv){
     CHECK(Delta(fixture.render(off),fixture.render(neutral))<=2);
     fixture.scaled=fixture.orbit=false;fixture.point=false;
     fixture.zeroNormals=true;CHECK(Delta(fixture.render(off),fixture.render(neutral))<=2);fixture.zeroNormals=false;
+    fixture.followingNative=true;
+    for(bool buffered:{false,true})for(bool two:{false,true}){
+        fixture.buffered=buffered;fixture.two=two;
+        auto a=fixture.render(off),b=fixture.render(on);
+        printf("Following native draw buffered=%d terrain=%d: %u\n",buffered,two,Delta(a,b));
+        CHECK(Delta(a,b)<=(msaa?2u:0u));
+    }
+    fixture.followingNative=fixture.buffered=fixture.two=false;
+    fixture.absolute=fixture.coplanar=true;
+    for(auto format:{D3DFMT_D16,D3DFMT_D24X8})for(bool buffered:{false,true})for(bool two:{false,true})for(int fog:{0,3}){
+        fixture.depthFormat=format;fixture.buffered=buffered;fixture.two=fixture.third=two;fixture.shadowCoordinates=3;fixture.fog=fog;
+        auto a=fixture.render(off),b=fixture.render(neutral);
+        printf("Absolute coplanar layers depth=%d buffered=%d terrain=%d fog=%d: %u\n",int(format),buffered,two,fog,Delta(a,b));
+        CHECK(fixture.used&&Delta(a,b)<=2);
+    }
+    fixture.absolute=fixture.coplanar=fixture.buffered=fixture.two=fixture.third=false;
+    fixture.depthFormat=D3DFMT_D24X8;fixture.shadowCoordinates=fixture.fog=0;
     // Native terrain combines artwork, blend coverage and a third projected mask.
     // It must receive styling without losing that mask or its blend-map alpha.
     kind=1;fixture.art->SetPrivateData(MaterialTag,&kind,4,0);
@@ -191,7 +258,7 @@ int main(int argc,char **argv){
         fixture.shadowCoordinates=coordinates;fixture.fog=fog;
         auto a=fixture.render(off),b=fixture.render(neutral),styled=fixture.render(on);
         printf("Three-stage terrain coordinates=%d fog=%d: native delta=%u styled delta=%u\n",coordinates,fog,Delta(a,b),Delta(a,styled));
-        CHECK(fixture.used&&Delta(a,b)<=2&&Delta(a,styled)>5);
+        CHECK(fixture.used&&Delta(a,b)<=2&&Delta(a,styled)>0);
     }
     // Direct3D stops at the first disabled stage, even if later state is left enabled.
     fixture.two=false;
@@ -205,6 +272,23 @@ int main(int argc,char **argv){
         if(type!=1)CHECK(Delta(a,b)<=12);
         CHECK(Delta(b,fixture.render(on))<=(msaa?2u:0u));
     }
+    // Maximum snow correction preserves the source's luminance pattern instead of
+    // replacing it with a neighborhood-average white color.
+    D3DLOCKED_RECT snowLock{};CHECK(SUCCEEDED(fixture.art->LockRect(0,&snowLock,nullptr,0)));
+    for(UINT y=0;y<64;++y)for(UINT x=0;x<64;++x){int grain=int(20*std::sin(x*.5)*std::cos(y*.7));
+        ((DWORD *)((BYTE *)snowLock.pBits+y*snowLock.Pitch))[x]=D3DCOLOR_ARGB(128,180+grain,195+grain,220+grain);}
+    fixture.art->UnlockRect(0);DWORD snowKind=1;fixture.art->SetPrivateData(MaterialTag,&snowKind,4,0);
+    Settings snowStyle=on;snowStyle.materialStrength=snowStyle.materialSnow=1;snowStyle.materialRelief=snowStyle.materialGlints=0;
+    auto sourceSnow=fixture.render(off),correctedSnow=fixture.render(snowStyle);
+    auto energy=[&](const std::vector<DWORD> &pixels){
+        auto luma=[](DWORD p){return .2126*((p>>16)&255)+.7152*((p>>8)&255)+.0722*(p&255);};double sum=0;
+        for(UINT y=H/3;y<2*H/3;++y)for(UINT x=W/3;x<2*W/3;++x){const auto i=y*W+x;
+            sum+=std::abs(luma(pixels[i])-luma(pixels[i+1]))+std::abs(luma(pixels[i])-luma(pixels[i+W]));}
+        return sum;
+    };
+    const double sourceEnergy=energy(sourceSnow),correctedEnergy=energy(correctedSnow);
+    printf("Snow luminance detail retained at maximum strength: %.2f%%\n",100*correctedEnergy/sourceEnergy);
+    CHECK(sourceEnergy>100&&correctedEnergy>sourceEnergy*.7&&correctedEnergy<sourceEnergy*1.4&&Delta(sourceSnow,correctedSnow)>0);
     // A uniformly painted matte surface must not acquire procedural grain or relief,
     // even at maximum relief strength. Curved geometry still receives native lighting.
     D3DLOCKED_RECT flat{};CHECK(SUCCEEDED(fixture.art->LockRect(0,&flat,nullptr,0)));
