@@ -136,9 +136,10 @@ void Settings::sanitize() {
     grassQuality=std::round(grassQuality);
     grassStyle=std::round(grassStyle);
     skateTrailStyle=std::round(skateTrailStyle);
+    skateParticleStyle=std::round(skateParticleStyle);
 }
 void Settings::resetSceneSection(int group) {
-    if(group==11)sfxAuraCustomColor=sfxWeaponCustomColor=skateTrailCustomColor=false;
+    if(group==11)sfxAuraCustomColor=sfxWeaponCustomColor=skateTrailCustomColor=skateParticleCustomColor=false;
     if(group==11)sfxSmoothAura=Settings{}.sfxSmoothAura;
     if(group==16)grassGroundTint=Settings{}.grassGroundTint;
 #define SCENE_BOOL(g, m, k, d)

@@ -1,5 +1,7 @@
 #include "runtime.hpp"
 #include "native_skate.hpp"
+#include "native_skate_particles.hpp"
+#include <bit>
 #include <cstdio>
 std::wstring ModuleDirectory() {
     wchar_t cwd[32768]{};
@@ -156,6 +158,82 @@ int main() {
         }
         device->SetStreamSource(0,nullptr,0,0);
         puts("PASS: native skate draw replacement, five styles, custom tint and device state restoration.");
+
+        struct Spark { float x,y,z; DWORD color; };
+        const Spark sprite{0,0,4,0xffffffff};
+        Com<IDirect3DVertexBuffer9> sparkStream;
+        CHECK(SUCCEEDED(device->CreateVertexBuffer(sizeof(Spark),0,0x42,D3DPOOL_MANAGED,sparkStream.out(),nullptr)));
+        void *vertices=nullptr;CHECK(SUCCEEDED(sparkStream->Lock(0,0,&vertices,0)));
+        memcpy(vertices,&sprite,sizeof(sprite));CHECK(SUCCEEDED(sparkStream->Unlock()));
+        Com<IDirect3DTexture9> originalArt;
+        CHECK(SUCCEEDED(device->CreateTexture(1,1,1,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,originalArt.out(),nullptr)));
+        D3DLOCKED_RECT lock{};
+        CHECK(SUCCEEDED(originalArt->LockRect(0,&lock,nullptr,0)));
+        *static_cast<DWORD *>(lock.pBits)=0xff808080;
+        CHECK(SUCCEEDED(originalArt->UnlockRect(0)));
+        device->SetTexture(0,originalArt);
+        device->SetStreamSource(0,sparkStream,0,sizeof(Spark));
+        device->SetFVF(0x42);
+        runtime.invalidateDrawState();
+        device->SetRenderState(D3DRS_POINTSPRITEENABLE,TRUE);
+        device->SetRenderState(D3DRS_POINTSCALEENABLE,FALSE);
+        device->SetRenderState(D3DRS_POINTSIZE,std::bit_cast<DWORD>(72.f));
+        device->SetRenderState(D3DRS_POINTSIZE_MAX,std::bit_cast<DWORD>(96.f));
+        device->SetRenderState(D3DRS_LIGHTING,FALSE);
+        device->SetRenderState(D3DRS_ALPHABLENDENABLE,TRUE);
+        device->SetRenderState(D3DRS_SRCBLEND,D3DBLEND_ONE);
+        device->SetRenderState(D3DRS_DESTBLEND,D3DBLEND_ONE);
+        device->SetRenderState(D3DRS_TEXTUREFACTOR,0xffaabbcc);
+        device->SetTextureStageState(0,D3DTSS_COLOROP,D3DTOP_SELECTARG1);
+        device->SetTextureStageState(0,D3DTSS_COLORARG1,D3DTA_TEXTURE);
+        device->SetTextureStageState(1,D3DTSS_COLOROP,D3DTOP_DISABLE);
+        const ParticleDraw spark{D3DPT_POINTLIST,1,nullptr,0,nullptr,D3DFMT_UNKNOWN,0,0,{D3DPT_POINTLIST,0,1}};
+        std::array<uint64_t,6> silhouettes{};
+        for(int style=0;style<=6;++style) {
+            runtime.settings.skateParticleStyle=float(style==6?0:style);
+            runtime.settings.skateParticleCustomColor=style==6;
+            runtime.settings.skateParticleR=runtime.settings.skateParticleB=0;
+            runtime.settings.skateParticleG=1;
+            CHECK(SUCCEEDED(device->Clear(0,nullptr,D3DCLEAR_TARGET,0xff101010,1,0)));
+            CHECK(SUCCEEDED(device->BeginScene()));
+            runtime.scene(true);runtime.beforeDraw(1);
+            native_skate_particles::active=true;
+            CHECK(!runtime.beforeWaterDraw(0,originalDraw,spark));
+            CHECK(SUCCEEDED(device->DrawPrimitive(D3DPT_POINTLIST,0,1)));
+            runtime.afterWaterDraw();native_skate_particles::active=false;
+            runtime.scene(false);
+            CHECK(SUCCEEDED(device->EndScene()));
+            DWORD stage=0,factor=0;
+            Com<IDirect3DBaseTexture9> restoredArt;
+            CHECK(SUCCEEDED(device->GetTexture(0,restoredArt.out()))&&restoredArt.p==originalArt.p);
+            CHECK(SUCCEEDED(device->GetRenderState(D3DRS_TEXTUREFACTOR,&factor))&&factor==0xffaabbcc);
+            CHECK(SUCCEEDED(device->GetTextureStageState(0,D3DTSS_COLOROP,&stage))&&stage==D3DTOP_SELECTARG1);
+            CHECK(SUCCEEDED(device->GetRenderTargetData(target,pixels)));
+            CHECK(SUCCEEDED(pixels->LockRect(&lock,nullptr,D3DLOCK_READONLY)));
+            uint64_t shape=14695981039346656037ull;
+            std::array<unsigned,3> peak{};
+            int changed=0;
+            for(int y=250;y<350;++y) {
+                const auto *row=reinterpret_cast<const DWORD *>(static_cast<BYTE *>(lock.pBits)+y*lock.Pitch);
+                for(int x=350;x<450;++x) {
+                    const DWORD rgb=row[x]&0xffffff;
+                    changed+=rgb!=0x101010;
+                    for(size_t c=0;c<peak.size();++c)peak[c]=std::max(peak[c],unsigned((rgb>>(16-c*8))&255));
+                    shape=(shape^unsigned(rgb!=0x101010))*1099511628211ull;
+                }
+            }
+            CHECK(SUCCEEDED(pixels->UnlockRect()));
+            CHECK(changed>70);
+            if(style<=5) {
+                for(int i=0;i<style;++i)CHECK(silhouettes[i]!=shape);
+                silhouettes[style]=shape;
+            }
+            if(style==6)CHECK(peak[0]==16&&peak[1]>100&&peak[2]==16);
+        }
+        device->SetTexture(0,nullptr);
+        device->SetStreamSource(0,nullptr,0,0);
+        device->SetRenderState(D3DRS_POINTSPRITEENABLE,FALSE);
+        puts("PASS: native skate point sprites, five masks, custom color and draw-state restoration.");
     }
     {
         Runtime runtime(device);

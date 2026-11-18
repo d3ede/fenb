@@ -40,7 +40,8 @@ const char *SceneItemName(int i, bool full = false) {
 }
 
 void EffectColorPicker(const char *id,UiText label,bool &custom,float &red,float &green,float &blue,
-                       UiText defaultColor=UiText::AuraNativeColor,UiText restore=UiText::AuraRestoreColor) {
+                       UiText defaultColor=UiText::AuraNativeColor,UiText restore=UiText::AuraRestoreColor,
+                       DWORD defaultRgb=0xffffffffu) {
     ImGui::PushID(id);
     ImGui::PushFont(nullptr,13);
     ImGui::BeginDisabled(uiParameterDisabled);
@@ -51,10 +52,13 @@ void EffectColorPicker(const char *id,UiText label,bool &custom,float &red,float
     char hex[10];std::snprintf(hex,sizeof(hex),"#%02X%02X%02X",int(red*255+.5f),int(green*255+.5f),int(blue*255+.5f));
     const char *value=custom?hex:Tr(defaultColor);
     const float valueWidth=ImGui::CalcTextSize(value).x,swatchX=p.x+width-valueWidth-37;
-    auto swatch=Opacity(custom?ImGui::ColorConvertFloat4ToU32({red,green,blue,1}):Raised);
+    const bool hasPalette=defaultRgb!=0xffffffffu;
+    const ImVec4 palette{float((defaultRgb>>16)&255)/255,float((defaultRgb>>8)&255)/255,float(defaultRgb&255)/255,1};
+    const auto swatch=Opacity(custom?ImGui::ColorConvertFloat4ToU32({red,green,blue,1}):
+                              hasPalette?ImGui::ColorConvertFloat4ToU32(palette):Raised);
     draw->AddRectFilled({swatchX,p.y+5},{swatchX+22,p.y+25},swatch,3);
     draw->AddRect({swatchX,p.y+5},{swatchX+22,p.y+25},Opacity(Line),3);
-    if(!custom)draw->AddLine({swatchX+4,p.y+21},{swatchX+18,p.y+9},Opacity(Muted));
+    if(!custom&&!hasPalette)draw->AddLine({swatchX+4,p.y+21},{swatchX+18,p.y+9},Opacity(Muted));
     TextAt(draw,{swatchX+29,p.y+7},value,ImGui::IsItemHovered()?Lavender:Muted,13);
     if(open)ImGui::OpenPopup("picker");
     const auto display=ImGui::GetIO().DisplaySize;
@@ -63,9 +67,12 @@ void EffectColorPicker(const char *id,UiText label,bool &custom,float &red,float
     ImGui::SetNextWindowSize({pickerWidth+20,0});
     if(ImGui::BeginPopup("picker",ImGuiWindowFlags_NoMove)) {
         ImGui::TextUnformatted(Tr(label));
+        const bool wasCustom=custom;
         SquareSwitch("custom",custom);ImGui::SameLine();
+        if(custom&&!wasCustom&&hasPalette){red=palette.x;green=palette.y;blue=palette.z;}
         ImGui::TextUnformatted(Tr(UiText::AuraCustomColor));
         float rgb[]={red,green,blue};
+        if(!custom&&hasPalette){rgb[0]=palette.x;rgb[1]=palette.y;rgb[2]=palette.z;}
         ImGui::SetNextItemWidth(pickerWidth);
         constexpr auto flags=ImGuiColorEditFlags_PickerHueWheel|ImGuiColorEditFlags_InputRGB|
             ImGuiColorEditFlags_NoSidePreview|ImGuiColorEditFlags_NoOptions|ImGuiColorEditFlags_NoLabel|
@@ -221,6 +228,15 @@ void SceneParameters(Runtime &r) {
         EffectColorPicker("skate-color",UiText::SkateTrailColor,s.skateTrailCustomColor,
                           s.skateTrailR,s.skateTrailG,s.skateTrailB,UiText::SkateTrailDefaultColor,UiText::SkateTrailRestoreColor);
         ImGui::EndDisabled();
+        const char *particles[]={Tr(UiText::SkateParticleGame),Tr(UiText::SkateParticleStars),
+            Tr(UiText::SkateParticleBolts),Tr(UiText::SkateParticleTriangles),Tr(UiText::SkateParticleRings),
+            Tr(UiText::SkateParticleCrystals)};
+        int particleStyle=int(s.skateParticleStyle);
+        PanelCombo(UiText::SkateParticles,"skate-particles",particleStyle,particles,int(std::size(particles)));
+        s.skateParticleStyle=float(particleStyle);
+        EffectColorPicker("skate-particle-color",UiText::SkateParticleColor,s.skateParticleCustomColor,
+            s.skateParticleR,s.skateParticleG,s.skateParticleB,UiText::SkateTrailDefaultColor,UiText::SkateTrailRestoreColor,
+            skate_particles::palette(skate_particles::Style(particleStyle)));
         break;
     }
     }

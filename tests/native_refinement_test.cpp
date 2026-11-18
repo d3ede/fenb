@@ -1,5 +1,6 @@
 #include "refinement_trail.hpp"
 #include "native_skate.hpp"
+#include "native_skate_particles.hpp"
 #include <cassert>
 #include <cstdio>
 void Log(const char*){}
@@ -171,6 +172,17 @@ int main(int argc,char **argv){
         auto *skateBefore=*skate;
         native_skate::request(&model,true);assert(*skate==reinterpret_cast<void*>(&native_skate::renderHook));
         native_skate::request(&model,false);assert(*skate==skateBefore);
+        const auto particles=native_skate_particles::discover(image);
+        assert(particles.calls[0]&&particles.calls[1]&&particles.render&&particles.groups);
+        std::array<std::array<BYTE,5>,2> originalCalls{};
+        for(size_t i=0;i<particles.calls.size();++i)
+            memcpy(originalCalls[i].data(),particles.calls[i],originalCalls[i].size());
+        native_skate_particles::request(&model,true);
+        for(size_t i=0;i<particles.calls.size();++i)
+            assert(memcmp(originalCalls[i].data(),particles.calls[i],originalCalls[i].size())!=0);
+        native_skate_particles::request(&model,false);
+        for(size_t i=0;i<particles.calls.size();++i)
+            assert(memcmp(originalCalls[i].data(),particles.calls[i],originalCalls[i].size())==0);
         for(int repeat=0;repeat<3;++repeat){
             native_refinement::request(&model,true);assert(table[19]==reinterpret_cast<void*>(&native_refinement::renderHook));
             assert(native_refinement::positionAvailable);
@@ -180,6 +192,10 @@ int main(int argc,char **argv){
         }
         native_patch::imageOverride=nullptr;FreeLibrary(image);
     }
+    std::array<BYTE,32*0x3c> groups{};
+    for(size_t i=0;i<32;++i)
+        assert(native_skate_particles::boardBatch(groups.data(),groups.data()+i*0x3c)==(i>=13&&i<25));
+    assert(!native_skate_particles::boardBatch(groups.data(),groups.data()+13*0x3c+1));
     std::array<skate_trail::Point,2> nearGrass={{{{0,2,4},{1,0,0},1},{{0,2,6},{1,0,0},1}}};
     skate_trail::Path raised(nearGrass,.5f);
     assert(raised.at(0).center.y==2&&raised.at(.5f).center.y>2&&raised.at(2).center.y==2.5f);

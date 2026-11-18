@@ -2,6 +2,7 @@
 #include "runtime.hpp"
 #include "actor_visibility.hpp"
 #include "version.hpp"
+#include "skate_particles.hpp"
 #include "ui_branding.hpp"
 #include "ui_fonts.hpp"
 #include "generated/ui_logo.hpp"

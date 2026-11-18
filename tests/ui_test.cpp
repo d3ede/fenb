@@ -345,6 +345,7 @@ int main() {
         r.settings.sceneQuality=false;r.settings.sfxSmoothAura=true;
         control("particles","smooth-aura");CHECK(!r.settings.sfxSmoothAura&&!r.settings.sceneQuality);
         control("particles","smooth-aura");CHECK(r.settings.sfxSmoothAura&&!r.settings.sceneQuality);
+        ImGui::SetScrollY(inspector(),0);frame();frame();
         const auto particlePanel=inspector()->Pos;
         io.AddMousePosEvent(particlePanel.x+35,particlePanel.y+34+44+10);
         for(int hover=0;hover<12;++hover)frame();
@@ -421,6 +422,21 @@ int main() {
             ImGui::ActivateItemByID(ImHashStr("###option",0,ImHashData(&newStyle,sizeof(newStyle),choices->IDStack.back())));frame();frame();
             CHECK(r.settings.skateTrailStyle==float(newStyle)&&r.settings.skateTrailCustomColor&&r.settings.skateTrailR==1);
         }
+        ImGui::SetScrollY(inspector(),inspector()->ScrollMax.y);frame();frame();
+        control("particles","##skate-particles");CHECK(!ImGui::GetCurrentContext()->OpenPopupStack.empty());
+        CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-skate-particles.png").c_str()));
+        auto *particleChoices=ImGui::GetCurrentContext()->OpenPopupStack.back().Window;
+        const int triangles=3;
+        ImGui::ActivateItemByID(ImHashStr("###option",0,ImHashData(&triangles,sizeof(triangles),particleChoices->IDStack.back())));
+        frame();frame();CHECK(r.settings.skateParticleStyle==3);
+        ImGui::ActivateItemByID(ImHashStr("open",0,ImHashStr("skate-particle-color",0,inspector()->GetID("particles"))));frame();frame();
+        CHECK(!ImGui::GetCurrentContext()->OpenPopupStack.empty());
+        auto *particleColors=ImGui::GetCurrentContext()->OpenPopupStack.back().Window;
+        activate(particleColors,"##hex");input("25FF33");
+        CHECK(r.settings.skateParticleCustomColor&&r.settings.skateParticleG==1&&
+              std::abs(r.settings.skateParticleR-37.f/255)<.000001f&&r.settings.skateTrailR==1&&r.settings.skateTrailStyle==5);
+        CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-skate-particle-color.png").c_str()));
+        ImGui::ClosePopupToLevel(0,true);frame();
         r.editorPage=9;r.editorSelection[9]=0;frame();frame();
         r.settings.grass=false;control("grass","enabled");CHECK(r.settings.grass);
         r.settings.grassSnow=false;control("grass","snow-grass");CHECK(r.settings.grassSnow);
