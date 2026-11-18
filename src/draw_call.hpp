@@ -10,6 +10,17 @@ struct SurfaceDraw {
     bool indexed = false;
 };
 
+// Borrowed UP vertices/indices, valid only during the intercepted native draw.
+struct ParticleDraw {
+    D3DPRIMITIVETYPE type = D3DPT_TRIANGLELIST;
+    UINT primitives = 0;
+    const void *data = nullptr;
+    UINT stride = 0;
+    const void *indices = nullptr;
+    D3DFORMAT indexFormat = D3DFMT_UNKNOWN;
+    UINT minVertex = 0, vertices = 0;
+};
+
 // Non-owning synchronous callback. Native draw arguments remain live for this whole call;
 // retaining this object is forbidden. Even large indexed-draw lambdas require no heap allocation.
 class DrawCall {

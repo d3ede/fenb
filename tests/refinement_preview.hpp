@@ -16,11 +16,14 @@ inline int RefinementPreview(bool capture) {
     wc.lpszClassName = L"FENBRefinementPreview";
     RegisterClassW(&wc);
     HWND window = CreateWindowW(wc.lpszClassName,
-        L"FENB refinement fixture | Native: left | Detailed wisps: right", WS_OVERLAPPEDWINDOW,
+        L"FENB refinement fixture | Previous wisps: left | Continuous mist: right", WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT, CW_USEDEFAULT, width + 16, height + 39, nullptr, nullptr, wc.hInstance, nullptr);
     if (!window) return 2;
     // Use the system renderer, independent of profiles beside the preview executable.
-    HMODULE module = LoadLibraryExW(L"d3d9.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+    wchar_t systemDirectory[MAX_PATH]{};
+    if(!GetSystemDirectoryW(systemDirectory,MAX_PATH))return 3;
+    const std::wstring systemD3D=std::wstring(systemDirectory)+L"\\d3d9.dll";
+    HMODULE module = LoadLibraryExW(systemD3D.c_str(), nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
     using Create = IDirect3D9 *(WINAPI *)(UINT);
     auto create = module ? reinterpret_cast<Create>(GetProcAddress(module, "Direct3DCreate9")) : nullptr;
     Com<IDirect3D9> root;
@@ -77,7 +80,7 @@ inline int RefinementPreview(bool capture) {
     projection._11 = 1.3f; projection._22 = 2; projection._33 = 100.f / 99.9f;
     projection._34 = 1; projection._43 = -.1f * projection._33;
     struct Vertex { float x, y, z; DWORD color; float u, v; };
-    ShowWindow(window, SW_SHOW);
+    if(!capture)ShowWindow(window, SW_SHOW);
     const ULONGLONG start = GetTickCount64();
     unsigned frames = 0;
     while (IsWindow(window)) {
@@ -111,18 +114,23 @@ inline int RefinementPreview(bool capture) {
         device->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
         device->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
         device->BeginScene();
-        for (int side = 0; side < 2; ++side) for (int i = 9; i >= 0; --i) {
+        for (int side = 0; side < 2; ++side) {
+          native_refinement::Scope modelScope(&side);
+          for (int i = 9; i >= 0; --i) for(int foot : {-1,1}) {
             float age = (i + std::fmod(time * 2, 1.f)) / 10.f;
             auto world = identity;
-            world._41 = (side ? 1.2f : -1.2f) + std::sin(age * 4 + time * .35f) * .16f;
+            world._41 = (side ? 1.2f : -1.2f) + std::sin(age * 4 + time * .35f) * .16f + foot*.11f;
             world._42 = 1.35f - age * 2.8f;
             device->SetTransform(D3DTS_WORLD, &world);
-            DWORD color = (DWORD((1 - age) * 145) << 24) | 0x0099aabb;
-            Vertex quad[] = {{-.28f,.34f,0,color,0,0},{.28f,.34f,0,color,1,0},
-                             {-.28f,-.34f,0,color,0,1},{.28f,-.34f,0,color,1,1}};
-            bool styled = side && effects.begin(settings, false);
+            float stopped=capture?1.f:std::clamp((6-std::fmod(time,7.f))*.5f,0.f,1.f);
+            DWORD color = (DWORD((1 - age) * 145*stopped) << 24) | 0x0099aabb;
+            Vertex quad[] = {{-.045f,.16f,0,color,0,0},{.045f,.16f,0,color,1,0},
+                             {-.045f,-.16f,0,color,0,1},{.045f,-.16f,0,color,1,1}};
+            ParticleDraw geometry{D3DPT_TRIANGLESTRIP,2,quad,sizeof(Vertex)};
+            bool styled = effects.begin(settings, false,true,side?geometry:ParticleDraw{});
             device->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, quad, sizeof(Vertex));
             if (styled) effects.end(true);
+          }
         }
         device->EndScene();
         if (capture && ++frames == 2) {

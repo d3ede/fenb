@@ -236,7 +236,8 @@ void Runtime::resetFrame() {
     float player[3]{};uint64_t worldKey=0;const bool grassEnabled=settings.enabled&&settings.grass&&!compare;
     const bool hasPlayer=grassEnabled&&environment_.playerPosition(player,&worldKey);
     grass_->beginFrame(grassEnabled,hasPlayer?player:nullptr,worldKey);
-    sfx_->beginFrame(settings.enabled && (settings.sfx || (settings.water && settings.sfxWake > 0)) && !compare);
+    sfx_->beginFrame(settings.enabled && (settings.sfx || (settings.water && settings.sfxWake > 0)) && !compare,
+                     settings.sfx&&settings.sceneQuality&&settings.sfxAura>0);
     effects_->sceneFX().beginFrame();
     effects_->sceneFX().updatePuddles(settings, environment_.rainIntensity(settings), GetTickCount64(), !compare && !lost_);
     lastWaterDraws = waterDraws;
@@ -254,11 +255,11 @@ void Runtime::resetFrame() {
     sawWorld_ = hudStarted_ = sawScreenSpace_ = false;
     invalidateDrawState();
 }
-void Runtime::beforeWaterDraw(UINT upStride, DrawCall draw) {
+void Runtime::beforeWaterDraw(UINT upStride, DrawCall draw,ParticleDraw particle) {
     if (!lost_ && settings.enabled && (settings.sfx || (settings.water && settings.sfxWake > 0)) && !compare && !vertexShaderActive_ &&
         fvfKnown_ && (drawFVF_ == 0x102 || drawFVF_ == 0x142) &&
         sceneBackbuffer_ && drawTarget_ == sceneBackbuffer_)
-        sfx_->begin(settings, waterDraws > 0, !hudStarted_);
+        sfx_->begin(settings, waterDraws > 0, !hudStarted_,hudStarted_?ParticleDraw{}:particle);
     if (!lost_ && settings.enabled && !compare && !vertexShaderActive_ && fvfKnown_ &&
         drawFVF_ == 0x142 && sceneBackbuffer_ && drawTarget_ == sceneBackbuffer_)
         effects_->sceneFX().beginFlare(settings);

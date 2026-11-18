@@ -90,7 +90,7 @@ class Runtime {
     void beforeDraw(UINT primitives = 0, UINT vertices = 0);
     void targetCleared(DWORD flags, DWORD rectangles);
     void environmentDraw(D3DPRIMITIVETYPE type, UINT start, UINT count);
-    void beforeWaterDraw(UINT upStride, DrawCall);
+    void beforeWaterDraw(UINT upStride, DrawCall,ParticleDraw={});
     void afterWaterDraw(bool up = false, bool indexed = false);
     void emitterDraw(DrawCall, SurfaceDraw = {});
     void surfaceBarrier();

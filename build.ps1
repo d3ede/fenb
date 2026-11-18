@@ -97,7 +97,7 @@ if ($Tests) {
         if($LASTEXITCODE){throw 'Optimization binding test failed'}
     }
     $nativeTests=@('native_animation','native_camera','native_world','native_mover','native_mover_legacy',
-        'native_mover_services','native_app','native_sfx_follow','native_sfx_time','native_layer_time','native_background','native_hybrid','native_binding',
+        'native_mover_services','native_app','native_sfx_follow','native_sfx_time','native_refinement','native_layer_time','native_background','native_hybrid','native_binding',
         'presentation_clock','camera_current','visual_animation','visual_restore')
     foreach($nativeTest in $nativeTests) {
         $testBinary="build/$($nativeTest.Replace('_','-'))-test.exe"
@@ -112,6 +112,10 @@ if ($Tests) {
             & $testBinary $NativeTestImage
         } else { & $testBinary }
         if($LASTEXITCODE){throw "$nativeTest test failed"}
+        if($nativeTest -eq 'native_refinement' -and $NativeTestImage){
+            & $testBinary $NativeTestImage
+            if($LASTEXITCODE){throw 'Refinement binding test failed'}
+        }
     }
     if($NativePresentationTestImage) {
         & './build/native-binding-test.exe' $NativePresentationTestImage '--presentation'

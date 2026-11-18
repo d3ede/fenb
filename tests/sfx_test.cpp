@@ -3,6 +3,10 @@
 #include <array>
 #include <cwchar>
 
+struct SfxFXFixture {
+    static void cloudPhase(SfxFX &effect,float phase){effect.trailConstants_[7][3]=phase;}
+};
+
 #define CHECK(x)                                                                                             \
     do {                                                                                                     \
         if (!(x)) {                                                                                          \
@@ -414,6 +418,69 @@ int main(int argc, char **argv) {
     tag=7;texture->SetPrivateData(SfxTag,&tag,4,0);
     CHECK(verifyRefinement()==0);
     tag=1;texture->SetPrivateData(SfxTag,&tag,4,0);
+    // Real GPU coverage: replace two sparse streams with one connected cloud.
+    {
+        Com<IDirect3DTexture9> previous;previous.p=texture.p;previous->AddRef();
+        CHECK(SUCCEEDED(d->CreateTexture(64,64,1,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,texture.out(),nullptr)));
+        CHECK(SUCCEEDED(texture->LockRect(0,&lock,nullptr,0)));
+        for(int y=0;y<64;++y)for(int x=0;x<64;++x)
+            ((DWORD*)((BYTE*)lock.pBits+y*lock.Pitch))[x]=0xff309fff;
+        texture->UnlockRect(0);tag=7;texture->SetPrivateData(SfxTag,&tag,4,0);
+        auto saved=settings;settings=Settings{};settings.sfx=true;settings.sceneQuality=true;
+        flatBackground=true;
+        auto clouds=[&](bool continuous,float amount,float phase=17)->int {
+            sfx.beginFrame(true);background();setup();
+            d->SetRenderState(D3DRS_ZWRITEENABLE,TRUE);sfx.observe();d->SetRenderState(D3DRS_ZWRITEENABLE,FALSE);
+            d->BeginScene();
+            int model=0;
+            {
+                native_refinement::Scope scope(&model);
+                for(int i=5;i>=0;--i)for(int side:{-1,1}){
+                    auto matrix=id;matrix._41=side*.09f;matrix._42=.8f-i*.28f;
+                    d->SetTransform(D3DTS_WORLD,&matrix);
+                    DWORD color=(DWORD(amount*(1-i*.13f)*200)<<24)|0x00ffffff;
+                    V particle[]={{-.035f,.10f,0,color,0,0},{.035f,.10f,0,color,1,0},
+                                  {-.035f,-.10f,0,color,0,1},{.035f,-.10f,0,color,1,1}};
+                    ParticleDraw geometry{D3DPT_TRIANGLESTRIP,2,particle,sizeof(V)};
+                    CHECK(sfx.begin(settings,false,true,continuous?geometry:ParticleDraw{}));
+                    d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP,2,particle,sizeof(V));sfx.end(true);
+                }
+                CHECK(!continuous || scope.context.finish);
+                float vsBefore[13][4]{},psBefore[11][4]{},vsAfter[13][4]{},psAfter[11][4]{};
+                d->GetVertexShaderConstantF(0,vsBefore[0],13);d->GetPixelShaderConstantF(0,psBefore[0],11);
+                if(scope.context.finish){SfxFXFixture::cloudPhase(sfx,phase);scope.context.finish(scope.context.consumer);scope.context.finish=nullptr;}
+                d->GetVertexShaderConstantF(0,vsAfter[0],13);d->GetPixelShaderConstantF(0,psAfter[0],11);
+                CHECK(!memcmp(vsBefore,vsAfter,sizeof(vsBefore))&&!memcmp(psBefore,psAfter,sizeof(psBefore)));
+                DWORD src=0,dst=0,z=0;d->GetRenderState(D3DRS_SRCBLEND,&src);d->GetRenderState(D3DRS_DESTBLEND,&dst);
+                d->GetRenderState(D3DRS_ZWRITEENABLE,&z);
+                CHECK(src==D3DBLEND_SRCALPHA&&dst==D3DBLEND_ONE&&!z);
+            }
+            d->EndScene();return 0;
+        };
+        CHECK(clouds(false,1)==0);const auto strips=Read(d);
+        CHECK(clouds(true,1)==0);const auto mist=Read(d);
+        CHECK(Difference(strips,mist)>100&&sfx.bytes()==0);
+        Save(strips,L"build/refinement-paired-before.bmp");Save(mist,L"build/refinement-connected-after.bmp");
+        unsigned filled=0;
+        for(UINT y=65;y<150;++y)filled+=((mist[y*W+W/2]&255)>(strips[y*W+W/2]&255)+2);
+        CHECK(filled>60); // No empty stripe between the two native emitters.
+        CHECK(clouds(true,1,0)==0);const auto initialPhase=Read(d);
+        CHECK(clouds(true,1,6.28318530718f)==0);CHECK(Difference(initialPhase,Read(d),1)==0);
+        CHECK(clouds(true,1,1)==0);CHECK(Difference(initialPhase,Read(d),1)>20);
+        unsigned previousEnergy=0;
+        for(float amount:{0.f,.1f,.3f,.6f,1.f}){
+            CHECK(clouds(true,amount)==0);const auto pixels=Read(d);unsigned energy=0;
+            for(DWORD p:pixels)energy+=p&255;
+            CHECK(energy>=previousEnergy);previousEnergy=energy;
+            if(amount==0)for(DWORD p:pixels)CHECK((p&0xffffff)==0x304050);
+        }
+        occlude=true;CHECK(clouds(false,1)==0);const auto blocked=Read(d);
+        CHECK(clouds(true,1)==0);const auto blockedMist=Read(d);
+        for(UINT y=0;y<H;++y)for(UINT x=0;x<W/2;++x)CHECK(blocked[y*W+x]==blockedMist[y*W+x]);
+        occlude=false;sfx.invalidate();CHECK(clouds(true,1)==0);CHECK(Difference(mist,Read(d),1)==0);
+        flatBackground=false;settings=saved;Drop(texture.p);texture.p=previous.p;previous.p=nullptr;
+        puts("PASS: continuous refinement mist fills paired gaps, fades to zero, preserves depth/state and recreates resources");
+    }
     // Use a real rune material as well as the synthetic ring: detailed quality must
     // change sampling without fading the native additive effect into translucent smoke.
     for (const wchar_t *material : {L"sfx_SklAssCheAccura01.dds", L"obj_skylighting02.dds",

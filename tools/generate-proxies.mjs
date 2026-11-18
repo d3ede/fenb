@@ -51,7 +51,9 @@ for (const [,type,parent,body] of definitions) {
         const geometry=name==='DrawPrimitive'?`{${names[0]},${names[1]},${count}}`:
           name==='DrawIndexedPrimitive'?`{${names[0]},${names[4]},${count},${names[2]},${names[3]},${names[1]},true}`:'{}';
         before+=`if (${count} && (runtime_->settings.localLighting || runtime_->settings.surfaceReflections || runtime_->settings.grass)) runtime_->emitterDraw([&](){return ${call};},${geometry}); `;
-        before+=`if (${count}) runtime_->beforeWaterDraw(${stride},[&](){return ${call};}); `;
+        const particle=name==='DrawPrimitiveUP'?`,{${names[0]},${count},${data},${stride}}`:
+          name==='DrawIndexedPrimitiveUP'?`,{${names[0]},${count},${data},${stride},${names[4]},${names[5]},${names[1]},${names[2]}}`:'';
+        before+=`if (${count}) runtime_->beforeWaterDraw(${stride},[&](){return ${call};}${particle}); `;
         after+=`runtime_->afterWaterDraw(${up},${up&&indexed}); `;
       }
       if(type==='IDirect3DTexture9'&&name==='UnlockRect')after+='if(SUCCEEDED(hr)) InvalidateWaterTag(real_); ';

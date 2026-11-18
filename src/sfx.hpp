@@ -5,13 +5,79 @@
 #include <generated/sfx_shaders.hpp>
 #include <bcrypt.h>
 #include <cstring>
+#include "refinement_trail.hpp"
 
-// Material-only SFX enhancement. Native geometry, animation and depth testing stay authoritative.
+// Material styling plus scoped reconstruction of recognized native refinement trails.
 class SfxFX {
+    friend struct SfxFXFixture;
     IDirect3DDevice9 *device_;
     BCRYPT_ALG_HANDLE hash_ = nullptr;
     Com<IDirect3DVertexShader9> vs_;
-    Com<IDirect3DPixelShader9> ps_, auraPS_, refinementPS_;
+    Com<IDirect3DPixelShader9> ps_, auraPS_, refinementPS_, cloudPS_, discardPS_;
+    Com<IDirect3DTexture9> trailArt_;
+    std::vector<refinement_trail::Puff> trailPuffs_;
+    std::vector<refinement_trail::Vertex> trailVertices_;
+    native_refinement::Context *trailContext_=nullptr;
+    float trailConstants_[11][4]{};
+    DWORD trailSource_=D3DBLEND_SRCALPHA;
+    bool trailRange_=false;
+    unsigned trailPoints_=0;
+    void finishTrail() {
+        if(!trailContext_)return;
+        refinement_trail::mesh(trailPuffs_,view_,trailVertices_);
+        StateGuard state(device_);
+        if(state.valid()&&!trailVertices_.empty()) {
+            D3DMATRIX identity{};identity._11=identity._22=identity._33=identity._44=1;
+            float layout[]={1,0,trailRange_?1.f:0.f,0};
+            device_->SetFVF(0x142);device_->SetVertexShader(vs_);device_->SetPixelShader(cloudPS_);
+            device_->SetTexture(0,trailArt_);
+            device_->SetVertexShaderConstantF(0,&projection_.m[0][0],4);
+            device_->SetVertexShaderConstantF(4,&identity.m[0][0],4);
+            device_->SetVertexShaderConstantF(8,&identity.m[0][0],4);
+            device_->SetVertexShaderConstantF(12,layout,1);
+            device_->SetPixelShaderConstantF(0,trailConstants_[0],11);
+            device_->SetViewport(&viewport_);
+            device_->SetRenderState(D3DRS_LIGHTING,FALSE);device_->SetRenderState(D3DRS_FOGENABLE,FALSE);
+            device_->SetRenderState(D3DRS_ZENABLE,TRUE);device_->SetRenderState(D3DRS_ZWRITEENABLE,FALSE);
+            device_->SetRenderState(D3DRS_ALPHATESTENABLE,FALSE);device_->SetRenderState(D3DRS_CULLMODE,D3DCULL_NONE);
+            device_->SetRenderState(D3DRS_ALPHABLENDENABLE,TRUE);
+            device_->SetRenderState(D3DRS_SRCBLEND,trailSource_);device_->SetRenderState(D3DRS_DESTBLEND,D3DBLEND_ONE);
+            device_->SetRenderState(D3DRS_BLENDOP,D3DBLENDOP_ADD);device_->SetRenderState(D3DRS_SEPARATEALPHABLENDENABLE,FALSE);
+            device_->DrawPrimitiveUP(D3DPT_TRIANGLELIST,UINT(trailVertices_.size()/3),trailVertices_.data(),sizeof(refinement_trail::Vertex));
+        }
+        trailContext_=nullptr;trailPuffs_.clear();trailVertices_.clear();trailArt_.out();
+    }
+    bool captureTrail(const ParticleDraw &draw,DWORD fvf,const D3DMATRIX &world,
+                      IDirect3DTexture9 *texture,const float c[11][4],DWORD src,DWORD dst) {
+        auto *context=native_refinement::current;
+        if(!context||!context->model||dst!=D3DBLEND_ONE||trailPoints_+draw.primitives/2>2048||
+           (trailContext_&&trailContext_!=context)||(context->consumer&&context->consumer!=this)||
+           (trailArt_.p&&trailArt_.p!=texture)||trailPuffs_.size()+draw.primitives/2>256)return false;
+        if(c[1][0]<2||c[1][0]>6||c[1][3]<2||c[1][3]>6)return false;
+        for(float arg:{c[1][1],c[1][2],c[2][0],c[2][1]})if(arg<0||arg>6||arg==4||arg==5)return false;
+        if((!cloudPS_.p&&FAILED(device_->CreatePixelShader(ShaderRefinementCloudPS,cloudPS_.out())))||
+           (!discardPS_.p&&FAILED(device_->CreatePixelShader(ShaderRefinementDiscardPS,discardPS_.out()))))return false;
+        if(trailPuffs_.capacity()<256)trailPuffs_.reserve(256);
+        if(trailVertices_.capacity()<12288)trailVertices_.reserve(12288);
+        const size_t before=trailPuffs_.size();
+        if(!refinement_trail::extract(draw,fvf,world,{1,1,1,1},trailPuffs_))return false;
+        auto operation=[](float op,float a,float b){return std::clamp(op<2.5f?a:op<3.5f?b:a*b*(op>5.5f?4:op>4.5f?2:1),0.f,1.f);};
+        for(size_t i=before;i<trailPuffs_.size();++i){
+            auto &color=trailPuffs_[i].color;const auto diffuse=color;
+            auto arg=[&](float value,int channel){return value==2?1.f:value==3?c[3][channel]:value==6?c[4][channel]:diffuse[channel];};
+            for(int channel=0;channel<3;++channel)color[channel]=operation(c[1][0],arg(c[1][1],channel),arg(c[1][2],channel));
+            color[3]=operation(c[1][3],arg(c[2][0],3),arg(c[2][1],3));
+        }
+        trailPoints_+=unsigned(trailPuffs_.size()-before);
+        if(!trailContext_){
+            trailContext_=context;context->consumer=this;
+            context->finish=[](void *owner){static_cast<SfxFX *>(owner)->finishTrail();};
+            texture->AddRef();trailArt_.p=texture;trailSource_=src;
+            DWORD range=0;device_->GetRenderState(D3DRS_RANGEFOGENABLE,&range);trailRange_=range!=0;
+            std::memcpy(trailConstants_,c,sizeof(trailConstants_));
+        }
+        return true;
+    }
     Com<IDirect3DTexture9> background_;
     Com<IDirect3DSurface9> backgroundSurface_;
     UINT width_ = 0, height_ = 0;
@@ -115,6 +181,7 @@ class SfxFX {
   public:
     explicit SfxFX(IDirect3DDevice9 *d) : device_(d) {}
     ~SfxFX() {
+        native_refinement::request(this,false);
         invalidate();
         if (hash_)
             BCryptCloseAlgorithmProvider(hash_, 0);
@@ -125,12 +192,16 @@ class SfxFX {
         ps_.out();
         auraPS_.out();
         refinementPS_.out();
+        cloudPS_.out();discardPS_.out();trailArt_.out();
+        if(trailContext_){trailContext_->consumer=nullptr;trailContext_->finish=nullptr;trailContext_=nullptr;}
+        trailPuffs_.clear();trailVertices_.clear();
         backgroundSurface_.out();
         background_.out();
         width_ = height_ = 0;
         camera_ = snapshot_ = used_ = false;
     }
-    void beginFrame(bool enabled) {
+    void beginFrame(bool enabled,bool detailedRefinement=false) {
+        native_refinement::request(this,enabled&&detailedRefinement);
         if (!enabled || !used_) {
             backgroundSurface_.out();
             background_.out();
@@ -138,6 +209,7 @@ class SfxFX {
         }
         camera_ = snapshot_ = used_ = false;
         draws_ = 0;
+        trailPoints_=0;
     }
     size_t bytes() const {
         return background_.p ? size_t(width_) * height_ * 4 : 0;
@@ -188,7 +260,7 @@ class SfxFX {
         used_ |= snapshot_;
         return snapshot_;
     }
-    bool begin(const Settings &s, bool waterVisible, bool canSnapshot = true) {
+    bool begin(const Settings &s, bool waterVisible, bool canSnapshot = true,ParticleDraw draw={}) {
         if ((!s.sfx && !(s.water && s.sfxWake > 0 && waterVisible)) || !camera_ || active_)
             return false;
         DWORD fvf = 0, z = 0, write = 0, blend = 0, src = 0, dst = 0, lit = 0, test = 0, stage1 = 0,
@@ -348,7 +420,9 @@ class SfxFX {
         memcpy(c[10], &density, 4);
         c[10][1] = aura ? s.sfxAura : 0;
         device_->SetVertexShader(vs_);
-        device_->SetPixelShader(refinement ? refinementPS_.p : aura ? auraPS_.p : ps_.p);
+        const bool fullTexture=std::abs(c[5][0])+std::abs(c[5][1])+std::abs(c[5][2]-1)+std::abs(c[5][3]-1)<.00001f;
+        const bool cloud=refinement&&fullTexture&&captureTrail(draw,fvf,world,texture,c,src,dst);
+        device_->SetPixelShader(cloud?discardPS_.p:refinement ? refinementPS_.p : aura ? auraPS_.p : ps_.p);
         device_->SetVertexShaderConstantF(0, &clip.m[0][0], 4);
         device_->SetVertexShaderConstantF(4, &uv.m[0][0], 4);
         device_->SetVertexShaderConstantF(8, &worldView.m[0][0], 4);

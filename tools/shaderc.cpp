@@ -18,10 +18,10 @@ int main(int argc, char** argv) {
     const char* entries[] = {"Bright", "Blur", "Composite"};
     const char* sceneEntries[]={"SceneAO","SceneRays","SceneComposite","Luminance","Reduce","Adapt","SkyVS","SkyPS","FlarePS","EmitterVS","EmitterPS","EmitterSum","EmitterLighting","FXAA","SkyMean","SceneRaySource","SceneDoF","SurfaceVS","SurfaceMaskPS","SurfaceReflectionPS","PuddleRipplePS"};
     const char* smaaEntries[]={"SMAAEdges","SMAAWeights","SMAABlend"};
-    const char* sfxEntries[]={"SfxVS","SfxPS","AuraPS","RefinementPS"};
+    const char* sfxEntries[]={"SfxVS","SfxPS","AuraPS","RefinementPS","RefinementDiscardPS","RefinementCloudPS"};
     const bool sfx=argc==4 && !strcmp(argv[3],"sfx");
     const bool smaa=argc==4 && !strcmp(argv[3],"smaa");
-    const int count=argc==5?1:sfx?4:smaa?3:argc==4?21:3;
+    const int count=argc==5?1:sfx?6:smaa?3:argc==4?21:3;
     for (int index=0;index<count;++index) {
         const char* entry=argc==5?argv[3]:sfx?sfxEntries[index]:smaa?smaaEntries[index]:argc==4?sceneEntries[index]:entries[index];
         ID3DBlob* code = nullptr; ID3DBlob* error = nullptr;

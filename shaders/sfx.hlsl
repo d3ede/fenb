@@ -194,3 +194,27 @@ float4 RefinementPS(float2 uv:TEXCOORD0,float fogDepth:TEXCOORD1,float4 color:CO
   original=lerp(original,RefinementWisp(uv,dx,dy,color),saturate(FogExtra.y));
  return StyleAura(original,uv,fogDepth,color,true);
 }
+float4 RefinementDiscardPS():COLOR0 { return 0; }
+float4 RefinementCloudPS(float2 uv:TEXCOORD0,float fogDepth:TEXCOORD1,float4 color:COLOR0):COLOR0 {
+ float2 p=uv*2-1;
+ float curl=sin(p.y*4+Screen.w+sin(p.x*3-Screen.w));
+ p.x+=curl*.12*(1-p.y*p.y);
+ float radius=dot(p,p);
+ float density=exp(-radius*3.5)*smoothstep(1,.42,radius);
+ density*=.82+.18*sin(p.x*5+p.y*3+Screen.w);
+ float3 palette=tex2Dlod(Art,float4(.4,.65,0,0)).rgb;
+ palette+=tex2Dlod(Art,float4(.5,.55,0,0)).rgb;
+ palette+=tex2Dlod(Art,float4(.6,.65,0,0)).rgb;
+ palette/=max(1,max(palette.r,max(palette.g,palette.b)));
+ float luma=dot(palette,float3(.2126,.7152,.0722));
+ float3 rgb=max(0,lerp(luma.xxx,palette,Style.z))*color.rgb*Style.x*(1+FogExtra.y*.35);
+ float opacity=saturate(color.a*density*saturate(FogExtra.y));
+ float visibility=1;
+ if(Fog.x>.5){
+  if(Fog.y>2.5)visibility=saturate((Fog.w-fogDepth)/max(.001,Fog.w-Fog.z));
+  else if(Fog.y>1.5)visibility=exp(-pow(FogExtra.x*fogDepth,2));
+  else visibility=exp(-FogExtra.x*fogDepth);
+ }
+ if(AlphaStage.z<.5)rgb*=opacity;
+ return float4(rgb*visibility,opacity);
+}
