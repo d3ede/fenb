@@ -3,6 +3,7 @@
 #include "pipeline_probe.hpp"
 #endif
 #include "grass_bounds.hpp"
+#include "grass_card.hpp"
 #include "generated/grass_catalog.hpp"
 #include "generated/foliage_catalog.hpp"
 #include "generated/material_catalog.hpp"
@@ -38,6 +39,9 @@ struct VertexProcessing {
 };
 }
 GrassFX::~GrassFX(){invalidate();if(hash_)BCryptCloseAlgorithmProvider(hash_,0);}
+size_t GrassFX::bytes() const {
+    return (ground_.p?size_t(resolution_)*resolution_*20:0)+bufferBytes_+(leafArt_.p?grass_card::Bytes:0);
+}
 bool GrassFX::supported(){
     if(checked_)return capable_;
     checked_=true;D3DCAPS9 caps{};D3DDEVICE_CREATION_PARAMETERS cp{};Com<IDirect3D9> root;D3DDISPLAYMODE mode{};
@@ -55,7 +59,7 @@ bool GrassFX::supported(){
 }
 void GrassFX::invalidate(){
     for(auto *c:pending_)c->clear();pending_.clear();groundSurface_.out();ground_.out();worldTarget_.out();worldDepth_.out();
-    contactSurface_.out();contacts_.out();
+    contactSurface_.out();contacts_.out();leafArt_.out();
     captureVS_.out();capturePS_.out();bladeVS_.out();bladePS_.out();declaration_.out();
     for(auto &b:bands_){b.mesh.out();b.instances.out();b.indices.out();b.count=b.vertices=b.triangles=0;}
     resolution_=0;bufferBytes_=0;builtQuality_=-1;initialized_=started_=rendered_=false;clear_=true;failed_=false;checked_=false;
@@ -110,6 +114,25 @@ bool GrassFX::programs(){
     }
     return true;
 }
+bool GrassFX::createLeafArt(){
+    if(leafArt_.p)return true;
+    Com<IDirect3DTexture9> source,target;
+    constexpr unsigned size=grass_card::Size;
+    if(FAILED(device_->CreateTexture(size,size,0,0,D3DFMT_A8R8G8B8,D3DPOOL_SYSTEMMEM,source.out(),nullptr))||
+       FAILED(device_->CreateTexture(size,size,0,0,D3DFMT_A8R8G8B8,D3DPOOL_DEFAULT,target.out(),nullptr)))return false;
+    auto pixels=grass_card::paint();
+    for(unsigned level=0,extent=size;extent;extent/=2,++level){
+        D3DLOCKED_RECT lock{};
+        if(FAILED(source->LockRect(level,&lock,nullptr,0)))return false;
+        for(unsigned y=0;y<extent;++y)
+            memcpy(static_cast<BYTE *>(lock.pBits)+y*lock.Pitch,pixels.data()+y*extent,extent*sizeof(DWORD));
+        if(FAILED(source->UnlockRect(level)))return false;
+        if(extent>1)grass_card::downsample(pixels,extent);
+    }
+    if(FAILED(device_->UpdateTexture(source,target)))return false;
+    std::swap(leafArt_.p,target.p);
+    return true;
+}
 bool GrassFX::geometry(){
     const int quality=int(std::round(frame_.grassQuality));
     const int style=int(std::round(frame_.grassStyle));
@@ -124,28 +147,18 @@ bool GrassFX::geometry(){
     for(int lod=0;lod<3;++lod){
         auto &b=bands_[lod];b.mesh.out();b.instances.out();b.indices.out();b.count=0;
         const bool simple=style==1;
-        const int blades=simple?quality+2:quality==0?4:quality==1?7:10;
-        const int segments=lod==2?1:lod==1?2:simple?(quality==0?3:4):quality+2;
-        const WORD rails=simple&&lod<2?3:2;
+        const int blades=simple?2:quality==0?4:quality==1?7:10;
+        const int segments=lod==2?1:simple?2:lod==1?2:quality+2;
         std::vector<BladeVertex> mesh;std::vector<WORD> indices;unsigned seed=0x39c1a265u;
         for(int blade=0;blade<blades;++blade){
-            const float angle=blade*6.2831853f/blades+Random(seed)*.3f;
+            const float angle=blade*(simple?1.5707963f:6.2831853f/blades)+Random(seed)*.3f;
             const float radius=.08f+Random(seed)*.16f,h=.75f+Random(seed)*.5f;
-            const unsigned first=unsigned(mesh.size());
-            const int rows=simple?segments:segments+1;
-            for(int segment=0;segment<rows;++segment)for(WORD rail=0;rail<rails;++rail){
-                const float side=2.f*rail/(rails-1)-1;
-                mesh.push_back({side,float(segment)/segments,angle,float(blade),radius,float(style),h});
-            }
-            if(simple)mesh.push_back({0,1,angle,float(blade),radius,float(style),h});
-            for(int segment=0;segment<segments;++segment)for(WORD rail=0;rail+1<rails;++rail){
-                const WORD a=WORD(first+segment*rails+rail);
-                if(simple&&segment==segments-1){
-                    indices.insert(indices.end(),{a,WORD(a+1),WORD(first+segments*rails)});
-                }else{
-                    const WORD c=a+rails;
-                    indices.insert(indices.end(),{a,WORD(a+1),c,c,WORD(a+1),WORD(c+1)});
-                }
+            const WORD first=WORD(mesh.size());
+            for(int segment=0;segment<=segments;++segment)for(int side:{-1,1})
+                mesh.push_back({float(side),float(segment)/segments,angle,float(blade),radius,float(style),h});
+            for(int segment=0;segment<segments;++segment){
+                const WORD a=WORD(first+segment*2),c=a+2;
+                indices.insert(indices.end(),{a,WORD(a+1),c,c,WORD(a+1),WORD(c+1)});
             }
         }
         b.inner=cuts[lod];b.outer=cuts[lod+1];b.factor=float(1<<lod);
@@ -190,7 +203,7 @@ bool GrassFX::initialize(const Settings &s){
         if(FAILED(device_->CreateTexture(resolution,resolution,1,D3DUSAGE_RENDERTARGET,D3DFMT_R32F,D3DPOOL_DEFAULT,contacts_.out(),nullptr))||
            FAILED(contacts_->GetSurfaceLevel(0,contactSurface_.out()))){failed_=true;return false;}
     }
-    if(!programs()||!geometry()){failed_=true;return false;}
+    if(!programs()||(s.grassStyle>.5f&&!createLeafArt())||!geometry()){failed_=true;return false;}
     map_[2]=s.grassDistance+2;map_[3]=1.f/resolution_;
     const float texel=2*map_[2]/resolution_;
     map_[0]=std::floor(center_[0]/texel)*texel;map_[1]=std::floor(center_[2]/texel)*texel;
@@ -399,6 +412,15 @@ void GrassFX::draw(const Settings &s,bool ownScene){
             device_->SetVertexDeclaration(declaration_);device_->SetVertexShader(bladeVS_);device_->SetPixelShader(bladePS_);
             device_->SetTexture(D3DVERTEXTEXTURESAMPLER0,ground_);
             device_->SetTexture(D3DVERTEXTEXTURESAMPLER1,contacts_);
+            if(frame_.grassStyle>.5f){
+                device_->SetTexture(2,leafArt_);
+                for(auto key:{D3DSAMP_MINFILTER,D3DSAMP_MAGFILTER,D3DSAMP_MIPFILTER})device_->SetSamplerState(2,key,D3DTEXF_LINEAR);
+                device_->SetSamplerState(2,D3DSAMP_ADDRESSU,D3DTADDRESS_CLAMP);
+                device_->SetSamplerState(2,D3DSAMP_ADDRESSV,D3DTADDRESS_CLAMP);
+                device_->SetSamplerState(2,D3DSAMP_MAXMIPLEVEL,0);
+                device_->SetSamplerState(2,D3DSAMP_MIPMAPLODBIAS,0);
+                device_->SetSamplerState(2,D3DSAMP_SRGBTEXTURE,FALSE);
+            }
             for(DWORD slot:{DWORD(D3DVERTEXTEXTURESAMPLER0),DWORD(D3DVERTEXTEXTURESAMPLER1)}){
                 for(auto key:{D3DSAMP_MINFILTER,D3DSAMP_MAGFILTER,D3DSAMP_MIPFILTER})device_->SetSamplerState(slot,key,key==D3DSAMP_MIPFILTER?D3DTEXF_NONE:D3DTEXF_POINT);
                 device_->SetSamplerState(slot,D3DSAMP_ADDRESSU,D3DTADDRESS_CLAMP);device_->SetSamplerState(slot,D3DSAMP_ADDRESSV,D3DTADDRESS_CLAMP);
@@ -422,6 +444,8 @@ void GrassFX::draw(const Settings &s,bool ownScene){
             p[12][0]=frame_.grassBrightness;p[12][1]=frame_.grassSaturation;p[12][2]=frame_.grassDryness;p[12][3]=frame_.grassShading;
             memcpy(p[13],fog_,16);memcpy(p[14],fogColor_,16);p[15][0]=frame_.grassWindSpeed;p[15][3]=frame_.grassSnow?(winter_?2.f:1.f):0.f;
             device_->SetPixelShaderConstantF(14,fogColor_,1);
+            const float card[]={frame_.grassBrightness,frame_.grassSaturation,frame_.grassDryness,frame_.grassStyle};
+            device_->SetPixelShaderConstantF(19,card,1);
             for(int axis=0;axis<3;++axis)p[16][axis]=view_.m[axis][2];
             for(auto &b:bands_){if(!b.count)continue;
                 p[7][0]=b.spacing;p[7][1]=b.inner;p[7][2]=b.outer;p[7][3]=std::max(b.spacing*2,b.outer*frame_.grassFade);

@@ -1,6 +1,7 @@
-// Instanced, tapered ribbons: real 3D silhouettes, pinned roots and world-space wind.
+// Instanced ribbons and painted leaf cards share pinned roots and world-space wind.
 sampler2D Ground:register(s0);
 sampler2D Contacts:register(s1);
+sampler2D LeafArt:register(s2);
 row_major float4x4 ViewProjection:register(c0);
 float4 Eye:register(c4);
 float4 Map:register(c5); // map center xz, radius, resolution
@@ -17,8 +18,9 @@ float4 Extra:register(c15); // wind speed, cell anchor xz, snow grass
 float4 Forward:register(c16);
 float4 Lod:register(c18); // nested-grid factor, base spacing, total range, fade
 float4 Center:register(c17); // player position; Eye remains the actual camera for fog
+float4 CardControl:register(c19); // brightness, saturation, dryness, style
 struct Input {float4 blade:POSITION;float2 offset:TEXCOORD0;float height:TEXCOORD1;float2 cell:TEXCOORD2;};
-struct Output {float4 position:POSITION;float4 color:COLOR0;float2 leaf:TEXCOORD0;};
+struct Output {float4 position:POSITION;float4 color:COLOR0;float3 leaf:TEXCOORD0;};
 float Hash(float2 p) {
     float3 v=frac(float3(p.x,p.y,p.x)*.1031);
     v+=dot(v,v.yzx+33.33);
@@ -101,24 +103,18 @@ Output GrassBladeVS(Input i) {
     if(solid&&!paving&&clearance>.14)height=min(height,clearance-.04);
     float phase=dot(root,float2(.19,.13))+Wind.w*Extra.x*1.35;
     float sway=(sin(phase)*.65+sin(phase*1.7+r3*6.2831853)*.35)*Wind.z;
-    float2 lean=(radial*(.18+leaf*.6)+Wind.xy*sway)*height;
-    // A fuller curved leaf reads as a blade instead of a dark needle.
     float coverScale=1+smoothstep(min(15,Lod.z*.34)*.65,min(15,Lod.z*.34),distance)+
         2*smoothstep(min(42,Lod.z*.7)*.65,min(42,Lod.z*.7),distance);
-    float width=Shape.y*1.15*(1-t)*(.9+.8*sin(t*3.14159265))*(.85+leaf*.3)*growth*
-        sqrt(coverScale)*max(1,cameraDistance/40);
+    float span=growth*sqrt(coverScale)*max(1,cameraDistance/40);
     float3 p=float3(root.x+offset.x,surface.r+.008,root.y+offset.y);
-    float ridge=1-abs(i.blade.x);
     if(simple>.5){
-        // The leaves open out above the root and curl more sharply in the
-        // upper half. The middle rail raises the fold out of the leaf plane.
-        float spread=.50+.91*sin(3.14159265*t);
-        width=Shape.y*1.85*spread*(1-t)*(.8+leaf*.42)*growth*sqrt(coverScale)*max(1,cameraDistance/45);
-        float curl=t*(.16+.84*t*t);
-        p.xz+=radial*(height*(.31+leaf*.40)*curl+ridge*width*.33);
-        p.xz+=Wind.xy*sway*height*t*t+side*(height*(leaf-.5)*.24*t*t+i.blade.x*width*.5);
-        p.y-=height*(.02+leaf*.06)*t*t*t*t;
+        // A fixed tilt gives the crossed cards a footprint from above. The
+        // texture supplies the curved silhouettes and fine leaf highlights.
+        float width=Shape.y*14*(.88+leaf*.26)*span;
+        p.xz+=radial*height*(.29+leaf*.21)*t+Wind.xy*sway*height*t*t+side*i.blade.x*width*.5;
     }else{
+        float2 lean=(radial*(.18+leaf*.6)+Wind.xy*sway)*height;
+        float width=Shape.y*1.15*(1-t)*(.9+.8*sin(t*3.14159265))*(.85+leaf*.3)*span;
         p.xz+=lean*t*t+side*((leaf-.5)*height*.16*t*t+i.blade.x*width*.5);
     }
     p.y+=height*t;
@@ -126,40 +122,45 @@ Output GrassBladeVS(Input i) {
     // avoiding near-black strips at ground level. Both faces transmit some light.
     float3 n=normalize(float3(radial.x*.25,1,radial.y*.25));
     float light=.45+.55*abs(dot(n,SunDirection.xyz));
-    float3 base=lerp(float3(.16,.30,.055),float3(.25,.39,.07),leaf*.35+patch*.65);
-    float3 tip=lerp(float3(.43,.60,.13),float3(.56,.68,.18),leaf*.4+patch*.6);
-    float3 fresh=lerp(base,tip,smoothstep(.08,.95,t));
-    if(simple>.5){
-        float3 green=lerp(float3(.14,.29,.055),float3(.20,.40,.075),leaf);
-        float3 lime=lerp(float3(.30,.52,.095),float3(.45,.62,.135),leaf);
-        float3 tip=lerp(float3(.48,.65,.14),float3(.66,.75,.20),leaf);
-        fresh=lerp(lerp(green,lime,smoothstep(.05,.64,t)),tip,smoothstep(.45,1,t));
-        float face=.5+.5*dot(side,SunDirection.xz);
-        float fold=lerp(lerp(.87,1.03,face),lerp(1.03,.87,face),i.blade.x*.5+.5);
-        fresh*=lerp(fold,1.15,ridge*(1-.65*t));
-    }
-    float3 tint=lerp(fresh,float3(.58,.49,.20),Look.z);
-    tint=lerp(tint,lerp(float3(.52,.58,.61),float3(.79,.83,.85),t),snow);
-    tint*=lerp(.96,1.04,r3);
     float3 lighting=Ambient.rgb+SunColor.rgb*light;
     // Native ambient plus sun can exceed display white. Keep the painted
     // palette readable instead of clipping a whole field to yellow/white.
     lighting/=max(1,max(lighting.r,max(lighting.g,lighting.b)));
     float neutral=dot(lighting,float3(.2126,.7152,.0722));
     lighting=lerp(lighting,lerp(neutral,lighting,.25),snow);
-    lighting=lerp(lighting,lerp(neutral,lighting,.6),simple*(1-snow));
-    float3 color=tint*lighting;
-    color*=lerp(1-Look.w*lerp(.22,.38,snow),lerp(1.04,1.02,snow),t);
-    color*=lerp(.88+abs(surface.a)*.22,.94,snow);
-    float luma=dot(color,float3(.2126,.7152,.0722));
-    color=lerp(luma,color,lerp(Look.y,min(Look.y,1),snow))*Look.x;
-    float fog=FogFactor(p);
+    lighting*=lerp(.96,1.04,r3)*lerp(1-Look.w*lerp(.22,.38,snow),lerp(1.04,1.02,snow),t)*
+        lerp(.88+abs(surface.a)*.22,.94,snow);
+    float3 color;
+    if(simple>.5){
+        float3 tint=lerp(float3(.88,.98,.89),float3(1.04,1.01,.96),leaf*.61+patch*.39);
+        color=lerp(lighting,dot(lighting,float3(.2126,.7152,.0722)),.35*(1-snow))*tint;
+        o.leaf=float3(.5+.5*i.blade.x*(leaf<.5?-1:1),1-t,snow);
+    }else{
+        float3 base=lerp(float3(.16,.30,.055),float3(.25,.39,.07),leaf*.35+patch*.65);
+        float3 tip=lerp(float3(.43,.60,.13),float3(.56,.68,.18),leaf*.4+patch*.6);
+        float3 tint=lerp(lerp(base,tip,smoothstep(.08,.95,t)),float3(.58,.49,.20),Look.z);
+        tint=lerp(tint,lerp(float3(.52,.58,.61),float3(.79,.83,.85),t),snow);
+        color=tint*lighting;
+        float luma=dot(color,float3(.2126,.7152,.0722));
+        color=lerp(luma,color,lerp(Look.y,min(Look.y,1),snow))*Look.x;
+        o.leaf=float3(i.blade.x,t,snow);
+    }
     o.position=mul(float4(p,1),ViewProjection);
-    o.color=float4(color,fog);
-    o.leaf=float2(i.blade.x,t);
+    o.color=float4(color,FogFactor(p));
     return o;
 }
 float4 GrassBladePS(Output i):COLOR0 {
+    if(CardControl.w>.5){
+        float4 art=tex2D(LeafArt,i.leaf.xy);
+        clip(art.a-.33);
+        float shade=dot(art.rgb,float3(.2126,.7152,.0722));
+        float3 dry=float3(.58,.49,.20)*lerp(.62,1.2,shade);
+        float3 ice=lerp(float3(.50,.56,.60),float3(.82,.86,.88),saturate(shade*1.22-.16));
+        float3 color=lerp(lerp(art.rgb,dry,CardControl.z),ice,i.leaf.z)*i.color.rgb;
+        float luma=dot(color,float3(.2126,.7152,.0722));
+        color=lerp(luma,color,lerp(CardControl.y,min(CardControl.y,1),i.leaf.z))*CardControl.x;
+        return float4(lerp(FogColor.rgb,color,i.color.a),1);
+    }
     float rib=.99+.01*(1-abs(i.leaf.x));
     return float4(lerp(FogColor.rgb,i.color.rgb*rib,i.color.a),1);
 }

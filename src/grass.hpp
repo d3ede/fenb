@@ -18,7 +18,7 @@ class GrassFX {
 #endif
     IDirect3DDevice9 *device_;
     BCRYPT_ALG_HANDLE hash_=nullptr;
-    Com<IDirect3DTexture9> ground_,contacts_;
+    Com<IDirect3DTexture9> ground_,contacts_,leafArt_;
     Com<IDirect3DSurface9> groundSurface_,contactSurface_,worldTarget_,worldDepth_;
     Com<IDirect3DVertexShader9> captureVS_,bladeVS_;
     Com<IDirect3DPixelShader9> capturePS_,bladePS_;
@@ -60,6 +60,7 @@ class GrassFX {
     size_t bufferBytes_=0;
     unsigned classify(IDirect3DTexture9 *);
     bool programs();
+    bool createLeafArt();
     bool initialize(const Settings &);
     bool geometry();
     bool target(bool contacts=false);
@@ -81,5 +82,5 @@ public:
     void probe(PipelineProbe &,bool after);
     void probeTarget(PipelineProbe *probe){probe_=probe;}
 #endif
-    size_t bytes() const {return (ground_.p?size_t(resolution_)*resolution_*20:0)+bufferBytes_;}
+    size_t bytes() const;
 };

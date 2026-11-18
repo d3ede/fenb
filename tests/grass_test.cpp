@@ -40,6 +40,7 @@ struct GrassFXFixture {
     static unsigned kind(GrassFX &g,IDirect3DTexture9 *texture){return g.classify(texture);}
     static UINT count(const GrassFX &g){UINT n=0;for(auto &b:g.bands_)n+=b.count;return n;}
     static UINT bladeVertices(const GrassFX &g){return g.bands_[0].vertices;}
+    static bool hasLeafArt(const GrassFX &g){return g.leafArt_.p!=nullptr;}
     static std::array<float,2> center(const GrassFX &g){return {g.map_[0],g.map_[1]};}
     static size_t queued(const GrassFX &g){return g.pending_.size();}
     static float contact(GrassFX &g,float x,float z){
@@ -283,10 +284,12 @@ int main(int argc,char **argv){
             // Native software vertex processing has no vertex texture fetch.
             // Probe binding restoration only in the hardware host mode.
             if(!mixed)d->SetTexture(D3DVERTEXTEXTURESAMPLER1,art);
+            if(settings.grassStyle==1)d->SetTexture(2,art);
             if(!mixed){d->SetStreamSourceFreq(0,D3DSTREAMSOURCE_INDEXEDDATA|3);d->SetStreamSourceFreq(1,D3DSTREAMSOURCE_INSTANCEDATA|1);}
             grass.draw(settings);
             Com<IDirect3DBaseTexture9> restored;d->GetTexture(D3DVERTEXTEXTURESAMPLER1,restored.out());
             stateErrors+=restored.p!=(mixed?nullptr:art.p);
+            if(settings.grassStyle==1){d->GetTexture(2,restored.out());stateErrors+=restored.p!=art.p;}
             stateErrors+=d->GetSoftwareVertexProcessing()!=BOOL(mixed);
             UINT a=0,b=0;d->GetStreamSourceFreq(0,&a);d->GetStreamSourceFreq(1,&b);
             stateErrors+=a!=(mixed?1u:D3DSTREAMSOURCE_INDEXEDDATA|3)||b!=(mixed?1u:D3DSTREAMSOURCE_INSTANCEDATA|1);
@@ -334,8 +337,14 @@ int main(int argc,char **argv){
     const UINT detailedVertices=GrassFXFixture::bladeVertices(grass);
     settings.grassStyle=1;
     const auto simple=render(true);
-    CHECK(GrassFXFixture::bladeVertices(grass)<detailedVertices&&Delta(on,simple)>20);
+    CHECK(GrassFXFixture::hasLeafArt(grass)&&GrassFXFixture::bladeVertices(grass)<detailedVertices&&Delta(on,simple)>20);
     CHECK(Save(simple,L"artifacts/grass/field-simple.png"));
+    followPlayer=true;cameraEye[1]=8;cameraEye[2]=7.3f;camera(1.48f,0);
+    const auto aboveBare=render(false),aboveSimple=render(true);
+    unsigned aboveChanged=0;
+    for(size_t i=0;i<aboveSimple.size();++i)aboveChanged+=aboveSimple[i]!=aboveBare[i];
+    CHECK(aboveSimple.size()==on.size()&&aboveChanged>10000&&GrassFXFixture::hasLeafArt(grass));
+    followPlayer=false;cameraEye[1]=2.3f;cameraEye[2]=-5;camera(.16f,0);
     settings.grassStyle=0;
     CHECK(Delta(on,render(true))<=(msaa?32u:0u));
     translucentLeaf=true;earlyGrass=false;const auto lateLeaf=render(true);
@@ -535,7 +544,8 @@ int main(int argc,char **argv){
     CHECK(render(true).size()==on.size()&&!GrassFXFixture::failed(grass));CHECK(GrassFXFixture::count(grass)<=80000&&grass.bytes()<24*1024*1024);
     settings.grassDistance=40;settings.grassDensity=1.25f;settings.grassWind=.5f;
     const auto windy=render(true);Sleep(80);CHECK(windy!=render(true));settings.grassWind=0;
-    grass.invalidate();CHECK(!grass.bytes());CHECK(render(true).size()==on.size()&&!GrassFXFixture::failed(grass));
+    settings.grassStyle=1;grass.invalidate();CHECK(!grass.bytes());
+    CHECK(render(true).size()==on.size()&&!GrassFXFixture::failed(grass)&&GrassFXFixture::hasLeafArt(grass));
     CHECK(!stateErrors);
     puts("PASS: instanced grass on native buffered terrain with preserved source geometry.");return 0;
 }
