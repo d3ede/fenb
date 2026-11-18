@@ -267,6 +267,9 @@ void Runtime::beforeWaterDraw(UINT upStride, DrawCall draw) {
         !vertexShaderActive_ && fvfKnown_ && (drawFVF_ == 0x112 || drawFVF_ == 0x212) &&
         sceneBackbuffer_ && drawTarget_ == sceneBackbuffer_)
         materials_->begin(settings);
+    if (!lost_ && !hudStarted_ && settings.enabled && settings.ssao && !compare &&
+        !vertexShaderActive_ && fvfKnown_ && sceneBackbuffer_ && drawTarget_==sceneBackbuffer_)
+        effects_->sceneFX().beginGrassDepth(settings);
     if(!lost_&&!hudStarted_&&settings.enabled&&settings.grass&&!compare&&!vertexShaderActive_&&fvfKnown_&&
         (drawFVF_==0x112||drawFVF_==0x102||drawFVF_==0x142)&&sceneBackbuffer_&&drawTarget_==sceneBackbuffer_)
         grass_->beginNative(settings);
@@ -298,6 +301,7 @@ void Runtime::environmentDraw(D3DPRIMITIVETYPE type, UINT start, UINT count) {
                                      water_->materialTag(static_cast<IDirect3DTexture9 *>(texture.p)));
 }
 void Runtime::afterWaterDraw(bool up, bool indexed) {
+    effects_->sceneFX().endGrassDepth();
     grass_->endNative();
     materials_->end();
     sfx_->end(up,indexed);

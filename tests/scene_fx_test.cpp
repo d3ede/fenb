@@ -157,6 +157,17 @@ unsigned Difference(const std::vector<DWORD> &a, const std::vector<DWORD> &b) {
 int Luma(DWORD p) {
     return int(p & 255) + int((p >> 8) & 255) + int((p >> 16) & 255);
 }
+unsigned ColorDifference(const std::vector<DWORD> &a,const std::vector<DWORD> &b) {
+    // XRGB alpha is undefined; native MSAA resolves may round a channel by one.
+    unsigned changed=0;
+    for(size_t i=0;i<a.size();++i) {
+        bool different=false;
+        for(unsigned shift:{0u,8u,16u})
+            different|=std::abs(int((a[i]>>shift)&255)-int((b[i]>>shift)&255))>1;
+        changed+=different;
+    }
+    return changed;
+}
 // Optional local-asset verification reproduces the client's D3DX ARGB8 uploads.
 // The shipping DLL has no D3DX dependency and no client artwork is copied into Git.
 bool LoadMaterial(IDirect3DDevice9 *d,const wchar_t *path,Com<IDirect3DTexture9> &texture) {
@@ -237,6 +248,16 @@ int main(int argc, char **argv) {
     float cameraYaw = 0, cameraHeight = 4, cameraRadius=12;
     bool cameraOrbit = false;
     bool planeOnly = false, moonBackdrop = false;
+    bool grassCard = false, grassDepthGuard = true, grassBlend = true, grassWrites = true;
+    DWORD grassAlpha = 0;
+    Com<IDirect3DTexture9> nativeGrass;
+    CHECK(SUCCEEDED(d->CreateTexture(2,2,1,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,nativeGrass.out(),nullptr)));
+    CHECK(SUCCEEDED(nativeGrass->LockRect(0,&lock,nullptr,0)));
+    for(int y=0;y<2;++y)for(int x=0;x<2;++x)
+        ((DWORD *)((BYTE *)lock.pBits+y*lock.Pitch))[x]=0xff609020;
+    nativeGrass->UnlockRect(0);
+    DWORD grassTag=1024;
+    nativeGrass->SetPrivateData(EmitterTag,&grassTag,4,0);
     bool nativeFogScene = false, horizonCube = false, hostilePostState = false, swapHudDepth = false;
     Com<IDirect3DCubeTexture9> fogSky;
     CHECK(SUCCEEDED(d->CreateCubeTexture(4, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED,
@@ -539,6 +560,36 @@ int main(int argc, char **argv) {
                 d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, character, sizeof(Vertex));
             }
         }
+        if (grassCard) {
+            // Native proximity fade can blend invisible cards while still writing depth.
+            struct G {float x,y,z;DWORD color;float u,v;};
+            const DWORD color=(grassAlpha<<24)|0xffffff;
+            G card[]={{-3,0,6,color,0,1},{3,0,6,color,1,1},
+                      {-3,3,6,color,0,0},{3,3,6,color,1,0}};
+            d->SetFVF(0x142);d->SetTexture(0,nativeGrass);
+            d->SetRenderState(D3DRS_ALPHABLENDENABLE,grassBlend);
+            d->SetRenderState(D3DRS_ZWRITEENABLE,grassWrites);
+            d->SetRenderState(D3DRS_SRCBLEND,D3DBLEND_SRCALPHA);
+            d->SetRenderState(D3DRS_DESTBLEND,D3DBLEND_INVSRCALPHA);
+            d->SetRenderState(D3DRS_ALPHATESTENABLE,TRUE);
+            d->SetRenderState(D3DRS_ALPHAFUNC,D3DCMP_ALWAYS);
+            d->SetTextureStageState(0,D3DTSS_COLOROP,D3DTOP_SELECTARG1);
+            d->SetTextureStageState(0,D3DTSS_COLORARG1,D3DTA_TEXTURE);
+            d->SetTextureStageState(0,D3DTSS_ALPHAOP,D3DTOP_MODULATE);
+            d->SetTextureStageState(0,D3DTSS_ALPHAARG1,D3DTA_TEXTURE);
+            d->SetTextureStageState(0,D3DTSS_ALPHAARG2,D3DTA_DIFFUSE);
+            if(grassDepthGuard)fx.sceneFX().beginGrassDepth(settings);
+            DWORD writes=1;d->GetRenderState(D3DRS_ZWRITEENABLE,&writes);
+            if(writes!=DWORD(grassWrites && !(grassBlend && grassDepthGuard && settings.ssao && (grassTag&1024))))return false;
+            d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP,2,card,sizeof(G));
+            fx.sceneFX().endGrassDepth();
+            d->GetRenderState(D3DRS_ZWRITEENABLE,&writes);if(writes!=DWORD(grassWrites))return false;
+            d->SetRenderState(D3DRS_ZWRITEENABLE,TRUE);
+            d->SetRenderState(D3DRS_ALPHABLENDENABLE,FALSE);
+            d->SetRenderState(D3DRS_ALPHATESTENABLE,FALSE);
+            d->SetTexture(0,nullptr);d->SetFVF(D3DFVF_XYZ|D3DFVF_DIFFUSE);
+            d->SetTextureStageState(0,D3DTSS_COLORARG1,D3DTA_DIFFUSE);
+        }
         if (emit) {
             struct E {
                 float x, y, z, u, v;
@@ -735,7 +786,46 @@ int main(int argc, char **argv) {
         printf("Unoccluded slope AO band pixels: %u, yaw=%.2f\n",banded,yaw);
         CHECK(banded==0);
     }
-    planeOnly=false;cameraYaw=0;
+    cameraYaw=0;
+    for(float quality:{0.f,1.f})for(float yaw:{-.3f,0.f,.3f}) {
+        settings.sceneQuality=quality;cameraYaw=yaw;
+        grassCard=false;CHECK(render());auto withoutGrass=Read(d);
+        grassCard=true;grassDepthGuard=false;CHECK(render());auto brokenGrass=Read(d);
+        CHECK(Difference(withoutGrass,brokenGrass)>100);
+        grassDepthGuard=true;CHECK(render());auto correctedGrass=Read(d);
+        unsigned grassError=0, grassMaximum=0;
+        for(size_t i=0;i<withoutGrass.size();++i)for(unsigned shift:{0u,8u,16u}) {
+            const unsigned delta=std::abs(int((withoutGrass[i]>>shift)&255)-int((correctedGrass[i]>>shift)&255));
+            grassError+=delta>1;grassMaximum=std::max(grassMaximum,delta);
+        }
+        printf("Invisible grass AO: quality=%.0f yaw=%.2f error=%u maximum=%u\n",quality,yaw,grassError,grassMaximum);
+        CHECK(grassError==0);
+        CHECK(correctedGrass[12*W+12]==withoutGrass[12*W+12]);
+        if(yaw==0 && quality==1) {
+            CHECK(Save(brokenGrass,L"build/scene-grass-ssao-before.bmp"));
+            CHECK(Save(correctedGrass,L"build/scene-grass-ssao-after.bmp"));
+        }
+    }
+    // Faded grass still contributes its original native color. Unknown textures
+    // retain their native depth writes, and disabling SSAO bypasses the guard.
+    grassAlpha=64;CHECK(render());CHECK(Save(Read(d),L"build/scene-grass-ssao-faded.bmp"));
+    grassTag=4;nativeGrass->SetPrivateData(EmitterTag,&grassTag,4,0);CHECK(render());
+    grassTag=1024;nativeGrass->SetPrivateData(EmitterTag,&grassTag,4,0);
+    grassBlend=false;CHECK(render());grassBlend=true;
+    grassWrites=false;CHECK(render());grassWrites=true;
+    settings.ssao=false;CHECK(render());
+    // Optional original-asset check exercises hashing, with no synthetic private tag.
+    for(const auto *file:{L"X:/Games/Homesickness/Model/Texture/Obj_KaillunGrass01.dds",
+                         L"X:/Games/Homesickness/Model/Texture/Obj_UpresiaGrass01.dds"}) {
+        Com<IDirect3DTexture9> originalGrass;
+        if(!LoadMaterial(d,file,originalGrass)) {puts("SKIP: optional native grass atlas unavailable");continue;}
+        nativeGrass.out();nativeGrass.p=originalGrass.p;nativeGrass->AddRef();
+        settings.ssao=true;grassCard=false;CHECK(render());auto cleanGround=Read(d);
+        grassCard=true;grassAlpha=0;CHECK(render());CHECK(ColorDifference(cleanGround,Read(d))==0);
+        grassAlpha=64;CHECK(render());CHECK(Difference(cleanGround,Read(d))>100);
+        CHECK(Save(Read(d),L"build/scene-native-grass-ssao-faded.bmp"));
+    }
+    grassCard=false;planeOnly=false;cameraYaw=0;
     disableEffect(0);
     settings.dof = true;
     settings.focusDistance = 8;

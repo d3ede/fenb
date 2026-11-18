@@ -86,6 +86,7 @@ class SceneFX {
     bool sourceOriginValid_ = false;
     std::unique_ptr<StateGuard> skyState_;
     bool foliageActive_ = false;
+    bool grassDepthActive_ = false;
     DWORD originalAmbient_ = 0;
     D3DMATERIAL9 originalMaterial_{};
     D3DMATRIX view_{}, projection_{};
@@ -143,6 +144,13 @@ class SceneFX {
         skyState_.reset();
     }
     void beginFoliage(const Settings &);
+    void beginGrassDepth(const Settings &);
+    void endGrassDepth() {
+        if (grassDepthActive_) {
+            device_->SetRenderState(D3DRS_ZWRITEENABLE, TRUE);
+            grassDepthActive_ = false;
+        }
+    }
     void endFoliage() {
         if (foliageActive_) {
             device_->SetMaterial(&originalMaterial_);

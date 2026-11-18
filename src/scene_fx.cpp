@@ -2,6 +2,7 @@
 #include <generated/scene_shaders.hpp>
 #include "generated/emitter_catalog.hpp"
 #include "generated/foliage_catalog.hpp"
+#include "generated/grass_catalog.hpp"
 #include "generated/sun_catalog.hpp"
 #include "generated/overlay_catalog.hpp"
 #include "generated/surface_catalog.hpp"
@@ -73,6 +74,7 @@ bool SceneFX::programs() {
     return skyVS_.p || SUCCEEDED(device_->CreateVertexShader(ShaderSkyVS, skyVS_.out()));
 }
 void SceneFX::beginFrame() {
+    endGrassDepth();
     worldDepth_.out();
     skyEnvironment_.out();
     camera_ = depthReady_ = emitters_ = false;
@@ -635,6 +637,9 @@ bool SceneFX::emissive(IDirect3DTexture9 *texture) {
     for (auto &known : FoliageHashes)
         if (!memcmp(digest, known, 32))
             tag |= 2;
+    for (const auto &known : GrassIdentities)
+        if (known.kind == 2 && !memcmp(digest, known.hash, 32))
+            tag |= 1024;
     for (auto &known : SunIdentities)
         if (!memcmp(digest, known.hash, 32))
             tag |= known.disc ? 128 : 8;
@@ -700,6 +705,34 @@ void SceneFX::beginFlare(const Settings &s) {
         device_->SetRenderState(D3DRS_ALPHATESTENABLE,FALSE);
     }
     device_->SetPixelShader(flarePS_);
+}
+void SceneFX::beginGrassDepth(const Settings &s) {
+    if (!s.ssao || !camera_ || grassDepthActive_)
+        return;
+    DWORD z=0, write=0, blend=0, src=0, dst=0, fvf=0;
+    if (FAILED(device_->GetFVF(&fvf)) || (fvf!=0x112 && fvf!=0x102 && fvf!=0x142) ||
+        FAILED(device_->GetRenderState(D3DRS_ZENABLE,&z)) || !z ||
+        FAILED(device_->GetRenderState(D3DRS_ZWRITEENABLE,&write)) || !write ||
+        FAILED(device_->GetRenderState(D3DRS_ALPHABLENDENABLE,&blend)) || !blend ||
+        FAILED(device_->GetRenderState(D3DRS_SRCBLEND,&src)) || src!=D3DBLEND_SRCALPHA ||
+        FAILED(device_->GetRenderState(D3DRS_DESTBLEND,&dst)) || dst!=D3DBLEND_INVSRCALPHA)
+        return;
+    Com<IDirect3DVertexShader9> vs;
+    Com<IDirect3DPixelShader9> ps;
+    Com<IDirect3DBaseTexture9> base;
+    if (FAILED(device_->GetVertexShader(vs.out())) || vs.p ||
+        FAILED(device_->GetPixelShader(ps.out())) || ps.p ||
+        FAILED(device_->GetTexture(0,base.out())) || !base.p || base->GetType()!=D3DRTYPE_TEXTURE)
+        return;
+    auto *texture=static_cast<IDirect3DTexture9 *>(base.p);
+    emissive(texture);
+    DWORD tag=0, size=4;
+    if (FAILED(texture->GetPrivateData(EmitterTag,&tag,&size)) || size!=4 || !(tag&1024))
+        return;
+    // Native proximity fading blends these cards but can still write their whole
+    // rectangle into depth. Translucent grass cannot be an opaque AO receiver or
+    // occluder. Keep native color/alpha and depth testing; restore writes per draw.
+    grassDepthActive_=SUCCEEDED(device_->SetRenderState(D3DRS_ZWRITEENABLE,FALSE));
 }
 void SceneFX::beginFoliage(const Settings &s) {
     if ((s.nightFoliage <= 0 && !s.lightingBalance) || !camera_ || !sunValid_ || foliageActive_ || skyState_)
