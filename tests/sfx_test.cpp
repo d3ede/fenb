@@ -356,14 +356,77 @@ int main(int argc, char **argv) {
         for (UINT x = 0; x < W / 2; ++x)
             CHECK(blocked[y * W + x] == occluded[y * W + x]);
     occlude = false;
+    // Always exercise the refinement path, even without proprietary client artwork.
+    auto verifyRefinement=[&](bool luminous=true) -> int {
+        const auto savedSettings=settings;
+        const auto savedFade=fade; const bool savedTime=fixedCurtainTime;
+        fixedCurtainTime=true;settings=Settings{};settings.sfx=true;
+        settings.sfxIntensity=settings.sfxSaturation=1;settings.sfxGlow=settings.sfxSoftness=0;
+        settings.sfxAura=0;settings.sceneQuality=true;fade=0xd0ffffff;
+        render(false);const auto untreated=Read(d);
+        CHECK(render(true) && Difference(untreated,Read(d))==0);
+        settings=Settings{};settings.sfx=true;
+        settings.sceneQuality=false;fade=0xd0ffffff;
+        CHECK(render(true));const auto economicalAura=Read(d);
+        settings.sceneQuality=true;
+        CHECK(render(true)); const auto wisps=Read(d);
+        CHECK((!luminous || Difference(economicalAura,wisps)>100) && sfx.bytes()==0);
+        precedingEffects=240;CHECK(render(true));CHECK(Difference(wisps,Read(d))==0);
+        precedingEffects=0;
+        sfx.invalidate();CHECK(render(true));CHECK(Difference(wisps,Read(d))==0);
+        float priorVS[13][4]{},priorPS[11][4]{},afterVS[13][4]{},afterPS[11][4]{};
+        d->GetVertexShaderConstantF(0,priorVS[0],13);d->GetPixelShaderConstantF(0,priorPS[0],11);
+        CHECK(render(true));
+        d->GetVertexShaderConstantF(0,afterVS[0],13);d->GetPixelShaderConstantF(0,afterPS[0],11);
+        CHECK(!memcmp(priorVS,afterVS,sizeof(priorVS)) && !memcmp(priorPS,afterPS,sizeof(priorPS)));
+        // The slowly flowing material must evolve without a discontinuity at phase wrap.
+        auto phaseRender=[&](float phase) {
+            CHECK(render(true));
+            d->BeginScene(); background(); setup(); CHECK(sfx.begin(settings,false));
+            float screen[4]{};d->GetPixelShaderConstantF(7,screen,1);screen[3]=phase;
+            d->SetPixelShaderConstantF(7,screen,1);
+            d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP,2,quad,sizeof(V));sfx.end(true);d->EndScene();
+            return 0;
+        };
+        CHECK(phaseRender(0)==0); const auto phaseStart=Read(d);
+        CHECK(phaseRender(6.28318530718f)==0);CHECK(Difference(phaseStart,Read(d),1)==0);
+        CHECK(phaseRender(1)==0);CHECK(!luminous || Difference(phaseStart,Read(d))>100);
+        unsigned previousEnergy=0;
+        for(DWORD alpha : {0u,16u,64u,128u,208u,255u}) {
+            fade=(alpha<<24)|0x00ffffff;CHECK(render(true));const auto step=Read(d);
+            unsigned energy=0;
+            render(false); // Zero fade must match the invisible native draw.
+            const auto stepNative=Read(d);
+            if(alpha==0)CHECK(Difference(step,stepNative)==0);
+            for(DWORD pixel:step)energy+=((pixel>>16)&255)+((pixel>>8)&255)+(pixel&255);
+            CHECK(energy>=previousEnergy);previousEnergy=energy;
+        }
+        occlude=true;render(false);const auto nativeDepth=Read(d);
+        CHECK(render(true));const auto wispDepth=Read(d);
+        for(UINT y=0;y<H;++y)for(UINT x=0;x<W/2;++x)
+            CHECK(nativeDepth[y*W+x]==wispDepth[y*W+x]);
+        occlude=false;
+        settings.sfx=false;CHECK(!render(true));
+        puts("Refinement wisps: flow, periodic continuity, monotone fade, crowd/depth isolation PASS");
+        settings=savedSettings;fade=savedFade;fixedCurtainTime=savedTime;
+        return 0;
+    };
+    tag=7;texture->SetPrivateData(SfxTag,&tag,4,0);
+    CHECK(verifyRefinement()==0);
+    tag=1;texture->SetPrivateData(SfxTag,&tag,4,0);
     // Use a real rune material as well as the synthetic ring: detailed quality must
     // change sampling without fading the native additive effect into translucent smoke.
     for (const wchar_t *material : {L"sfx_SklAssCheAccura01.dds", L"obj_skylighting02.dds",
-                                   L"sfx_EffectEnchant.dds", L"sfx_buffpet01-01.dds"})
+                                   L"sfx_EffectEnchant.dds", L"sfx_EffectEnchant_black.dds",
+                                   L"sfx_EffectEnchant_gold.dds", L"sfx_EffectEnchant_green.dds",
+                                   L"sfx_EffectEnchant_purple.dds", L"sfx_EffectEnchant_red.dds",
+                                   L"sfx_EffectEnchant_white.dds", L"sfx_buffpet01-01.dds"})
       if (FILE *file = _wfopen((std::wstring(L"X:/Games/Homesickness/SFX/Texture/") + material).c_str(), L"rb")) {
         const bool curtain = std::wcsstr(material, L"skylighting") != nullptr;
-        const bool aura = std::wcsstr(material, L"Enchant") || std::wcsstr(material, L"buffpet");
-        depthEnabled = !curtain; fixedCurtainTime = curtain;
+        const bool refinement = std::wcsstr(material, L"Enchant") != nullptr;
+        const bool luminous = !refinement || !std::wcsstr(material,L"_black");
+        const bool aura = refinement || std::wcsstr(material, L"buffpet");
+        depthEnabled = !curtain; fixedCurtainTime = curtain || refinement;
         DWORD header[32]{};
         CHECK(fread(header, 1, 128, file) == 128);
         const UINT w = header[4], h = header[3];
@@ -396,28 +459,35 @@ int main(int argc, char **argv) {
         CHECK(render(true)); auto economical = Read(d);
         settings.sceneQuality = true;
         CHECK(render(true)); auto detailed = Read(d);
-        CHECK(Difference(economical, detailed) > 100 && nativeBlend);
+        CHECK((!luminous || Difference(economical, detailed) > 100) && nativeBlend);
+        if(!luminous)CHECK(Difference(runeNative,detailed)==0);
         Save(runeNative, aura ? L"build/sfx-aura-native.bmp" : curtain ? L"build/sfx-aurora-native.bmp" : L"build/sfx-rune-native.bmp");
         Save(economical, aura ? L"build/sfx-aura-economical.bmp" : curtain ? L"build/sfx-aurora-economical.bmp" : L"build/sfx-rune-economical.bmp");
         Save(detailed, aura ? L"build/sfx-aura-detailed.bmp" : curtain ? L"build/sfx-aurora-detailed.bmp" : L"build/sfx-rune-detailed.bmp");
         if (aura) {
             DWORD actualKind=0, size=4;
-            CHECK(SUCCEEDED(texture->GetPrivateData(SfxTag,&actualKind,&size)) && actualKind==6);
+            CHECK(SUCCEEDED(texture->GetPrivateData(SfxTag,&actualKind,&size)) && actualKind==(refinement?7u:6u));
             settings.sceneQuality=false; settings.sfxAura=0;
             CHECK(render(true)); const auto auraOff=Read(d);
             settings.sfxAura=1; CHECK(render(true)); const auto auraOn=Read(d);
-            CHECK(Difference(auraOff,auraOn)>100 && sfx.bytes()==0);
+            CHECK((!luminous || Difference(auraOff,auraOn)>100) && sfx.bytes()==0);
             unsigned brighter=0;
             for(size_t i=0;i<auraOn.size();++i)
                 brighter+=((auraOn[i]>>16)&255)+((auraOn[i]>>8)&255)+(auraOn[i]&255) >
                           ((auraOff[i]>>16)&255)+((auraOff[i]>>8)&255)+(auraOff[i]&255)+6;
-            CHECK(brighter>100);
+            CHECK(!luminous || brighter>100); // Black additive artwork must not acquire invented light.
             precedingEffects=240;CHECK(render(true));
             CHECK(Difference(auraOn,Read(d))==0); // Crowds must not fade equipment glow.
             precedingEffects=0;
             fade=0; render(false); const auto fadedAura=Read(d);
             CHECK(render(true) && Difference(fadedAura,Read(d))==0);
             Save(auraOff,L"build/sfx-aura-boost-off.bmp"); Save(auraOn,L"build/sfx-aura-boost-on.bmp");
+            if(refinement) {
+                Save(detailed,(std::wstring(L"build/refinement-")+material+L".bmp").c_str());
+                Save(runeNative,L"build/sfx-refinement-native.bmp");
+                Save(detailed,L"build/sfx-refinement-wisps.bmp");
+                CHECK(verifyRefinement(luminous)==0);
+            }
         }
         Drop(texture.p); texture.p = previous.p; previous.p = nullptr;
         settings = savedSettings; world = id; fade = 0x80ff8040;

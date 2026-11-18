@@ -4461,43 +4461,43 @@
     "file": "SFX/Texture/sfx_EffectEnchant.dds",
     "sha256": "60d527c8a169e273b45e3bbd79105e6988df89912fb2ab6b656aab9afc4dd6cc",
     "rawHash": "f464b268e24187f204363f2b4aaa27facaeb11ceea0c83fcf908835ab3fb1069",
-    "kind": 6
+    "kind": 7
   },
   {
     "file": "SFX/Texture/sfx_EffectEnchant_black.dds",
     "sha256": "752ff07f35c4747fb8c0d85588e598b577775790fbee9c901baa24c1451fe53a",
     "rawHash": "b05b517177946999cb50450a3adf85f6d6a75bde07cebcfc66d1a59a4c9c1756",
-    "kind": 6
+    "kind": 7
   },
   {
     "file": "SFX/Texture/sfx_EffectEnchant_gold.dds",
     "sha256": "084566ff72239f433349e21d3945ee88bdfb4b91e4a717b48f9747bee233044f",
     "rawHash": "82cd0e9f31bf68c7240e562d88c01046fb417b295be76bf85e677938b424f7fa",
-    "kind": 6
+    "kind": 7
   },
   {
     "file": "SFX/Texture/sfx_EffectEnchant_green.dds",
     "sha256": "f003880f66e5f4df1850621def027e861e94b4507e23ead555e20470985d5946",
     "rawHash": "87b7720f83deddaf09723d7ff352128190bac4adf8d6ed35b2aeda12c8fb61cb",
-    "kind": 6
+    "kind": 7
   },
   {
     "file": "SFX/Texture/sfx_EffectEnchant_purple.dds",
     "sha256": "a413c49e1dfeee20651c66b16d8db84b4105e46da5e16d507a7053dc0b70fd20",
     "rawHash": "2b5f071a245852b195f3a663ee7bec7f93ffb168edfad161af5e460297f114cc",
-    "kind": 6
+    "kind": 7
   },
   {
     "file": "SFX/Texture/sfx_EffectEnchant_red.dds",
     "sha256": "95617d47645aabc33b1721d44ea6d681166160b9f51a97e6d771bf220c2f9831",
     "rawHash": "a2becec96b88bb32dede242afc0f8a8050618c4cdc234f491e08b057c14a50bd",
-    "kind": 6
+    "kind": 7
   },
   {
     "file": "SFX/Texture/sfx_EffectEnchant_white.dds",
     "sha256": "9a1b0358b9fed39c30f5d751ebc060664e07c7c8fa286e8d60aa5044dcdcf4dc",
     "rawHash": "f7b1b133048c9409fca58957263765bc9b4b21d44b781148d721584f6e187173",
-    "kind": 6
+    "kind": 7
   },
   {
     "file": "SFX/Texture/sfx_EffEveMagicBomb01-1.dds",

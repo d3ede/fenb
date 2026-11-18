@@ -2,6 +2,7 @@
 #include "settings.hpp"
 #include "state_guard.hpp"
 #include "generated/shaders.hpp"
+#include "refinement_preview.hpp"
 #include <gdiplus.h>
 #include <cstdio>
 #include <cstring>
@@ -89,6 +90,8 @@ void Scene(IDirect3DDevice9* dev,IDirect3DSurface9* surface,UINT width,UINT heig
 }
 }
 int main(int argc,char** argv) {
+    if(argc>1 && (!strcmp(argv[1],"--refinement-preview") || !strcmp(argv[1],"--refinement-capture")))
+        return RefinementPreview(!strcmp(argv[1],"--refinement-capture"));
     bool interactive=argc>1 && strcmp(argv[1],"--preview")==0;
     bool aaTest=argc>1 && strcmp(argv[1],"--aa-test")==0;
     auto dir=Directory(); auto config=dir+L"FENB.ini";

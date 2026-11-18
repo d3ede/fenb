@@ -20,7 +20,7 @@ float4 Factor : register(c3);
 float4 Constant : register(c4);
 float4 Bounds : register(c5);
 float4 Texel : register(c6); // texel xy, kind, crowding/age attenuation
-float4 Screen : register(c7); // inverse viewport, snapshot valid, wake strength / curtain time
+float4 Screen : register(c7); // inverse viewport, snapshot valid, wake strength / curtain time / refinement phase
 float4 FogColor : register(c8);
 float4 Fog : register(c9);
 float4 FogExtra : register(c10);
@@ -115,12 +115,43 @@ float4 SfxPS(float2 uv:TEXCOORD0,float fogDepth:TEXCOORD1,float4 color:COLOR0,fl
  original.rgb=lerp(FogColor.rgb,original.rgb,visibility);
  return original;
 }
-// Equipment refinement, pet beads and elemental weapon auras have a dedicated, cheaper
+// Energy-weighted filtering avoids opaque RGB leaking out of transparent source texels.
+float4 RefinementSample(float2 uv,float2 dx,float2 dy,float2 low,float2 high) {
+ float4 value=tex2Dgrad(Art,clamp(uv,low,high),dx,dy);
+ value.rgb*=value.a;
+ return value;
+}
+float4 RefinementWisp(float2 uv,float2 dx,float2 dy,float4 color) {
+ float2 span=max(Texel.xy,Bounds.zw-Bounds.xy),p=(uv-Bounds.xy)/span;
+ float2 low=Bounds.xy+Texel.xy*.5,high=max(low,Bounds.zw-Texel.xy*.5);
+ // A periodic, slowly curling field has no frame history or emission-rate dependency.
+ float2 curl=float2(sin(p.y*9+Screen.w+sin(p.x*6-Screen.w)),
+                    sin(p.x*8-Screen.w+sin(p.y*5+Screen.w)));
+ float2 q=Bounds.xy+(float2(.5,.52)+(p-float2(.5,.5))*.72+curl*.035)*span;
+ float2 radius=span*float2(.12,.085);
+ float4 cloud=RefinementSample(q,dx,dy,low,high)*.20;
+ cloud+=RefinementSample(q+float2(radius.x,0),dx,dy,low,high)*.12;
+ cloud+=RefinementSample(q-float2(radius.x,0),dx,dy,low,high)*.12;
+ cloud+=RefinementSample(q+float2(0,radius.y),dx,dy,low,high)*.12;
+ cloud+=RefinementSample(q-float2(0,radius.y),dx,dy,low,high)*.12;
+ cloud+=RefinementSample(q+radius,dx,dy,low,high)*.08;
+ cloud+=RefinementSample(q-radius,dx,dy,low,high)*.08;
+ cloud+=RefinementSample(q+float2(radius.x,-radius.y),dx,dy,low,high)*.08;
+ cloud+=RefinementSample(q+float2(-radius.x,radius.y),dx,dy,low,high)*.08;
+ cloud.rgb/=max(.0001,cloud.a);
+ cloud=Native(cloud,color);
+ // Feather all four billboard/atlas edges; broad overlapping lobes stay soft in motion.
+ float2 edge=smoothstep(0,.22,p)*smoothstep(0,.22,1-p);
+ float envelope=edge.x*edge.y*(.86+.14*sin(p.y*10+p.x*5+Screen.w));
+ if(AlphaStage.z>.5)cloud.a*=envelope;
+ else cloud.rgb*=envelope;
+ return cloud;
+}
+// Equipment refinement, pet beads and elemental weapon auras have a dedicated
 // shader. Native fade endpoints, material animation and additive blend mode are preserved.
-float4 AuraPS(float2 uv:TEXCOORD0,float fogDepth:TEXCOORD1,float4 color:COLOR0):COLOR0 {
- float4 original=Native(tex2D(Art,uv),color);
+float4 StyleAura(float4 original,float2 uv,float fogDepth,float4 color,bool wisp) {
  if(Style.x!=1 || Style.y>0 || Style.z!=1 || Style.w>0 || FogExtra.y>0) {
- if(AlphaStage.w>.5 && max(length(ddx(uv)/Texel.xy),length(ddy(uv)/Texel.xy))<1.2)
+ if(!wisp && AlphaStage.w>.5 && max(length(ddx(uv)/Texel.xy),length(ddy(uv)/Texel.xy))<1.2)
   original=lerp(original,Native(ReconstructArt(uv,Bounds.xy+Texel.xy*.5,Bounds.zw-Texel.xy*.5),color),Texel.w*.65);
  float peak=max(original.r,max(original.g,original.b));
  float3 hue=saturate(original.rgb/max(.001,peak));
@@ -129,7 +160,7 @@ float4 AuraPS(float2 uv:TEXCOORD0,float fogDepth:TEXCOORD1,float4 color:COLOR0):
  float gain=max(1,Style.x)*(1+FogExtra.y*.65);
  float3 rgb=rich*energy*gain;
  // Keep a colored core and a restrained halo inside the native aura geometry.
- if(Style.y>0) {
+ if(Style.y>0 && !wisp) {
   float2 delta=Texel.xy*1.5,dx=ddx(uv),dy=ddy(uv);
   float3 sum=Native(tex2Dgrad(Art,uv+float2(delta.x,0),dx,dy),color).rgb;
   sum+=Native(tex2Dgrad(Art,uv-float2(delta.x,0),dx,dy),color).rgb;
@@ -152,4 +183,14 @@ float4 AuraPS(float2 uv:TEXCOORD0,float fogDepth:TEXCOORD1,float4 color:COLOR0):
  }
  original.rgb=lerp(FogColor.rgb,original.rgb,visibility);
  return original;
+}
+float4 AuraPS(float2 uv:TEXCOORD0,float fogDepth:TEXCOORD1,float4 color:COLOR0):COLOR0 {
+ return StyleAura(Native(tex2D(Art,uv),color),uv,fogDepth,color,false);
+}
+float4 RefinementPS(float2 uv:TEXCOORD0,float fogDepth:TEXCOORD1,float4 color:COLOR0):COLOR0 {
+ float4 original=Native(tex2D(Art,uv),color);
+ float2 dx=ddx(uv),dy=ddy(uv);
+ [branch]if(all(uv>=Bounds.xy) && all(uv<=Bounds.zw))
+  original=lerp(original,RefinementWisp(uv,dx,dy,color),saturate(FogExtra.y));
+ return StyleAura(original,uv,fogDepth,color,true);
 }

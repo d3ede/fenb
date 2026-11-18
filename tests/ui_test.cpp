@@ -306,6 +306,13 @@ int main() {
     for(int language=0;language<static_cast<int>(LanguageCount);++language){
         r.settings.language=static_cast<Language>(language);
         const std::wstring locale(LanguageCodes[language],LanguageCodes[language]+2);
+        r.editorPage=2;r.editorSelection[2]=10;r.sceneSelection=10;r.settings.sfx=true;frame();frame();
+        const auto particlePanel=inspector()->Pos;
+        io.AddMousePosEvent(particlePanel.x+35,particlePanel.y+34+44+10);
+        for(int hover=0;hover<12;++hover)frame();
+        CHECK(activeWindow("##Tooltip"));
+        CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-refinement-help.png").c_str()));
+        io.AddMousePosEvent(-FLT_MAX,-FLT_MAX);frame();
         r.editorPage=9;r.editorSelection[9]=0;frame();frame();
         r.settings.grass=false;control("grass","enabled");CHECK(r.settings.grass);
         r.settings.grassSnow=false;control("grass","snow-grass");CHECK(r.settings.grassSnow);

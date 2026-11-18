@@ -207,7 +207,7 @@ if ($Tests) {
     if($LASTEXITCODE){throw 'Sky detail tests failed'}
     & '.\build\sky-detail-test.exe' '--msaa'
     if($LASTEXITCODE){throw 'MSAA sky detail tests failed'}
-    & $cxx '-std=c++20' '-O2' '-static' '-Isrc' 'tests/dx9_test.cpp' 'src/settings.cpp' '-ld3d9' '-ldxguid' '-lgdi32' '-lgdiplus' '-lpsapi' '-o' "$outputDirectory/FENB-preview.exe"
+    & $cxx '-std=c++20' '-O2' '-static' '-Isrc' 'tests/dx9_test.cpp' 'src/settings.cpp' '-ld3d9' '-ldxguid' '-lgdi32' '-lgdiplus' '-lpsapi' '-lbcrypt' '-o' "$outputDirectory/FENB-preview.exe"
     if ($LASTEXITCODE) { throw 'DX9 test build failed' }
     & (Join-Path $outputDirectory 'FENB-preview.exe') '--aa-test'
     if ($LASTEXITCODE) { throw 'Live MSAA recovery tests failed' }

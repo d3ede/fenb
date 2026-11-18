@@ -11,7 +11,7 @@ class SfxFX {
     IDirect3DDevice9 *device_;
     BCRYPT_ALG_HANDLE hash_ = nullptr;
     Com<IDirect3DVertexShader9> vs_;
-    Com<IDirect3DPixelShader9> ps_, auraPS_;
+    Com<IDirect3DPixelShader9> ps_, auraPS_, refinementPS_;
     Com<IDirect3DTexture9> background_;
     Com<IDirect3DSurface9> backgroundSurface_;
     UINT width_ = 0, height_ = 0;
@@ -124,6 +124,7 @@ class SfxFX {
         vs_.out();
         ps_.out();
         auraPS_.out();
+        refinementPS_.out();
         backgroundSurface_.out();
         background_.out();
         width_ = height_ = 0;
@@ -272,8 +273,13 @@ class SfxFX {
             return false;
         if (wake && (s.sfxWake <= 0 || (!snapshot_ && !canSnapshot) || !snapshotWorld()))
             return false;
+        const bool aura = kind == 6 || kind == 7;
+        const bool refinement = kind == 7 && s.sceneQuality && s.sfxAura > 0 &&
+                                (!transform || std::abs(uv._12) + std::abs(uv._21) < .00001f);
         if ((!vs_.p && FAILED(device_->CreateVertexShader(ShaderSfxVS, vs_.out()))) ||
-            (kind == 6 ? (!auraPS_.p && FAILED(device_->CreatePixelShader(ShaderAuraPS, auraPS_.out()))) :
+            (refinement && !refinementPS_.p &&
+             FAILED(device_->CreatePixelShader(ShaderRefinementPS, refinementPS_.out()))) ||
+            (aura ? (!auraPS_.p && FAILED(device_->CreatePixelShader(ShaderAuraPS, auraPS_.out()))) :
                          (!ps_.p && FAILED(device_->CreatePixelShader(ShaderSfxPS, ps_.out())))))
             return false;
         if (!saveState(wake))
@@ -317,12 +323,14 @@ class SfxFX {
         c[6][0] = 1.f / desc.Width;
         c[6][1] = 1.f / desc.Height;
         c[6][2] = float(kind);
-        c[6][3] = kind == 6 ? 1.f : wake ? 1.f / (1 + scale * .45f) :
+        c[6][3] = aura ? 1.f : wake ? 1.f / (1 + scale * .45f) :
                                                1.f / (1 + std::max(0.f, float(draws_) - 64) * .015f);
         c[7][0] = width_ ? 1.f / width_ : 0;
         c[7][1] = height_ ? 1.f / height_ : 0;
         c[7][2] = snapshot_ ? 1.f : 0;
         c[7][3] = kind == 5 ? float(GetTickCount64() % 3600000) * .001f : s.sfxWake;
+        if (kind == 7)
+            c[7][3] = float(GetTickCount64() % 120000) * (6.28318530718f / 120000);
         DWORD fog = 0, mode = 0, packed = 0, start = 0, end = 0, density = 0;
         device_->GetRenderState(D3DRS_FOGENABLE, &fog);
         device_->GetRenderState(D3DRS_FOGTABLEMODE, &mode);
@@ -338,9 +346,9 @@ class SfxFX {
         memcpy(&c[9][2], &start, 4);
         memcpy(&c[9][3], &end, 4);
         memcpy(c[10], &density, 4);
-        c[10][1] = kind == 6 ? s.sfxAura : 0;
+        c[10][1] = aura ? s.sfxAura : 0;
         device_->SetVertexShader(vs_);
-        device_->SetPixelShader(kind == 6 ? auraPS_.p : ps_.p);
+        device_->SetPixelShader(refinement ? refinementPS_.p : aura ? auraPS_.p : ps_.p);
         device_->SetVertexShaderConstantF(0, &clip.m[0][0], 4);
         device_->SetVertexShaderConstantF(4, &uv.m[0][0], 4);
         device_->SetVertexShaderConstantF(8, &worldView.m[0][0], 4);
