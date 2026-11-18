@@ -275,6 +275,8 @@ int main(int argc, char **argv) {
     bool planeOnly = false, moonBackdrop = false;
     bool grassCard = false, grassDepthGuard = true, grassBlend = true, grassWrites = true;
     DWORD grassAlpha = 0;
+    DWORD grassAlphaTest=TRUE,grassAlphaFunc=D3DCMP_ALWAYS,grassAlphaRef=0;
+    bool grassLateGround=false,grassLegacyNoDepth=false;
     Com<IDirect3DTexture9> nativeGrass;
     CHECK(SUCCEEDED(d->CreateTexture(2,2,1,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,nativeGrass.out(),nullptr)));
     CHECK(SUCCEEDED(nativeGrass->LockRect(0,&lock,nullptr,0)));
@@ -465,6 +467,7 @@ int main(int argc, char **argv) {
             fx.sceneFX().skyEnvironment(fogSky);
         if (FAILED(d->BeginScene()))
             return false;
+        std::vector<Vertex> lateGround;
         if (!solid) {
             std::vector<Vertex> floor;
             for (int z = -5; z < 100; ++z)
@@ -484,6 +487,7 @@ int main(int argc, char **argv) {
                 }
             if(absoluteWorldVertices)d->SetTransform(D3DTS_WORLD,&id);
             d->DrawPrimitiveUP(D3DPT_TRIANGLELIST, UINT(floor.size() / 3), floor.data(), sizeof(Vertex));
+            if(grassLateGround)lateGround=floor;
             if(surfaceFixture) {
                 struct PavingVertex {float x,y,z,nx,ny,nz,u,v,u1,v1;};
                 std::vector<PavingVertex> maskFloor;
@@ -598,8 +602,9 @@ int main(int argc, char **argv) {
             d->SetRenderState(D3DRS_ZWRITEENABLE,grassWrites);
             d->SetRenderState(D3DRS_SRCBLEND,D3DBLEND_SRCALPHA);
             d->SetRenderState(D3DRS_DESTBLEND,D3DBLEND_INVSRCALPHA);
-            d->SetRenderState(D3DRS_ALPHATESTENABLE,TRUE);
-            d->SetRenderState(D3DRS_ALPHAFUNC,D3DCMP_ALWAYS);
+            d->SetRenderState(D3DRS_ALPHATESTENABLE,grassAlphaTest);
+            d->SetRenderState(D3DRS_ALPHAFUNC,grassAlphaFunc);
+            d->SetRenderState(D3DRS_ALPHAREF,grassAlphaRef);
             d->SetTextureStageState(0,D3DTSS_COLOROP,D3DTOP_SELECTARG1);
             d->SetTextureStageState(0,D3DTSS_COLORARG1,D3DTA_TEXTURE);
             d->SetTextureStageState(0,D3DTSS_ALPHAOP,D3DTOP_MODULATE);
@@ -607,15 +612,32 @@ int main(int argc, char **argv) {
             d->SetTextureStageState(0,D3DTSS_ALPHAARG2,D3DTA_DIFFUSE);
             if(grassDepthGuard)fx.sceneFX().beginGrassDepth(settings);
             DWORD writes=1;d->GetRenderState(D3DRS_ZWRITEENABLE,&writes);
-            if(writes!=DWORD(grassWrites && !(grassBlend && grassDepthGuard && (settings.ssao||settings.grass) && (grassTag&1024))))return false;
-            d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP,2,card,sizeof(G));
+            if(writes!=DWORD(grassWrites))return false;
+            const bool clipped=grassDepthGuard&&grassWrites&&grassBlend&&(settings.ssao||settings.grass)&&(grassTag&1024)&&
+                (!grassAlphaTest||grassAlphaFunc==D3DCMP_ALWAYS||(grassAlphaFunc==D3DCMP_GREATEREQUAL&&!grassAlphaRef));
+            DWORD activeTest=0,activeFunc=0,activeRef=0;
+            d->GetRenderState(D3DRS_ALPHATESTENABLE,&activeTest);d->GetRenderState(D3DRS_ALPHAFUNC,&activeFunc);
+            d->GetRenderState(D3DRS_ALPHAREF,&activeRef);
+            if(clipped&&(activeTest!=TRUE||activeFunc!=D3DCMP_GREATER||activeRef!=0))return false;
+            if(grassLegacyNoDepth)d->SetRenderState(D3DRS_ZWRITEENABLE,FALSE);
+            if(FAILED(d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP,2,card,sizeof(G))))return false;
+            if(grassLegacyNoDepth)d->SetRenderState(D3DRS_ZWRITEENABLE,grassWrites);
             fx.sceneFX().endGrassDepth();
             d->GetRenderState(D3DRS_ZWRITEENABLE,&writes);if(writes!=DWORD(grassWrites))return false;
+            DWORD test=0,func=0,ref=0;
+            d->GetRenderState(D3DRS_ALPHATESTENABLE,&test);d->GetRenderState(D3DRS_ALPHAFUNC,&func);
+            d->GetRenderState(D3DRS_ALPHAREF,&ref);
+            if(test!=grassAlphaTest||func!=grassAlphaFunc||ref!=grassAlphaRef)return false;
             d->SetRenderState(D3DRS_ZWRITEENABLE,TRUE);
             d->SetRenderState(D3DRS_ALPHABLENDENABLE,FALSE);
             d->SetRenderState(D3DRS_ALPHATESTENABLE,FALSE);
             d->SetTexture(0,nullptr);d->SetFVF(D3DFVF_XYZ|D3DFVF_DIFFUSE);
             d->SetTextureStageState(0,D3DTSS_COLORARG1,D3DTA_DIFFUSE);
+            if(grassLateGround){
+                // Terrain submitted after a native card must still fail depth
+                // where its visible blades already wrote nearer depth.
+                if(FAILED(d->DrawPrimitiveUP(D3DPT_TRIANGLELIST,UINT(lateGround.size()/3),lateGround.data(),sizeof(Vertex))))return false;
+            }
         }
         if (emit) {
             struct E {
@@ -842,6 +864,35 @@ int main(int argc, char **argv) {
     grassWrites=false;CHECK(render());grassWrites=true;
     settings.ssao=false;CHECK(render());
     settings.grass=true;CHECK(render());settings.grass=false;
+    // The old no-depth-write guard lets a later ground pass erase native grass.
+    // Vary camera height/yaw and opacity, without image effects or replacement blades.
+    settings.grass=true;grassLateGround=true;cameraOrbit=true;
+    for(float height:{1.2f,4.f,10.f})for(float yaw:{-.65f,0.f,.65f})for(DWORD alpha:{64u,255u}){
+        cameraHeight=height;cameraYaw=yaw;grassAlpha=alpha;
+        grassDepthGuard=false;CHECK(render());auto native=Read(d);
+        grassDepthGuard=true;CHECK(render());auto fixed=Read(d);
+        const unsigned changed=ColorDifference(native,fixed);
+        printf("Grass native parity height=%.1f yaw=%.2f alpha=%lu changed=%u\n",height,yaw,alpha,changed);
+        // Switching an alpha test can round a native MSAA depth sub-sample at
+        // the card/ground intersection. Bound that fringe to 16 pixels.
+        CHECK(changed<=(pp.MultiSampleType==D3DMULTISAMPLE_NONE?0u:16u));
+        grassLegacyNoDepth=true;CHECK(render());auto erased=Read(d);grassLegacyNoDepth=false;
+        CHECK(ColorDifference(native,erased)>100);
+        if(height==4 && yaw==0 && alpha==255){
+            CHECK(Save(erased,L"build/scene-native-grass-angle-before.bmp"));
+            CHECK(Save(native,L"build/scene-native-grass-angle-after.bmp"));
+        }
+    }
+    grassLateGround=false;cameraOrbit=false;cameraHeight=4;cameraYaw=0;settings.grass=false;
+    // Preserve strict and unusual native alpha tests and their visible coverage.
+    for(auto func:{D3DCMP_LESS,D3DCMP_EQUAL,D3DCMP_LESSEQUAL,D3DCMP_GREATER,D3DCMP_NOTEQUAL,D3DCMP_GREATEREQUAL}){
+        grassAlphaFunc=func;grassAlphaRef=80;grassAlpha=128;settings.grass=true;
+        grassDepthGuard=false;CHECK(render());auto native=Read(d);
+        grassDepthGuard=true;CHECK(render());CHECK(ColorDifference(native,Read(d))==0);
+    }
+    grassAlphaFunc=D3DCMP_GREATEREQUAL;grassAlphaRef=0;grassAlpha=0;CHECK(render());
+    grassAlphaTest=FALSE;grassAlphaFunc=D3DCMP_LESS;grassAlphaRef=80;CHECK(render());
+    grassAlphaTest=TRUE;grassAlphaFunc=D3DCMP_ALWAYS;grassAlphaRef=0;settings.grass=false;
     // Optional original-asset check exercises hashing, with no synthetic private tag.
     for(const auto *file:{L"X:/Games/Homesickness/Model/Texture/Obj_KaillunGrass01.dds",
                          L"X:/Games/Homesickness/Model/Texture/Obj_UpresiaGrass01.dds",
@@ -863,6 +914,24 @@ int main(int argc, char **argv) {
         grassCard=true;grassAlpha=0;CHECK(render());CHECK(ColorDifference(cleanGround,Read(d))==0);
         grassAlpha=64;CHECK(render());CHECK(Difference(cleanGround,Read(d))>100);
         CHECK(Save(Read(d),L"build/scene-native-grass-ssao-faded.bmp"));
+        if(wcsstr(file,L"Obj_MaCoPrGr1.dds")||wcsstr(file,L"Obj_MaCoPrGr3-01.dds")){
+            settings.ssao=false;settings.grass=true;grassLateGround=true;cameraOrbit=true;
+            unsigned erasedPixels=0;
+            for(float height:{1.2f,4.f,10.f})for(float yaw:{-.65f,0.f,.65f}){
+                cameraHeight=height;cameraYaw=yaw;grassAlpha=128;
+                grassAlphaFunc=D3DCMP_GREATER;grassDepthGuard=false;CHECK(render());auto native=Read(d);
+                grassAlphaFunc=D3DCMP_ALWAYS;grassDepthGuard=true;CHECK(render());
+                CHECK(ColorDifference(native,Read(d))==0);
+                grassLegacyNoDepth=true;CHECK(render());auto broken=Read(d);grassLegacyNoDepth=false;
+                erasedPixels+=ColorDifference(native,broken);
+                if(wcsstr(file,L"Obj_MaCoPrGr1.dds")&&height==4&&yaw==0&&format==D3DFMT_A8R8G8B8){
+                    CHECK(Save(broken,L"build/scene-original-grass-angle-before.bmp"));
+                    CHECK(Save(native,L"build/scene-original-grass-angle-after.bmp"));
+                }
+            }
+            CHECK(erasedPixels>20);
+            grassLateGround=false;cameraOrbit=false;cameraHeight=4;cameraYaw=0;settings.grass=false;
+        }
     }
     // Similar file names and native tree bark must not opt into foliage handling.
     for(const auto *file:{L"X:/Games/Homesickness/Model/Texture/Obj_MaCoPrGrGe01-01.dds",

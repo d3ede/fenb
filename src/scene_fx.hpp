@@ -94,6 +94,7 @@ class SceneFX {
     std::unique_ptr<StateGuard> skyState_;
     bool foliageActive_ = false;
     bool grassDepthActive_ = false;
+    DWORD grassAlphaTest_ = FALSE, grassAlphaFunc_ = D3DCMP_ALWAYS, grassAlphaRef_ = 0;
     DWORD originalAmbient_ = 0;
     D3DMATERIAL9 originalMaterial_{};
     D3DMATRIX view_{}, projection_{};
@@ -158,7 +159,9 @@ class SceneFX {
     void beginGrassDepth(const Settings &);
     void endGrassDepth() {
         if (grassDepthActive_) {
-            device_->SetRenderState(D3DRS_ZWRITEENABLE, TRUE);
+            device_->SetRenderState(D3DRS_ALPHATESTENABLE, grassAlphaTest_);
+            device_->SetRenderState(D3DRS_ALPHAFUNC, grassAlphaFunc_);
+            device_->SetRenderState(D3DRS_ALPHAREF, grassAlphaRef_);
             grassDepthActive_ = false;
         }
     }

@@ -741,10 +741,22 @@ void SceneFX::beginGrassDepth(const Settings &s) {
     DWORD tag=0, size=4;
     if (FAILED(texture->GetPrivateData(EmitterTag,&tag,&size)) || size!=4 || !(tag&1024))
         return;
-    // Native proximity fading blends grass, flowers and foliage but can still write their whole
-    // rectangle into depth. Translucent grass cannot be an opaque AO receiver or
-    // occluder. Keep native color/alpha and depth testing; restore writes per draw.
-    grassDepthActive_=SUCCEEDED(device_->SetRenderState(D3DRS_ZWRITEENABLE,FALSE));
+    if (FAILED(device_->GetRenderState(D3DRS_ALPHATESTENABLE,&grassAlphaTest_)) ||
+        FAILED(device_->GetRenderState(D3DRS_ALPHAFUNC,&grassAlphaFunc_)) ||
+        FAILED(device_->GetRenderState(D3DRS_ALPHAREF,&grassAlphaRef_)))
+        return;
+    // Keep native depth writes for every visible fragment: later terrain draws
+    // and intersecting grass cards depend on them at changing camera angles.
+    // Only replace a test that admits every alpha value. Stricter native tests
+    // retain their original cutoff and comparison, including unusual modes.
+    if (grassAlphaTest_ && grassAlphaFunc_!=D3DCMP_ALWAYS &&
+        !(grassAlphaFunc_==D3DCMP_GREATEREQUAL && grassAlphaRef_==0))
+        return;
+    grassDepthActive_=true;
+    if (FAILED(device_->SetRenderState(D3DRS_ALPHATESTENABLE,TRUE)) ||
+        FAILED(device_->SetRenderState(D3DRS_ALPHAFUNC,D3DCMP_GREATER)) ||
+        FAILED(device_->SetRenderState(D3DRS_ALPHAREF,0)))
+        endGrassDepth();
 }
 void SceneFX::beginFoliage(const Settings &s) {
     if ((s.nightFoliage <= 0 && !s.lightingBalance) || !camera_ || !sunValid_ || foliageActive_ || skyState_)
