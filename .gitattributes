@@ -1,6 +1,7 @@
 * text=auto eol=lf
 
 *.png binary
+*.dds binary
 *.bgra binary
 *.jpg binary
 *.jpeg binary

@@ -33,6 +33,15 @@ int main() {
     }
     Settings s;
     {
+        Settings trees;CHECK(!trees.trees);trees.trees=true;trees.language=Language::Portuguese;
+        CHECK(trees.save(L"build/tree-settings.ini"));Settings restored;
+        CHECK(restored.load(L"build/tree-settings.ini")&&restored.trees&&restored.language==trees.language);
+        restored.preset(0);CHECK(restored.trees&&restored.language==trees.language);
+        restored.resetSceneSection(16);CHECK(restored.trees);
+        restored.resetSceneSection(18);CHECK(restored.trees); // section resets retain effect switches
+        DeleteFileW(L"build/tree-settings.ini");
+    }
+    {
         Settings grass;CHECK(!grass.grass&&grass.grassHeight==.55f&&grass.grassQuality==1);
         grass.grass=true;grass.grassSnow=true;grass.grassHeight=10;grass.grassDensity=-1;grass.grassQuality=1.7f;
         grass.grassWind=std::numeric_limits<float>::quiet_NaN();grass.language=Language::Russian;grass.sanitize();

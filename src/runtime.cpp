@@ -11,6 +11,7 @@
 #include "sfx.hpp"
 #include "material.hpp"
 #include "grass.hpp"
+#include "trees.hpp"
 #include <commctrl.h>
 #ifdef FENB_DIAGNOSTICS
 #include "pipeline_probe.hpp"
@@ -36,7 +37,8 @@ FILETIME FileTime(const std::wstring &path) {
 Runtime::Runtime(IDirect3DDevice9 *device)
     : device_(device), effects_(std::make_unique<Effects>(device)),
       water_(std::make_unique<WaterFX>(device)), sfx_(std::make_unique<SfxFX>(device)),
-      materials_(std::make_unique<MaterialFX>(device)),grass_(std::make_unique<GrassFX>(device)) {
+      materials_(std::make_unique<MaterialFX>(device)),grass_(std::make_unique<GrassFX>(device)),
+      trees_(std::make_unique<TreeFX>(device)) {
     configPath = ModuleDirectory() + L"FENB.ini";
     settings.load(configPath);
     grass_->beginFrame(settings.enabled&&settings.grass);
@@ -187,6 +189,7 @@ void Runtime::invalidate() {
     sfx_->invalidate();
     materials_->invalidate();
     grass_->invalidate();
+    trees_->invalidate();
     if (context_) {
         ContextScope scope(context_);
         ImGui_ImplDX9_InvalidateDeviceObjects();
@@ -233,6 +236,7 @@ void Runtime::afterPresent(HRESULT result) {
     }
 }
 void Runtime::resetFrame() {
+    trees_->beginFrame(settings.enabled&&settings.trees&&!compare);
     float player[3]{};uint64_t worldKey=0;const bool grassEnabled=settings.enabled&&settings.grass&&!compare;
     const bool hasPlayer=grassEnabled&&environment_.playerPosition(player,&worldKey);
     grass_->beginFrame(grassEnabled,hasPlayer?player:nullptr,worldKey);
@@ -256,6 +260,9 @@ void Runtime::resetFrame() {
     invalidateDrawState();
 }
 void Runtime::beforeWaterDraw(UINT upStride, DrawCall draw,ParticleDraw particle) {
+    const bool treeDraw=!lost_&&!hudStarted_&&settings.enabled&&settings.trees&&!compare&&
+        !vertexShaderActive_&&fvfKnown_&&(drawFVF_==0x112||drawFVF_==0x212)&&
+        sceneBackbuffer_&&drawTarget_==sceneBackbuffer_&&trees_->begin(settings);
     if (!lost_ && settings.enabled && (settings.sfx || (settings.water && settings.sfxWake > 0)) && !compare && !vertexShaderActive_ &&
         fvfKnown_ && (drawFVF_ == 0x102 || drawFVF_ == 0x142) &&
         sceneBackbuffer_ && drawTarget_ == sceneBackbuffer_)
@@ -264,10 +271,10 @@ void Runtime::beforeWaterDraw(UINT upStride, DrawCall draw,ParticleDraw particle
         drawFVF_ == 0x142 && sceneBackbuffer_ && drawTarget_ == sceneBackbuffer_)
         effects_->sceneFX().beginFlare(settings);
     if (!lost_ && !hudStarted_ && settings.enabled && !compare && !vertexShaderActive_ && fvfKnown_ &&
-        drawFVF_ == 0x112 && (settings.nightFoliage > 0 || settings.lightingBalance) && sceneBackbuffer_ &&
+        !treeDraw && drawFVF_ == 0x112 && (settings.nightFoliage > 0 || settings.lightingBalance) && sceneBackbuffer_ &&
         drawTarget_ == sceneBackbuffer_)
         effects_->sceneFX().beginFoliage(settings);
-    if (!lost_ && !hudStarted_ && settings.enabled && settings.materials && !compare &&
+    if (!treeDraw && !lost_ && !hudStarted_ && settings.enabled && settings.materials && !compare &&
         !vertexShaderActive_ && fvfKnown_ && (drawFVF_ == 0x112 || drawFVF_ == 0x212) &&
         sceneBackbuffer_ && drawTarget_ == sceneBackbuffer_)
         materials_->begin(settings);
@@ -308,6 +315,7 @@ void Runtime::afterWaterDraw(bool up, bool indexed) {
     effects_->sceneFX().endGrassDepth();
     grass_->endNative();
     materials_->end();
+    trees_->end();
     sfx_->end(up,indexed);
     effects_->sceneFX().endSky();
     effects_->sceneFX().endFoliage();
@@ -549,7 +557,7 @@ void Runtime::beforePresent(IDirect3DSwapChain9 *provided, DWORD flags, HWND win
     device_->EndScene();
 }
 double Runtime::gpuBytes() const {
-    return double(effects_->bytes() + water_->bytes() + sfx_->bytes()+grass_->bytes());
+    return double(effects_->bytes() + water_->bytes() + sfx_->bytes()+grass_->bytes()+trees_->bytes());
 }
 bool Runtime::grassSupported(){return grass_->supported();}
 unsigned Runtime::activeMSAA() const {

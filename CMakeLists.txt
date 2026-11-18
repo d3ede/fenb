@@ -9,6 +9,12 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT MSVC)
   add_compile_definitions(FENB_CLANG_ASM_BLOCKS)
 endif()
 find_program(FENB_NODE_EXECUTABLE node REQUIRED)
+file(GLOB FENB_TREE_TEXTURES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/assets/trees/*.dds")
+add_custom_command(OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/src/generated/trees.hpp"
+  COMMAND "${FENB_NODE_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/embed-trees.mjs"
+  DEPENDS tools/embed-trees.mjs tools/trees.json ${FENB_TREE_TEXTURES}
+  WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+set_source_files_properties(src/runtime.cpp PROPERTIES OBJECT_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/generated/trees.hpp")
 set(FENB_MATERIAL_CATALOG "${CMAKE_CURRENT_SOURCE_DIR}/src/generated/material_catalog.hpp")
 add_custom_command(OUTPUT "${FENB_MATERIAL_CATALOG}"
   COMMAND "${FENB_NODE_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/material-catalog.mjs"
@@ -126,6 +132,10 @@ target_sources(d3d9 PRIVATE src/grass.cpp "${FENB_GRASS_CATALOG}" ${FENB_GRASS_S
 
 include(CTest)
 if(BUILD_TESTING)
+  add_executable(tree-test tests/tree_test.cpp "${CMAKE_CURRENT_SOURCE_DIR}/src/generated/trees.hpp")
+  target_include_directories(tree-test PRIVATE src)
+  target_link_libraries(tree-test PRIVATE dxguid bcrypt "$<IF:$<CXX_COMPILER_ID:MSVC>,d3d9.lib,-ld3d9>")
+  add_test(NAME trees COMMAND tree-test)
   add_executable(grass-test tests/grass_test.cpp src/grass.cpp "${FENB_GRASS_CATALOG}" ${FENB_GRASS_SHADERS})
   target_include_directories(grass-test PRIVATE "${CMAKE_CURRENT_BINARY_DIR}" src)
   target_link_libraries(grass-test PRIVATE dxguid bcrypt gdiplus "$<IF:$<CXX_COMPILER_ID:MSVC>,d3d9.lib,-ld3d9>")

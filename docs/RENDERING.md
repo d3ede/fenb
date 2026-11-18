@@ -43,6 +43,24 @@ The panel uses Windows Tahoma with regular text and moderately strengthened head
 
 The optional panel cursor acquires a balanced negative Windows cursor-display count. Late native SetCursor calls cannot display a second cursor; closing the panel, losing focus and device recovery release that ownership.
 
+### Experimental trees
+
+**World → Vegetation → Trees** is a single opt-in switch above Grass, marked
+Experimental. It changes recognized tree bark independently of Materials and
+Grass; image profiles retain its switch. Native geometry, UVs, lighting and
+foliage remain in use, with the identified snowy branch atlas also replaced.
+Shared source atlases receive the same appearance wherever they occur; there is
+no map-coordinate gate.
+
+The DLL embeds 15 shared DXT1/DXT5 textures with complete mip chains (830,400 bytes
+of compressed GPU data) for 22 original atlas files. Exact first-mip SHA-256 upload
+identities, including verified ARGB8 decodes, use texture-private metadata and the
+existing resource-write invalidation hooks. Replacements load lazily per device
+and bind only for an accepted native perspective draw before the HUD. Unknown
+resources, custom shaders and off-screen targets stay native. Disabling Trees or
+the master switch releases its cache on the next frame; device invalidation
+releases it immediately. Production needs no D3DX or image decoder.
+
 ## When an effect is visible
 
 Time and weather use an opt-in adapter for the verified Homesickness x86 renderer ABI. Unknown clients and the synthetic preview can configure the values but do not apply native overrides. Startup discovery finds unique executable instruction anchors and follows relocated in-image operands to the application vtable, clock, sky, player and weather option. It checks the frame gates, methods and memory protections before installing reversible vtable hooks. FPS, environment overrides and the D24 presentation policy share this cached layout. File hashes, timestamps, entry-point RVAs and the old image size are not compatibility gates; resource-only updates and relocated compatible code/data remain supported. Changed or ambiguous function signatures disable the affected adapter rather than guessing. This is not a guarantee for arbitrary compiler or structure-layout changes. Discovery is read-only, runs once and releases its temporary section snapshots. It temporarily substitutes the visible clock fields and precipitation data only during rendering, restoring the game's clock, weather selection, particle history, option and texture ownership afterwards. Network state, server clocks, dates and simulation remain native. Rain/snow use the client's artwork and bounded native particle capacity, with a separate local animation history. Maps with custom or fixed environments may limit the result. Settings are stored in `[Environment]`; old configurations retain native time and weather.

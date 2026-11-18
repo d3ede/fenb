@@ -306,6 +306,9 @@ int main() {
     for(int language=0;language<static_cast<int>(LanguageCount);++language){
         r.settings.language=static_cast<Language>(language);
         const std::wstring locale(LanguageCodes[language],LanguageCodes[language]+2);
+        r.editorPage=4;r.editorSelection[4]=2;frame();frame();
+        r.settings.trees=false;control("trees","enabled");CHECK(r.settings.trees);
+        CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-trees.png").c_str()));
         r.editorPage=4;frame();frame();selectItem("puddles");
         r.settings.puddles=false;control("puddles","enabled");CHECK(r.settings.puddles);
         r.settings.puddleCoverage=.9f;

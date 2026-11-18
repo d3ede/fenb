@@ -193,6 +193,7 @@ std::vector<PanelItem> PanelItems(Runtime &r) {
     case 4:
         return {{"time", g(UiText::PanelWorld), Tr(UiText::TimeOfDay), &s.timeOverride},
                 {"weather", g(UiText::PanelWorld), Tr(UiText::WeatherOverride), &s.weatherOverride},
+                {"trees",g(UiText::Vegetation),g(UiText::Trees),&s.trees},
                 {"grass",g(UiText::Vegetation),g(UiText::Grass),nullptr,9},
                 {"puddles",g(UiText::WetSurfaces),g(UiText::Puddles),&s.puddles}};
     case 9:
@@ -681,6 +682,7 @@ void PanelParameters(Runtime &r, int item) {
             uiParameterDisabled = disabled;
         }
     }
+    if(page==4&&item==2)PanelNote(Tr(UiText::TreesExperimental));
     if (page == 5) {
         if (item == 2) {
             ImGui::PushFont(nullptr, 13);
@@ -719,6 +721,7 @@ PanelMaster EditorMaster(Runtime &r) {
     }
 }
 bool CanResetPanel(int page, int item) {
+    if(page==4&&item==2)return false;
     if (page == 3)
         return item == 2;
     if (page == 5)
@@ -898,6 +901,7 @@ void PanelEditor(Runtime &r) {
                              selected==2?UiText::OptimizationSkillsHelp:selected==3?UiText::OptimizationPetsHelp:
                              selected==4?UiText::VisiblePlayersHelp:selected==5?UiText::VisibleMonstersHelp:UiText::VisiblePetsHelp);
     if(r.editorPage==5&&selected<2)help=Tr(selected==0?UiText::V2CursorSampleNote:UiText::V2MotionNote);
+    if(r.editorPage==4&&selected==2)help=Tr(UiText::TreesExperimental);
     const bool puddleItem=r.editorPage==4 && !strcmp(item.id,"puddles");
     if(puddleItem)help=Tr(UiText::PuddlesHelp);
     ImGui::InvisibleButton("description", {std::max(1.f,w-(showEnable?40:5)),25});

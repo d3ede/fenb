@@ -1,0 +1,225 @@
+{
+  "schema": 1,
+  "sources": [
+    {
+      "file": "obj_azriatree01-b.dds",
+      "width": 128,
+      "height": 256,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "77200eb8c29f4c607c3d0409c09937cdbdc8433275422b4abc4849d1146ab853",
+      "uploadSha256": "addcdd5f222407f80cc93d365ca58fafd6875246cc619663a8a5c56cc6554f1a",
+      "decodedSha256": "33a44b7620c57254c0710680e7223a24cf97e14b8700ffca99449d91fa1bb7df",
+      "asset": "assets/trees/bark-01.dds"
+    },
+    {
+      "file": "obj_azriatree01-b1.dds",
+      "width": 128,
+      "height": 256,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "4bc7f4f7f1d7d8ebfdb0e1f1166a8cab2ced56185ea794f3d471d0358d26600b",
+      "uploadSha256": "3507d5b99973a4a7e4a7792b327121acd5a217b69f2737aedf0feb799de61e10",
+      "decodedSha256": "637b15f516311cc5b688b94efb0c781954559c3ba01bdff9c7c1ca58692cfbe8",
+      "asset": "assets/trees/bark-02.dds"
+    },
+    {
+      "file": "obj_azriatree01-b2.dds",
+      "width": 128,
+      "height": 256,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "7cade1e1d3aab94c330f8d41f466f9578caba353efad802208209892937e46cb",
+      "uploadSha256": "7c5eb3fa8f30e6d470d95b82818a6837f690373e656ae47a909b5ae3b60b47e5",
+      "decodedSha256": "6383d21c48b275a319cd87c93f48ed80da9c59e9177f6f991d638fc2cdabe8d4",
+      "asset": "assets/trees/bark-03.dds"
+    },
+    {
+      "file": "obj_azriatree04.dds",
+      "width": 256,
+      "height": 512,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "dba552cd87f3c65b822ea401400a800634bd3d1b4a5ee5dbbd5324f374b85518",
+      "uploadSha256": "4513b8eaf76536ef978c68c81993750a7965edb94d21117ae22d6056af5e2149",
+      "decodedSha256": "7806fb2eab4c498553c7556c8355e1b29c9a153c2c1a8e6040cab8fb453ba5ea",
+      "asset": "assets/trees/bark-04.dds"
+    },
+    {
+      "file": "obj_azriatree041.dds",
+      "width": 256,
+      "height": 256,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "836feac7947cd00717355949b66fb98629d69a410456a6f31eff36a94b5da740",
+      "uploadSha256": "c28cc9d76664df2e5166daa4f857ea59e3a005a8ee2bfd64408b705187e6b2d0",
+      "decodedSha256": "3323fdbe89dc3902c4a5f8646cf911ee21305a8ac894d42c83728daa66dd60bb",
+      "asset": "assets/trees/bark-05.dds"
+    },
+    {
+      "file": "obj_azriatree06-b1.dds",
+      "width": 128,
+      "height": 256,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "d47adf6bdce80812d2829810cd8a8a46ca91e8dd47eda73cb7466e3010e7b1a2",
+      "uploadSha256": "d4abc5763cebd9683dc29e61d54685ce01026000c9b6cb843432373c865ff6f4",
+      "decodedSha256": "0ab1042ad54f226174a5bdfb8b595949524f7c00f9d814620f9008f45108ca46",
+      "asset": "assets/trees/bark-06.dds"
+    },
+    {
+      "file": "obj_azriatree07-b1.dds",
+      "width": 128,
+      "height": 256,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "2bb650410a191565509242b8d97c3e6a894149b5f656d3ed84fcde20c0a28e03",
+      "uploadSha256": "af8be7aaf4a62ba18c1d7f29b9f3ef0cbf1436e6eab88e767e8e1dee4371d4af",
+      "decodedSha256": "336f735225755273b9e7e34fac42b7f3cb67789e23c77d80e889b28bd8b0f049",
+      "asset": "assets/trees/bark-07.dds"
+    },
+    {
+      "file": "obj_azriatree08-b1.dds",
+      "width": 128,
+      "height": 256,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "2bb650410a191565509242b8d97c3e6a894149b5f656d3ed84fcde20c0a28e03",
+      "uploadSha256": "af8be7aaf4a62ba18c1d7f29b9f3ef0cbf1436e6eab88e767e8e1dee4371d4af",
+      "decodedSha256": "336f735225755273b9e7e34fac42b7f3cb67789e23c77d80e889b28bd8b0f049",
+      "asset": "assets/trees/bark-07.dds"
+    },
+    {
+      "file": "obj_azriatree09-b1.dds",
+      "width": 256,
+      "height": 512,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "c698cd1f05b70831dbe16a5c0c18fa3989b7157d74fbd06fd38c252db808e803",
+      "uploadSha256": "ca0b5998cc879346ba0272f11bbb2c6074ec22e43b41f4acc06d1680abdacd3a",
+      "decodedSha256": "0011a9b5f5f95bc6009faca33fe517f7c99240f9d76ab647f1d6e921ee2ea6c2",
+      "asset": "assets/trees/bark-08.dds"
+    },
+    {
+      "file": "obj_macoprtr02-02.dds",
+      "width": 128,
+      "height": 256,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "288ad10d67b90937d3dbaba4f13ecc96d54c0b26226e701c549fb2f2bb421bb3",
+      "uploadSha256": "e8812133c4dc14cbe61f9449629f77157ea7ea0e4a11bb70b8ab5a9b15a03743",
+      "decodedSha256": "2d84bc61b1fa5a3b7e7ddcf84a8c4b83f7cf98f5061e0ee7df4136ebd1fe5f37",
+      "asset": "assets/trees/bark-09.dds"
+    },
+    {
+      "file": "obj_macoprtr03-02.dds",
+      "width": 128,
+      "height": 256,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "d97a34750ddbfaa0daa31dbebf3ef736bd3f3b6b2da7c23242eef48d118b3f2b",
+      "uploadSha256": "c15658faf6391eabbee0de16d5ec33a1754eb71c4a65bcc7ea4957eda9740b0b",
+      "decodedSha256": "cfd510f32a818d8efa26c20cf3b53aa8fbe8bfb5e3b40af6ee63a02cb8d76bf9",
+      "asset": "assets/trees/bark-09.dds"
+    },
+    {
+      "file": "obj_macoprtr04-02.dds",
+      "width": 256,
+      "height": 256,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "ed4b8431e07f922dd442b8a159bed5f594e05b4b38f2aaef70809b87c13d1259",
+      "uploadSha256": "900dccf748285da73d00c74da830648009e8b7c271b89308c985a13300275556",
+      "decodedSha256": "5f3d687ba4b14c670eb4c3cf248d4c27254caa3e6222096aa1916ce99c604d5c",
+      "asset": "assets/trees/bark-10.dds"
+    },
+    {
+      "file": "obj_macoprtr05-02.dds",
+      "width": 256,
+      "height": 256,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "6715689419fd053d844a0107b6b6c7014ad38455f42dc462e9391cc0ddbe1a12",
+      "uploadSha256": "0b4af56bef264fa03cd35e6778f45a9251a57f91dead107576b78f566c83ce41",
+      "decodedSha256": "37b422e6f69204968e1a147b623d6c6156786d86b16c629ec3e922b366f52a30",
+      "asset": "assets/trees/bark-11.dds"
+    },
+    {
+      "file": "obj_macoprtr10-02.dds",
+      "width": 256,
+      "height": 512,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "2a2f29f548a5ea548faad35aefb9d3f8905f5dd71cc08b8f1079a03555f42f46",
+      "uploadSha256": "61fca935da0d44811867b065399d84bdc67a687b3c1eda2f9df7ccf84efab0ea",
+      "decodedSha256": "299321383e0fe9142f708a329a830d60d956ef1640239c32f026773934d833cf",
+      "asset": "assets/trees/bark-12.dds"
+    },
+    {
+      "file": "obj_macoprtr11-02.dds",
+      "width": 256,
+      "height": 512,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "2a2f29f548a5ea548faad35aefb9d3f8905f5dd71cc08b8f1079a03555f42f46",
+      "uploadSha256": "61fca935da0d44811867b065399d84bdc67a687b3c1eda2f9df7ccf84efab0ea",
+      "decodedSha256": "299321383e0fe9142f708a329a830d60d956ef1640239c32f026773934d833cf",
+      "asset": "assets/trees/bark-12.dds"
+    },
+    {
+      "file": "obj_macoprtr12-02.dds",
+      "width": 256,
+      "height": 512,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "70a16801b459fe75fc2eee457d14b4806e3ca8c99e8e15e5aed10867b39d6d2d",
+      "uploadSha256": "9118042672ed4a1eeebc972c7f8a150f55a946cfb05cd657bed7e3af2eeea572",
+      "decodedSha256": "5ab530c9e664b3ec18aec16dbc48da4c8408a5c5dfe08957ca3ca73f0871d9ff",
+      "asset": "assets/trees/bark-13.dds"
+    },
+    {
+      "file": "obj_macoprtr13-02.dds",
+      "width": 256,
+      "height": 512,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "7666b9c1c5106d461180ed643eff74bb4e5009ee61d58dfc9fcd5da9599c4799",
+      "uploadSha256": "8a8007a5c89f269a5728b321c9845c46b36349f15154ba57fbfa6432f57b67dc",
+      "decodedSha256": "535791224f7c6d8c1059a4eeff7180c6bc89e2ed7e7a61869df2b85e1ff95168",
+      "asset": "assets/trees/bark-12.dds"
+    },
+    {
+      "file": "obj_macoprtr13-03.dds",
+      "width": 256,
+      "height": 256,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "30c697e14e862af74b302e36d65e0db936393cd5c096ae2e84db4a1a65f9f42d",
+      "uploadSha256": "b7486dffdb22ccbdf6321a6b879107d475397cfd7dfcdd9620c31dd0bf91e9a4",
+      "decodedSha256": "8a0fefde86a01a2d5fc2e499b05ce9b9154372b3c8f2711ec5460011ee3e860d",
+      "asset": "assets/trees/bark-14.dds"
+    },
+    {
+      "file": "obj_macoprtr14-02.dds",
+      "width": 256,
+      "height": 512,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "a6fe7773844b409dc9665db258f7c16eea4fe00ae12b94661e4578b0a3dc628d",
+      "uploadSha256": "abca87c05ad1ca3c5d326753f1bd374ddc8f81e4917f170fed218b1701f64996",
+      "decodedSha256": "ea7f48a7822f16de6d09bdcece188e3851637f0d0ed699b110f1681323efcd1f",
+      "asset": "assets/trees/bark-12.dds"
+    },
+    {
+      "file": "obj_macoprtr15-02.dds",
+      "width": 256,
+      "height": 512,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "7666b9c1c5106d461180ed643eff74bb4e5009ee61d58dfc9fcd5da9599c4799",
+      "uploadSha256": "8a8007a5c89f269a5728b321c9845c46b36349f15154ba57fbfa6432f57b67dc",
+      "decodedSha256": "535791224f7c6d8c1059a4eeff7180c6bc89e2ed7e7a61869df2b85e1ff95168",
+      "asset": "assets/trees/bark-12.dds"
+    },
+    {
+      "file": "obj_macoprtr15-03.dds",
+      "width": 256,
+      "height": 256,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "30c697e14e862af74b302e36d65e0db936393cd5c096ae2e84db4a1a65f9f42d",
+      "uploadSha256": "b7486dffdb22ccbdf6321a6b879107d475397cfd7dfcdd9620c31dd0bf91e9a4",
+      "decodedSha256": "8a0fefde86a01a2d5fc2e499b05ce9b9154372b3c8f2711ec5460011ee3e860d",
+      "asset": "assets/trees/bark-14.dds"
+    },
+    {
+      "file": "obj_macoprtr20-01.dds",
+      "width": 256,
+      "height": 512,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "f2753045751dd58b2f752833ea6de2a1cbe2bd63ee606eb0d94f24badf905d6c",
+      "uploadSha256": "344456fee59e9f381ed7d651eec85cb8dd5a7dfe46fc189230b858f4df0b3565",
+      "decodedSha256": "77bea04aadabfbec644b4d2e1cf96851b2c511ad557d4c99ca85009ddb8810f7",
+      "asset": "assets/trees/bark-15.dds"
+    }
+  ]
+}

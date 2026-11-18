@@ -122,6 +122,7 @@ inline void ApplyBuiltInVisuals(Settings &s, int index) {
     s.materialGlints = 0.350000f;
     s.materialSnow = 0.750000f;
     s.grass = false;
+    s.trees = false;
     s.grassSnow = false;
     s.grassQuality = 1.000000f;
     s.grassDistance = 40.000000f;

@@ -460,6 +460,8 @@ UI_TEXT(PanelInterfaceDescription,"FENB interface preferences.","Парамет�
 UI_TEXT(PanelFXAAHelp,"Smooths contrast edges with post-processing. Enabling FXAA turns SMAA off.","Сглаживает контрастные границы постобработкой. Включение FXAA отключает SMAA.","Suaviza bordes de alto contraste con posprocesado. Activar FXAA desactiva SMAA.","Suaviza bordas de alto contraste com pós-processamento. Ativar FXAA desativa SMAA.")
 UI_TEXT(PanelSMAAHelp,"An alternative post-processing method. Enabling SMAA turns FXAA off.","Альтернативный метод постобработки. Включение SMAA отключает FXAA.","Método alternativo de posprocesado. Activar SMAA desactiva FXAA.","Método alternativo de pós-processamento. Ativar SMAA desativa FXAA.")
 UI_TEXT(Grass, "Grass", "Трава", "Hierba", "Grama")
+UI_TEXT(Trees, "Trees", "Деревья", "Árboles", "Árvores")
+UI_TEXT(TreesExperimental, "Experimental", "Экспериментально", "Experimental", "Experimental")
 UI_TEXT(GrassSnow, "Snowy grass", "Снежная трава", "Hierba nevada", "Grama nevada")
 UI_TEXT(GrassSnowHelp, "White grass on snowy terrain, using the same grass settings.", "Белая трава на снегу с общими настройками травы.", "Hierba blanca sobre la nieve, con los mismos ajustes de hierba.", "Grama branca sobre a neve, com os mesmos ajustes de grama.")
 UI_TEXT(GrassCoverage, "Coverage", "Покрытие", "Cobertura", "Cobertura")

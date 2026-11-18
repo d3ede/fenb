@@ -19,6 +19,8 @@ node tools/material-catalog.mjs
 if($LASTEXITCODE){throw 'Material catalog generation failed'}
 node tools/grass-catalog.mjs
 if($LASTEXITCODE){throw 'Grass catalog generation failed'}
+node tools/embed-trees.mjs
+if($LASTEXITCODE){throw 'Tree texture embedding failed'}
 node tools/embed-updater.mjs
 if ($LASTEXITCODE) { throw 'Updater embedding failed' }
 & $cxx '-std=c++20' '-O2' '-static' 'tools/shaderc.cpp' '-ld3dcompiler' '-o' 'build/shaderc.exe'
@@ -78,6 +80,10 @@ node tools/prepare-distribution.mjs $outputDirectory
 if ($LASTEXITCODE) { throw 'Distribution documentation generation failed' }
 Get-Item -LiteralPath "$outputDirectory/d3d9.dll" | Select-Object FullName,Length
 if ($Tests) {
+    & $cxx '-std=c++20' '-O2' '-static' '-Isrc' 'tests/tree_test.cpp' '-ld3d9' '-ldxguid' '-lbcrypt' '-o' 'build/tree-test.exe'
+    if($LASTEXITCODE){throw 'Tree replacement test build failed'}
+    & './build/tree-test.exe'
+    if($LASTEXITCODE){throw 'Tree replacement tests failed'}
     & $cxx '-std=c++20' '-O2' '-static' '-Isrc' 'tests/resource_cache_test.cpp' '-o' 'build/resource-cache-test.exe'
     if($LASTEXITCODE){throw 'Resource lookup cache test build failed'}
     & './build/resource-cache-test.exe'
