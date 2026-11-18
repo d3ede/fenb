@@ -55,7 +55,7 @@ float3 PaintedSnow(float3 art) {
     // Green needles and warm bark retain their original colors and silhouettes.
     float mask=saturate((brightness-.5)*4)*
         (1-saturate((art.g-max(art.r,art.b))*8))*saturate((art.b-art.r+.1)*8);
-    return lerp(art,float3(.99,.99,1)*(.5+brightness*.5),mask*Style.w*Style.x);
+    return lerp(art,float3(.965,.985,1)*(.55+brightness*.45),mask*Style.w*Style.x);
 }
 float4 ShadeMaterial(MaterialInput i,uniform bool smoothBark) {
     const float3 luma=float3(.2126,.7152,.0722);
@@ -98,9 +98,9 @@ float4 ShadeMaterial(MaterialInput i,uniform bool smoothBark) {
     if(ArtInfo.z<1.5){
         float brightness=dot(art.rgb,luma);
         // Keep broad painted variation, but compress mottling rather than embossing it.
-        float3 clean=float3(.99,.99,1)*(.5+brightness*.5);
+        float3 clean=float3(.965,.985,1)*(.55+brightness*.45);
         art.rgb=lerp(art.rgb,clean,Style.w*Style.x);
-        art.rgb=saturate(art.rgb+(micro.b-.5)*detailFade*Style.w*Style.x*.025);
+        art.rgb=saturate(art.rgb+(micro.b-.5)*detailFade*Style.w*Style.x*.065);
     }else{
         float3 detail=art.rgb-(nw+ne+sw+se)*.25;
         art.rgb=saturate(art.rgb+clamp(detail*Style.x*Style.y*fade*.1,-.025,.025));
