@@ -70,5 +70,6 @@ class Environment {
     void update(const Settings &, bool compare = false);
     void reset();
     float minutes(const Settings &) const;
+    float rainIntensity(const Settings &) const;
     bool playerPosition(float (&position)[3],uint64_t *worldKey=nullptr) const;
 };

@@ -11,6 +11,9 @@ float4 SurfaceLight : register(c57); // view-space directional light, daylight
 float4 SurfaceEnvironment : register(c58); // captured sky available
 float4 SurfaceDepth : register(c59); // projection _43, native depth bias, native slope-scale bias
 float4 DepthPrecision : register(c60); // quantum, mask available, quantum / abs(_43), transform roundoff
+float4 PuddleControls : register(c61); // accumulated rain, world size, coverage, reflection strength
+float4 PuddleMaterial : register(c62); // material coverage, 0 city / 1 grass / 2 soil, grass coverage
+float4 PuddleWeather : register(c63); // seconds, rain, ripple strength
 float4 Camera : register(c0);
 float4 Viewport : register(c1);
 float4 Texel : register(c2);
@@ -513,18 +516,42 @@ SurfaceOutput SurfaceVS(SurfaceInput i) {
  o.world=mul(v.xyz,transpose((float3x3)SkyView)); o.blendUV=i.blendUV;o.materialUV=i.uv;
  return o;
 }
+float PuddleHash(float2 cell) {
+ // Small integer-domain polynomial: stable across frames and texture repeats.
+ float3 q=frac(float3(cell.xyx)*.1031);q+=dot(q,q.yzx+33.33);
+ return frac((q.x+q.y)*q.z);
+}
+float PuddleNoise(float2 at) {
+ float2 cell=floor(at),f=frac(at);f=f*f*(3-2*f);
+ return lerp(lerp(PuddleHash(cell),PuddleHash(cell+float2(1,0)),f.x),
+             lerp(PuddleHash(cell+float2(0,1)),PuddleHash(cell+1),f.x),f.y);
+}
 float4 SurfaceMaskPS(float2 blendUV:TEXCOORD0,float depth:TEXCOORD1,float3 world:TEXCOORD2,float2 materialUV:TEXCOORD3):COLOR0 {
  // Authored smooth normals can cross the ground cutoff inside a flat triangle.
  // Classify its actual plane instead; walls and slopes remain excluded.
  clip(abs(normalize(cross(ddx(world),ddy(world))).y)-.995);
  // This verified plaza atlas also contains a planter's grass patch. Its material
  // response must follow the sampled atlas region rather than the entire texture.
- if(Camera.w>.5 && materialUV.x>.805 && materialUV.y>.69 && materialUV.y<.86)clip(-1);
+ bool atlasGrass=Camera.w>.5 && materialUV.x>.805 && materialUV.y>.69 && materialUV.y<.86;
  float2 response=Camera.xy;
+ if(atlasGrass)response=0;
  if(response.x>0) {
   float grain=dot(tex2D(Image,materialUV).rgb,float3(.2126,.7152,.0722));
   response.x*=lerp(.4,1,smoothstep(.12,.65,grain));
   response.y=saturate(response.y+(1-grain)*.12);
+ }
+ response.y*=PuddleMaterial.w;
+ if(PuddleControls.x>0 && PuddleControls.z>0 && PuddleControls.w>0) {
+  float type=atlasGrass?1:PuddleMaterial.y;
+  float density=atlasGrass?PuddleMaterial.z:PuddleMaterial.x;
+  // Grass holds smaller broken pools; city paving merges into broader sheets.
+  float2 at=(world.xz+Eye.xz)/PuddleControls.y*(type>.5?1.65:1);
+  float shape=PuddleNoise(at)+.23*PuddleNoise(at*3.17+17);
+  float fill=PuddleControls.x*PuddleControls.z*density*(type>.5?.75:1);
+  float edge=max(.025,fwidth(shape));
+  float pool=smoothstep(1.13-fill-edge,1.13-fill+edge,shape)*smoothstep(0,.12,fill);
+  response.x=lerp(response.x,.96*PuddleControls.w,pool);
+  response.y=lerp(response.y,-.1,pool);
  }
  // Native raster depth includes polygon bias. Differentiate _43/z directly
  // to avoid cancellation near an NDC depth of one.
@@ -592,7 +619,7 @@ float4 SurfaceReflectionPS(float2 uv:TEXCOORD0):COLOR0 {
   }
   previousT=t;previousDelta=delta;
  }
- float rough=saturate(material.g*SurfaceControls.y),radius=.5+rough*rough*18;
+ float rough=saturate(abs(material.g)*SurfaceControls.y),radius=.5+rough*rough*18;
  float fresnel=.05+.95*pow(1-saturate(dot(n,normalize(-p))),5);
  float polish=saturate(material.r*SurfaceControls.x);
  float3 environment=base.rgb;
@@ -624,4 +651,27 @@ float4 SurfaceReflectionPS(float2 uv:TEXCOORD0):COLOR0 {
   rgb+=SunColor.rgb*highlight*SurfaceLight.w*polish*.55*saturate(dot(n,light));
  }
  return float4(saturate(rgb),base.a);
+}
+
+// Keep ring distortion outside the SSR shader's 512-slot DX9 instruction budget.
+// Signed roughness identifies smooth pool interiors through native layer blending.
+float4 PuddleRipplePS(float2 uv:TEXCOORD0):COLOR0 {
+ float4 base=tex2D(Image,uv),material=tex2Dlod(AO,float4(DepthUV(uv),0,0));
+ if(material.r<.001 || material.a<.0001 || material.g>=0 || RawDepth(uv)>=.999999)return base;
+ float3 n=normalize(View[1].xyz),ray=Point(uv,1);
+ float z=ReceiverDepth(RawDepth(uv),material.b,ray,n);
+ if(z<=0)return base;
+ float2 world=(mul(ray*z,transpose((float3x3)View))+Eye.xyz).xz;
+ float2 cell=floor(world*1.7),local=frac(world*1.7)-.5;
+ float age=frac(PuddleWeather.x*.75+PuddleHash(cell));
+ float radius=length(local),ring=radius-age*.75;
+ float wave=sin(ring*65)*exp(-abs(ring)*32)*sin(age*3.141593);
+ float pool=smoothstep(0,.07,-material.g/material.a);
+ float2 offset=local/max(.02,radius)*wave*pool*PuddleWeather.y*PuddleWeather.z*Texel.xy*2;
+ float2 at=uv+offset;
+ if(any(at<Viewport.xy+Texel.xy)||any(at>Viewport.xy+Viewport.zw-Texel.xy))return base;
+ float4 target=tex2Dlod(AO,float4(DepthUV(at),0,0));
+ if(target.r<.001 || target.a<.0001 || target.g>=0 ||
+    ReceiverDepth(RawDepth(at),material.b,Point(at,1),n)<=0)return base;
+ return float4(tex2Dlod(Image,float4(at,0,0)).rgb,base.a);
 }

@@ -193,7 +193,8 @@ std::vector<PanelItem> PanelItems(Runtime &r) {
     case 4:
         return {{"time", g(UiText::PanelWorld), Tr(UiText::TimeOfDay), &s.timeOverride},
                 {"weather", g(UiText::PanelWorld), Tr(UiText::WeatherOverride), &s.weatherOverride},
-                {"grass",g(UiText::Vegetation),g(UiText::Grass),nullptr,9}};
+                {"grass",g(UiText::Vegetation),g(UiText::Grass),nullptr,9},
+                {"puddles",g(UiText::WetSurfaces),g(UiText::Puddles),&s.puddles}};
     case 9:
         return {{"grass",g(UiText::Grass),g(UiText::GrassCoverage),&s.grass},
                 {"grass-shape",g(UiText::Grass),g(UiText::GrassShape)},
@@ -295,7 +296,8 @@ void PanelToggle(const char *id, const char *label, bool &value, const char *hel
     ImGui::SetCursorScreenPos(p);
     ImGui::Dummy({w, 32});
 }
-void ResetPanelParameters(int page, int item, Settings &s) {
+void ResetPanelParameters(int page, int item, Settings &s, bool puddleItem=false) {
+    if(puddleItem){s.resetSceneSection(17);return;}
     if(page==9){const Settings d;
         if(item==0){s.grassQuality=d.grassQuality;s.grassDistance=d.grassDistance;s.grassDensity=d.grassDensity;s.grassSlope=d.grassSlope;s.grassFade=d.grassFade;}
         if(item==1){s.grassHeight=d.grassHeight;s.grassWidth=d.grassWidth;s.grassVariation=d.grassVariation;}
@@ -645,6 +647,18 @@ void PanelParameters(Runtime &r, int item) {
             break;
         }
         }
+    if (page == 4 && !strcmp(PanelItems(r)[item].id,"puddles")) {
+        SR(PuddleCoverage, PuddleCoverageHelp, puddleCoverage, 0, 1, "%.2f", .05f);
+        SR(PuddleSize, PuddleSizeHelp, puddleSize, .5f, 12, "%.1f", .5f);
+        SR(Strength, PuddleStrengthHelp, puddleStrength, 0, 1, "%.2f", .05f);
+        SR(PuddleFillTime, PuddleTimeHelp, puddleFillTime, 5, 600, "%.0f", 5);
+        SR(PuddleDryTime, PuddleTimeHelp, puddleDryTime, 5, 1200, "%.0f", 5);
+        SR(PuddleGrass, PuddleMaterialsHelp, puddleGrass, 0, 1, "%.2f", .05f);
+        SR(PuddleSoil, PuddleMaterialsHelp, puddleSoil, 0, 1, "%.2f", .05f);
+        SR(PuddleCity, PuddleMaterialsHelp, puddleCity, 0, 1, "%.2f", .05f);
+        SR(Ripples, PuddleRipplesHelp, puddleRipples, 0, 1, "%.2f", .05f);
+        if(s.enabled && s.puddles && !r.sceneStatus().depth)PanelNote(Tr(UiText::SceneDepthUnavailable));
+    }
     if (page == 4) {
         if (item == 0) {
             float minutes = r.environmentMinutes(), before = minutes;
@@ -655,7 +669,7 @@ void PanelParameters(Runtime &r, int item) {
             ImGui::BeginDisabled(!s.timeOverride);
             PanelToggle("freeze-time", Tr(UiText::FreezeTime), s.freezeTime, Tr(UiText::FreezeTimeHelp));
             ImGui::EndDisabled();
-        } else {
+        } else if(item==1) {
             const char *names[] = {Tr(UiText::WeatherClear), Tr(UiText::WeatherRain),
                                    Tr(UiText::WeatherSnow)};
             ImGui::BeginDisabled(!s.enabled || !s.weatherOverride);
@@ -884,6 +898,8 @@ void PanelEditor(Runtime &r) {
                              selected==2?UiText::OptimizationSkillsHelp:selected==3?UiText::OptimizationPetsHelp:
                              selected==4?UiText::VisiblePlayersHelp:selected==5?UiText::VisibleMonstersHelp:UiText::VisiblePetsHelp);
     if(r.editorPage==5&&selected<2)help=Tr(selected==0?UiText::V2CursorSampleNote:UiText::V2MotionNote);
+    const bool puddleItem=r.editorPage==4 && !strcmp(item.id,"puddles");
+    if(puddleItem)help=Tr(UiText::PuddlesHelp);
     ImGui::InvisibleButton("description", {std::max(1.f,w-(showEnable?40:5)),25});
     Tip(help);
     draw->PushClipRect(p, {p.x + w - (showEnable ? 40 : 5), p.y + 25}, true);
@@ -924,6 +940,7 @@ void PanelEditor(Runtime &r) {
     uiParameterDisabled = r.editorPage == 1 ? (!s.water || !s.enabled)
                           : item.enabled    ? !*item.enabled
                                             : false;
+    if(puddleItem)uiParameterDisabled|=!s.enabled;
     if(r.editorPage==8)uiParameterDisabled|=!s.enabled || (selected<3&&!s.materials);
     if(r.editorPage==9)uiParameterDisabled|=!s.enabled||!s.grass||!supported;
     if (r.editorPage == 0 || r.editorPage == 3 || (r.editorPage == 4 && selected == 1) ||
@@ -934,7 +951,7 @@ void PanelEditor(Runtime &r) {
         ImGui::Dummy({0, 7});
         const auto rp = ImGui::GetCursorScreenPos();
         if (ImGui::InvisibleButton("reset-section", {w, 24}, ImGuiButtonFlags_EnableNav))
-            ResetPanelParameters(r.editorPage, selected, s);
+            ResetPanelParameters(r.editorPage, selected, s,puddleItem);
         ResetGlyph(draw, {rp.x + 1, rp.y + 3}, ImGui::IsItemHovered() ? Text : Muted);
         TextAt(draw, {rp.x + 25, rp.y + 6}, Tr(UiText::PanelReset), ImGui::IsItemHovered() ? Text : Muted,
                12);

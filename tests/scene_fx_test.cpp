@@ -17,6 +17,9 @@ void Log(const char *s) {
     puts(s);
 }
 struct SceneFXFixture {
+    static void puddleWater(SceneFX &fx, float water, float rain=0) {
+        fx.puddles_.water=water;fx.puddleRain_=rain;
+    }
     static void ageSources(SceneFX &fx, ULONGLONG milliseconds) {
         for(auto &source:fx.sources_) if(source.key) source.seen-=milliseconds;
     }
@@ -182,6 +185,27 @@ bool LoadMaterial(IDirect3DDevice9 *d,const wchar_t *path,Com<IDirect3DTexture9>
 }
 } // namespace
 int main(int argc, char **argv) {
+    {
+        Settings s; s.puddles=true; s.puddleFillTime=10; s.puddleDryTime=20;
+        puddle_detail::Accumulation a,b; a.update(s,1,0); b.update(s,1,0);
+        for(unsigned i=1;i<=50;++i)a.update(s,1,i*100);
+        for(unsigned i=1;i<=5;++i)b.update(s,1,i*1000);
+        CHECK(std::abs(a.water-.5f)<.00001f && std::abs(a.water-b.water)<.00001f);
+        a.update(s,0,6000); CHECK(std::abs(a.water-.45f)<.00001f);
+        a.update(s,.25f,7000); CHECK(std::abs(a.water-.475f)<.00001f);
+        a.update(s,1,8000,false); CHECK(std::abs(a.water-.475f)<.00001f);
+        s.enabled=false; a.update(s,1,9000); CHECK(std::abs(a.water-.475f)<.00001f);
+        s.enabled=true; a.update(s,1,999000); CHECK(std::abs(a.water-.575f)<.00001f);
+        s.puddles=false; a.update(s,1,1000000); CHECK(a.water==0);
+        s.puddles=true;s.language=Language::Russian;s.puddleCoverage=.8f;s.puddleGrass=.2f;
+        CHECK(s.save(L"build/puddle-settings.ini"));Settings loaded;CHECK(loaded.load(L"build/puddle-settings.ini"));
+        CHECK(loaded.puddles && loaded.puddleCoverage==.8f && loaded.puddleGrass==.2f);
+        loaded.puddleSize=100;loaded.puddleDryTime=-5;loaded.sanitize();
+        CHECK(loaded.puddleSize==12 && loaded.puddleDryTime==5);
+        loaded.resetSceneSection(17);CHECK(loaded.puddles && loaded.puddleCoverage==Settings{}.puddleCoverage &&
+            loaded.language==Language::Russian);
+        DeleteFileW(L"build/puddle-settings.ini");
+    }
     const bool surfaceBenchmark=argc>1 && !strcmp(argv[1],"--surface-benchmark");
     bool nativeResolution=false;
     for(int i=1;i<argc;++i)if(!strcmp(argv[i],"--absolute-world"))nativeResolution=true;
@@ -309,7 +333,7 @@ int main(int argc, char **argv) {
     bool surfaceFixture = false, surfaceGrass = false, atlasGrass = false, surfacePattern = false;
     unsigned surfaceTiles=1, surfaceUnknownTiles=0, surfaceLayers=1;
     bool surfaceBuffered=true, surfaceBlend=false, surfaceBadNormals=false, surfaceGradient=false;
-    bool surfaceInvisibleLayer=false;
+    bool surfaceInvisibleLayer=false, surfaceTerrainAlpha=false;
     bool pavingChecker=false;
     bool absoluteWorldVertices=false;
     float absoluteWorldStep=1;
@@ -465,6 +489,7 @@ int main(int argc, char **argv) {
                 for(const auto &v:floor)maskFloor.push_back({v.x,v.y,v.z,surfaceBadNormals && v.x>0?.3f:0.f,1,0,
                     atlasGrass?.9f:.3f,atlasGrass?.77f:.3f,v.x*.12f,v.z*.12f});
                 d->SetFVF(0x212); d->SetTexture(0,paving);
+                if(surfaceTerrainAlpha)d->SetRenderState(D3DRS_ALPHATESTENABLE,TRUE);
                 if(surfaceBlend) {
                     d->SetRenderState(D3DRS_ALPHABLENDENABLE,TRUE);
                     d->SetRenderState(D3DRS_SRCBLEND,D3DBLEND_SRCALPHA);
@@ -532,6 +557,7 @@ int main(int argc, char **argv) {
                     d->SetRenderState(D3DRS_ALPHABLENDENABLE,FALSE);
                     d->SetTexture(1,nullptr);d->SetTextureStageState(1,D3DTSS_ALPHAOP,D3DTOP_DISABLE);
                 }
+                d->SetRenderState(D3DRS_ALPHATESTENABLE,FALSE);
                 d->SetFVF(D3DFVF_XYZ|D3DFVF_DIFFUSE);d->SetTexture(0,nullptr);
             }
             d->SetTransform(D3DTS_WORLD,&sceneWorld);
@@ -1061,6 +1087,50 @@ int main(int argc, char **argv) {
     surfaceFixture=true;
     // Keep the same color-resolve path for MSAA when comparing the optional reflection.
     settings.surfaceReflections=true; settings.surfaceStrength=0; CHECK(render()); const auto pavingOff=Read(d);
+    {
+        const Settings saved=settings;
+        settings.surfaceReflections=false;settings.puddles=true;settings.puddleStrength=1;
+        settings.puddleCoverage=1;settings.puddleGrass=1;settings.puddleSoil=1;settings.puddleCity=1;
+        auto unchanged=[&](const auto &before,const auto &after) {
+            unsigned maximum=0;
+            for(size_t i=0;i<before.size();++i)for(unsigned shift:{0u,8u,16u})
+                maximum=std::max(maximum,unsigned(std::abs(int((before[i]>>shift)&255)-int((after[i]>>shift)&255))));
+            // Native MSAA color resolves can differ by one coverage step at grid edges.
+            return maximum<=(pp.MultiSampleType?32u:0u);
+        };
+        unsigned cityPixels=0;
+        for(DWORD tag:{32u,2048u,4096u,4u}) {
+            paving->SetPrivateData(EmitterTag,&tag,4,0);
+            SceneFXFixture::puddleWater(fx.sceneFX(),0);CHECK(render());const auto dry=Read(d);
+            SceneFXFixture::puddleWater(fx.sceneFX(),.5f);CHECK(render());const auto half=Read(d);
+            SceneFXFixture::puddleWater(fx.sceneFX(),1);CHECK(render());const auto full=Read(d);
+            const unsigned changed=Difference(dry,full),growing=Difference(dry,half);
+            printf("Puddle material %lu: half=%u full=%u\n",tag,growing,changed);
+            if(tag==4)CHECK(unchanged(dry,full));
+            else {
+                CHECK(changed>100 && changed>growing);
+                CHECK(full[12*W+12]==dry[12*W+12] && full[50*W+20]==dry[50*W+20]);
+                if(tag==32) { cityPixels=changed; CHECK(Save(full,L"build/puddles-city.bmp")); }
+                if(tag==2048) { CHECK(changed!=cityPixels);CHECK(Save(full,L"build/puddles-grass.bmp")); }
+                if(tag==4096)CHECK(Save(full,L"build/puddles-soil.bmp"));
+                if(tag==2048 || tag==4096) {
+                    surfaceTerrainAlpha=true;CHECK(render());CHECK(unchanged(full,Read(d)));
+                    surfaceTerrainAlpha=false;
+                }
+                settings.puddleCoverage=0;CHECK(render());CHECK(unchanged(dry,Read(d)));
+                settings.puddleCoverage=1;
+                float &coverage=tag==32?settings.puddleCity:tag==2048?settings.puddleGrass:settings.puddleSoil;
+                coverage=0;CHECK(render());CHECK(unchanged(dry,Read(d)));coverage=1;
+                settings.puddleStrength=0;CHECK(render());CHECK(unchanged(dry,Read(d)));settings.puddleStrength=1;
+                SceneFXFixture::puddleWater(fx.sceneFX(),1,1);CHECK(render());const auto ripples=Read(d);
+                CHECK(Difference(full,ripples)>0);
+                CHECK(ripples[12*W+12]==dry[12*W+12]);
+                SceneFXFixture::puddleWater(fx.sceneFX(),1);
+            }
+        }
+        settings=saved;paving->SetPrivateData(EmitterTag,&pavingTag,4,0);
+        SceneFXFixture::puddleWater(fx.sceneFX(),0);
+    }
     settings.surfaceReflections=true; settings.surfaceStrength=1; settings.surfaceRoughness=.5f;
     CHECK(render()); const auto pavingOn=Read(d);
     printf("Paving reflection pixels: %u\n",Difference(pavingOff,pavingOn));

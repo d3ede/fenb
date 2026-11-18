@@ -90,7 +90,7 @@ void SceneFX::beginFrame() {
 void SceneFX::invalidate() {
     surfaceCommands_.clear();
     surfaceMask_.clear(); surfaceOutput_.clear();
-    surfaceVS_.out(); surfaceMaskPS_.out(); surfacePS_.out();
+    surfaceVS_.out(); surfaceMaskPS_.out(); surfacePS_.out(); puddleRipplePS_.out();
     smaa_.invalidate();
     endSky();
     endFoliage();
@@ -184,7 +184,7 @@ size_t SceneFX::bytes() const {
 }
 void SceneFX::observe(const Settings &s) {
     if (camera_ || (!s.ssao && !s.sunRays && !s.fog && !s.dof && !s.localLighting && !s.lightingBalance &&
-                    s.nightFoliage <= 0 && !s.surfaceReflections))
+                    s.nightFoliage <= 0 && !s.surfaceReflections && !s.puddles))
         return;
     DWORD z = 0;
     device_->GetRenderState(D3DRS_ZWRITEENABLE, &z);
@@ -286,8 +286,8 @@ bool SceneFX::prepare(UINT width, UINT height, const Settings &s) {
     }
     if (!s.smaa)
         smaa_.invalidate();
-    const bool geometry = s.ssao || s.sunRays || s.fog || s.dof || s.localLighting || s.surfaceReflections;
-    if (!s.surfaceReflections || s.surfaceStrength<=0) {
+    const bool geometry = s.ssao || s.sunRays || s.fog || s.dof || s.localLighting || s.surfaceReflections || s.puddles;
+    if ((!s.surfaceReflections || s.surfaceStrength<=0) && !s.puddles) {
         surfaceCommands_.clear();
         surfaceMask_.clear(); surfaceOutput_.clear(); surfaceCaptured_ = false;
     }
@@ -479,17 +479,19 @@ IDirect3DTexture9 *SceneFX::process(IDirect3DTexture9 *input, const Settings &s)
         reduceEmitters(s);
     c[19][3] = s.localLighting && (emitters_ || lights_) && localField_.texture.p ? 1.f : 0.f;
     device_->SetPixelShaderConstantF(0, c[0], 20);
-    float depthPrecision[]={depth_.quantum(),s.surfaceReflections && surfaceCaptured_?1.f:0.f,
+    float depthPrecision[]={depth_.quantum(),(s.surfaceReflections || s.puddles) && surfaceCaptured_?1.f:0.f,
                             depth_.quantum()/std::max(.000001f,std::abs(projection_._43)),
                             (std::abs(eye_[0])+std::abs(eye_[1])+std::abs(eye_[2]))*
                                 (32*std::numeric_limits<float>::epsilon())};
     device_->SetPixelShaderConstantF(60,depthPrecision,1);
-    if (s.surfaceReflections && surfaceCaptured_ && s.surfaceStrength > 0 &&
+    if (surfaceCaptured_ && ((s.surfaceReflections && s.surfaceStrength > 0) || s.puddles) &&
         (surfacePS_.p || SUCCEEDED(device_->CreatePixelShader(ShaderSurfaceReflectionPS, surfacePS_.out()))) &&
         surfaceOutput_.make(device_, output_.width, output_.height)) {
-        float control[] = {s.surfaceStrength, s.surfaceRoughness, s.surfaceDistance,
+        float control[] = {1.f, 1.f, s.surfaceDistance,
                            s.sceneQuality ? 40.f : 24.f};
         device_->SetPixelShaderConstantF(56, control, 1);
+        const float weather[]={float(GetTickCount64()%60000)*.001f,s.puddles?puddleRain_:0.f,s.puddleRipples,0};
+        device_->SetPixelShaderConstantF(63,weather,1);
         float light[]={viewSun[0],viewSun[1],viewSun[2],sunValid_ && dir[1]>0 ? Daylight(sun_.Diffuse) : 0.f};
         float environment[]={skyEnvironment_.p?1.f:0.f,0,0,0};
         device_->SetPixelShaderConstantF(57,light,1);
@@ -501,6 +503,12 @@ IDirect3DTexture9 *SceneFX::process(IDirect3DTexture9 *input, const Settings &s)
             if(probe_)probe_->surface(input,surfaceMask_.texture,depth_.texture(),surfaceOutput_.surface);
 #endif
             input = surfaceOutput_.texture;
+            if (s.puddles && puddleRain_>0 && s.puddleRipples>0 &&
+                (puddleRipplePS_.p || SUCCEEDED(device_->CreatePixelShader(ShaderPuddleRipplePS,puddleRipplePS_.out()))) &&
+                pass(output_,puddleRipplePS_,input,depth_.texture(),surfaceMask_.texture)) {
+                output_.swap(surfaceOutput_);
+                input=surfaceOutput_.texture;
+            }
         }
         device_->SetTexture(7,nullptr);
     }
@@ -638,8 +646,8 @@ bool SceneFX::emissive(IDirect3DTexture9 *texture) {
         if (!memcmp(digest, known, 32))
             tag |= 2;
     for (const auto &known : GrassIdentities)
-        if (known.kind == 2 && !memcmp(digest, known.hash, 32))
-            tag |= 1024;
+        if (!memcmp(digest, known.hash, 32))
+            tag |= known.kind == 2 ? 1024 : known.kind == 1 ? 2048 : known.kind == 3 ? 4096 : 0;
     for (auto &known : SunIdentities)
         if (!memcmp(digest, known.hash, 32))
             tag |= known.disc ? 128 : 8;
@@ -787,7 +795,8 @@ void SceneFX::beginFoliage(const Settings &s) {
     foliageActive_ = true;
 }
 void SceneFX::captureSurface(const Settings &s, DrawCall draw, SurfaceDraw geometry) {
-    if (!s.surfaceReflections || s.surfaceStrength <= 0 || !camera_) return;
+    if ((!s.surfaceReflections || s.surfaceStrength <= 0) && !s.puddles) return;
+    if (!camera_) return;
     DWORD fvf=0,z=0,write=0,test=0,blend=0,src=0,dst=0;
     device_->GetFVF(&fvf);
     if (fvf != 0x112 && fvf != 0x212) return; // Rigid mesh / native two-UV terrain only.
@@ -797,6 +806,8 @@ void SceneFX::captureSurface(const Settings &s, DrawCall draw, SurfaceDraw geome
     DWORD tag=0,size=4;
     texture->GetPrivateData(EmitterTag,&tag,&size);
     unsigned kind=tag&512?3:tag&64?2:tag&32?1:0;
+    const unsigned ground=tag&2048?1:tag&4096?2:0;
+    if (!kind && s.puddles && ground && fvf==0x212) kind=3+ground;
     if(!kind && (fvf!=0x212 || !surfaceCaptured_)) return;
     device_->GetRenderState(D3DRS_ZENABLE,&z);
     device_->GetRenderState(D3DRS_ZWRITEENABLE,&write);
@@ -804,7 +815,10 @@ void SceneFX::captureSurface(const Settings &s, DrawCall draw, SurfaceDraw geome
     device_->GetRenderState(D3DRS_ALPHABLENDENABLE,&blend);
     device_->GetRenderState(D3DRS_SRCBLEND,&src);
     device_->GetRenderState(D3DRS_DESTBLEND,&dst);
-    if (!z || !write || test || (blend && (fvf!=0x212 || src!=D3DBLEND_SRCALPHA ||
+    // Native foliage can leave alpha testing enabled on opaque terrain layers.
+    // Only exact grass/soil terrain identities admit this inherited state.
+    const bool opaqueTerrain=s.puddles && ground && fvf==0x212;
+    if (!z || !write || (test && !opaqueTerrain) || (blend && (fvf!=0x212 || src!=D3DBLEND_SRCALPHA ||
                                                           dst!=D3DBLEND_INVSRCALPHA))) return;
     Com<IDirect3DVertexShader9> vs;
     Com<IDirect3DPixelShader9> ps;
@@ -848,7 +862,13 @@ void SceneFX::captureSurface(const Settings &s, DrawCall draw, SurfaceDraw geome
     auto command=std::make_unique<SurfaceCommand>();
     command->draw=geometry; command->fvf=fvf; command->blend=blend!=0;
     memcpy(command->matrices,matrices,sizeof(matrices));
-    float material[]={kind>=2?.8f:kind==1?.55f:0.f,kind>=2?.4f:.8f,blendMap?1.f:0.f,kind==3?1.f:0.f};
+    float material[]={kind>=4?0.f:kind>=2?.8f:kind==1?.55f:0.f,kind>=2?.4f:.8f,blendMap?1.f:0.f,kind==3?1.f:0.f};
+    material[0]*=s.surfaceReflections?s.surfaceStrength:0.f;
+    const float puddleParameters[]={s.puddles?puddles_.water:0.f,s.puddleSize,s.puddleCoverage,s.puddleStrength,
+        kind==4?s.puddleGrass:kind==5?s.puddleSoil:kind?s.puddleCity:0.f,kind==4?1.f:kind==5?2.f:0.f,s.puddleGrass,s.surfaceRoughness,
+        float(GetTickCount64()%60000)*.001f,puddleRain_,s.puddleRipples,0};
+    memcpy(command->puddles,puddleParameters,sizeof(puddleParameters));
+    memcpy(command->eye,eye_,sizeof(eye_));
     memcpy(command->material,material,sizeof(material));
     command->depth[0]=matrices[2]._43;
     DWORD depthBias=0,slopeBias=0;
@@ -922,6 +942,8 @@ void SceneFX::applySurface(const SurfaceCommand &command) {
     device_->SetVertexShaderConstantF(0,&command.matrices[0].m[0][0],12);
     device_->SetPixelShaderConstantF(0,command.material,1);
     device_->SetPixelShaderConstantF(59,command.depth,1);
+    device_->SetPixelShaderConstantF(61,command.puddles,3);
+    device_->SetPixelShaderConstantF(11,command.eye,1);
     device_->SetRenderState(D3DRS_ALPHABLENDENABLE,command.blend);
     device_->SetRenderState(D3DRS_CULLMODE,command.cull);
     const D3DSAMPLERSTATETYPE keys[]={D3DSAMP_MINFILTER,D3DSAMP_MAGFILTER,D3DSAMP_ADDRESSU,D3DSAMP_ADDRESSV,D3DSAMP_MIPFILTER,D3DSAMP_MAXANISOTROPY};

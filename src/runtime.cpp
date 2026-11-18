@@ -238,13 +238,14 @@ void Runtime::resetFrame() {
     grass_->beginFrame(grassEnabled,hasPlayer?player:nullptr,worldKey);
     sfx_->beginFrame(settings.enabled && (settings.sfx || (settings.water && settings.sfxWake > 0)) && !compare);
     effects_->sceneFX().beginFrame();
+    effects_->sceneFX().updatePuddles(settings, environment_.rainIntensity(settings), GetTickCount64(), !compare && !lost_);
     lastWaterDraws = waterDraws;
     waterDraws = 0;
     bool waterEnabled = settings.enabled && settings.water && !compare;
     water_->beginFrame(waterEnabled && (settings.waterRefraction > 0 || settings.waterDepth > 0 ||
                                         settings.waterSSR > 0 || settings.waterCaustics > 0),
                        (waterEnabled && settings.waterSky > 0) ||
-                           (settings.enabled && (settings.fog || settings.surfaceReflections) && !compare),
+                           (settings.enabled && (settings.fog || settings.surfaceReflections || settings.puddles) && !compare),
                        waterEnabled &&
                            (settings.waterDepth > 0 || settings.waterSSR > 0 || settings.waterCaustics > 0),
                        waterEnabled && settings.waterCaustics > 0);
@@ -288,12 +289,12 @@ void Runtime::beforeWaterDraw(UINT upStride, DrawCall draw) {
 }
 void Runtime::environmentDraw(D3DPRIMITIVETYPE type, UINT start, UINT count) {
     if (lost_ || hudStarted_ || !settings.enabled ||
-        (!(settings.water && settings.waterSky > 0) && !settings.sky && !settings.fog && !settings.surfaceReflections) || compare || vertexShaderActive_ ||
+        (!(settings.water && settings.waterSky > 0) && !settings.sky && !settings.fog && !settings.surfaceReflections && !settings.puddles) || compare || vertexShaderActive_ ||
         !fvfKnown_ || drawFVF_ != 0x142 || !sceneBackbuffer_ || drawTarget_ != sceneBackbuffer_)
         return;
-    if ((settings.water && settings.waterSky > 0) || settings.fog || settings.surfaceReflections) {
+    if ((settings.water && settings.waterSky > 0) || settings.fog || settings.surfaceReflections || settings.puddles) {
         water_->captureEnvironment(type, start, count, &effects_->sceneFX(), &settings);
-        if (settings.fog || settings.surfaceReflections)
+        if (settings.fog || settings.surfaceReflections || settings.puddles)
             effects_->sceneFX().skyEnvironment(water_->skyEnvironment());
     }
     Com<IDirect3DBaseTexture9> texture;
@@ -317,7 +318,7 @@ void Runtime::emitterDraw(DrawCall draw, SurfaceDraw geometry) {
         return;
     if (settings.localLighting)
         effects_->sceneFX().captureEmitter(settings, draw);
-    if (settings.surfaceReflections && !hudStarted_)
+    if ((settings.surfaceReflections || settings.puddles) && !hudStarted_)
         effects_->sceneFX().captureSurface(settings, draw, geometry);
     if(settings.grass&&!hudStarted_&&sawWorld_)grass_->capture(settings,draw,geometry);
 }

@@ -305,6 +305,14 @@ void Environment::reset() {
     std::lock_guard lock(s.mutex);
     s.frame.reset();
 }
+float Environment::rainIntensity(const Settings &settings) const {
+    if (settings.weatherOverride)
+        return settings.weatherType == 1 ? std::clamp(settings.weatherIntensity/100.f,0.f,1.f) : 0.f;
+    auto &s = State();
+    std::lock_guard lock(s.mutex);
+    return s.binding && *s.binding.player && *s.binding.weatherOption &&
+           Field<int>(s.binding.sky,Mode) == 2 && Field<int>(s.binding.sky,Count) > 0 ? 1.f : 0.f;
+}
 float Environment::minutes(const Settings &settings) const {
     auto &s = State();
     std::lock_guard lock(s.mutex);

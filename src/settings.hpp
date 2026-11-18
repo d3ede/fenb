@@ -39,7 +39,7 @@ struct Settings {
 #undef SCENE_FLOAT
     bool postEnabled() const {
         return bloom || color || ssao || sunRays || fog || dof || adaptation || localLighting || fxaa ||
-               smaa || lightingBalance || surfaceReflections || (sharpening && sharpeningStrength > 0);
+               smaa || lightingBalance || surfaceReflections || puddles || (sharpening && sharpeningStrength > 0);
     }
     void resetSceneSection(int group);
     bool openOnStart = false;

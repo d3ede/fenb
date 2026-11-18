@@ -5,6 +5,7 @@
 #include <bcrypt.h>
 #include "scene_tags.hpp"
 #include "smaa.hpp"
+#include "puddles.hpp"
 #ifdef FENB_DIAGNOSTICS
 class PipelineProbe;
 #endif
@@ -17,6 +18,10 @@ class SceneFX {
         Com<IDirect3DSurface9> surface;
         UINT width = 0, height = 0;
         D3DFORMAT format = D3DFMT_A8R8G8B8;
+        void swap(Target &other) {
+            std::swap(texture.p,other.texture.p);std::swap(surface.p,other.surface.p);
+            std::swap(width,other.width);std::swap(height,other.height);std::swap(format,other.format);
+        }
         bool make(IDirect3DDevice9 *, UINT, UINT, D3DFORMAT = D3DFMT_A8R8G8B8);
         void clear() {
             surface.out();
@@ -46,8 +51,10 @@ class SceneFX {
     Target emitterColor_[4], emitterPosition_[4], localField_;
     Target surfaceMask_, surfaceOutput_;
     Com<IDirect3DVertexShader9> surfaceVS_;
-    Com<IDirect3DPixelShader9> surfaceMaskPS_, surfacePS_;
+    Com<IDirect3DPixelShader9> surfaceMaskPS_, surfacePS_, puddleRipplePS_;
     bool surfaceCaptured_ = false;
+    puddle_detail::Accumulation puddles_;
+    float puddleRain_ = 0;
     bool surfaceMaskNeedsClear_ = true;
     struct SurfaceCommand {
         Com<IDirect3DVertexBuffer9> vertices;
@@ -55,7 +62,7 @@ class SceneFX {
         Com<IDirect3DBaseTexture9> art, blendMap;
         SurfaceDraw draw;
         D3DMATRIX matrices[3]{};
-        float material[4]{}, depth[4]{};
+        float material[4]{}, depth[4]{}, puddles[12]{}, eye[4]{};
         DWORD fvf=0, cull=0, samplers[2][6]{};
         UINT offset=0, stride=0;
         bool blend=false;
@@ -115,6 +122,10 @@ class SceneFX {
             BCryptCloseAlgorithmProvider(hash_, 0);
     }
     void beginFrame();
+    void updatePuddles(const Settings &s, float rain, ULONGLONG now, bool active = true) {
+        puddles_.update(s,rain,now,active);
+        puddleRain_ = active && s.enabled ? rain : 0.f;
+    }
     void observe(const Settings &);
     bool worldOverlay();
     void invalidate();

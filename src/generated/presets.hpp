@@ -103,6 +103,16 @@ inline void ApplyBuiltInVisuals(Settings &s, int index) {
     s.surfaceStrength = 0.550000f;
     s.surfaceRoughness = 0.650000f;
     s.surfaceDistance = 50.000000f;
+    s.puddles = false;
+    s.puddleCoverage = 0.650000f;
+    s.puddleSize = 3.000000f;
+    s.puddleStrength = 0.850000f;
+    s.puddleFillTime = 90.000000f;
+    s.puddleDryTime = 240.000000f;
+    s.puddleGrass = 0.550000f;
+    s.puddleSoil = 0.750000f;
+    s.puddleCity = 1.000000f;
+    s.puddleRipples = 0.450000f;
     s.sharpening = false;
     s.sharpeningStrength = 0.450000f;
     s.textureContrast = 0.650000f;

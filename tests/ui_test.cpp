@@ -306,6 +306,20 @@ int main() {
     for(int language=0;language<static_cast<int>(LanguageCount);++language){
         r.settings.language=static_cast<Language>(language);
         const std::wstring locale(LanguageCodes[language],LanguageCodes[language]+2);
+        r.editorPage=4;frame();frame();selectItem("puddles");
+        r.settings.puddles=false;control("puddles","enabled");CHECK(r.settings.puddles);
+        r.settings.puddleCoverage=.9f;
+        ImGui::SetScrollY(inspector(),inspector()->ScrollMax.y);frame();frame();
+        control("puddles","reset-section");
+        CHECK(r.settings.puddles && r.settings.puddleCoverage==Settings{}.puddleCoverage);
+        CHECK(r.settings.language==static_cast<Language>(language));
+        ImGui::SetScrollY(inspector(),0);frame();frame();
+        CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-puddles.png").c_str()));
+        const auto puddleDisplay=io.DisplaySize;io.DisplaySize={334,400};r.centerPanel=true;frame();frame();
+        CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-puddles-narrow.png").c_str()));
+        ImGui::SetScrollY(inspector(),inspector()->ScrollMax.y);frame();frame();
+        CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-puddles-narrow-bottom.png").c_str()));
+        io.DisplaySize=puddleDisplay;r.centerPanel=true;frame();frame();
         r.editorPage=2;r.editorSelection[2]=10;r.sceneSelection=10;r.settings.sfx=true;frame();frame();
         const auto particlePanel=inspector()->Pos;
         io.AddMousePosEvent(particlePanel.x+35,particlePanel.y+34+44+10);
