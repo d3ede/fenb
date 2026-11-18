@@ -2,6 +2,7 @@
 #include "proxy.hpp"
 #include "water.hpp"
 #include "depth_policy.hpp"
+#include "grass_bounds.hpp"
 
 class Proxy_IDirect3D9 final : public IDirect3D9, public ProxyLife {
     IDirect3D9* real_;
@@ -101,6 +102,7 @@ public:
 
 class Proxy_IDirect3DVertexBuffer9 final : public IDirect3DVertexBuffer9, public ProxyLife {
     IDirect3DVertexBuffer9* real_;
+    grass_bounds::Write grassWrite_;
 public:
     Proxy_IDirect3DVertexBuffer9(IDirect3DVertexBuffer9* p, IUnknown* owner) : ProxyLife(p, owner), real_(p) { registerSelf(this);  }
     HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void** ppvObject) noexcept override { return query(riid, ppvObject); }
@@ -114,8 +116,8 @@ public:
     DWORD STDMETHODCALLTYPE GetPriority() noexcept override { return real_->GetPriority(); }
     void STDMETHODCALLTYPE PreLoad() noexcept override { return real_->PreLoad(); }
     D3DRESOURCETYPE STDMETHODCALLTYPE GetType() noexcept override { return real_->GetType(); }
-    HRESULT STDMETHODCALLTYPE Lock(UINT OffsetToLock, UINT SizeToLock, void** ppbData, DWORD Flags) noexcept override { if (!(Flags & D3DLOCK_READONLY)) { auto* rt=RuntimeFor(owner_); if(rt) rt->surfaceBarrier(); } auto hr = real_->Lock(OffsetToLock, SizeToLock, ppbData, Flags); return hr; }
-    HRESULT STDMETHODCALLTYPE Unlock() noexcept override { auto hr = real_->Unlock(); return hr; }
+    HRESULT STDMETHODCALLTYPE Lock(UINT OffsetToLock, UINT SizeToLock, void** ppbData, DWORD Flags) noexcept override { if (!(Flags & D3DLOCK_READONLY)) { auto* rt=RuntimeFor(owner_); if(rt) rt->surfaceBarrier(); } auto hr = real_->Lock(OffsetToLock, SizeToLock, ppbData, Flags); if(SUCCEEDED(hr)&&ppbData){auto* rt=RuntimeFor(owner_);grassWrite_.begin(real_,OffsetToLock,SizeToLock,*ppbData,Flags,rt&&rt->settings.enabled&&rt->settings.grass);} return hr; }
+    HRESULT STDMETHODCALLTYPE Unlock() noexcept override { grassWrite_.finish(real_); auto hr = real_->Unlock(); if(FAILED(hr))real_->FreePrivateData(grass_bounds::Tag); return hr; }
     HRESULT STDMETHODCALLTYPE GetDesc(D3DVERTEXBUFFER_DESC* pDesc) noexcept override { auto hr = real_->GetDesc(pDesc); return hr; }
 };
 
@@ -410,7 +412,7 @@ public:
         runtime_->captureDraw("DrawIndexedPrimitiveUP",primitive_type,primitive_count,vertex_count,stride,data,0);
 #endif
         if (primitive_count && (runtime_->settings.localLighting || runtime_->settings.surfaceReflections || runtime_->settings.grass)) runtime_->emitterDraw([&](){return real_->DrawIndexedPrimitiveUP(primitive_type, min_vertex_idx, vertex_count, primitive_count, index_data, index_format, data, stride);},{}); if (primitive_count) runtime_->beforeWaterDraw(stride,[&](){return real_->DrawIndexedPrimitiveUP(primitive_type, min_vertex_idx, vertex_count, primitive_count, index_data, index_format, data, stride);}); auto hr = real_->DrawIndexedPrimitiveUP(primitive_type, min_vertex_idx, vertex_count, primitive_count, index_data, index_format, data, stride); runtime_->afterWaterDraw(true,true); return hr; }
-    HRESULT STDMETHODCALLTYPE ProcessVertices(UINT SrcStartIndex, UINT DestIndex, UINT VertexCount, IDirect3DVertexBuffer9* pDestBuffer, IDirect3DVertexDeclaration9* pVertexDecl, DWORD Flags) noexcept override { runtime_->surfaceBarrier(); auto hr = real_->ProcessVertices(SrcStartIndex, DestIndex, VertexCount, Unwrap(pDestBuffer), Unwrap(pVertexDecl), Flags); return hr; }
+    HRESULT STDMETHODCALLTYPE ProcessVertices(UINT SrcStartIndex, UINT DestIndex, UINT VertexCount, IDirect3DVertexBuffer9* pDestBuffer, IDirect3DVertexDeclaration9* pVertexDecl, DWORD Flags) noexcept override { runtime_->surfaceBarrier(); auto hr = real_->ProcessVertices(SrcStartIndex, DestIndex, VertexCount, Unwrap(pDestBuffer), Unwrap(pVertexDecl), Flags); if(SUCCEEDED(hr)&&pDestBuffer)Unwrap(pDestBuffer)->FreePrivateData(grass_bounds::Tag); return hr; }
     HRESULT STDMETHODCALLTYPE CreateVertexDeclaration(const D3DVERTEXELEMENT9 *elements, IDirect3DVertexDeclaration9 **declaration) noexcept override { auto hr = real_->CreateVertexDeclaration(elements, declaration); if (SUCCEEDED(hr)) Adopt(declaration, self_); return hr; }
     HRESULT STDMETHODCALLTYPE SetVertexDeclaration(IDirect3DVertexDeclaration9* pDecl) noexcept override { auto hr = real_->SetVertexDeclaration(Unwrap(pDecl)); if(SUCCEEDED(hr)) runtime_->invalidateDrawState(); return hr; }
     HRESULT STDMETHODCALLTYPE GetVertexDeclaration(IDirect3DVertexDeclaration9** ppDecl) noexcept override { auto hr = real_->GetVertexDeclaration(ppDecl); if (SUCCEEDED(hr)) Adopt(ppDecl, self_); return hr; }
@@ -598,7 +600,7 @@ public:
         runtime_->captureDraw("DrawIndexedPrimitiveUP",primitive_type,primitive_count,vertex_count,stride,data,0);
 #endif
         if (primitive_count && (runtime_->settings.localLighting || runtime_->settings.surfaceReflections || runtime_->settings.grass)) runtime_->emitterDraw([&](){return real_->DrawIndexedPrimitiveUP(primitive_type, min_vertex_idx, vertex_count, primitive_count, index_data, index_format, data, stride);},{}); if (primitive_count) runtime_->beforeWaterDraw(stride,[&](){return real_->DrawIndexedPrimitiveUP(primitive_type, min_vertex_idx, vertex_count, primitive_count, index_data, index_format, data, stride);}); auto hr = real_->DrawIndexedPrimitiveUP(primitive_type, min_vertex_idx, vertex_count, primitive_count, index_data, index_format, data, stride); runtime_->afterWaterDraw(true,true); return hr; }
-    HRESULT STDMETHODCALLTYPE ProcessVertices(UINT src_start_idx, UINT dst_idx, UINT vertex_count, IDirect3DVertexBuffer9 *dst_buffer, IDirect3DVertexDeclaration9 *declaration, DWORD flags) noexcept override { runtime_->surfaceBarrier(); auto hr = real_->ProcessVertices(src_start_idx, dst_idx, vertex_count, Unwrap(dst_buffer), Unwrap(declaration), flags); return hr; }
+    HRESULT STDMETHODCALLTYPE ProcessVertices(UINT src_start_idx, UINT dst_idx, UINT vertex_count, IDirect3DVertexBuffer9 *dst_buffer, IDirect3DVertexDeclaration9 *declaration, DWORD flags) noexcept override { runtime_->surfaceBarrier(); auto hr = real_->ProcessVertices(src_start_idx, dst_idx, vertex_count, Unwrap(dst_buffer), Unwrap(declaration), flags); if(SUCCEEDED(hr)&&dst_buffer)Unwrap(dst_buffer)->FreePrivateData(grass_bounds::Tag); return hr; }
     HRESULT STDMETHODCALLTYPE CreateVertexDeclaration(const D3DVERTEXELEMENT9 *elements, IDirect3DVertexDeclaration9 **declaration) noexcept override { auto hr = real_->CreateVertexDeclaration(elements, declaration); if (SUCCEEDED(hr)) Adopt(declaration, self_); return hr; }
     HRESULT STDMETHODCALLTYPE SetVertexDeclaration(IDirect3DVertexDeclaration9 *declaration) noexcept override { auto hr = real_->SetVertexDeclaration(Unwrap(declaration)); if(SUCCEEDED(hr)) runtime_->invalidateDrawState(); return hr; }
     HRESULT STDMETHODCALLTYPE GetVertexDeclaration(IDirect3DVertexDeclaration9 **declaration) noexcept override { auto hr = real_->GetVertexDeclaration(declaration); if (SUCCEEDED(hr)) Adopt(declaration, self_); return hr; }

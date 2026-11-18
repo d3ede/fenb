@@ -233,7 +233,8 @@ void Runtime::afterPresent(HRESULT result) {
     }
 }
 void Runtime::resetFrame() {
-    grass_->beginFrame(settings.enabled&&settings.grass&&!compare);
+    float player[3]{};const bool grassEnabled=settings.enabled&&settings.grass&&!compare;
+    grass_->beginFrame(grassEnabled,grassEnabled&&environment_.playerPosition(player)?player:nullptr);
     sfx_->beginFrame(settings.enabled && (settings.sfx || (settings.water && settings.sfxWake > 0)) && !compare);
     effects_->sceneFX().beginFrame();
     lastWaterDraws = waterDraws;

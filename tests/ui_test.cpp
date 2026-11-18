@@ -308,6 +308,7 @@ int main() {
         const std::wstring locale(LanguageCodes[language],LanguageCodes[language]+2);
         r.editorPage=9;r.editorSelection[9]=0;frame();frame();
         r.settings.grass=false;control("grass","enabled");CHECK(r.settings.grass);
+        r.settings.grassSnow=false;control("grass","snow-grass");CHECK(r.settings.grassSnow);
         ImGui::ActivateItemByID(numeric("grass",r.settings.grassDistance));frame();input("55");CHECK(r.settings.grassDistance==55);
         CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-grass-coverage.png").c_str()));
         r.editorSelection[9]=1;frame();frame();

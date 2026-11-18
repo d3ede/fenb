@@ -1,4 +1,5 @@
 #include "grass.hpp"
+#include "grass_bounds.hpp"
 #include <gdiplus.h>
 #include <cstdio>
 #include <cstring>
@@ -36,6 +37,8 @@ struct GrassFXFixture {
     static bool failed(const GrassFX &g){return g.failed_;}
     static unsigned kind(GrassFX &g,IDirect3DTexture9 *texture){return g.classify(texture);}
     static UINT count(const GrassFX &g){UINT n=0;for(auto &b:g.bands_)n+=b.count;return n;}
+    static std::array<float,2> center(const GrassFX &g){return {g.map_[0],g.map_[1]};}
+    static size_t queued(const GrassFX &g){return g.pending_.size();}
     static std::array<float,4> surface(GrassFX &g,float x,float z){
         std::array<float,4> v{};Com<IDirect3DSurface9> read;
         if(FAILED(g.device_->CreateOffscreenPlainSurface(g.resolution_,g.resolution_,D3DFMT_A32B32G32R32F,D3DPOOL_SYSTEMMEM,read.out(),nullptr))||
@@ -67,16 +70,33 @@ int main(int argc,char **argv){
     Com<IDirect3DDevice9> d;CHECK(SUCCEEDED(root->CreateDevice(0,D3DDEVTYPE_HAL,window,mixed?D3DCREATE_MIXED_VERTEXPROCESSING:D3DCREATE_HARDWARE_VERTEXPROCESSING,&pp,d.out())));
     if(mixed)CHECK(SUCCEEDED(d->SetSoftwareVertexProcessing(TRUE)));
     GrassFX grass(d);CHECK(grass.supported());
+    if(!proxy){Com<IDirect3DVertexBuffer9> source;constexpr unsigned count=grass_bounds::Block*3;
+        CHECK(SUCCEEDED(d->CreateVertexBuffer(count*sizeof(Vertex),D3DUSAGE_WRITEONLY,0,D3DPOOL_MANAGED,source.out(),nullptr)));
+        void *upload=nullptr;CHECK(SUCCEEDED(source->Lock(0,0,&upload,0)));
+        for(unsigned i=0;i<count;++i){Vertex v{};v.x=float(i/grass_bounds::Block)*100;v.z=0;memcpy(static_cast<BYTE *>(upload)+i*sizeof(Vertex),&v,sizeof(v));}
+        grass_bounds::Write write;write.begin(source,0,0,upload,0,true);write.finish(source);CHECK(SUCCEEDED(source->Unlock()));
+        const float map[]={0,0,42};const auto world=Identity();
+        CHECK(!grass_bounds::outside(source,0,40,0,81,world,map));
+        CHECK(grass_bounds::outside(source,0,40,81,81,world,map));
+        CHECK(!grass_bounds::outside(source,0,40,-1,81,world,map));
+        auto translated=world;translated._41=-100;CHECK(!grass_bounds::outside(source,0,40,81,81,translated,map));
+        // Partial writes invalidate their overlapping block; no stale early cull.
+        CHECK(SUCCEEDED(source->Lock(81*40,40,&upload,0)));write.begin(source,81*40,40,upload,0,true);write.finish(source);source->Unlock();
+        CHECK(!grass_bounds::outside(source,0,40,81,81,world,map));
+        CHECK(grass_bounds::outside(source,0,40,162,81,world,map));
+        CHECK(SUCCEEDED(source->Lock(0,0,&upload,0)));write.begin(source,0,0,upload,0,false);write.finish(source);source->Unlock();
+        CHECK(!grass_bounds::outside(source,0,40,162,81,world,map));}
     Com<IDirect3DTexture9> art;
     if(assets){
         auto module=LoadLibraryExW(L"d3dx9_43.dll",nullptr,LOAD_LIBRARY_SEARCH_SYSTEM32);
         using Load=HRESULT(WINAPI *)(IDirect3DDevice9 *,LPCWSTR,UINT,UINT,UINT,DWORD,D3DFORMAT,D3DPOOL,DWORD,DWORD,D3DCOLOR,void *,PALETTEENTRY *,IDirect3DTexture9 **);
         auto load=reinterpret_cast<Load>(GetProcAddress(module,"D3DXCreateTextureFromFileExW"));CHECK(load);
-        for(const char *name:{"ground_clay001.dds","ground_clay003.dds","ground_clay006.dds","rustia_lawn01.dds"}){
+        for(const char *name:{"ground_clay001.dds","ground_clay003.dds","ground_clay006.dds","ground_clay007.dds",
+                              "ground_n_clay_lawn001.dds","rustia_lawn01.dds","ground_n_ice02.dds","ground_n_ice03.dds"}){
             const std::string file=std::string(assets)+"/World/Texture/"+name;const std::wstring native(file.begin(),file.end());
             for(auto format:{D3DFMT_UNKNOWN,D3DFMT_A8R8G8B8}){Com<IDirect3DTexture9> source;
                 CHECK(SUCCEEDED(load(d,native.c_str(),UINT(-1),UINT(-1),0,0,format,D3DPOOL_MANAGED,1,1,0,nullptr,nullptr,source.out())));
-                CHECK(GrassFXFixture::kind(grass,source)==(!strcmp(name,"rustia_lawn01.dds")?1u:3u));}
+                CHECK(GrassFXFixture::kind(grass,source)==(!strcmp(name,"rustia_lawn01.dds")?1u:strstr(name,"ice")?4u:3u));}
         }
         std::string path=std::string(assets)+"/World/Texture/ground_lawn001.dds";std::wstring wide(path.begin(),path.end());
         CHECK(SUCCEEDED(load(d,wide.c_str(),UINT(-1),UINT(-1),0,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,1,1,0,nullptr,nullptr,art.out())));
@@ -98,30 +118,38 @@ int main(int argc,char **argv){
     CHECK(SUCCEEDED(d->CreateIndexBuffer(UINT(indices.size()*2),usage,D3DFMT_INDEX16,D3DPOOL_MANAGED,ib.out(),nullptr)));
     void *data=nullptr;vb->Lock(0,0,&data,0);memcpy(data,vertices.data(),vertices.size()*sizeof(Vertex));vb->Unlock();
     ib->Lock(0,0,&data,0);memcpy(data,indices.data(),indices.size()*2);ib->Unlock();
+    Com<IDirect3DVertexBuffer9> distantVB;
+    CHECK(SUCCEEDED(d->CreateVertexBuffer(81*sizeof(Vertex),usage,0,D3DPOOL_MANAGED,distantVB.out(),nullptr)));
+    CHECK(SUCCEEDED(distantVB->Lock(0,0,&data,0)));
+    for(unsigned v=0;v<81;++v){auto vertex=vertices[v];vertex.x+=2000;memcpy(static_cast<BYTE *>(data)+v*sizeof(Vertex),&vertex,sizeof(vertex));}
+    grass_bounds::Write boundsWrite;boundsWrite.begin(distantVB,0,0,data,0,true);boundsWrite.finish(distantVB);CHECK(SUCCEEDED(distantVB->Unlock()));
     const auto identity=Identity();auto view=identity;
+    float cameraEye[]={0,2.3f,-5};const float player[]={0,0,8};bool followPlayer=false;
     auto camera=[&](float pitch,float yaw){
         view=identity;const float c=std::cos(pitch),s=std::sin(pitch),cy=std::cos(yaw),sy=std::sin(yaw);
         view._11=cy;view._12=sy*s;view._13=sy*c;
         view._21=0;view._22=c;view._23=-s;
         view._31=-sy;view._32=cy*s;view._33=cy*c;
-        const float eye[]={0,2.3f,-5};for(int axis=0;axis<3;++axis)
-            view.m[3][axis]=-(eye[0]*view.m[0][axis]+eye[1]*view.m[1][axis]+eye[2]*view.m[2][axis]);
+        for(int axis=0;axis<3;++axis)
+            view.m[3][axis]=-(cameraEye[0]*view.m[0][axis]+cameraEye[1]*view.m[1][axis]+cameraEye[2]*view.m[2][axis]);
     };
     camera(.16f,0);
     auto projection=identity;projection._11=1.2f;projection._22=1.2f*Width/Height;projection._33=200/199.9f;projection._34=1;projection._43=-.1f*projection._33;projection._44=0;
     Settings settings;settings.grass=true;settings.grassQuality=2;settings.grassWind=0;
     bool road=false,roadGradient=false,roadProp=false;DWORD roadAlpha=255,terrainFVF=0x212;unsigned stateErrors=0,extraDraws=0;
+    bool groundTest=false,roadWrite=true,leafProp=false;float propHeight=0;
+    bool distantTiles=false;size_t pendingAfterTiles=0;
     Com<IDirect3DTexture9> dirt,coverage;
     CHECK(SUCCEEDED(d->CreateTexture(8,8,1,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,dirt.out(),nullptr)));
     CHECK(SUCCEEDED(d->CreateTexture(8,8,1,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,coverage.out(),nullptr)));
     {D3DLOCKED_RECT lock{};dirt->LockRect(0,&lock,nullptr,0);for(int y=0;y<8;++y)for(int x=0;x<8;++x)((DWORD *)((BYTE *)lock.pBits+y*lock.Pitch))[x]=0xff826a40;dirt->UnlockRect(0);}
     auto render=[&](bool on){
-        StateGuard outer(d);grass.beginFrame(on);
+        StateGuard outer(d);grass.beginFrame(on,followPlayer?player:nullptr);
         d->Clear(0,nullptr,D3DCLEAR_TARGET|D3DCLEAR_ZBUFFER,0xff9aaeb7,1,0);
         d->SetTransform(D3DTS_WORLD,&identity);d->SetTransform(D3DTS_VIEW,&view);d->SetTransform(D3DTS_PROJECTION,&projection);
         d->SetVertexShader(nullptr);d->SetPixelShader(nullptr);d->SetFVF(terrainFVF);
         d->SetRenderState(D3DRS_ZENABLE,TRUE);d->SetRenderState(D3DRS_ZWRITEENABLE,TRUE);d->SetRenderState(D3DRS_ZFUNC,D3DCMP_LESSEQUAL);
-        d->SetRenderState(D3DRS_CULLMODE,D3DCULL_NONE);d->SetRenderState(D3DRS_ALPHATESTENABLE,FALSE);d->SetRenderState(D3DRS_ALPHABLENDENABLE,FALSE);
+        d->SetRenderState(D3DRS_CULLMODE,D3DCULL_NONE);d->SetRenderState(D3DRS_ALPHATESTENABLE,groundTest);d->SetRenderState(D3DRS_ALPHABLENDENABLE,FALSE);
         d->SetRenderState(D3DRS_LIGHTING,TRUE);d->SetRenderState(D3DRS_AMBIENT,0xff60605a);
         D3DMATERIAL9 material{};material.Diffuse={1,1,1,1};material.Ambient={1,1,1,1};d->SetMaterial(&material);
         D3DLIGHT9 light{};light.Type=D3DLIGHT_DIRECTIONAL;light.Direction={.3f,-.86f,.4f};light.Diffuse={.65f,.65f,.55f,1};d->SetLight(0,&light);d->LightEnable(0,TRUE);
@@ -139,7 +167,9 @@ int main(int argc,char **argv){
             // A shallow view of the native client contains more than 2,048 terrain
             // passes. Replay small buffered tiles without changing the receiver.
             auto tile=geometry;tile.primitives=2;
+            if(distantTiles){d->SetStreamSource(0,distantVB,0,sizeof(Vertex));tile.vertices=81;}
             for(unsigned pass=0;pass<extraDraws;++pass)grass.capture(settings,draw,tile);
+            pendingAfterTiles=GrassFXFixture::queued(grass);
         }
         if(road){
             D3DLOCKED_RECT lock{};coverage->LockRect(0,&lock,nullptr,0);
@@ -147,7 +177,10 @@ int main(int argc,char **argv){
             std::vector<Vertex> strip;
             for(int segment=0;segment<48;++segment){float a=-12+segment*70.f/48,b=a+70.f/48;
                 for(auto p:{std::pair{-1.5f,a},std::pair{-1.5f,b},std::pair{1.5f,a},std::pair{1.5f,a},std::pair{-1.5f,b},std::pair{1.5f,b}})
-                    strip.push_back({p.first,Ground(p.first,p.second)+.005f,p.second,0,1,0,p.first,p.second,roadGradient?(p.first+1.5f)/3:.5f,.5f});}
+                    strip.push_back({p.first,Ground(p.first,p.second)+.005f+propHeight,p.second,0,1,0,p.first,p.second,roadGradient?(p.first+1.5f)/3:.5f,.5f});}
+            d->SetRenderState(D3DRS_ZWRITEENABLE,roadWrite);
+            d->SetRenderState(D3DRS_ALPHATESTENABLE,FALSE);
+            DWORD tag=leafProp?5u:0u;dirt->SetPrivateData(GrassTag,&tag,4,0);
             d->SetTexture(0,dirt);d->SetTexture(1,coverage);
             d->SetRenderState(D3DRS_ALPHABLENDENABLE,TRUE);d->SetRenderState(D3DRS_SRCBLEND,D3DBLEND_SRCALPHA);d->SetRenderState(D3DRS_DESTBLEND,D3DBLEND_INVSRCALPHA);
             d->SetTextureStageState(1,D3DTSS_COLOROP,D3DTOP_SELECTARG1);d->SetTextureStageState(1,D3DTSS_COLORARG1,D3DTA_CURRENT);
@@ -191,6 +224,8 @@ int main(int argc,char **argv){
     extraDraws=2800;const auto busy=render(true);
     CHECK(GrassFXFixture::started(grass)&&!GrassFXFixture::failed(grass));
     CHECK(Delta(busy,on)<=(msaa?32u:0u));extraDraws=0;
+    extraDraws=2800;distantTiles=true;CHECK(Delta(render(true),on)<=(msaa?32u:0u));
+    CHECK(pendingAfterTiles==1);extraDraws=0;distantTiles=false;
     for(float pitch:{.03f,.35f,.9f})for(float yaw:{-.6f,0.f,.6f}){
         camera(pitch,yaw);const auto bare=render(false),blades=render(true);
         unsigned visible=0;for(size_t px=0;px<bare.size();++px)visible+=bare[px]!=blades[px];
@@ -200,6 +235,14 @@ int main(int argc,char **argv){
     }
     camera(.16f,0);terrainFVF=0x112;
     CHECK(render(true)!=off&&GrassFXFixture::started(grass)&&!GrassFXFixture::failed(grass));terrainFVF=0x212;
+    groundTest=true;CHECK(render(true)!=off&&GrassFXFixture::surface(grass,0,8)[1]>.99f);groundTest=false;
+    followPlayer=true;
+    for(float x:{-12.f,0.f,12.f})for(float pitch:{.1f,.9f,1.45f}){
+        cameraEye[0]=x;cameraEye[1]=10;camera(pitch,0);CHECK(render(true).size()==off.size()&&!GrassFXFixture::failed(grass));
+        CHECK((GrassFXFixture::center(grass)==std::array<float,2>{0,8}));
+        CHECK(GrassFXFixture::surface(grass,0,8)[1]>.99f);
+    }
+    followPlayer=false;cameraEye[0]=0;cameraEye[1]=2.3f;camera(.16f,0);
     Com<IDirect3DTexture9> mixedSoil;CHECK(SUCCEEDED(d->CreateTexture(32,32,1,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,mixedSoil.out(),nullptr)));
     {D3DLOCKED_RECT lock{};CHECK(SUCCEEDED(mixedSoil->LockRect(0,&lock,nullptr,0)));
         for(int y=0;y<32;++y)for(int x=0;x<32;++x)((DWORD *)((BYTE *)lock.pBits+y*lock.Pitch))[x]=x<16?0xff8c6937:0xff416e28;
@@ -215,7 +258,24 @@ int main(int argc,char **argv){
     const auto left=GrassFXFixture::surface(grass,-1,8),middle=GrassFXFixture::surface(grass,0,8),right=GrassFXFixture::surface(grass,1,8);
     CHECK(left[1]>.8f&&middle[1]>.45f&&middle[1]<.55f&&right[1]<.2f);
     roadGradient=false;roadProp=true;CHECK(render(true).size()==on.size()&&!GrassFXFixture::failed(grass));CHECK(GrassFXFixture::surface(grass,0,8)[1]<.01f);roadProp=false;
+    // A raised roof/road cannot move the ground height, including a partial
+    // blend. Native depth-write-disabled terrain overlays still erase blades.
+    propHeight=5;roadAlpha=128;CHECK(render(true).size()==on.size());
+    CHECK(std::abs(GrassFXFixture::surface(grass,0,8)[0]-Ground(0,8))<.03f);
+    roadWrite=false;roadAlpha=255;CHECK(render(true).size()==on.size());CHECK(GrassFXFixture::surface(grass,0,8)[1]<.01f);
+    roadWrite=true;roadProp=true;leafProp=true;CHECK(render(true).size()==on.size());
+    CHECK(GrassFXFixture::surface(grass,0,8)[1]>.99f);leafProp=roadProp=false;propHeight=0;
     road=false;
+    Com<IDirect3DTexture9> snowy;CHECK(SUCCEEDED(d->CreateTexture(32,32,1,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,snowy.out(),nullptr)));
+    {D3DLOCKED_RECT lock{};CHECK(SUCCEEDED(snowy->LockRect(0,&lock,nullptr,0)));
+        for(int y=0;y<32;++y)for(int x=0;x<32;++x)((DWORD *)((BYTE *)lock.pBits+y*lock.Pitch))[x]=0xffd8e4ee;
+        snowy->UnlockRect(0);DWORD kind=4;snowy->SetPrivateData(GrassTag,&kind,4,0);}
+    std::swap(art.p,snowy.p);settings.grassSnow=false;const auto noSnow=render(true);
+    CHECK(!GrassFXFixture::started(grass)&&Delta(noSnow,render(false))<=(msaa?2u:0u));
+    settings.grassSnow=true;const auto snowGrass=render(true);CHECK(GrassFXFixture::started(grass)&&!GrassFXFixture::failed(grass));
+    CHECK(GrassFXFixture::surface(grass,0,8)[1]<-.99f&&Delta(noSnow,snowGrass)>20);
+    CHECK(Save(noSnow,L"artifacts/grass/snow-grass-off.png")&&Save(snowGrass,L"artifacts/grass/snow-grass-on.png"));
+    settings.grassSnow=false;CHECK(Delta(noSnow,render(true))<=(msaa?2u:0u)&&!GrassFXFixture::started(grass));std::swap(art.p,snowy.p);
     settings.grassHeight=.2f;auto shortGrass=render(true);settings.grassHeight=.95f;auto tallGrass=render(true);CHECK(shortGrass!=tallGrass);
     CHECK(Save(shortGrass,L"artifacts/grass/field-short.png")&&Save(tallGrass,L"artifacts/grass/field-tall.png"));
     settings.grassHeight=.55f;

@@ -411,6 +411,9 @@ void PanelParameters(Runtime &r, int item) {
             SR(Density,GrassDensityHelp,grassDensity,.25f,3,"%.2f",.1f);
             SR(GrassSlope,GrassSlopeHelp,grassSlope,0,60,"%.0f°",5);
             SR(GrassFade,GrassFadeHelp,grassFade,.1f,.5f,"%.2f",.05f);
+            ImGui::BeginDisabled(uiParameterDisabled);
+            PanelToggle("snow-grass",Tr(UiText::GrassSnow),s.grassSnow,Tr(UiText::GrassSnowHelp));
+            ImGui::EndDisabled();
             break;}
         case 1:
             SR(GrassHeight,GrassHeightHelp,grassHeight,.1f,1.5f,"%.2f",.05f);

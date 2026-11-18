@@ -30,16 +30,19 @@ class GrassFX {
         Com<IDirect3DBaseTexture9> art,blendMap;
         SurfaceDraw draw;
         D3DMATRIX matrices[3]{};
-        DWORD fvf=0,samplers[2][7]{};
+        DWORD fvf=0,samplers[2][9]{};
         UINT offset=0,stride=0;
         float material[4]{};
         bool blend=false;
+        void clear(){vertices.out();indices.out();art.out();blendMap.out();}
     };
-    std::vector<std::unique_ptr<Command>> pending_;
+    std::array<Command,256> commands_;
+    std::vector<Command *> pending_;
     Settings frame_;
     D3DMATRIX view_{},projection_{};
     D3DVIEWPORT9 viewport_{};
-    float eye_[4]{},map_[4]{},sunDirection_[4]{},sunColor_[4]{},ambient_[4]{},fog_[4]{},fogColor_[4]{};
+    float eye_[4]{},center_[4]{},map_[4]{},sunDirection_[4]{},sunColor_[4]{},ambient_[4]{},fog_[4]{},fogColor_[4]{};
+    bool centered_=false;
     unsigned resolution_=0;
     DWORD worldSrgb_=FALSE;
     int builtQuality_=-1;
@@ -57,7 +60,7 @@ public:
     explicit GrassFX(IDirect3DDevice9 *d):device_(d){}
     ~GrassFX();
     bool supported();
-    void beginFrame(bool enabled);
+    void beginFrame(bool enabled,const float *player=nullptr);
     void invalidate();
     void capture(const Settings &,DrawCall,SurfaceDraw={});
     void flush();

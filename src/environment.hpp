@@ -33,6 +33,7 @@ struct Binding {
     }
 };
 Binding InspectImage(HMODULE image, const client_detail::Layout &layout = {});
+bool PlayerPosition(const Binding &,float (&position)[3]);
 // Native fall geometry has a fixed 2000-particle capacity; the supported client uses at most 400.
 constexpr size_t ParticleBytes = 2000 * 3 * sizeof(float) * 2;
 struct FrameState {
@@ -69,4 +70,5 @@ class Environment {
     void update(const Settings &, bool compare = false);
     void reset();
     float minutes(const Settings &) const;
+    bool playerPosition(float (&position)[3]) const;
 };

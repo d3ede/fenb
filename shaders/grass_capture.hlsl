@@ -25,7 +25,7 @@ float4 GrassCapturePS(Output i):COLOR0 {
     float slope=abs(n.y)*rsqrt(max(dot(n,n),1e-12));
     // This mask is restricted to exactly identified mixed grass/soil atlases.
     // Warm bare soil receives no blades; source lighting cannot change coverage.
-    float coverage=Material.x>1.5?saturate((art.g-art.r*.9)*12)*saturate((art.g-art.b)*8):Material.x;
+    float coverage=Material.x>1.5?saturate((art.g-art.r*.82-.015)*18)*saturate((art.g-art.b-.02)*14):Material.x;
     return float4(i.world.y,coverage,slope,Material.w>.5?dot(art.rgb,float3(.2126,.7152,.0722)):opacity);
 }
 float4 GrassHidePS():COLOR0 {clip(-1);return 0;}

@@ -53,6 +53,12 @@ int main() {
     CHECK(time.sample(0, true, 100700) == 0);     // Dragging applies immediately while frozen.
     CHECK(!InspectImage(GetModuleHandleW(nullptr)));
     CHECK(!InspectImage(nullptr));
+    {std::array<unsigned char,0x180> player{};void *slot=player.data();Binding binding;binding.player=&slot;
+        const float expected[]={123,45,678};memcpy(player.data()+0x160,expected,sizeof(expected));float position[3]{};
+        CHECK(PlayerPosition(binding,position)&&!memcmp(position,expected,sizeof(expected)));
+        const float invalid=std::numeric_limits<float>::quiet_NaN();memcpy(player.data()+0x160,&invalid,4);
+        CHECK(!PlayerPosition(binding,position));slot=nullptr;CHECK(!PlayerPosition(binding,position));
+        binding.player=reinterpret_cast<void **>(1);CHECK(!PlayerPosition(binding,position));}
     // ASLR-relocated, disposable image: version, code and page protections must all match.
     constexpr DWORD imageSize = 11538432;
     HANDLE mapping =

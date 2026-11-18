@@ -160,6 +160,20 @@ environment_detail::Binding environment_detail::InspectImage(HMODULE image, cons
             reinterpret_cast<InitFall>(base + l.initFall)};
 }
 
+bool environment_detail::PlayerPosition(const Binding &binding,float (&position)[3]) {
+    void *player=nullptr;SIZE_T read=0;
+    if(!binding.player||!ReadProcessMemory(GetCurrentProcess(),binding.player,&player,sizeof(player),&read)||
+        read!=sizeof(player)||!player)return false;
+    float sample[3]{};
+    if(!ReadProcessMemory(GetCurrentProcess(),static_cast<unsigned char *>(player)+0x160,sample,sizeof(sample),&read)||
+        read!=sizeof(sample))return false;
+    for(float v:sample)if(!std::isfinite(v)||std::abs(v)>1e7f)return false;
+    memcpy(position,sample,sizeof(sample));return true;
+}
+bool Environment::playerPosition(float (&position)[3]) const {
+    auto &s=State();std::lock_guard lock(s.mutex);
+    return environment_detail::PlayerPosition(s.binding,position);
+}
 environment_detail::FrameScope::FrameScope(const Binding &binding, FrameState &state, const Settings &s,
                                            ULONGLONG now)
     : b_(binding), state_(state) {
