@@ -1,5 +1,23 @@
 [
   {
+    "file": "World/Texture/sky_cloud01.dds",
+    "kind": 8,
+    "width": 128,
+    "height": 128,
+    "decodedHash": "ff57966dc35bda3978efde62b7c88a90c5ad6b7bb0f2ea1f27544b178b367f72",
+    "sourceHash": "dcb4efb984f5b3da013f30fee886b12698dbccd7a2eb6fffb7bcc2e05c97cdbe",
+    "uploadHash": "0c23779cec7a35b69b6b7a7c3a075b9b82795dd256b860d81d7f04088dcbb5ce"
+  },
+  {
+    "file": "World/Texture/sky_cloud02.dds",
+    "kind": 8,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "f0860804b60a847cecc38dc797b2a301d13e97c117e337eed3694b2ea8c229c3",
+    "sourceHash": "412cd87db7395bcb287889811ed4529632afb7f03376128ca69703987e89a4e4",
+    "uploadHash": "fa0f91bd558ce6a86e8aaa443385627b514a6742bb9b499fbd7119da61d3cb8f"
+  },
+  {
     "file": "World/Texture/Obj_FLGR01.dds",
     "kind": 6,
     "width": 512,

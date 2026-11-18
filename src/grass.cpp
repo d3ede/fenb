@@ -77,7 +77,7 @@ void GrassFX::beginFrame(bool enabled,const float *player,uint64_t worldKey){
 }
 unsigned GrassFX::classify(IDirect3DTexture9 *texture){
     DWORD kind=0,size=4;
-    if(SUCCEEDED(texture->GetPrivateData(GrassTag,&kind,&size))&&size==4)return kind<=7?kind:0;
+    if(SUCCEEDED(texture->GetPrivateData(GrassTag,&kind,&size))&&size==4)return kind<=8?kind:0;
     D3DSURFACE_DESC desc{};
     if(FAILED(texture->GetLevelDesc(0,&desc))||desc.Pool!=D3DPOOL_MANAGED||desc.Usage)return 0;
     UINT bytes=0,rows=desc.Height;
@@ -242,7 +242,9 @@ void GrassFX::capture(const Settings &s,DrawCall draw,SurfaceDraw geometry,bool 
     Com<IDirect3DBaseTexture9> art;device_->GetTexture(0,art.out());
     if(!art.p||art->GetType()!=D3DRTYPE_TEXTURE)return;
     const unsigned kind=water?0:classify(static_cast<IDirect3DTexture9 *>(art.p));
-    if(kind==2||kind==5)return; // Vegetation cards never erase the ground below them.
+    // Terrain clouds can use the same FVF and blend stages as land layers.
+    // Their geometry, like that of vegetation cards, does not replace soil.
+    if(kind==2||kind==5||kind==8)return;
     if(kind==4)winter_=true;
     const bool paving=kind==6||kind==7;
     const bool ground=kind==1||kind==3||(kind==4&&s.grassSnow);

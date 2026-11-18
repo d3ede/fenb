@@ -100,7 +100,7 @@ int main(int argc,char **argv){
         CHECK(grass_bounds::outside(source,0,40,162,81,world,map));
         CHECK(SUCCEEDED(source->Lock(0,0,&upload,0)));write.begin(source,0,0,upload,0,false);write.finish(source);source->Unlock();
         CHECK(!grass_bounds::outside(source,0,40,162,81,world,map));}
-    Com<IDirect3DTexture9> art;
+    Com<IDirect3DTexture9> art,terrainCloud;
     if(assets){
         auto module=LoadLibraryExW(L"d3dx9_43.dll",nullptr,LOAD_LIBRARY_SEARCH_SYSTEM32);
         using Load=HRESULT(WINAPI *)(IDirect3DDevice9 *,LPCWSTR,UINT,UINT,UINT,DWORD,D3DFORMAT,D3DPOOL,DWORD,DWORD,D3DCOLOR,void *,PALETTEENTRY *,IDirect3DTexture9 **);
@@ -118,6 +118,13 @@ int main(int argc,char **argv){
             const std::wstring native(file.begin(),file.end());Com<IDirect3DTexture9> brick;
             CHECK(SUCCEEDED(load(d,native.c_str(),UINT(-1),UINT(-1),0,0,format,D3DPOOL_MANAGED,1,1,0,nullptr,nullptr,brick.out())));
             CHECK(GrassFXFixture::kind(grass,brick)==6);
+        }
+        for(const char *name:{"sky_cloud01.dds","sky_cloud02.dds"})for(auto format:{D3DFMT_UNKNOWN,D3DFMT_A8R8G8B8}){
+            const std::string file=std::string(assets)+"/World/Texture/"+name;
+            const std::wstring native(file.begin(),file.end());Com<IDirect3DTexture9> cloud;
+            CHECK(SUCCEEDED(load(d,native.c_str(),UINT(-1),UINT(-1),0,0,format,D3DPOOL_MANAGED,1,1,0,nullptr,nullptr,cloud.out())));
+            CHECK(GrassFXFixture::kind(grass,cloud)==8);
+            if(!terrainCloud.p)std::swap(terrainCloud.p,cloud.p);
         }
         std::string path=std::string(assets)+"/World/Texture/ground_lawn001.dds";std::wstring wide(path.begin(),path.end());
         CHECK(SUCCEEDED(load(d,wide.c_str(),UINT(-1),UINT(-1),0,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,1,1,0,nullptr,nullptr,art.out())));
@@ -409,6 +416,27 @@ int main(int argc,char **argv){
     CHECK(Delta(busy,on)<=(msaa?32u:0u));extraDraws=0;
     extraDraws=2800;distantTiles=true;CHECK(Delta(render(true),on)<=(msaa?32u:0u));
     CHECK(pendingAfterTiles==1);extraDraws=0;distantTiles=false;
+    if(!terrainCloud.p){
+        CHECK(SUCCEEDED(d->CreateTexture(1,1,1,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,terrainCloud.out(),nullptr)));
+        D3DLOCKED_RECT lock{};CHECK(SUCCEEDED(terrainCloud->LockRect(0,&lock,nullptr,0)));
+        *static_cast<DWORD *>(lock.pBits)=0xffffffff;
+        CHECK(SUCCEEDED(terrainCloud->UnlockRect(0)));
+        const DWORD terrainCloudKind=8;
+        CHECK(SUCCEEDED(terrainCloud->SetPrivateData(GrassTag,&terrainCloudKind,sizeof(terrainCloudKind),0)));
+    }
+    // Native terrain clouds use the same FVF, depth writes and blend-mask
+    // stage as land. Replay them only in the top view and compare the roots.
+    std::swap(dirt.p,terrainCloud.p);nativeLeaf=maskOnly=true;followPlayer=true;
+    for(float pitch:{.35f,1.48f}){
+        cameraEye[1]=13*std::sin(pitch);cameraEye[2]=player[2]-13*std::cos(pitch);camera(pitch,0);
+        const auto grassOnly=render(true);
+        road=pitch>1.f;
+        const auto cloudLayer=render(true);
+        CHECK(Delta(grassOnly,cloudLayer)<=(msaa?32u:0u)&&GrassFXFixture::surface(grass,0,8)[1]>.99f);
+        road=false;
+    }
+    followPlayer=maskOnly=nativeLeaf=false;cameraEye[1]=2.3f;cameraEye[2]=-5;camera(.16f,0);
+    std::swap(dirt.p,terrainCloud.p);
     for(float pitch:{.03f,.35f,.9f})for(float yaw:{-.6f,0.f,.6f}){
         camera(pitch,yaw);const auto bare=render(false),blades=render(true);
         unsigned visible=0;for(size_t px=0;px<bare.size();++px)visible+=bare[px]!=blades[px];
