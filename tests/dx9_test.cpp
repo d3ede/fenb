@@ -98,6 +98,8 @@ int main(int argc,char** argv) {
         return RefinementPreview(!strcmp(argv[1],"--refinement-capture"));
     if(argc>1 && (!strcmp(argv[1],"--refinement-speed-preview") || !strcmp(argv[1],"--refinement-speed-capture")))
         return RefinementPreview(!strcmp(argv[1],"--refinement-speed-capture"),true);
+    if(argc>1 && (!strcmp(argv[1],"--refinement-jump-preview") || !strcmp(argv[1],"--refinement-jump-capture")))
+        return RefinementPreview(!strcmp(argv[1],"--refinement-jump-capture"),false,true);
     bool interactive=argc>1 && strcmp(argv[1],"--preview")==0;
     bool aaTest=argc>1 && strcmp(argv[1],"--aa-test")==0;
     auto dir=Directory(); auto config=dir+L"FENB.ini";

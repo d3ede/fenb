@@ -32,7 +32,7 @@ class SfxFX {
         mistView._41+=view_._21*trailLift_;
         mistView._42+=view_._22*trailLift_;
         mistView._43+=view_._23*trailLift_;
-        refinement_trail::mesh(trailPuffs_,mistView,trailVertices_,trailContext_->hasOrigin?&origin:nullptr);
+        refinement_trail::mesh(trailPuffs_,mistView,trailVertices_,trailContext_->hasOrigin?&origin:nullptr,true);
         RefinementState state(device_);
         if(state.valid()&&!trailVertices_.empty()) {
             D3DMATRIX identity{};identity._11=identity._22=identity._33=identity._44=1;

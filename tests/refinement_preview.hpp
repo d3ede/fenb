@@ -8,7 +8,7 @@ inline LRESULT CALLBACK RefinementPreviewWindow(HWND window, UINT message, WPARA
     if (message == WM_DESTROY) { PostQuitMessage(0); return 0; }
     return DefWindowProcW(window, message, w, l);
 }
-inline int RefinementPreview(bool capture,bool fast=false) {
+inline int RefinementPreview(bool capture,bool fast=false,bool jump=false) {
     constexpr UINT width = 900, height = 600;
     WNDCLASSW wc{};
     wc.lpfnWndProc = RefinementPreviewWindow;
@@ -74,6 +74,7 @@ inline int RefinementPreview(bool capture,bool fast=false) {
     DWORD kind = 7; texture->SetPrivateData(SfxTag, &kind, 4, 0);
     SfxFX effects(device);
     Settings settings; settings.sfx = true; settings.sceneQuality = true;
+    if(jump){settings.sfxAuraCustomColor=true;settings.sfxAuraR=1;settings.sfxAuraG=.83f;settings.sfxAuraB=.18f;}
     D3DMATRIX identity{}; identity._11 = identity._22 = identity._33 = identity._44 = 1;
     auto view = identity; view._43 = 4;
     D3DMATRIX projection{};
@@ -101,7 +102,7 @@ inline int RefinementPreview(bool capture,bool fast=false) {
         if (!IsWindow(window)) break;
         float time = capture ? 1.f : float(GetTickCount64() - start) * .001f;
         effects.beginFrame(true);
-        device->Clear(0, nullptr, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, 0xff24382e, 1, 0);
+        device->Clear(0, nullptr, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, jump?0xff514437:0xff24382e, 1, 0);
         device->SetVertexShader(nullptr); device->SetPixelShader(nullptr);
         device->SetFVF(D3DFVF_XYZ | D3DFVF_DIFFUSE | D3DFVF_TEX1);
         device->SetTransform(D3DTS_VIEW, &view); device->SetTransform(D3DTS_PROJECTION, &projection);
@@ -137,6 +138,11 @@ inline int RefinementPreview(bool capture,bool fast=false) {
             if(side){world._11=.09f;world._22=.32f;}
             world._41 = (side ? 1.2f : -1.2f) + std::sin(age * 4 + time * .35f) * .16f + foot*.11f;
             world._42 = (1.35f - age * 2.8f)*speedScale;
+            if(jump){
+                world._41+=std::sin(age*8)*.63f;
+                world._42+=std::sin(age*9)*.54f;
+                world._43=std::sin(age*6)*.85f;
+            }
             device->SetTransform(D3DTS_WORLD, &world);
             float stopped=capture?1.f:std::clamp((6-std::fmod(time,7.f))*.5f,0.f,1.f);
             DWORD color = (DWORD((1 - age) * 145*stopped) << 24) | 0x0099aabb;
@@ -162,7 +168,9 @@ inline int RefinementPreview(bool capture,bool fast=false) {
                 FAILED(device->GetRenderTargetData(target, read))) return 6;
             D3DLOCKED_RECT lock{};
             if (FAILED(read->LockRect(&lock, nullptr, D3DLOCK_READONLY))) return 6;
-            FILE *file = _wfopen(fast?L"build/refinement-speed-preview.bmp":L"build/refinement-preview.bmp", L"wb");
+            const wchar_t *path=jump?L"build/refinement-jump-preview.bmp":
+                fast?L"build/refinement-speed-preview.bmp":L"build/refinement-preview.bmp";
+            FILE *file = _wfopen(path,L"wb");
             if (!file) { read->UnlockRect(); return 6; }
             BITMAPFILEHEADER header{}; header.bfType = 0x4d42;
             header.bfOffBits = sizeof(header) + sizeof(BITMAPINFOHEADER); header.bfSize = header.bfOffBits + width * height * 4;

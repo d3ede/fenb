@@ -1,11 +1,12 @@
 #pragma once
 #include "common.hpp"
+#include "trail_geometry.hpp"
 #include <array>
 #include <span>
 
 namespace skate_trail {
-enum class Style { Game, Mist, Ribbons, Stardust };
-enum class Mask { Vapor, Halo, Spark, Count };
+enum class Style { Game, Mist, Ribbons, Stardust, Lightning, Embers };
+enum class Mask { Vapor, Halo, Spark, Cloud, Ember, Count };
 struct Vec {
     float x=0,y=0,z=0;
     Vec operator+(Vec b) const { return {x+b.x,y+b.y,z+b.z}; }
@@ -34,14 +35,20 @@ static_assert(sizeof(Vertex)==24);
 class Path {
     std::span<const Point> points_;
     std::array<float,512> distances_{};
+    std::array<Vec,512> sides_{};
     size_t size_=0;
 public:
     explicit Path(std::span<const Point> points):points_(points) {
         if(points.size()<2||points.size()>distances_.size())return;
+        sides_[0]=points[0].across;
         for(size_t i=1;i<points.size();++i) {
             const float distance=length(points[i].center-points[i-1].center);
             if(!std::isfinite(distance)||distance>8)break;
             distances_[i]=distances_[i-1]+distance;
+            // These are side axes, so opposite orientations are equivalent.
+            // Keep their sign consistent across abrupt native yaw changes.
+            const auto across=points[i].across;
+            sides_[i]=dot(across,sides_[i-1])<0?across*(-1.f):across;
             size_=i+1;
         }
     }
@@ -53,7 +60,9 @@ public:
         const size_t a=b-1;
         const float t=std::clamp((distance-distances_[a])/std::max(.00001f,distances_[b]-distances_[a]),0.f,1.f);
         const auto &p=points_[a],&q=points_[b];
-        return {p.center+(q.center-p.center)*t,p.across+(q.across-p.across)*t,
+        const Vec side=sides_[a]+(sides_[b]-sides_[a])*t;
+        const float width=length(side);
+        return {p.center+(q.center-p.center)*t,width>.001f?side*(1/width):sides_[a],
                 p.opacity+(q.opacity-p.opacity)*t};
     }
 };
@@ -63,15 +72,21 @@ class Renderer {
     std::array<Com<IDirect3DTexture9>,size_t(Mask::Count)> masks_;
     Com<IDirect3DStateBlock9> saved_;
     std::vector<Vertex> vertices_;
+    D3DMATRIX view_{};
     static float density(Mask mask,float u,float v) {
         if(mask==Mask::Vapor) {
             const float phase=v*3.14159265f;
-            const float swirl=u+.12f*std::sin(phase)+.07f*std::sin(3*phase+u*2);
+            const float swirl=u+.21f*std::sin(phase)+.12f*std::sin(3*phase+u*2);
             return std::exp(-swirl*swirl*3.2f)*smooth((1-std::abs(u))*3)
-                *(.79f+.16f*std::sin(phase*2+u*5)+.05f*std::cos(phase*4-u*5));
+                *(.70f+.22f*std::sin(phase*2+u*5)+.08f*std::cos(phase*4-u*5));
         }
         if(mask==Mask::Halo)return std::exp(-u*u*3.7f)*smooth((1-std::abs(u))*4);
         const float radius=u*u+v*v;
+        if(mask==Mask::Cloud) {
+            const float lobes=.84f+.11f*std::cos(u*9+v*4)+.05f*std::sin(v*11-u*3);
+            return std::exp(-radius*2.8f)*smooth((1-radius)*2)*lobes;
+        }
+        if(mask==Mask::Ember)return std::exp(-u*u*14-v*v*5)*smooth((1-radius)*3);
         const float flare=std::exp(-std::min(u*u,v*v)*980)*std::exp(-std::max(u*u,v*v)*3.8f);
         return std::min(1.f,std::exp(-radius*16)*.88f+flare*.42f)*smooth((1-std::sqrt(radius))*5);
     }
@@ -105,35 +120,59 @@ class Renderer {
         vertices_.insert(vertices_.end(),std::begin(triangles),std::end(triangles));
     }
     bool flush(Mask mask) {
+        if(vertices_.empty())return true;
         const bool ok=SUCCEEDED(device_->SetTexture(0,masks_[size_t(mask)]))&&
             SUCCEEDED(device_->DrawPrimitiveUP(D3DPT_TRIANGLELIST,UINT(vertices_.size()/3),vertices_.data(),sizeof(Vertex)));
         vertices_.clear();
         return ok;
     }
-    struct Strip { float width,offset,wave,lift,intensity,fraction; DWORD rgb; Mask mask; };
+    struct Strip {
+        float width,offset,wave,lift,intensity,fraction;
+        DWORD rgb;
+        Mask mask;
+        float start=0;
+        bool electric=false;
+    };
+    trail_geometry::Vec toView(Vec p) const { return trail_geometry::transform({p.x,p.y,p.z},view_); }
+    static float zigzag(float phase) {
+        const int step=int(std::floor(phase));
+        const float fraction=phase-step;
+        const float a=(step%2?-1.f:1.f)*(.38f+.62f*random(unsigned(step)));
+        const float b=(step%2?1.f:-1.f)*(.38f+.62f*random(unsigned(step+1)));
+        return a+(b-a)*fraction;
+    }
     bool strip(const Path &path,const Strip &style) {
         constexpr int Steps=100;
         const float extent=path.lengthInWorld()*style.fraction;
-        Vertex left{},right{};
+        std::array<trail_geometry::Knot,Steps+1> knots{};
         for(int i=0;i<=Steps;++i) {
-            const float age=float(i)/Steps,distance=age*extent;
-            const auto sample=path.at(distance);
+            const float age=float(i)/Steps,distance=style.start*path.lengthInWorld()+age*extent;
+            auto sample=path.at(distance);
+            // Smooth sampled position along arc length. Keep the board anchor
+            // and the far endpoint in place.
+            const float window=std::min({.42f,distance,path.lengthInWorld()-distance});
+            if(window>.001f)
+                sample.center=sample.center*.5f+(path.at(distance-window).center+path.at(distance+window).center)*.25f;
             const Vec across=sample.across;
             const float phase=dot(sample.center,{.57f,.22f,1.1f});
-            const auto p=sample.center+across*((style.offset+style.wave*std::sin(phase))*smooth(age*7))
+            const float wave=style.electric?zigzag(phase*2.1f):std::sin(phase);
+            const auto p=sample.center+across*((style.offset+style.wave*wave)*smooth(age*7))
                          +Vec{0,style.lift*smooth(age*8),0};
-            const float width=style.width*(.72f+smooth(age*7)*.46f)*(1-.36f*age);
-            const float strength=style.intensity*sample.opacity*(1-smooth((age-.13f)/.87f));
-            const DWORD tint=color(style.rgb,strength);
-            Vertex a{p-across*width,tint,0,phase*.2f},b{p+across*width,tint,1,phase*.2f};
-            if(i)quad(left,right,a,b);
-            left=a;
-            right=b;
+            const float turbulence=style.mask==Mask::Vapor?1+.22f*std::sin(phase*1.7f):1;
+            const float width=style.width*(.72f+smooth(age*7)*.46f)*(1-.36f*age)*turbulence;
+            const float strength=style.intensity*sample.opacity*(1-smooth((age-.07f)/.93f));
+            knots[i]={toView(p),width,color(style.rgb,strength),phase*.27f};
         }
+        trail_geometry::ribbon(knots,true,[&](auto a,auto b,auto c,auto d){
+            auto vertex=[](const auto &v){return Vertex{{v.p.x,v.p.y,v.p.z},v.tint,v.u,v.v};};
+            quad(vertex(a),vertex(b),vertex(c),vertex(d));
+        },!style.electric);
         return flush(style.mask);
     }
-    void sprite(Vec p,Vec right,Vec up,float radius,DWORD tint) {
-        const Vec a=right*radius,b=up*radius;
+    void sprite(Vec world,float width,float height,DWORD tint) {
+        const auto view=toView(world);
+        const Vec p{view.x,view.y,view.z},a{width,0,0},b{0,height,0};
+        if(p.z<.025f)return;
         quad({p-a+b,tint,0,0},{p+a+b,tint,1,0},{p-a-b,tint,0,1},{p+a-b,tint,1,1});
     }
 public:
@@ -150,13 +189,13 @@ public:
     bool draw(std::span<const Point> points,Style style,DWORD customColor=0,bool custom=false) {
         Path path(points);
         if(style==Style::Game||path.lengthInWorld()<.05f||!prepare())return false;
-        D3DMATRIX world{},view{};
-        if(FAILED(device_->GetTransform(D3DTS_WORLD,&world))||FAILED(device_->GetTransform(D3DTS_VIEW,&view))||
+        D3DMATRIX world{};
+        if(FAILED(device_->GetTransform(D3DTS_WORLD,&world))||FAILED(device_->GetTransform(D3DTS_VIEW,&view_))||
            FAILED(saved_->Capture()))return false;
-        const Vec right{view._11,view._21,view._31},up{view._12,view._22,view._32};
         D3DMATRIX identity{};
         identity._11=identity._22=identity._33=identity._44=1;
         bool ok=SUCCEEDED(device_->SetTransform(D3DTS_WORLD,&identity))&&
+            SUCCEEDED(device_->SetTransform(D3DTS_VIEW,&identity))&&
             SUCCEEDED(device_->SetVertexShader(nullptr))&&SUCCEEDED(device_->SetPixelShader(nullptr))&&
             SUCCEEDED(device_->SetFVF(D3DFVF_XYZ|D3DFVF_DIFFUSE|D3DFVF_TEX1));
         auto state=[&](D3DRENDERSTATETYPE kind,DWORD value){ok &= SUCCEEDED(device_->SetRenderState(kind,value));};
@@ -190,9 +229,22 @@ public:
         auto tint=[&](DWORD value){return custom?customColor:value;};
         if(ok) {
             if(style==Style::Mist) {
-                ok=strip(path,{1.05f,0,.11f,.13f,.29f,1,tint(0x5276ef),Mask::Vapor})&&
-                   strip(path,{.62f,.09f,.17f,.05f,.46f,.92f,tint(0x54efed),Mask::Vapor})&&
-                   strip(path,{.29f,-.11f,-.21f,.04f,.35f,.76f,tint(0xafe9ff),Mask::Vapor});
+                ok=strip(path,{.77f,0,.24f,.13f,.25f,.94f,tint(0x549cef),Mask::Vapor})&&
+                   strip(path,{.36f,-.10f,-.30f,.07f,.24f,.78f,tint(0xa8e4ff),Mask::Vapor});
+                const float extent=path.lengthInWorld();
+                const int wisps=std::clamp(int(extent/.65f),4,32);
+                for(int i=0;i<wisps;++i) {
+                    const float age=(i+.45f)/wisps;
+                    const auto p=path.at(age*extent);
+                    const float phase=dot(p.center,{.92f,.41f,.73f});
+                    const float spread=.16f+age*.51f;
+                    const Vec center=p.center+p.across*(std::sin(phase*1.65f)*spread)
+                        +Vec{0,(.14f+.11f*std::cos(phase))*smooth(age*6),0};
+                    const float size=(.37f+.41f*age)*(.85f+.15f*std::sin(phase*1.7f));
+                    const float opacity=.23f*(1-smooth(age))*p.opacity;
+                    sprite(center,size,size*.79f,color(tint(0x829deb),opacity));
+                }
+                ok=flush(Mask::Cloud)&&ok;
             } else if(style==Style::Ribbons) {
                 ok=strip(path,{.69f,0,0,0,.13f,1,tint(0x729eff),Mask::Halo});
                 for(float side:{-1.f,1.f}) {
@@ -200,7 +252,7 @@ public:
                     ok=ok&&strip(path,{.17f,side*.23f,side*.30f,side*.13f,.37f,1,rgb,Mask::Halo})&&
                            strip(path,{.048f,side*.23f,side*.30f,side*.13f,.95f,1,rgb,Mask::Halo});
                 }
-            } else {
+            } else if(style==Style::Stardust) {
                 ok=strip(path,{.76f,0,.06f,0,.19f,1,tint(0x7276ff),Mask::Vapor});
                 const float extent=path.lengthInWorld();
                 const int count=std::clamp(int(extent*13),2,184);
@@ -214,15 +266,42 @@ public:
                     const bool burst=random(seed+2)>.94f;
                     const float radius=burst?.19f+random(seed+3)*.13f:.029f+random(seed+3)*.05f;
                     const float opacity=smooth(age*32)*(1-smooth(age))*(.59f+random(seed+4)*.41f)*p.opacity;
-                    sprite(position,right,up,radius,color(tint(burst?0xc5ddff:0xa79aff),opacity));
+                    sprite(position,radius,radius,color(tint(burst?0xc5ddff:0xa79aff),opacity));
                 }
                 ok=flush(Mask::Spark)&&ok;
+            } else if(style==Style::Lightning) {
+                ok=strip(path,{.33f,0,.32f,.05f,.32f,.80f,tint(0x667eff),Mask::Halo,0,true})&&
+                   strip(path,{.061f,0,.32f,.05f,1,.80f,tint(0xaeedff),Mask::Halo,0,true});
+                for(float side:{-1.f,1.f}) {
+                    const float start=side<0?.15f:.32f;
+                    ok=ok&&strip(path,{.046f,side*.62f,.37f,.09f,.68f,.23f,
+                                       tint(0x8295ff),Mask::Halo,start,true});
+                }
+            } else if(style==Style::Embers) {
+                ok=strip(path,{.37f,0,.1f,.12f,.23f,.60f,tint(0xff6121),Mask::Vapor});
+                const float extent=path.lengthInWorld();
+                const int count=std::clamp(int(extent*6),5,100);
+                for(int i=1;i<=count;++i) {
+                    const float age=(i-.5f)/count;
+                    const auto p=path.at(age*extent);
+                    const unsigned seed=unsigned(i)*23u;
+                    const float spread=.09f+.83f*age;
+                    const Vec position=p.center+p.across*((random(seed)*2-1)*spread)
+                        +Vec{0,age*(.3f+random(seed+1)*.8f),0};
+                    const float radius=.026f+random(seed+2)*.06f;
+                    const float opacity=smooth(age*24)*(1-smooth(age))*(.6f+random(seed+3)*.4f)*p.opacity;
+                    sprite(position,radius,radius*(2+random(seed+4)*1.7f),
+                           color(tint(random(seed+5)>.55f?0xffd35c:0xff6520),opacity));
+                }
+                ok=flush(Mask::Ember)&&ok;
             }
-            sprite(points.front().center,right,up,.35f,color(tint(style==Style::Stardust?0x929bff:0x99eaff),.43f*points.front().opacity));
+            const DWORD head=style==Style::Embers?0xff9b46:style==Style::Stardust?0x929bff:0x99eaff;
+            sprite(points.front().center,.35f,.35f,color(tint(head),.43f*points.front().opacity));
             ok=flush(Mask::Spark)&&ok;
         }
         const HRESULT restored=saved_->Apply();
         device_->SetTransform(D3DTS_WORLD,&world);
+        device_->SetTransform(D3DTS_VIEW,&view_);
         return ok&&SUCCEEDED(restored);
     }
 };

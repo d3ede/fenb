@@ -200,10 +200,9 @@ float4 RefinementPS(float2 uv:TEXCOORD0,float fogDepth:TEXCOORD1,float4 color:CO
 }
 float4 RefinementDiscardPS():COLOR0 { return 0; }
 float4 RefinementCloudPS(float2 uv:TEXCOORD0,float fogDepth:TEXCOORD1,float4 color:COLOR0):COLOR0 {
- // One continuous transverse profile, without a per-particle longitudinal
- // envelope or any time/position-driven intensity modulation.
+ // V is zero on the ribbon and covers the longitudinal axis on rounded caps.
  float across=uv.x*2-1;
- float radius=across*across;
+ float radius=across*across+uv.y*uv.y;
  float density=exp(-radius*2.7)*smoothstep(1,.42,radius);
  float3 palette=tex2Dlod(Art,float4(.4,.65,0,0)).rgb;
  palette+=tex2Dlod(Art,float4(.5,.55,0,0)).rgb;

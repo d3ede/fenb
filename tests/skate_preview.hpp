@@ -8,7 +8,7 @@ constexpr UINT Width = 1000, Height = 650;
 using skate_trail::Vec;
 using skate_trail::dot;
 using skate_trail::color;
-enum class Effect { Mist, Ribbons, Stardust, Count };
+enum class Effect { Mist, Ribbons, Stardust, Lightning, Embers, Count };
 inline Vec cross(Vec a, Vec b) { return {a.y*b.z-a.z*b.y,a.z*b.x-a.x*b.z,a.x*b.y-a.y*b.x}; }
 inline Vec normal(Vec v) { return v*(1.f/std::sqrt(dot(v,v))); }
 inline float unit(unsigned seed) {
@@ -185,13 +185,13 @@ inline int run(bool capture,WNDPROC windowProcedure,Screenshot screenshot) {
     if(FAILED(root->CreateDevice(0,D3DDEVTYPE_HAL,window,D3DCREATE_HARDWARE_VERTEXPROCESSING,
                                  &parameters,device.out())))return 4;
     Scene scene(device);
-    constexpr const wchar_t *Names[]={L"Mist",L"Light ribbons",L"Stardust"};
+    constexpr const wchar_t *Names[]={L"Mist",L"Light ribbons",L"Stardust",L"Lightning",L"Glowing embers"};
     if(capture) {
         CreateDirectoryW(L"artifacts",nullptr);
         CreateDirectoryW(L"artifacts/skate-preview",nullptr);
         Com<IDirect3DSurface9> target;
         if(FAILED(device->GetRenderTarget(0,target.out())))return 6;
-        constexpr const wchar_t *Files[]={L"mist",L"ribbons",L"stardust"};
+        constexpr const wchar_t *Files[]={L"mist",L"ribbons",L"stardust",L"lightning",L"embers"};
         for(int i=0;i<int(Effect::Count);++i) for(bool turning:{false,true}) {
             wchar_t filename[160]{};
             swprintf(filename,std::size(filename),L"artifacts/skate-preview/%ls-%ls.png",Files[i],
@@ -215,7 +215,7 @@ inline int run(bool capture,WNDPROC windowProcedure,Screenshot screenshot) {
         while(PeekMessageW(&message,nullptr,0,0,PM_REMOVE)) {
             if(message.message==WM_QUIT)return 0;
             if(message.message==WM_KEYDOWN && !(message.lParam&(1L<<30))) {
-                if(message.wParam>='1'&&message.wParam<='3')effect=Effect(message.wParam-'1');
+                if(message.wParam>='1'&&message.wParam<='5')effect=Effect(message.wParam-'1');
                 if(message.wParam==VK_SPACE)paused=!paused;
                 if(message.wParam=='T')turning=!turning;
                 if(message.wParam==VK_ESCAPE)return 0;
@@ -229,7 +229,7 @@ inline int run(bool capture,WNDPROC windowProcedure,Screenshot screenshot) {
         previous=now;
         if(titleDirty) {
             wchar_t title[140]{};
-            swprintf(title,std::size(title),L"FENB | %ls | 1/2/3 styles, T turns, Space pause",Names[size_t(effect)]);
+            swprintf(title,std::size(title),L"FENB | %ls | 1–5 styles, T turns, Space pause",Names[size_t(effect)]);
             SetWindowTextW(window,title);
             titleDirty=false;
         }

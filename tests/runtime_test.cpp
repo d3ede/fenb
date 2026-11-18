@@ -121,7 +121,7 @@ int main() {
         CHECK(SUCCEEDED(device->GetRenderTarget(0,target.out())));
         CHECK(SUCCEEDED(device->CreateOffscreenPlainSurface(800,600,D3DFMT_X8R8G8B8,D3DPOOL_SYSTEMMEM,pixels.out(),nullptr)));
         auto originalDraw=[](){return D3D_OK;};
-        for(int style=0;style<=3;++style) {
+        for(int style=0;style<=5;++style) {
             runtime.settings.skateTrailStyle=float(style);
             native_skate::Context scope{nativeTrail.data()};
             CHECK(SUCCEEDED(device->Clear(0,nullptr,D3DCLEAR_TARGET,0xff202020,1,0)));
@@ -155,7 +155,7 @@ int main() {
             CHECK(other==0&&(style?colored>100:colored==0));
         }
         device->SetStreamSource(0,nullptr,0,0);
-        puts("PASS: native skate draw replacement, three styles, custom tint and device state restoration.");
+        puts("PASS: native skate draw replacement, five styles, custom tint and device state restoration.");
     }
     {
         Runtime runtime(device);

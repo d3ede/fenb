@@ -102,6 +102,24 @@ int main(int argc,char **argv){
     puffs={{{0,0,0},.2f,{1,1,1,1}},{{0,-1,0},.2f,{1,1,1,.8f}},
            {{0,-30,0},.2f,{1,1,1,.6f}},{{0,-31,0},.2f,{1,1,1,.4f}}};
     mesh(puffs,identity,vertices);assert(coverage(0,-15)==0); // An outlier teleport stays disconnected.
+    // Abrupt turns, foreshortening and near-camera samples must never create
+    // reversed triangles or a sharp diagonal through the glow.
+    std::vector<Puff> jump={{{-.9f,.55f,2},.23f,{1,1,1,1}},{{.05f,.03f,2.4f},.24f,{1,1,1,.9f}},
+        {{.22f,-.02f,2.7f},.24f,{1,1,1,.8f}},{{-.2f,.12f,3.0f},.24f,{1,1,1,.7f}},
+        {{.05f,-.3f,3.6f},.24f,{1,1,1,.6f}},{{-.6f,-.8f,4.4f},.24f,{1,1,1,.5f}}};
+    mesh(jump,identity,vertices,nullptr,true);
+    assert(vertices.size()>=36);
+    unsigned rounded=0;
+    for(size_t i=0;i<vertices.size();i+=3){
+        const auto project=[](Vertex v){return trail_geometry::Vec{v.x/v.z,v.y/v.z,0};};
+        const auto a=project(vertices[i]),b=project(vertices[i+1]),c=project(vertices[i+2]);
+        assert(trail_geometry::cross(b-a,c-a)>0);
+        rounded+=vertices[i].v>0||vertices[i+1].v>0||vertices[i+2].v>0;
+    }
+    assert(rounded>=4);
+    std::array<skate_trail::Point,3> yaw={{{{0,0,2},{1,0,0},1},{{0,1,2},{-1,0,0},1},{{1,1,2},{1,0,0},1}}};
+    skate_trail::Path skate(yaw);
+    assert(skate.at(.5f).across.x>.99f&&skate.at(1.5f).across.x>.99f);
     {
         float origin[]={1,2,3};native_refinement::Scope anchored(&model,origin);
         origin[0]=10;assert(anchored.context.hasOrigin&&anchored.context.origin[0]==1);

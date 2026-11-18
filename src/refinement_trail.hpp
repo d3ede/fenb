@@ -2,6 +2,7 @@
 #include "draw_call.hpp"
 #include "native_refinement.hpp"
 #include "state_guard.hpp"
+#include "trail_geometry.hpp"
 #include <array>
 
 namespace refinement_trail {
@@ -86,7 +87,7 @@ inline void merge(std::vector<Puff>&puffs){
 // A joined camera-facing surface has one coverage layer regardless of native
 // emission spacing. New particles subdivide it instead of adding bright blobs.
 inline void mesh(std::vector<Puff>&puffs,const D3DMATRIX &view,std::vector<Vertex>&out,
-                 const Vec *emitter=nullptr){
+                 const Vec *emitter=nullptr,bool perspective=false){
     out.clear();merge(puffs);
     if(puffs.empty())return;
     // A regular fast trail can have arbitrarily wider spacing than a walk.
@@ -110,28 +111,24 @@ inline void mesh(std::vector<Puff>&puffs,const D3DMATRIX &view,std::vector<Verte
             p.radius*(1.3f+age*.9f),p.color};
     };
     auto unit=[](Vec v){float n=length(v);return n>.00001f?v*(1/n):Vec{0,1,0};};
-    auto cap=[&](Node n,Vec direction,float distance,float width,float opacity){
-        n.p=n.p+direction*distance;n.width*=width;n.color[3]*=opacity;return n;
-    };
     auto emit=[&](unsigned count){
-        std::array<Vec,262> side{};
-        for(unsigned i=0;i<count;++i){
-            Vec tangent=nodes[std::min(i+1,count-1)].p-nodes[i?i-1:0].p;
-            float xy=std::hypot(tangent.x,tangent.y);
-            side[i]=xy>.00001f?Vec{tangent.y/xy,-tangent.x/xy,0}:Vec{1,0,0};
+        std::array<trail_geometry::Knot,trail_geometry::MaxKnots> knots{};
+        // A heavily folded trail uses at most three quads per span.
+        const unsigned reduced=std::min(count,170u);
+        for(unsigned i=0;i<reduced;++i){
+            const auto &n=nodes[i*(count-1)/std::max(1u,reduced-1)];
+            knots[i]={{n.p.x,n.p.y,n.p.z},n.width,packed(n.color,.95f)};
         }
-        for(unsigned i=1;i<count&&out.size()+6<=MaxVertices;++i){
-            auto edge=[&](unsigned j,float u){const auto &n=nodes[j];
-                Vec p=n.p+side[j]*(n.width*(u*2-1));
-                return Vertex{p.x,p.y,p.z,packed(n.color,.95f),u,0};};
-            Vertex a=edge(i-1,0),b=edge(i-1,1),c=edge(i,0),d=edge(i,1);
-            for(const auto &v:{a,b,c,c,b,d})out.push_back(v);
-        }
+        trail_geometry::ribbon({knots.data(),reduced},perspective,
+            [&](auto a,auto b,auto c,auto d){
+                if(out.size()+6>MaxVertices)return;
+                for(const auto &v:{a,b,c,c,b,d})out.push_back({v.p.x,v.p.y,v.p.z,v.tint,v.u,v.cap});
+            });
     };
     for(size_t first=0;first<puffs.size();){
         size_t end=first+1;
         while(end<puffs.size()&&length(puffs[end].position-puffs[end-1].position)<=maxGap)++end;
-        unsigned count=2;
+        unsigned count=0;
         // The current native emitter fills the unsampled part of a fast run.
         // Linear fade extrapolation keeps the head's energy steady across births.
         if(!first&&emitter&&finite(*emitter)){
@@ -144,24 +141,24 @@ inline void mesh(std::vector<Puff>&puffs,const D3DMATRIX &view,std::vector<Verte
                 nodes[count++]=node(head);
             }
         }
-        for(size_t i=first;i<end&&count<259;++i){
+        for(size_t i=first;i<end&&count<257;++i){
             Node n=node(puffs[i]);
-            if(count>2&&length(n.p-nodes[count-1].p)<.001f)continue;
+            if(count&&length(n.p-nodes[count-1].p)<.001f)continue;
             nodes[count++]=n;
         }
         const unsigned last=count-1;
-        Vec forward=count>3?unit(nodes[3].p-nodes[2].p):Vec{0,-1,0};
-        Vec backward=count>3?unit(nodes[last].p-nodes[last-1].p):forward;
-        nodes[0]=cap(nodes[2],forward,-nodes[2].width*1.1f,1,0);
-        nodes[1]=cap(nodes[2],forward,-nodes[2].width*.55f,1,.5f);
         float tail=nodes[last].width*.85f;
-        if(last>2){
+        if(last>0){
             const float fall=nodes[last-1].color[3]-nodes[last].color[3];
             if(fall>1.f/255)tail=std::clamp(length(nodes[last].p-nodes[last-1].p)*nodes[last].color[3]/fall,
                 nodes[last].width*.35f,maxGap);
         }
-        nodes[count++]=cap(nodes[last],backward,tail*.5f,1,.5f);
-        nodes[count++]=cap(nodes[last],backward,tail,1,0);
+        if(last>0){
+            Node endpoint=nodes[last];
+            endpoint.p=endpoint.p+unit(endpoint.p-nodes[last-1].p)*tail;
+            endpoint.color[3]=0;
+            nodes[count++]=endpoint;
+        }
         emit(count);first=end;
     }
 }

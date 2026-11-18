@@ -80,6 +80,8 @@ UI_TEXT(SkateTrailNative, "Game trail", "Шлейф игры", "Estela del juego
 UI_TEXT(SkateTrailMist, "Mist comet", "Туманная комета", "Cometa de niebla", "Cometa de névoa")
 UI_TEXT(SkateTrailRibbons, "Light ribbons", "Световые ленты", "Cintas de luz", "Fitas de luz")
 UI_TEXT(SkateTrailStardust, "Stardust", "Звёздная пыль", "Polvo de estrellas", "Poeira estelar")
+UI_TEXT(SkateTrailLightning, "Lightning", "Молния", "Relámpago", "Relâmpago")
+UI_TEXT(SkateTrailEmbers, "Glowing embers", "Тлеющие угли", "Brasas", "Brasas")
 UI_TEXT(ArmorColor, "Armor color", "Цвет брони", "Color de la armadura", "Cor da armadura")
 UI_TEXT(WeaponColor, "Weapon color", "Цвет оружия", "Color del arma", "Cor da arma")
 UI_TEXT(AuraCustomColor, "Use custom color", "Использовать свой цвет", "Usar un color personalizado", "Usar cor personalizada")
