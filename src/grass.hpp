@@ -71,7 +71,7 @@ public:
     bool supported();
     void beginFrame(bool enabled,const float *player=nullptr,uint64_t worldKey=0);
     void invalidate();
-    void capture(const Settings &,DrawCall,SurfaceDraw={});
+    void capture(const Settings &,DrawCall,SurfaceDraw={},bool water=false);
     void flush();
     bool pending() const {return !pending_.empty();}
     void draw(const Settings &,bool ownScene=false);

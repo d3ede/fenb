@@ -77,10 +77,12 @@ Output GrassBladeVS(Input i) {
     float slope=smoothstep(max(0,Shape.w-.07),min(1,Shape.w+.04),surface.b);
     float contact=tex2Dlod(Contacts,float4(uv,0,0)).r;
     float obstacle=Center.y+(0.5-contact)*1024;
-    bool paving=contact>1;
+    bool water=contact>2;
+    bool paving=contact>1&&!water;
     if(paving)obstacle=Center.y+(contact-1.5)*1024;
-    if(any(uv<0)||any(uv>1)||coverage*slope<.001||(snow>0&&Extra.w<.5)||
-        (contact>0&&obstacle>=surface.r-.5&&obstacle<=surface.r+max(paving?.85:0,Shape.x*.9+.04))){
+    bool submerged=water&&surface.r<=Center.y+(contact-2.5)*1024+.025;
+    if(any(uv<0)||any(uv>1)||coverage*slope<.001||(snow>0&&Extra.w<.5)||submerged||
+        (!water&&contact>0&&obstacle>=surface.r-.5&&obstacle<=surface.r+max(paving?.85:0,Shape.x*.9+.04))){
         o.position=float4(2,2,2,1);return o;
     }
     float fade=1;

@@ -261,12 +261,20 @@ void Runtime::resetFrame() {
     invalidateDrawState();
 }
 bool Runtime::beforeWaterDraw(UINT upStride, DrawCall draw,ParticleDraw particle) {
-    // Terrain layers have completed before the native translucent world queue.
-    // Blend fading leaves over the already drawn blades, using native depth.
     if(!lost_&&!hudStarted_&&settings.enabled&&settings.grass&&!compare&&!vertexShaderActive_&&fvfKnown_&&
         (drawFVF_==0x102||drawFVF_==0x112||drawFVF_==0x142||drawFVF_==0x152)&&
-        sceneBackbuffer_&&drawTarget_==sceneBackbuffer_)
-        grass_->beforeTranslucency(settings,!inScene_);
+        sceneBackbuffer_&&drawTarget_==sceneBackbuffer_){
+        if(drawFVF_==0x152){
+            // Track native water even when its FENB styling is disabled.
+            Com<IDirect3DBaseTexture9> texture;
+            if(SUCCEEDED(device_->GetTexture(0,texture.out()))&&texture.p&&texture->GetType()==D3DRTYPE_TEXTURE&&
+                water_->materialTag(static_cast<IDirect3DTexture9 *>(texture.p))==1)
+                grass_->capture(settings,draw,particle.buffered,true);
+        }else{
+            // A depth-writing translucent leaf must blend over the blades.
+            grass_->beforeTranslucency(settings,!inScene_);
+        }
+    }
     // Inspect native state before FENB material/tree shaders wrap this draw.
     if (!lost_ && !hudStarted_ && settings.enabled && (settings.ssao || settings.grass) && !compare &&
         !vertexShaderActive_ && fvfKnown_ && sceneBackbuffer_ && drawTarget_==sceneBackbuffer_)

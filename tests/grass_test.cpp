@@ -155,6 +155,8 @@ int main(int argc,char **argv){
     bool distantTiles=false;size_t pendingAfterTiles=0;
     bool translucentLeaf=false,earlyGrass=true;
     bool paving=false;
+    bool waterMask=false;
+    float waterY=0;
     Com<IDirect3DTexture9> dirt,coverage;
     CHECK(SUCCEEDED(d->CreateTexture(8,8,1,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,dirt.out(),nullptr)));
     CHECK(SUCCEEDED(d->CreateTexture(8,8,1,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,coverage.out(),nullptr)));
@@ -214,10 +216,23 @@ int main(int argc,char **argv){
                 drawRoad();d->SetTransform(D3DTS_WORLD,&identity);
             }
         }
+        if(waterMask){
+            struct WaterVertex {float x,y,z,nx,ny,nz;DWORD color;float u,v;};
+            const WaterVertex strip[]={{-3,waterY,0,0,1,0,0,0,0},{3,waterY,0,0,1,0,0,1,0},
+                                      {-3,waterY,24,0,1,0,0,0,1},{3,waterY,24,0,1,0,0,1,1}};
+            d->SetFVF(0x152);
+            d->SetRenderState(D3DRS_ZWRITEENABLE,FALSE);
+            d->SetRenderState(D3DRS_ALPHABLENDENABLE,TRUE);
+            d->SetRenderState(D3DRS_SRCBLEND,D3DBLEND_SRCALPHA);
+            d->SetRenderState(D3DRS_DESTBLEND,D3DBLEND_INVSRCALPHA);
+            auto drawWater=[&](){return d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP,2,strip,sizeof(WaterVertex));};
+            if(on&&!proxy)grass.capture(settings,drawWater,{},true);
+        }
         if(translucentLeaf){
             d->SetRenderState(D3DRS_ALPHABLENDENABLE,TRUE);
             d->SetRenderState(D3DRS_SRCBLEND,D3DBLEND_SRCALPHA);d->SetRenderState(D3DRS_DESTBLEND,D3DBLEND_INVSRCALPHA);
             d->SetFVF(0x102);
+            const DWORD leafTag=5;dirt->SetPrivateData(GrassTag,&leafTag,4,0);d->SetTexture(0,dirt);
             if(on&&!proxy&&earlyGrass)grass.beforeTranslucency(settings);
             // Native proximity-faded leaves can still write depth. Their color
             // must blend over grass that has already been submitted.
@@ -406,6 +421,14 @@ int main(int argc,char **argv){
     paving=false;propHeight=0;doubleProp=false;
     roadProp=propBlend=false;roadWrite=true;
     road=false;
+    waterMask=true;waterY=.15f;
+    const auto flooded=render(true);
+    CHECK(GrassFXFixture::contact(grass,0,8)>2);
+    CHECK(GrassFXFixture::contact(grass,2,1)==0); // Stepping above the water line stays dry.
+    CHECK(GrassFXFixture::contact(grass,5,8)==0);
+    CHECK(Delta(on,flooded)>20);
+    CHECK(Save(flooded,L"artifacts/grass/field-water-mask.png"));
+    waterMask=false;
     Com<IDirect3DTexture9> snowy;CHECK(SUCCEEDED(d->CreateTexture(32,32,1,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,snowy.out(),nullptr)));
     {D3DLOCKED_RECT lock{};CHECK(SUCCEEDED(snowy->LockRect(0,&lock,nullptr,0)));
         for(int y=0;y<32;++y)for(int x=0;x<32;++x)((DWORD *)((BYTE *)lock.pBits+y*lock.Pitch))[x]=0xffd8e4ee;

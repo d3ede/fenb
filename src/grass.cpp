@@ -200,25 +200,25 @@ bool GrassFX::initialize(const Settings &s){
     device_->GetRenderState(D3DRS_FOGCOLOR,&value);Color(value,fogColor_);
     started_=true;return true;
 }
-void GrassFX::capture(const Settings &s,DrawCall draw,SurfaceDraw geometry){
+void GrassFX::capture(const Settings &s,DrawCall draw,SurfaceDraw geometry,bool water){
     if(!enabled_||rendered_||failed_||!s.enabled||!s.grass)return;
     DWORD fvf=0,z=0,write=0,test=0,blend=0,src=0,dst=0;
-    if(FAILED(device_->GetFVF(&fvf))||(fvf!=0x212&&fvf!=0x112))return;
+    if(FAILED(device_->GetFVF(&fvf))||(water?fvf!=0x152:(fvf!=0x212&&fvf!=0x112)))return;
     D3DMATRIX world{};device_->GetTransform(D3DTS_WORLD,&world);
     Com<IDirect3DVertexShader9> vs;Com<IDirect3DPixelShader9> ps;
     device_->GetVertexShader(vs.out());device_->GetPixelShader(ps.out());if(vs.p||ps.p)return;
     device_->GetRenderState(D3DRS_ZENABLE,&z);device_->GetRenderState(D3DRS_ZWRITEENABLE,&write);
     device_->GetRenderState(D3DRS_ALPHATESTENABLE,&test);device_->GetRenderState(D3DRS_ALPHABLENDENABLE,&blend);
     device_->GetRenderState(D3DRS_SRCBLEND,&src);device_->GetRenderState(D3DRS_DESTBLEND,&dst);
-    if(!z||(blend&&(src!=D3DBLEND_SRCALPHA||dst!=D3DBLEND_INVSRCALPHA)))return;
+    if(!z||(water&&(!blend||write))||(blend&&(src!=D3DBLEND_SRCALPHA||dst!=D3DBLEND_INVSRCALPHA)))return;
     DWORD clip=0;device_->GetRenderState(D3DRS_CLIPPLANEENABLE,&clip);if(clip)return;
     Com<IDirect3DBaseTexture9> art;device_->GetTexture(0,art.out());
     if(!art.p||art->GetType()!=D3DRTYPE_TEXTURE)return;
-    const unsigned kind=classify(static_cast<IDirect3DTexture9 *>(art.p));
+    const unsigned kind=water?0:classify(static_cast<IDirect3DTexture9 *>(art.p));
     if(kind==2||kind==5)return; // Vegetation cards never erase the ground below them.
     if(kind==4)winter_=true;
     const bool ground=kind==1||kind==3||(kind==4&&s.grassSnow);
-    const bool prop=fvf==0x112&&!ground;
+    const bool prop=water||(fvf==0x112&&!ground);
     // Exact ground atlases are opaque. A preceding cutout leaf can leave the
     // native alpha-test enabled; it must not disable the next terrain receiver.
     if(!write&&!blend&&!prop)return;
@@ -233,12 +233,12 @@ void GrassFX::capture(const Settings &s,DrawCall draw,SurfaceDraw geometry){
     auto release=[](Command *c){c->clear();};
     std::unique_ptr<Command,decltype(release)> command(&commands_[pending_.size()],release);
     command->draw=geometry;command->fvf=fvf;command->blend=blend!=0&&!prop;command->prop=prop;
-    command->contactMode=prop?(kind==7?3.f:kind==6?2.f:1.f):0.f;
+    command->contactMode=water?4.f:prop?(kind==7?3.f:kind==6?2.f:1.f):0.f;
     command->matrices[0]=world;
     D3DMATRIX view{},projection{};device_->GetTransform(D3DTS_VIEW,&view);device_->GetTransform(D3DTS_PROJECTION,&projection);
     if(memcmp(&view,&view_,sizeof(view))||memcmp(&projection,&projection_,sizeof(projection)))return;
     for(DWORD stage=0;stage<2;++stage){
-        if(stage==1&&prop){command->matrices[2]=Identity();continue;}
+        if(water||(stage==1&&prop)){command->matrices[stage+1]=Identity();continue;}
         DWORD coordinate=0,flags=0;device_->GetTextureStageState(stage,D3DTSS_TEXCOORDINDEX,&coordinate);
         device_->GetTextureStageState(stage,D3DTSS_TEXTURETRANSFORMFLAGS,&flags);
         if((stage==0&&coordinate!=0)||(stage==1&&blend&&coordinate!=1)||
@@ -275,6 +275,7 @@ bool GrassFX::target(bool contacts){
     device_->SetStreamSourceFreq(0,1);device_->SetStreamSourceFreq(1,1);
     device_->SetTexture(D3DVERTEXTEXTURESAMPLER0,nullptr);
     device_->SetTexture(D3DVERTEXTEXTURESAMPLER1,nullptr);
+    device_->SetTexture(1,nullptr);
     if(FAILED(device_->SetRenderTarget(0,contacts?contactSurface_:groundSurface_)))return false;
     contactTarget_=contacts;
     D3DVIEWPORT9 viewport{0,0,resolution_,resolution_,0,1};device_->SetViewport(&viewport);
@@ -306,6 +307,17 @@ void GrassFX::apply(const Command &c,bool heightOnly){
     device_->SetRenderState(D3DRS_COLORWRITEENABLE,c.prop?D3DCOLORWRITEENABLE_RED:c.material[0]==0?
         D3DCOLORWRITEENABLE_GREEN|D3DCOLORWRITEENABLE_BLUE:!c.blend?15:heightOnly?
         D3DCOLORWRITEENABLE_RED|D3DCOLORWRITEENABLE_ALPHA:D3DCOLORWRITEENABLE_GREEN|D3DCOLORWRITEENABLE_BLUE);
+    if(c.contactMode>3.5f){
+        device_->SetPixelShaderConstantF(2,map_,1);
+        device_->SetTexture(1,ground_);
+        for(auto key:{D3DSAMP_MINFILTER,D3DSAMP_MAGFILTER})device_->SetSamplerState(1,key,D3DTEXF_POINT);
+        device_->SetSamplerState(1,D3DSAMP_MIPFILTER,D3DTEXF_NONE);
+        device_->SetSamplerState(1,D3DSAMP_ADDRESSU,D3DTADDRESS_CLAMP);
+        device_->SetSamplerState(1,D3DSAMP_ADDRESSV,D3DTADDRESS_CLAMP);
+        device_->SetSamplerState(1,D3DSAMP_SRGBTEXTURE,FALSE);
+        device_->SetSamplerState(1,D3DSAMP_MAXMIPLEVEL,0);
+        return;
+    }
     for(DWORD stage=0;stage<(c.prop?1u:2u);++stage)for(unsigned i=0;i<std::size(Samplers);++i)device_->SetSamplerState(stage,Samplers[i],c.samplers[stage][i]);
     // Classification is calibrated in artist RGB, not camera-selected mip/sRGB
     // state. Its footprint comes from the fixed world map, independent of view.
@@ -330,12 +342,16 @@ void GrassFX::flush(){
 }
 void GrassFX::beforeTranslucency(const Settings &s,bool ownScene){
     if(rendered_||!started_||failed_)return;
-    DWORD blend=0;device_->GetRenderState(D3DRS_ALPHABLENDENABLE,&blend);if(!blend)return;
+    DWORD blend=0,write=0;
+    device_->GetRenderState(D3DRS_ALPHABLENDENABLE,&blend);
+    device_->GetRenderState(D3DRS_ZWRITEENABLE,&write);
+    if(!blend||!write)return;
     DWORD fvf=0;if(FAILED(device_->GetFVF(&fvf)))return;
-    if(fvf==0x112){
-        Com<IDirect3DBaseTexture9> art;device_->GetTexture(0,art.out());
-        if(!art.p||art->GetType()!=D3DRTYPE_TEXTURE||classify(static_cast<IDirect3DTexture9 *>(art.p))!=5)return;
-    }else if(fvf!=0x102&&fvf!=0x142&&fvf!=0x152)return;
+    if(fvf!=0x112&&fvf!=0x102&&fvf!=0x142)return;
+    Com<IDirect3DBaseTexture9> art;device_->GetTexture(0,art.out());
+    if(!art.p||art->GetType()!=D3DRTYPE_TEXTURE)return;
+    const unsigned kind=classify(static_cast<IDirect3DTexture9 *>(art.p));
+    if(kind!=2&&kind!=5)return;
     D3DMATRIX view{},projection{};
     if(FAILED(device_->GetTransform(D3DTS_VIEW,&view))||FAILED(device_->GetTransform(D3DTS_PROJECTION,&projection))||
        memcmp(&view,&view_,sizeof(view))||memcmp(&projection,&projection_,sizeof(projection)))return;
