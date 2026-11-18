@@ -145,7 +145,7 @@ float4 RefinementWisp(float2 uv,float2 dx,float2 dy,float4 color) {
  cloud=Native(cloud,color);
  // Feather all four billboard/atlas edges; broad overlapping lobes stay soft in motion.
  float2 edge=smoothstep(0,.22,p)*smoothstep(0,.22,1-p);
- float envelope=edge.x*edge.y*(.86+.14*sin(p.y*10+p.x*5+Screen.w));
+ float envelope=edge.x*edge.y;
  if(AlphaStage.z>.5)cloud.a*=envelope;
  else cloud.rgb*=envelope;
  return cloud;
@@ -200,12 +200,11 @@ float4 RefinementPS(float2 uv:TEXCOORD0,float fogDepth:TEXCOORD1,float4 color:CO
 }
 float4 RefinementDiscardPS():COLOR0 { return 0; }
 float4 RefinementCloudPS(float2 uv:TEXCOORD0,float fogDepth:TEXCOORD1,float4 color:COLOR0):COLOR0 {
- float2 p=uv*2-1;
- float curl=sin(p.y*4+Screen.w+sin(p.x*3-Screen.w));
- p.x+=curl*.12*(1-p.y*p.y);
- float radius=dot(p,p);
+ // One continuous transverse profile, without a per-particle longitudinal
+ // envelope or any time/position-driven intensity modulation.
+ float across=uv.x*2-1;
+ float radius=across*across;
  float density=exp(-radius*2.7)*smoothstep(1,.42,radius);
- density*=.82+.18*sin(p.x*5+p.y*3+Screen.w);
  float3 palette=tex2Dlod(Art,float4(.4,.65,0,0)).rgb;
  palette+=tex2Dlod(Art,float4(.5,.55,0,0)).rgb;
  palette+=tex2Dlod(Art,float4(.6,.65,0,0)).rgb;

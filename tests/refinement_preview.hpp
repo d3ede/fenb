@@ -8,7 +8,7 @@ inline LRESULT CALLBACK RefinementPreviewWindow(HWND window, UINT message, WPARA
     if (message == WM_DESTROY) { PostQuitMessage(0); return 0; }
     return DefWindowProcW(window, message, w, l);
 }
-inline int RefinementPreview(bool capture) {
+inline int RefinementPreview(bool capture,bool fast=false) {
     constexpr UINT width = 900, height = 600;
     WNDCLASSW wc{};
     wc.lpfnWndProc = RefinementPreviewWindow;
@@ -79,6 +79,8 @@ inline int RefinementPreview(bool capture) {
     D3DMATRIX projection{};
     projection._11 = 1.3f; projection._22 = 2; projection._33 = 100.f / 99.9f;
     projection._34 = 1; projection._43 = -.1f * projection._33;
+    const float speedScale=fast?16.f:1.f;
+    projection._22/=speedScale;
     struct Vertex { float x, y, z; DWORD color; float u, v; };
     Com<IDirect3DVertexBuffer9> fan;
     if(FAILED(device->CreateVertexBuffer(80,D3DUSAGE_WRITEONLY,0x102,D3DPOOL_SYSTEMMEM,fan.out(),nullptr)))return 5;
@@ -127,13 +129,14 @@ inline int RefinementPreview(bool capture) {
           device->SetTextureStageState(0,D3DTSS_ALPHAARG2,side?D3DTA_TFACTOR:D3DTA_DIFFUSE);
           if(side)device->SetStreamSource(0,fan,0,20);
           for(int foot : {-1,1}) {
-           native_refinement::Scope modelScope(&foot);
+           float origin[]={ (side?1.2f:-1.2f)+std::sin(time*.35f)*.16f+foot*.11f,1.35f*speedScale,0};
+           native_refinement::Scope modelScope(&foot,origin);
            for (int i = 9; i >= 0; --i) {
             float age = (i + std::fmod(time * 2, 1.f)) / 10.f;
             auto world = identity;
             if(side){world._11=.09f;world._22=.32f;}
             world._41 = (side ? 1.2f : -1.2f) + std::sin(age * 4 + time * .35f) * .16f + foot*.11f;
-            world._42 = 1.35f - age * 2.8f;
+            world._42 = (1.35f - age * 2.8f)*speedScale;
             device->SetTransform(D3DTS_WORLD, &world);
             float stopped=capture?1.f:std::clamp((6-std::fmod(time,7.f))*.5f,0.f,1.f);
             DWORD color = (DWORD((1 - age) * 145*stopped) << 24) | 0x0099aabb;
@@ -159,7 +162,7 @@ inline int RefinementPreview(bool capture) {
                 FAILED(device->GetRenderTargetData(target, read))) return 6;
             D3DLOCKED_RECT lock{};
             if (FAILED(read->LockRect(&lock, nullptr, D3DLOCK_READONLY))) return 6;
-            FILE *file = _wfopen(L"build/refinement-preview.bmp", L"wb");
+            FILE *file = _wfopen(fast?L"build/refinement-speed-preview.bmp":L"build/refinement-preview.bmp", L"wb");
             if (!file) { read->UnlockRect(); return 6; }
             BITMAPFILEHEADER header{}; header.bfType = 0x4d42;
             header.bfOffBits = sizeof(header) + sizeof(BITMAPINFOHEADER); header.bfSize = header.bfOffBits + width * height * 4;

@@ -26,7 +26,8 @@ class SfxFX {
     bool trailRange_=false;
     void finishTrail() {
         if(!trailContext_)return;
-        refinement_trail::mesh(trailPuffs_,view_,trailVertices_);
+        refinement_trail::Vec origin{trailContext_->origin[0],trailContext_->origin[1],trailContext_->origin[2]};
+        refinement_trail::mesh(trailPuffs_,view_,trailVertices_,trailContext_->hasOrigin?&origin:nullptr);
         RefinementState state(device_);
         if(state.valid()&&!trailVertices_.empty()) {
             D3DMATRIX identity{};identity._11=identity._22=identity._33=identity._44=1;

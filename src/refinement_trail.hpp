@@ -73,7 +73,7 @@ inline bool extract(const ParticleDraw &draw,DWORD fvf,const D3DMATRIX &world,
 // Absolute world positions are rebuilt from current native particles each render.
 inline void merge(std::vector<Puff>&puffs){
     std::stable_sort(puffs.begin(),puffs.end(),[](const Puff&a,const Puff&b){return a.color[3]>b.color[3];});
-    const float tolerance=(puffs.empty()?0:puffs.front().color[3])*.045f+.0000001f;
+    const float tolerance=.5f/255.f;
     for(size_t i=0;i<puffs.size();++i)for(size_t j=i+1;j<puffs.size();){
         auto &a=puffs[i];auto &b=puffs[j];const float distance=length(a.position-b.position);
         if(std::abs(a.color[3]-b.color[3])<tolerance&&distance<std::max(a.radius,b.radius)*1.8f){
@@ -83,35 +83,86 @@ inline void merge(std::vector<Puff>&puffs){
         }else ++j;
     }
 }
-inline void mesh(std::vector<Puff>&puffs,const D3DMATRIX &view,std::vector<Vertex>&out){
+// A joined camera-facing surface has one coverage layer regardless of native
+// emission spacing. New particles subdivide it instead of adding bright blobs.
+inline void mesh(std::vector<Puff>&puffs,const D3DMATRIX &view,std::vector<Vertex>&out,
+                 const Vec *emitter=nullptr){
     out.clear();merge(puffs);
-    auto append=[&](Puff puff,float gain){
-        if(out.size()+6>MaxVertices)return;
-        const float alpha=std::clamp(puff.color[3],0.f,1.f),age=1-alpha;
-        puff.position.y+=age*.08f;
-        Vec p=transform(puff.position,view);
-        const float r=puff.radius*(1.3f+age*.9f);
-        auto color=packed(puff.color,gain*std::pow(alpha,.35f));
-        Vertex quad[]={{p.x-r,p.y+r,p.z,color,0,0},{p.x+r,p.y+r,p.z,color,1,0},
-                       {p.x-r,p.y-r,p.z,color,0,1},{p.x+r,p.y-r,p.z,color,1,1}};
-        for(int i:{0,1,2,2,1,3})out.push_back(quad[i]);
+    if(puffs.empty())return;
+    // A regular fast trail can have arbitrarily wider spacing than a walk.
+    // Scale the continuity guard from its own typical spacing, while rejecting
+    // isolated teleports rather than stretching a cloud across the whole map.
+    std::array<float,256> gaps{};size_t gapCount=0;
+    for(size_t i=1;i<puffs.size()&&gapCount<gaps.size();++i){
+        const float distance=length(puffs[i].position-puffs[i-1].position);
+        if(distance>.001f)gaps[gapCount++]=distance;
+    }
+    float maxGap=12.f;
+    if(gapCount>=2){
+        std::sort(gaps.begin(),gaps.begin()+gapCount);
+        maxGap=std::clamp(gaps[(gapCount-1)/4]*4,12.f,128.f);
+    }
+    struct Node {Vec p;float width;std::array<float,4> color;};
+    std::array<Node,262> nodes{};
+    auto node=[&](const Puff &p){
+        const float alpha=std::clamp(p.color[3],0.f,1.f),age=1-alpha;
+        return Node{transform(p.position+Vec{0,age*.08f,0},view),
+            p.radius*(1.3f+age*.9f),p.color};
     };
-    for(size_t i=0;i<puffs.size();++i){
-        const auto &a=puffs[i];size_t next=puffs.size();float distance=std::min(2.75f,a.radius*10);
-        for(size_t j=i+1;j<puffs.size();++j){float d=length(a.position-puffs[j].position);
-            if(d>.005f&&d<distance){distance=d;next=j;}}
-        if(next==puffs.size()){append(a,.95f);continue;}
-        const unsigned allowance=unsigned((MaxSprites-out.size()/6)/(puffs.size()-i));
-        const auto &b=puffs[next];unsigned steps=std::clamp(unsigned(std::ceil(distance/std::max(.06f,a.radius*.75f))),1u,std::min(8u,std::max(1u,allowance)));
-        // Maintain optical coverage as sample spacing changes, with fewer
-        // overlapping billboards. Native alpha still reaches exactly zero.
-        const float gain=std::clamp(.44f*distance/(steps*std::max(.035f,a.radius*.4f)),.35f,1.1f);
-        for(unsigned step=0;step<steps;++step){
-            float t=float(step)/steps;Puff p;
-            p.position=a.position*(1-t)+b.position*t;p.radius=a.radius*(1-t)+b.radius*t;
-            for(int c=0;c<4;++c)p.color[c]=a.color[c]*(1-t)+b.color[c]*t;
-            append(p,gain);
+    auto unit=[](Vec v){float n=length(v);return n>.00001f?v*(1/n):Vec{0,1,0};};
+    auto cap=[&](Node n,Vec direction,float distance,float width,float opacity){
+        n.p=n.p+direction*distance;n.width*=width;n.color[3]*=opacity;return n;
+    };
+    auto emit=[&](unsigned count){
+        std::array<Vec,262> side{};
+        for(unsigned i=0;i<count;++i){
+            Vec tangent=nodes[std::min(i+1,count-1)].p-nodes[i?i-1:0].p;
+            float xy=std::hypot(tangent.x,tangent.y);
+            side[i]=xy>.00001f?Vec{tangent.y/xy,-tangent.x/xy,0}:Vec{1,0,0};
         }
+        for(unsigned i=1;i<count&&out.size()+6<=MaxVertices;++i){
+            auto edge=[&](unsigned j,float u){const auto &n=nodes[j];
+                Vec p=n.p+side[j]*(n.width*(u*2-1));
+                return Vertex{p.x,p.y,p.z,packed(n.color,.95f),u,0};};
+            Vertex a=edge(i-1,0),b=edge(i-1,1),c=edge(i,0),d=edge(i,1);
+            for(const auto &v:{a,b,c,c,b,d})out.push_back(v);
+        }
+    };
+    for(size_t first=0;first<puffs.size();){
+        size_t end=first+1;
+        while(end<puffs.size()&&length(puffs[end].position-puffs[end-1].position)<=maxGap)++end;
+        unsigned count=2;
+        // The current native emitter fills the unsampled part of a fast run.
+        // Linear fade extrapolation keeps the head's energy steady across births.
+        if(!first&&emitter&&finite(*emitter)){
+            const auto &a=puffs[first];float distance=length(*emitter-a.position);
+            float spacing=end-first>1?length(puffs[first+1].position-a.position):a.radius*2;
+            if(distance>.001f&&distance<=std::min(maxGap,std::max(a.radius*2,spacing*2.5f))){
+                Puff head=a;head.position=*emitter;
+                if(end-first>1&&spacing>.001f)
+                    head.color[3]=std::clamp(a.color[3]+(a.color[3]-puffs[first+1].color[3])*distance/spacing,0.f,1.f);
+                nodes[count++]=node(head);
+            }
+        }
+        for(size_t i=first;i<end&&count<259;++i){
+            Node n=node(puffs[i]);
+            if(count>2&&length(n.p-nodes[count-1].p)<.001f)continue;
+            nodes[count++]=n;
+        }
+        const unsigned last=count-1;
+        Vec forward=count>3?unit(nodes[3].p-nodes[2].p):Vec{0,-1,0};
+        Vec backward=count>3?unit(nodes[last].p-nodes[last-1].p):forward;
+        nodes[0]=cap(nodes[2],forward,-nodes[2].width*1.1f,1,0);
+        nodes[1]=cap(nodes[2],forward,-nodes[2].width*.55f,1,.5f);
+        float tail=nodes[last].width*.85f;
+        if(last>2){
+            const float fall=nodes[last-1].color[3]-nodes[last].color[3];
+            if(fall>1.f/255)tail=std::clamp(length(nodes[last].p-nodes[last-1].p)*nodes[last].color[3]/fall,
+                nodes[last].width*.35f,maxGap);
+        }
+        nodes[count++]=cap(nodes[last],backward,tail*.5f,1,.5f);
+        nodes[count++]=cap(nodes[last],backward,tail,1,0);
+        emit(count);first=end;
     }
 }
 }

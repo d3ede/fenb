@@ -540,6 +540,37 @@ int main(int argc, char **argv) {
         for(UINT y=65;y<150;++y)separateFilled+=((separateMist[y*W+W/2]&255)>(strips[y*W+W/2]&255)+2);
         CHECK(separateFilled>60); // The client's two foot models remain independent but overlap softly.
         Save(separateMist,L"build/refinement-two-model-mist.bmp");
+        // Follow a fixed position behind the emitter through a native particle
+        // birth. Zoom only the vertical axis so fast, sparse trails remain visible.
+        auto emissionCycle=[&](float spacing,float fraction)->int{
+            sfx.beginFrame(true);background();setup();
+            auto zoom=projection;zoom._22=.3f/spacing;d->SetTransform(D3DTS_PROJECTION,&zoom);
+            d->SetRenderState(D3DRS_ZWRITEENABLE,TRUE);sfx.observe();d->SetRenderState(D3DRS_ZWRITEENABLE,FALSE);
+            float origin[]={0,2.6f*spacing,0};int owner=0;d->BeginScene();
+            {
+                native_refinement::Scope scope(&owner,origin);
+                for(int i=5;i>=0;--i){
+                    auto world=id;world._42=origin[1]-(i+fraction)*spacing;d->SetTransform(D3DTS_WORLD,&world);
+                    DWORD tint=(DWORD(.56f*(1-(i+fraction)/6)*255)<<24)|0xffffff;
+                    V quad[]={{-.04f,.1f,0,tint,0,0},{.04f,.1f,0,tint,1,0},
+                              {-.04f,-.1f,0,tint,0,1},{.04f,-.1f,0,tint,1,1}};
+                    ParticleDraw geometry{D3DPT_TRIANGLESTRIP,2,quad,sizeof(V)};
+                    CHECK(sfx.begin(settings,false,true,geometry)&&sfx.skipNativeDraw());sfx.end(true);
+                }
+            }
+            d->EndScene();return 0;
+        };
+        for(float spacing:{.3f,4.f,8.f,16.f,32.f}){
+            unsigned low=UINT_MAX,high=0;
+            for(int phase=0;phase<=20;++phase){
+                CHECK(emissionCycle(spacing,phase/20.f)==0);const auto pixels=Read(d);
+                unsigned energy=0;
+                for(UINT y=104;y<114;++y)for(UINT x=W/2-4;x<W/2+4;++x)energy+=(pixels[y*W+x]&255)-0x50;
+                low=std::min(low,energy);high=std::max(high,energy);
+            }
+            printf("GPU emission spacing %.1f: fixed-region energy %u..%u\n",spacing,low,high);
+            CHECK(low>100&&high-low<low*3/100); // No empty gap or periodic birth flash.
+        }
         {
             sfx.beginFrame(true);background();setup();
             d->SetRenderState(D3DRS_ZWRITEENABLE,TRUE);sfx.observe();d->SetRenderState(D3DRS_ZWRITEENABLE,FALSE);
@@ -602,7 +633,7 @@ int main(int argc, char **argv) {
         CHECK(clouds(true,1)==0);CHECK(Difference(mist,Read(d),1)==0);
         CHECK(clouds(true,1,0)==0);const auto initialPhase=Read(d);
         CHECK(clouds(true,1,6.28318530718f)==0);CHECK(Difference(initialPhase,Read(d),1)==0);
-        CHECK(clouds(true,1,1)==0);CHECK(Difference(initialPhase,Read(d),1)>20);
+        CHECK(clouds(true,1,1)==0);CHECK(Difference(initialPhase,Read(d))==0); // No periodic brightness modulation.
         unsigned previousEnergy=0;
         for(float amount:{0.f,.1f,.3f,.6f,1.f}){
             CHECK(clouds(true,amount)==0);const auto pixels=Read(d);unsigned energy=0;
