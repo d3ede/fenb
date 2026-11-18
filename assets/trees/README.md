@@ -3,8 +3,10 @@
 Reviewed replacement bark for the Flaris common-tree and Azria tree families,
 plus leaves and vines for the forked Flaris tree. These assets retain the
 game's existing geometry and UV layout.
-The modified artwork was prepared with ImageGen and restored source alpha/snow
-coverage, then reduced to each original atlas's dimensions.
+The artwork uses each original atlas's dimensions and retains source opacity
+and snow coverage where applicable. The ordinary Flaris bark combines hand-painted
+plates with the stock atlas's grain. The blend is tuned per atlas to retain each
+tree family's characteristic scale, color and direction along the trunk.
 
 The 23 DDS inputs contain complete mip chains. Opaque bark uses DXT1 and the
 cutout branch, leaf and vine atlases use DXT5. They total 1,357,808 bytes
