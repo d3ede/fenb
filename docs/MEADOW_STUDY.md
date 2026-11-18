@@ -1,75 +1,72 @@
 # Meadow grass visual study
 
-This is an isolated 3 by 3 metre review patch for a Simple grass direction closer
-to the supplied Flyff Universe references. It does not replace `GrassFX`, change
-Detailed grass or install anything in a game directory.
+This is a 3 by 3 metre study of individually rooted, textured grass leaves for
+review against the supplied Flyff Universe references. It does not replace
+`GrassFX`, change Detailed grass or install anything in a game directory.
 
 ## Run
 
-Use the existing portable LLVM-MinGW toolchain and an installed client whose
-ground artwork is available locally:
-
 ```powershell
-./tools/render-meadow-preview.ps1 -ClientArtworkRoot '<client-directory>' -OutputDirectory artifacts/meadow-universe-review
+./tools/render-meadow-preview.ps1 -ClientArtworkRoot '<client-directory>' -OutputDirectory artifacts/meadow-leaves-review
 ```
 
-The script compiles a separate x86 D3D9 renderer in `build/` and restricts
-disposable captures to `artifacts/`. It produces `summer-close.png`,
-`summer-game.png`, `winter-close.png`, `winter-game.png`, matching `*-ground.png`
-baselines, and `summer-atlas.png` and `winter-atlas.png`. `study.jsonl` records
-geometry counts and nonempty-image checks. `manifest.json` records source and
-artwork hashes, atlas dimensions and limitations. Repeated runs replace this set.
+The script uses the existing portable LLVM-MinGW toolchain to build an isolated
+x86 D3D9 renderer. Captures are restricted to `artifacts/`. It writes summer and
+winter `*-close.png` and `*-game.png` patch views, matching `*-ground.png`
+baselines, and `summer-leaf-detail.png` / `winter-leaf-detail.png` single-leaf
+views. `study.jsonl` records actual leaf and triangle counts and image checks;
+`manifest.json` records source, material and native ground hashes.
 
-The client is read-only. Only `ground_lawn001.dds` and `ground_n_ice02.dds` under
-`World/Texture/` are loaded. No game process, configuration, DLL or source texture
-is changed. Native ground artwork is not redistributed with FENB.
+Only the client's `World/Texture/ground_lawn001.dds` and `ground_n_ice02.dds` are
+read. No game process, client texture, DLL or configuration is changed. Native
+client artwork is not redistributed with FENB.
 
-## Artwork and sampling
+## Current geometry and materials
 
-The previous native 128 by 128 grass card established the desired thin, curved
-direction, but magnification exposed its pixel silhouette and repeated shape.
-The new original artwork is editable cubic-curve source in
-`tools/meadow_artwork.hpp`. It paints two 2048 by 2048 RGBA atlases, each with four
-1024 by 1024 variants. This is freshly drawn artwork, not an enlargement or blur
-of the native bitmap. A discarded AI-generated draft is not used by the tool.
+The dense card experiment was rejected. It retained the same planting-site count
+but hid many additional leaves inside each painted card, so it still increased
+the visible density and exposed flat faces at some angles.
 
-Each variant has twelve flat shaded leaves with distributed roots, short inner
-leaves, mixed heights, pointed tips and smooth bends. Leaf widths vary along the
-curve. A darker face, broad green lit face and restrained lime ridge make the
-leaf read as a ribbon rather than a uniformly colored wire. Roots fade into the
-substrate. Continuous pixel coverage provides filtered alpha edges, and the
-renderer checks for partially covered edge pixels and transparent tile gaps.
+The current fixed-seed patch has 392 separate summer leaves, about 44 per square
+metre of the entire patch, and 334 winter leaves. Each leaf has its own jittered
+root, height, direction, bend and twist. Roots follow a smooth irregular density
+mask and a soft boundary. There is no shared ornamental-plant root and no painted
+undergrowth adding an unreported second population. Ground remains visible
+between the actual modeled leaves.
 
-Mips use alpha-weighted RGB filtering; RGB padding in owned texture copies avoids
-black borders. Alpha blending retains the thin filtered edges after a small
-rejection threshold. Hardware MSAA is enabled when available; MSAA alone does
-not smooth the inside of an alpha-textured polygon.
+Each leaf is a tapered ribbon with eight height segments and two folded faces,
+32 triangles total. A painted [leaf surface](../assets/grass/leaf-surface.png)
+supplies pigment changes, fibers and veins; varying UV windows and orientation
+lighting make the faces differ. Silhouettes come from geometry, so hardware MSAA
+can smooth their actual edges. There is no grass alpha-card painting or vector
+atlas generator in this path. Summer has 12,544 triangles in this review patch;
+this is not a tested whole-field performance budget.
 
-## Current comparison
+Winter roots are sunk into the snow and the leaves are shorter. A separate
+expanded coating follows the upper leaf surface, with rounded width variation,
+a raised surface and a softly blended starting edge. Its separate painted
+[snow material](../assets/grass/snow-surface.png) gives white powder and cool
+recesses. Lower stems remain partly exposed. This is attached geometry, not a
+gray recolor, and it is not a simulation of accumulating weather. The winter
+patch has 16,704 triangles including the coating.
 
-The fixed-seed summer patch still contains 119 cards. Greater leaf readability
-comes from the new artwork, not an increase in summer card count. Each carrier
-has four height and four width segments, totaling 32 triangles. Its root line
-bends in depth so the bases do not all form an obvious straight fence. Smooth
-edge and low-frequency density masks retain openings and denser areas.
+The materials are original `image_gen` outputs. Their full prompts and provenance
+are tracked under [assets/grass](../assets/grass/README.md); no raw Universe
+texture has been extracted or used.
 
-| Criterion | Current observation against the Universe reference |
+## Visual review and limitations
+
+| Criterion | Current comparison target and remaining limitation |
 | --- | --- |
-| Silhouette | Flat green ribbons replace the previous yellow thread-like stems. Short leaves fill some lower gaps. |
-| Curvature | Cubic leaf curves and gently warped carriers retain pointed, curved ends. Close views still reveal that this is card artwork. |
-| Color | Deeper green faces contrast with lime lit faces. The supplied daylight scene has stronger lighting and a different ground treatment, which are not reproduced here. |
-| Density | The same 119 roots retain irregular openings. The reference field is more interwoven; this is still a small patch, not a whole-field rollout. |
-| Ground visibility | Lawn remains visible between stems and through the alpha gaps. Root fading softens the horizontal card seam. |
+| Silhouette | Narrow pointed leaves with independent roots replace visible card-shaped clumps. The source reference still has a different mix of leaf shapes. |
+| Curvature | Continuous polynomial bends and twist are sampled into eight height segments; curves can still reveal segmentation in an extreme close-up. |
+| Color | Painted pigment and veins replace clean gradients; world lighting, shadowing and ground treatment from the reference are not reproduced. |
+| Density | Actual leaf count is explicit and substantially lower than the previous multi-leaf card field. The patch is intentionally open for density review. |
+| Ground visibility | Soil or snow is visible between independent leaves, with no opaque card base or hidden painted lower layer. |
 
-Winter now uses 102 cards instead of the earlier 28. Its height is 82% of summer
-and width 94%, rather than the previous 48% and 72%. A separate painted palette
-retains olive and dry-leaf tones with cooler frost concentrated toward the lit
-tips. It is no longer a uniform luma-to-gray recolor or a handful of tiny beige
-marks. This is a visual proposal, not a verified live Azria fix.
-
-The close camera is at `(0.15, 0.78, -2.8)` looking at `(0, 0.23, 0)`. The raised
-camera is at `(1.9, 2.0, -2.6)` looking at `(0, 0.12, 0)`, approximating gameplay.
-There is no wind, LOD, terrain-mask replay, fog, HUD or live lighting. Cards are
-sorted by root depth, so intersecting translucent cards can still show ordering
-artifacts. Camera-angle stability, integration and live performance require
-separate validation after the visual direction is accepted.
+The patch cameras are unchanged: close `(0.15, 0.78, -2.8)` toward `(0, 0.23, 0)`,
+and raised `(1.9, 2.0, -2.6)` toward `(0, 0.12, 0)`. Single-leaf views inspect the
+same geometry and materials at a closer scale. There is no wind, LOD, terrain-mask
+replay, fog, HUD, contact shadows or live client lighting. Full client performance,
+camera-angle stability and live Azria appearance need separate validation after
+visual review. No whole-field rollout is part of this study.

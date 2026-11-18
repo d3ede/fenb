@@ -1,0 +1,15 @@
+{
+  "generator": "OpenAI built-in image_gen",
+  "usage": "Opaque surface materials for independent leaf and attached snow meshes; no clump or card silhouette is sampled.",
+  "assets": [
+    {
+      "file": "leaf-surface.png",
+      "prompt": "Create a production RGB surface-albedo texture for narrow grass leaves in a colorful hand-painted fantasy MMORPG inspired by the provided Flyff Universe screenshot. This is a MATERIAL SWATCH used inside leaf silhouettes by a renderer, not an illustration of blades and not a scene. Fill the entire square with continuous green leaf tissue viewed extremely close and flat. All fibers and painted strokes run vertically. Rich but restrained hand-painted detail: branching fine longitudinal veins, broken olive-green pigment streaks, narrow lime highlights along raised fibers, darker green creases, subtle muted golden-green patches, occasional tiny worn flecks, broad soft variations over the leaf length. Deep grassy green midtones with lime lit ridges and forest-green grooves, not neon and not one smooth gradient. Surface must feel folded and fibrous but stylized, no photorealistic pores or glossy plastic. No individual leaves, no plants, no scene, no ground, no roots, no border, no labels, no text, no checkers and no transparency. Even diffuse illumination, no cast shadow. High resolution square texture, vertically elongated organic detail, no obvious repeated regular stripes.",
+      "reference": "User-supplied Flyff Universe daylight screenshot; visual reference only."
+    },
+    {
+      "file": "snow-surface.png",
+      "prompt": "Create a production RGB surface-albedo texture of soft powdery snow for a hand-painted colorful fantasy MMORPG. A seamless-looking flat square MATERIAL SWATCH entirely filled with snow, not a landscape or illustration of objects. Milky white snow with small rounded granular clumps, subtle cold blue-gray recessed shadows, soft irregular pale blue patches, tiny restrained ice flecks. Painterly game texture, clean readable large and medium shapes with finer grain, not photorealistic noise and not a plain white gradient. Bright diffuse winter lighting, no hard directional cast shadows. No ground, plants, grass, rocks, tracks, sky, horizon, frame, labels, text, transparency or checkerboard. High-resolution square texture."
+    }
+  ]
+}
