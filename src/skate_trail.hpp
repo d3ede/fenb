@@ -270,12 +270,12 @@ public:
                 }
                 ok=flush(Mask::Spark)&&ok;
             } else if(style==Style::Lightning) {
-                ok=strip(path,{.33f,0,.32f,.05f,.32f,.80f,tint(0x667eff),Mask::Halo,0,true})&&
-                   strip(path,{.061f,0,.32f,.05f,1,.80f,tint(0xaeedff),Mask::Halo,0,true});
+                ok=strip(path,{.33f,0,.32f,.05f,.32f,.80f,tint(0xffbd38),Mask::Halo,0,true})&&
+                   strip(path,{.061f,0,.32f,.05f,1,.80f,tint(0xffeb62),Mask::Halo,0,true});
                 for(float side:{-1.f,1.f}) {
                     const float start=side<0?.15f:.32f;
                     ok=ok&&strip(path,{.046f,side*.62f,.37f,.09f,.68f,.23f,
-                                       tint(0x8295ff),Mask::Halo,start,true});
+                                       tint(0xffd444),Mask::Halo,start,true});
                 }
             } else if(style==Style::Embers) {
                 ok=strip(path,{.37f,0,.1f,.12f,.23f,.60f,tint(0xff6121),Mask::Vapor});
@@ -295,7 +295,10 @@ public:
                 }
                 ok=flush(Mask::Ember)&&ok;
             }
-            const DWORD head=style==Style::Embers?0xff9b46:style==Style::Stardust?0x929bff:0x99eaff;
+            DWORD head=0x99eaff;
+            if(style==Style::Embers)head=0xff9b46;
+            if(style==Style::Stardust)head=0x929bff;
+            if(style==Style::Lightning)head=0xffe575;
             sprite(points.front().center,.35f,.35f,color(tint(head),.43f*points.front().opacity));
             ok=flush(Mask::Spark)&&ok;
         }
