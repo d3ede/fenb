@@ -1,4 +1,5 @@
 // Instanced ribbons and painted leaf cards share pinned roots and world-space wind.
+#include "grass_ground_color.hlsli"
 sampler2D Ground:register(s0);
 sampler2D Contacts:register(s1);
 sampler2D LeafArt:register(s2);
@@ -26,7 +27,7 @@ float Hash(float2 p) {
     v+=dot(v,v.yzx+33.33);
     return frac((v.x+v.y)*v.z);
 }
-float4 Surface(float2 uv) {
+float4 Surface(float2 uv,bool adapt,out float4 groundColor) {
     float2 p=uv*Map.w-.5,base=floor(p),f=frac(p);
     float2 a=(base+.5)/Map.w,b=1/Map.w;
     float4 v0=tex2Dlod(Ground,float4(a,0,0));
@@ -34,6 +35,14 @@ float4 Surface(float2 uv) {
     float4 v2=tex2Dlod(Ground,float4(a+float2(0,b.y),0,0));
     float4 v3=tex2Dlod(Ground,float4(a+b,0,0));
     float4 value=lerp(lerp(v0,v1,f.x),lerp(v2,v3,f.x),f.y);
+    groundColor=0;
+    if(adapt){
+        // Decode before filtering so a packed color cannot bleed between channels.
+        float4 weights=float4(1-f.x,f.x,1-f.x,f.x)*float4(1-f.y,1-f.y,f.y,f.y);
+        float signedLuma;
+        groundColor=FilterGrassGroundColor(float4(v0.a,v1.a,v2.a,v3.a),weights,signedLuma);
+        value.a=signedLuma;
+    }
     // Reject a footprint crossing a road/prop instead of interpolating a few
     // surviving blades over its silhouette. Never interpolate across levels.
     float coverage=min(min(abs(v0.g),abs(v1.g)),min(abs(v2.g),abs(v3.g)));
@@ -52,7 +61,7 @@ float FogFactor(float3 p) {
     if(mode<2.5)return saturate(exp(-d*d*Fog.y*Fog.y));
     return saturate((Fog.w-d)/max(.0001,Fog.w-Fog.z));
 }
-Output GrassBladeVS(Input i) {
+Output GrassBlade(Input i,bool adapt) {
     Output o=(Output)0;
     // Every coarse root is an exact subset of the finer world grid. Camera
     // movement cannot reseed roots, and shared blades keep their planted bases.
@@ -66,14 +75,15 @@ Output GrassBladeVS(Input i) {
     if(distance<Band.y||distance>=Band.z){o.position=float4(2,2,2,1);return o;}
     float leaf=Hash(cell+i.blade.w*13.71+9.4);
     float patch=Hash(floor(root*.16));
-    float simple=i.offset.y;
+    float simple=adapt?0:i.offset.y;
     float angle=i.blade.z+r*6.2831853+(leaf-.5)*.7;
     float sn,cs;sincos(angle,sn,cs);
     float2 radial=float2(cs,sn),side=float2(-sn,cs);
     float2 offset=radial*i.offset.x*Shape.x;
     float2 planted=root+offset;
     float2 uv=float2((planted.x-Map.x)/(2*Map.z)+.5,.5-(planted.y-Map.y)/(2*Map.z));
-    float4 surface=Surface(uv);
+    float4 groundColor;
+    float4 surface=Surface(uv,adapt,groundColor);
     float snow=surface.a<0||Extra.w>1.5?1:0;
     float coverage=smoothstep(.02,.18,abs(surface.g));
     float slope=smoothstep(max(0,Shape.w-.07),min(1,Shape.w+.04),surface.b);
@@ -138,8 +148,16 @@ Output GrassBladeVS(Input i) {
     }else{
         float3 base=lerp(float3(.16,.30,.055),float3(.25,.39,.07),leaf*.35+patch*.65);
         float3 tip=lerp(float3(.43,.60,.13),float3(.56,.68,.18),leaf*.4+patch*.6);
-        float3 tint=lerp(lerp(base,tip,smoothstep(.08,.95,t)),float3(.58,.49,.20),Look.z);
-        tint=lerp(tint,lerp(float3(.52,.58,.61),float3(.79,.83,.85),t),snow);
+        float3 fresh=lerp(base,tip,smoothstep(.08,.95,t));
+        float3 icy=lerp(float3(.52,.58,.61),float3(.79,.83,.85),t);
+        if(adapt){
+            const float3 luma=float3(.2126,.7152,.0722);
+            float brightness=abs(surface.a);
+            float lift=(dot(fresh,luma)+.32)/(brightness+.32);
+            fresh=lerp(fresh,groundColor.rgb*lift,groundColor.a*(.80-.45*t));
+            icy*=.95+.10*brightness;
+        }
+        float3 tint=lerp(lerp(fresh,float3(.58,.49,.20),Look.z),icy,snow);
         color=tint*lighting;
         float luma=dot(color,float3(.2126,.7152,.0722));
         color=lerp(luma,color,lerp(Look.y,min(Look.y,1),snow))*Look.x;
@@ -149,6 +167,8 @@ Output GrassBladeVS(Input i) {
     o.color=float4(color,FogFactor(p));
     return o;
 }
+Output GrassBladeVS(Input i) { return GrassBlade(i,false); }
+Output GrassBladeAdaptedVS(Input i) { return GrassBlade(i,true); }
 float4 GrassBladePS(Output i):COLOR0 {
     if(CardControl.w>.5){
         float4 art=tex2D(LeafArt,i.leaf.xy);

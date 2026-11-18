@@ -140,6 +140,7 @@ void Settings::sanitize() {
 void Settings::resetSceneSection(int group) {
     if(group==11)sfxAuraCustomColor=sfxWeaponCustomColor=skateTrailCustomColor=false;
     if(group==11)sfxSmoothAura=Settings{}.sfxSmoothAura;
+    if(group==16)grassGroundTint=Settings{}.grassGroundTint;
 #define SCENE_BOOL(g, m, k, d)
 #define SCENE_FLOAT(g, m, k, d, lo, hi)                                                                      \
     if (group == g)                                                                                          \

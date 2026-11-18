@@ -514,6 +514,8 @@ UI_TEXT(GrassWindSpeed, "Wind speed", "Скорость ветра", "Velocidad 
 UI_TEXT(GrassWindSpeedHelp, "Speed of wind waves across the field.", "Скорость волн ветра по полю.", "Velocidad de las ondas de viento sobre el campo.", "Velocidade das ondas de vento pelo campo.")
 UI_TEXT(GrassWindDirection, "Wind direction", "Направление ветра", "Dirección del viento", "Direção do vento")
 UI_TEXT(GrassWindDirectionHelp, "Wind direction in degrees.", "Направление ветра в градусах.", "Dirección del viento en grados.", "Direção do vento em graus.")
+UI_TEXT(GrassGroundTint, "Adapt to ground", "Адаптация к грунту", "Adaptar al terreno", "Adaptar ao terreno")
+UI_TEXT(GrassGroundTintHelp, "Tints Detailed grass using the ground texture at its roots.", "Подстраивает цвет детализированной травы под текстуру земли у корней.", "Adapta el color de la hierba detallada a la textura del suelo en sus raíces.", "Adapta a cor da grama detalhada à textura do solo junto às raízes.")
 UI_TEXT(GrassBrightness, "Brightness", "Яркость", "Brillo", "Brilho")
 UI_TEXT(GrassBrightnessHelp, "Grass brightness, following the scene lighting.", "Яркость травы с учётом освещения сцены.", "Brillo de la hierba según la iluminación de la escena.", "Brilho da grama conforme a iluminação da cena.")
 UI_TEXT(GrassDryness, "Dry grass", "Сухая трава", "Hierba seca", "Grama seca")

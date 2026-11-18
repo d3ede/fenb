@@ -63,6 +63,8 @@ if($LASTEXITCODE){throw 'GrassCaptureVS compilation failed'}
 if($LASTEXITCODE){throw 'GrassCapturePS compilation failed'}
 & './build/shaderc.exe' 'shaders/grass_blades.hlsl' 'src/generated/grass_blade_vs.hpp' 'GrassBladeVS' 'vs_3_0'
 if($LASTEXITCODE){throw 'GrassBladeVS compilation failed'}
+& './build/shaderc.exe' 'shaders/grass_blades.hlsl' 'src/generated/grass_blade_adapted_vs.hpp' 'GrassBladeAdaptedVS' 'vs_3_0'
+if($LASTEXITCODE){throw 'GrassBladeAdaptedVS compilation failed'}
 & './build/shaderc.exe' 'shaders/grass_blades.hlsl' 'src/generated/grass_blade_ps.hpp' 'GrassBladePS' 'ps_3_0'
 if($LASTEXITCODE){throw 'GrassBladePS compilation failed'}
 $imgui='vendor/imgui-1.92.9b'

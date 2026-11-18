@@ -425,7 +425,14 @@ int main() {
         ImGui::ActivateItemByID(numeric("grass-shape",r.settings.grassHeight));frame();input("0.85");CHECK(r.settings.grassHeight==.85f);
         control("grass-shape","reset-section");CHECK(r.settings.grass&&r.settings.grassHeight==Settings{}.grassHeight&&r.settings.grassDistance==55);
         CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-grass-shape.png").c_str()));
-        for(int page:{2,3}){r.editorSelection[9]=page;frame();frame();CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-grass-"+std::to_wstring(page)+L".png").c_str()));}
+        r.editorSelection[9]=2;frame();frame();CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-grass-2.png").c_str()));
+        r.editorSelection[9]=3;r.settings.grassGroundTint=false;frame();frame();
+        control("grass-color","grass-ground-tint");CHECK(r.settings.grassGroundTint);
+        CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-grass-3.png").c_str()));
+        r.settings.grassStyle=1;frame();frame();
+        control("grass-color","grass-ground-tint");CHECK(r.settings.grassGroundTint);
+        r.settings.grassStyle=0;frame();frame();
+        control("grass-color","reset-section");CHECK(!r.settings.grassGroundTint&&r.settings.grass);
         activate(panel,"##language");frame();CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-language.png").c_str()));ImGui::ClosePopupToLevel(0,true);frame();
         activate(panel,"menu");CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-actions.png").c_str()));ImGui::ClosePopupToLevel(0,true);frame();
         activate(panel,"materials-tab");r.editorSelection[8]=0;frame();frame();

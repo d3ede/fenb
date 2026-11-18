@@ -339,6 +339,9 @@ int main(int argc,char **argv){
     const auto simple=render(true);
     CHECK(GrassFXFixture::hasLeafArt(grass)&&GrassFXFixture::bladeVertices(grass)<detailedVertices&&Delta(on,simple)>20);
     CHECK(Save(simple,L"artifacts/grass/field-simple.png"));
+    settings.grassGroundTint=true;
+    CHECK(Delta(simple,render(true))<=(msaa?32u:0u));
+    settings.grassGroundTint=false;
     followPlayer=true;cameraEye[1]=8;cameraEye[2]=7.3f;camera(1.48f,0);
     const auto aboveBare=render(false),aboveSimple=render(true);
     unsigned aboveChanged=0;
@@ -347,6 +350,38 @@ int main(int argc,char **argv){
     followPlayer=false;cameraEye[1]=2.3f;cameraEye[2]=-5;camera(.16f,0);
     settings.grassStyle=0;
     CHECK(Delta(on,render(true))<=(msaa?32u:0u));
+    {
+        Com<IDirect3DTexture9> soil;
+        CHECK(SUCCEEDED(d->CreateTexture(1,1,1,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,soil.out(),nullptr)));
+        const DWORD kind=1;
+        CHECK(SUCCEEDED(soil->SetPrivateData(GrassTag,&kind,sizeof(kind),0)));
+        std::swap(art.p,soil.p);
+        for(const DWORD pixel:{0xffa8783cu,0xff238f53u}){
+            D3DLOCKED_RECT lock{};CHECK(SUCCEEDED(art->LockRect(0,&lock,nullptr,0)));
+            *static_cast<DWORD *>(lock.pBits)=pixel;
+            CHECK(SUCCEEDED(art->UnlockRect(0)));
+            const auto bare=render(false),fixed=render(true);
+            settings.grassGroundTint=true;
+            const auto adapted=render(true);
+            CHECK(adapted.size()==on.size()&&GrassFXFixture::started(grass)&&!GrassFXFixture::failed(grass));
+            const bool warm=pixel==0xffa8783cu;
+            auto warmth=[](DWORD color){return int((color>>16)&255)-int((color>>8)&255);};
+            unsigned grassPixels=0;long shift=0;
+            for(size_t i=0;i<adapted.size();++i){
+                if(fixed[i]==bare[i]||adapted[i]==bare[i])continue;
+                ++grassPixels;shift+=warmth(adapted[i])-warmth(fixed[i]);
+            }
+            const float mean=grassPixels?float(shift)/grassPixels:0;
+            printf("Ground tint %s: %u pixels, mean red-green shift=%.2f\n",warm?"warm":"green",grassPixels,mean);
+            CHECK(grassPixels>10000&&(warm?mean>9:mean<-5));
+            CHECK(detailedVertices==GrassFXFixture::bladeVertices(grass));
+            if(warm)CHECK(Save(fixed,L"artifacts/grass/ground-tint-off.png")&&Save(adapted,L"artifacts/grass/ground-tint-on.png"));
+            else CHECK(Save(adapted,L"artifacts/grass/ground-tint-green.png"));
+            settings.grassGroundTint=false;
+        }
+        std::swap(art.p,soil.p);
+        CHECK(Delta(on,render(true))<=(msaa?32u:0u));
+    }
     translucentLeaf=true;earlyGrass=false;const auto lateLeaf=render(true);
     earlyGrass=true;const auto overGrass=render(true);translucentLeaf=false;
     double blendError=0;
@@ -525,6 +560,10 @@ int main(int argc,char **argv){
     std::swap(art.p,snowy.p);settings.grassSnow=false;const auto noSnow=render(true);
     CHECK(!GrassFXFixture::started(grass)&&Delta(noSnow,render(false))<=(msaa?2u:0u));
     settings.grassSnow=true;const auto snowGrass=render(true);CHECK(GrassFXFixture::started(grass)&&!GrassFXFixture::failed(grass));
+    settings.grassGroundTint=true;
+    const auto adaptedSnow=render(true);
+    CHECK(adaptedSnow.size()==snowGrass.size()&&Delta(adaptedSnow,noSnow)>20&&GrassFXFixture::surface(grass,0,8)[3]<-1);
+    settings.grassGroundTint=false;
     CHECK(GrassFXFixture::surface(grass,0,8)[1]>.99f&&GrassFXFixture::surface(grass,0,8)[3]<0&&Delta(noSnow,snowGrass)>20);
     CHECK(Save(noSnow,L"artifacts/grass/snow-grass-off.png")&&Save(snowGrass,L"artifacts/grass/snow-grass-on.png"));
     lightingCase=1;const auto pinkSnow=render(true);CHECK(Save(pinkSnow,L"artifacts/grass/snow-grass-sunset.png"));

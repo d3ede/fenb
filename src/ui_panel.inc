@@ -389,7 +389,7 @@ void ResetPanelParameters(int page, int item, Settings &s, bool puddleItem=false
         if(item==0){s.grassStyle=d.grassStyle;s.grassQuality=d.grassQuality;s.grassDistance=d.grassDistance;s.grassDensity=d.grassDensity;s.grassSlope=d.grassSlope;s.grassFade=d.grassFade;}
         if(item==1){s.grassHeight=d.grassHeight;s.grassWidth=d.grassWidth;s.grassVariation=d.grassVariation;}
         if(item==2){s.grassWind=d.grassWind;s.grassWindSpeed=d.grassWindSpeed;s.grassWindDirection=d.grassWindDirection;}
-        if(item==3){s.grassBrightness=d.grassBrightness;s.grassSaturation=d.grassSaturation;s.grassDryness=d.grassDryness;s.grassShading=d.grassShading;}
+        if(item==3){s.grassGroundTint=d.grassGroundTint;s.grassBrightness=d.grassBrightness;s.grassSaturation=d.grassSaturation;s.grassDryness=d.grassDryness;s.grassShading=d.grassShading;}
         return;}
     if(page==8){s.resetSceneSection(item==3?14:15);return;}
     const Settings d;
@@ -517,6 +517,9 @@ void PanelParameters(Runtime &r, int item) {
             SR(GrassWindSpeed,GrassWindSpeedHelp,grassWindSpeed,0,3,"%.2f",.1f);
             SR(GrassWindDirection,GrassWindDirectionHelp,grassWindDirection,0,360,"%.0f°",15);break;
         case 3:
+            ImGui::BeginDisabled(uiParameterDisabled||s.grassStyle>.5f);
+            PanelToggle("grass-ground-tint",Tr(UiText::GrassGroundTint),s.grassGroundTint,Tr(UiText::GrassGroundTintHelp));
+            ImGui::EndDisabled();
             SR(GrassBrightness,GrassBrightnessHelp,grassBrightness,.5f,1.5f,"%.2f",.05f);
             SR(Saturation,SaturationHelp,grassSaturation,.5f,1.5f,"%.2f",.05f);
             SR(GrassDryness,GrassDrynessHelp,grassDryness,0,1,"%.2f",.05f);

@@ -20,7 +20,7 @@ class GrassFX {
     BCRYPT_ALG_HANDLE hash_=nullptr;
     Com<IDirect3DTexture9> ground_,contacts_,leafArt_;
     Com<IDirect3DSurface9> groundSurface_,contactSurface_,worldTarget_,worldDepth_;
-    Com<IDirect3DVertexShader9> captureVS_,bladeVS_;
+    Com<IDirect3DVertexShader9> captureVS_,bladeVS_,adaptedBladeVS_;
     Com<IDirect3DPixelShader9> capturePS_,bladePS_;
     Com<IDirect3DVertexDeclaration9> declaration_;
     struct Band {

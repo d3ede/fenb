@@ -152,6 +152,7 @@ inline void ApplyBuiltInVisuals(Settings &s, int index) {
     s.grassWind = 0.350000f;
     s.grassWindSpeed = 1.000000f;
     s.grassWindDirection = 45.000000f;
+    s.grassGroundTint = false;
     s.grassBrightness = 1.000000f;
     s.grassSaturation = 1.100000f;
     s.grassDryness = 0.050000f;

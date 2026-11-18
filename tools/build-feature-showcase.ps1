@@ -33,7 +33,8 @@ if (-not $ReuseRaw) {
         'src/refinement_trail.hpp', 'src/actor_visibility.hpp', 'src/puddles.hpp', 'src/settings.hpp', 'src/scene_settings.inc',
         'src/generated/trees.hpp', 'src/generated/material_ps.hpp', 'src/generated/material_bark_ps.hpp', 'src/generated/material_snow_ps.hpp',
         'src/generated/grass_capture_vs.hpp', 'src/generated/grass_capture_ps.hpp',
-        'src/generated/grass_blade_vs.hpp', 'src/generated/grass_blade_ps.hpp', 'src/generated/scene_shaders.hpp', 'src/generated/sfx_shaders.hpp')
+        'src/generated/grass_blade_vs.hpp', 'src/generated/grass_blade_adapted_vs.hpp', 'src/generated/grass_blade_ps.hpp',
+        'src/generated/scene_shaders.hpp', 'src/generated/sfx_shaders.hpp')
     $buildManifest = [ordered]@{
         sourceRevision = (git rev-parse HEAD).Trim(); version = ((Get-Content src/version.hpp -Raw) -split '"')[1]
         sources = @($sourceFiles | ForEach-Object { @{file = $_; sha256 = (Get-FileHash -LiteralPath $_ -Algorithm SHA256).Hash} })

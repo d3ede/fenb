@@ -52,12 +52,12 @@ int main() {
         DeleteFileW(path);
     }
     {
-        Settings grass;CHECK(!grass.grass&&grass.grassHeight==.55f&&grass.grassQuality==1);
+        Settings grass;CHECK(!grass.grass&&!grass.grassGroundTint&&grass.grassHeight==.55f&&grass.grassQuality==1);
         grass.grass=true;grass.grassSnow=true;grass.grassHeight=10;grass.grassDensity=-1;grass.grassQuality=1.7f;
-        grass.grassStyle=.8f;grass.grassWind=std::numeric_limits<float>::quiet_NaN();grass.language=Language::Russian;grass.sanitize();
+        grass.grassStyle=.8f;grass.grassGroundTint=true;grass.grassWind=std::numeric_limits<float>::quiet_NaN();grass.language=Language::Russian;grass.sanitize();
         CHECK(grass.grassHeight==1.5f&&grass.grassDensity==.25f&&grass.grassQuality==2&&grass.grassWind==.35f&&grass.grassStyle==1);
         CHECK(grass.save(L"build/grass-settings.ini"));Settings restored;CHECK(restored.load(L"build/grass-settings.ini")&&restored==grass);
-        restored.resetSceneSection(16);CHECK(restored.grass&&restored.grassSnow&&restored.grassHeight==.55f&&restored.language==Language::Russian&&restored.grassStyle==0);
+        restored.resetSceneSection(16);CHECK(restored.grass&&restored.grassSnow&&!restored.grassGroundTint&&restored.grassHeight==.55f&&restored.language==Language::Russian&&restored.grassStyle==0);
         DeleteFileW(L"build/grass-settings.ini");
     }
     {

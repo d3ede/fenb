@@ -11,6 +11,7 @@
 #include <generated/grass_capture_vs.hpp>
 #include <generated/grass_capture_ps.hpp>
 #include <generated/grass_blade_vs.hpp>
+#include <generated/grass_blade_adapted_vs.hpp>
 #include <generated/grass_blade_ps.hpp>
 #include <cstring>
 
@@ -60,7 +61,7 @@ bool GrassFX::supported(){
 void GrassFX::invalidate(){
     for(auto *c:pending_)c->clear();pending_.clear();groundSurface_.out();ground_.out();worldTarget_.out();worldDepth_.out();
     contactSurface_.out();contacts_.out();leafArt_.out();
-    captureVS_.out();capturePS_.out();bladeVS_.out();bladePS_.out();declaration_.out();
+    captureVS_.out();capturePS_.out();bladeVS_.out();adaptedBladeVS_.out();bladePS_.out();declaration_.out();
     for(auto &b:bands_){b.mesh.out();b.instances.out();b.indices.out();b.count=b.vertices=b.triangles=0;}
     resolution_=0;bufferBytes_=0;builtQuality_=-1;initialized_=started_=rendered_=false;clear_=true;failed_=false;checked_=false;
 }
@@ -103,6 +104,7 @@ bool GrassFX::programs(){
     if(!captureVS_.p&&FAILED(device_->CreateVertexShader(ShaderGrassCaptureVS,captureVS_.out())))return false;
     if(!capturePS_.p&&FAILED(device_->CreatePixelShader(ShaderGrassCapturePS,capturePS_.out())))return false;
     if(!bladeVS_.p&&FAILED(device_->CreateVertexShader(ShaderGrassBladeVS,bladeVS_.out())))return false;
+    if(frame_.grassGroundTint&&!adaptedBladeVS_.p&&FAILED(device_->CreateVertexShader(ShaderGrassBladeAdaptedVS,adaptedBladeVS_.out())))return false;
     if(!bladePS_.p&&FAILED(device_->CreatePixelShader(ShaderGrassBladePS,bladePS_.out())))return false;
     if(!declaration_.p){
         const D3DVERTEXELEMENT9 elements[]={
@@ -187,6 +189,7 @@ bool GrassFX::initialize(const Settings &s){
     if(failed_||!supported())return false;
     VertexProcessing hardware(device_);
     frame_=s;
+    frame_.grassGroundTint=s.grassGroundTint&&s.grassStyle<.5f;
     if(FAILED(device_->GetTransform(D3DTS_VIEW,&view_))||FAILED(device_->GetTransform(D3DTS_PROJECTION,&projection_))||
         std::abs(projection_._34-1)>.001f||std::abs(projection_._44)>.001f||
         FAILED(device_->GetViewport(&viewport_))||FAILED(device_->GetRenderTarget(0,worldTarget_.out()))||
@@ -315,6 +318,8 @@ bool GrassFX::target(bool contacts){
     if(clear){if(FAILED(device_->Clear(0,nullptr,D3DCLEAR_TARGET,0,1,0)))return false;clear=false;}
     device_->SetVertexShader(captureVS_);device_->SetPixelShader(capturePS_);
     device_->SetVertexShaderConstantF(12,map_,1);
+    const float groundTint[]={frame_.grassGroundTint?1.f:0.f,0,0,0};
+    device_->SetPixelShaderConstantF(3,groundTint,1);
     for(auto key:{D3DRS_ZENABLE,D3DRS_ZWRITEENABLE,D3DRS_ALPHATESTENABLE,D3DRS_FOGENABLE,D3DRS_STENCILENABLE,
         D3DRS_SCISSORTESTENABLE,D3DRS_SRGBWRITEENABLE,D3DRS_CLIPPLANEENABLE,D3DRS_SEPARATEALPHABLENDENABLE})device_->SetRenderState(key,FALSE);
     device_->SetRenderState(D3DRS_CULLMODE,D3DCULL_NONE);device_->SetRenderState(D3DRS_FILLMODE,D3DFILL_SOLID);
@@ -409,7 +414,9 @@ void GrassFX::draw(const Settings &s,bool ownScene){
         if(guard.valid()&&!failed_&&!clear_){
             if(contactClear_&&!target(true))failed_=true;
             guard.isolateTargets();device_->SetRenderTarget(0,worldTarget_);device_->SetDepthStencilSurface(worldDepth_);device_->SetViewport(&viewport_);
-            device_->SetVertexDeclaration(declaration_);device_->SetVertexShader(bladeVS_);device_->SetPixelShader(bladePS_);
+            device_->SetVertexDeclaration(declaration_);
+            device_->SetVertexShader(frame_.grassGroundTint?adaptedBladeVS_.p:bladeVS_.p);
+            device_->SetPixelShader(bladePS_);
             device_->SetTexture(D3DVERTEXTEXTURESAMPLER0,ground_);
             device_->SetTexture(D3DVERTEXTEXTURESAMPLER1,contacts_);
             if(frame_.grassStyle>.5f){

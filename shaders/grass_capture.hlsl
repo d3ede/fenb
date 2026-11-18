@@ -1,4 +1,5 @@
 // Local world-space terrain coverage. Never changes the native world/depth draw.
+#include "grass_ground_color.hlsli"
 sampler2D Art:register(s0);
 sampler2D BlendMap:register(s1);
 row_major float4x4 World:register(c0);
@@ -8,6 +9,7 @@ float4 Map:register(c12); // center xz, radius, texel size
 float4 Material:register(c0); // coverage (2 = mixed soil), blend map, opacity, height/luminance write
 float4 Contact:register(c1); // 1 = prop, 2 = paving, 3 = plaza atlas, 4 = water
 float4 ContactMap:register(c2); // terrain map center xz and radius
+float4 GroundTintCapture:register(c3);
 struct Input {float3 position:POSITION;float3 normal:NORMAL;float2 uv:TEXCOORD0;float2 blend:TEXCOORD1;};
 struct Output {float4 position:POSITION;float3 world:TEXCOORD0;float2 uv:TEXCOORD1;float2 blend:TEXCOORD2;};
 Output GrassCaptureVS(Input i) {
@@ -50,6 +52,11 @@ float4 GrassCapturePS(Output i):COLOR0 {
     float coverage=Material.x>1.5?saturate((art.g-art.r*.82-.015)*18)*saturate((art.g-art.b-.02)*14):abs(Material.x);
     // Snow identity belongs to luminance, never to the blended coverage channel:
     // snow and grass layers must not cancel each other's coverage at their seam.
-    float luminance=dot(art.rgb,float3(.2126,.7152,.0722))*(Material.x<0?-1:1);
-    return float4(i.world.y,coverage,slope,Material.w>.5?luminance:opacity);
+    float sampleValue=opacity;
+    if(Material.w>.5){
+        [branch] if(GroundTintCapture.x>.5)sampleValue=EncodeGrassGroundColor(float4(art.rgb,opacity));
+        else sampleValue=dot(art.rgb,float3(.2126,.7152,.0722));
+        sampleValue*=Material.x<0?-1:1;
+    }
+    return float4(i.world.y,coverage,slope,sampleValue);
 }
