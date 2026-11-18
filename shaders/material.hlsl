@@ -55,7 +55,7 @@ float3 PaintedSnow(float3 art) {
     // Green needles and warm bark retain their original colors and silhouettes.
     float mask=saturate((brightness-.5)*4)*
         (1-saturate((art.g-max(art.r,art.b))*8))*saturate((art.b-art.r+.1)*8);
-    return lerp(art,float3(.965,.985,1)*(.55+brightness*.45),mask*Style.w*Style.x);
+    return lerp(art,float3(.965,.985,1)*(.65+brightness*.35),mask*Style.w*Style.x);
 }
 float4 ShadeMaterial(MaterialInput i,uniform bool smoothBark) {
     const float3 luma=float3(.2126,.7152,.0722);
@@ -82,7 +82,7 @@ float4 ShadeMaterial(MaterialInput i,uniform bool smoothBark) {
     gradient.y*=1-bark*.65;
     gradient/=1+length(gradient)*(3-bark*1.5);
     // Painted snow mottling is color variation, not a field of raised bubbles.
-    gradient=gradient*(1-snow)+grain*snow*.25;
+    gradient=gradient*(1-snow)+grain*snow*.08;
     gradient*=Style.y;
     float3 n=normalize(i.normal+float3(0,0,-.0001));
     float3 tangent=ddx(i.view)*dy.y-ddy(i.view)*dx.y;
@@ -98,9 +98,9 @@ float4 ShadeMaterial(MaterialInput i,uniform bool smoothBark) {
     if(ArtInfo.z<1.5){
         float brightness=dot(art.rgb,luma);
         // Keep broad painted variation, but compress mottling rather than embossing it.
-        float3 clean=float3(.965,.985,1)*(.55+brightness*.45);
+        float3 clean=float3(.965,.985,1)*(.65+brightness*.35);
         art.rgb=lerp(art.rgb,clean,Style.w*Style.x);
-        art.rgb=saturate(art.rgb+(micro.b-.5)*detailFade*Style.w*Style.x*.065);
+        art.rgb=saturate(art.rgb+(micro.b-.5)*detailFade*Style.w*Style.x*.02);
     }else{
         float3 detail=art.rgb-(nw+ne+sw+se)*.25;
         art.rgb=saturate(art.rgb+clamp(detail*Style.x*Style.y*fade*.1,-.025,.025));
@@ -116,7 +116,7 @@ float4 ShadeMaterial(MaterialInput i,uniform bool smoothBark) {
     float3 halfVector=normalize(SunDirection.xyz+eye);
     color.rgb+=pow(saturate(dot(bumped,halfVector)),64)*SunColor.rgb*Style.x*Style.z*ArtInfo.w;
     float crystals=saturate((micro.a-.75)*8)*detailFade*snow;
-    color.rgb+=pow(saturate(dot(bumped,halfVector)),64)*crystals*SunColor.rgb*Style.x*Style.z*.1;
+    color.rgb+=pow(saturate(dot(bumped,halfVector)),64)*crystals*SunColor.rgb*Style.x*Style.z*.035;
     float fog=FogAmount(PixelFog.x<0?length(i.view):i.view.z,float4(abs(PixelFog.x),PixelFog.yzw));
     color.rgb=lerp(FogColor.rgb,color.rgb,fog);
     return color;

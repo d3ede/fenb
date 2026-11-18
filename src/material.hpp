@@ -32,9 +32,8 @@ class MaterialFX {
         if(detail_.p)return true;
         if(detailFailed_)return false;
         constexpr unsigned size=128;
-        // Fine angular grains with correlated slopes and albedo. No large round
-        // height-noise bubbles: the original paint supplies broad snow variation.
-        // Generated once, anchored in material UVs and filtered through every mip.
+        // Independent fine facets and low-amplitude albedo grain. Snow stays a
+        // matte surface; correlated height noise must not make rounded foam.
         auto random=[](unsigned x,unsigned y,unsigned seed) {
             unsigned h=x*0x9e3779b9u+y*0x85ebca6bu+seed;
             h^=h>>16;h*=0x7feb352du;h^=h>>15;h*=0x846ca68bu;h^=h>>16;
@@ -42,17 +41,10 @@ class MaterialFX {
         };
         std::vector<DWORD> pixels(size*size);
         auto byte=[](float v){return DWORD(std::clamp(v,0.f,1.f)*255+.5f);};
-        auto height=[&](unsigned x,unsigned y){
-            x&=size-1;y&=size-1;
-            return random(x,y,193)*.6f+(random((x+1)&(size-1),y,193)+
-                random((x-1)&(size-1),y,193)+random(x,(y+1)&(size-1),193)+
-                random(x,(y-1)&(size-1),193))*.1f;
-        };
         for(unsigned y=0;y<size;++y)for(unsigned x=0;x<size;++x) {
-            float dx=(height(x+1,y)-height(x-1,y))*3,dy=(height(x,y+1)-height(x,y-1))*3;
-            const float length=std::max(1.f,std::sqrt(dx*dx+dy*dy));
-            pixels[y*size+x]=(byte(random(x,y,127))<<24)|(byte(.5f+dx/length*.5f)<<16)|
-                (byte(.5f+dy/length*.5f)<<8)|byte(height(x,y));
+            const float dx=random(x,y,31)*2-1,dy=random(x,y,89)*2-1;
+            pixels[y*size+x]=(byte(random(x,y,127))<<24)|(byte(.5f+dx*.5f)<<16)|
+                (byte(.5f+dy*.5f)<<8)|byte(random(x,y,193));
         }
         if(FAILED(device_->CreateTexture(size,size,0,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,detail_.out(),nullptr))){detailFailed_=true;return false;}
         unsigned width=size;

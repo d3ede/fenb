@@ -304,21 +304,21 @@ int main(int argc,char **argv){
     };
     const double sourceEnergy=energy(sourceSnow),correctedEnergy=energy(correctedSnow);
     printf("Snow luminance detail retained at maximum strength: %.2f%%\n",100*correctedEnergy/sourceEnergy);
-    CHECK(sourceEnergy>100&&correctedEnergy>sourceEnergy*.4&&correctedEnergy<sourceEnergy*.75&&Delta(sourceSnow,correctedSnow)>0);
+    CHECK(sourceEnergy>100&&correctedEnergy>sourceEnergy*.25&&correctedEnergy<sourceEnergy*.65&&Delta(sourceSnow,correctedSnow)>0);
     // Relief must visibly change lighting, not merely the snow's color correction.
     Settings raised=snowStyle;raised.materialRelief=1;
     // Resolve the finer grain in a close crop; it must fade rather than alias at distance.
     fixture.repeats=.3f;correctedSnow=fixture.render(snowStyle);
     const auto raisedSnow=fixture.render(raised);
     printf("Snow relief 0 -> 1: RGB delta=%u\n",Delta(correctedSnow,raisedSnow));
-    CHECK(Delta(correctedSnow,raisedSnow)>=3&&Delta(correctedSnow,raisedSnow)<=12);
+    CHECK(Delta(correctedSnow,raisedSnow)>=1&&Delta(correctedSnow,raisedSnow)<=4);
     CHECK(Delta(raisedSnow,fixture.render(raised))<=(msaa?2u:0u));
     fixture.sunSide=-1;
     auto reverseFlat=fixture.render(snowStyle),reverseRelief=fixture.render(raised);
     double lightingResponse=0;
     for(size_t i=0;i<raisedSnow.size();++i)lightingResponse+=std::abs(
         int(raisedSnow[i]&255)-int(correctedSnow[i]&255)-int(reverseRelief[i]&255)+int(reverseFlat[i]&255));
-    CHECK(lightingResponse>W*H*.1);fixture.sunSide=1;fixture.repeats=1;
+    CHECK(lightingResponse>W*H*.02);fixture.sunSide=1;fixture.repeats=1;
     CHECK(Delta(fixture.render(snowStyle),fixture.render(raised))<=(msaa?2u:0u));
     // Only exact bark identities can opt into alpha-tested material draws. Native
     // alpha, depth coverage and a following unstyled draw must all remain intact.
