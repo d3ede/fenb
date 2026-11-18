@@ -73,12 +73,11 @@ class Renderer {
             break;
         }
         case Style::Rings:{
-            const float angle=std::atan2(p.y,p.x),arc=.5f+.5f*std::cos(angle-.9f);
-            const float round=std::hypot(p.x,.93f*p.y);
-            const float ripple=.53f+.05f*std::sin(angle*3+.6f)+.02f*std::cos(angle*5);
-            light=(.25f+.67f*arc)*stroke(std::abs(round-ripple),.057f+.055f*arc)+
-                .27f*arc*stroke(std::abs(round-ripple*.65f),.073f)+
-                .28f*glow(p,{.33f,.33f},.35f,.32f);
+            // Keep a closed rim and a clear center at native particle sizes.
+            const float angle=std::atan2(uv.y,uv.x);
+            const float rim=.57f+.009f*std::sin(angle*3+.6f);
+            const float brightness=.93f+.10f*std::cos(angle-.9f);
+            light=stroke(std::abs(std::hypot(uv.x,uv.y)-rim),.066f)*brightness;
             break;
         }
         case Style::Crystals:{

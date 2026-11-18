@@ -222,8 +222,24 @@ int main() {
                     shape=(shape^unsigned(rgb!=0x101010))*1099511628211ull;
                 }
             }
+            bool closedRing=true;
+            if(style==4) {
+                auto green=[&](int x,int y) {
+                    const auto *row=reinterpret_cast<const DWORD *>(static_cast<BYTE *>(lock.pBits)+y*lock.Pitch);
+                    return (row[x]>>8)&255;
+                };
+                closedRing=green(400,300)==16;
+                constexpr int directions[][2]={{1,0},{1,1},{0,1},{-1,1},{-1,0},{-1,-1},{0,-1},{1,-1}};
+                for(const auto &direction:directions) {
+                    DWORD rim=0;
+                    for(int step=4;step<=32;++step)
+                        rim=std::max(rim,green(400+direction[0]*step,300+direction[1]*step));
+                    closedRing=closedRing&&rim>90;
+                }
+            }
             CHECK(SUCCEEDED(pixels->UnlockRect()));
             CHECK(changed>70);
+            CHECK(closedRing);
             if(style<=5) {
                 for(int i=0;i<style;++i)CHECK(silhouettes[i]!=shape);
                 silhouettes[style]=shape;
