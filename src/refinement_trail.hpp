@@ -137,7 +137,14 @@ inline void mesh(std::vector<Puff>&puffs,const D3DMATRIX &view,std::vector<Verte
             return length(p.position-newest.position)<newest.radius*.5f;
         })){
             nodes[0]=node(newest,0);
+            const size_t firstVertex=out.size();
             emit(1);
+            // Stretch only the upper falloff, leaving the bright center on the armor.
+            const float centerY=nodes[0].p.y;
+            for(size_t i=firstVertex;i<out.size();++i){
+                auto &v=out[i];
+                if(v.y>centerY)v.y=centerY+(v.y-centerY)*1.18f;
+            }
             first=end;
             continue;
         }

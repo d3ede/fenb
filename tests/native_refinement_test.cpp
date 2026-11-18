@@ -80,6 +80,11 @@ int main(int argc,char **argv){
     puffs=attached;mesh(puffs,identity,vertices,&offsetOrigin,true,.4f);
     assert(vertices.size()==12&&vertices.size()==attachedVertices.size());
     assert(!memcmp(vertices.data(),attachedVertices.data(),vertices.size()*sizeof(Vertex)));
+    const float centerY=attached.front().position.y;
+    const auto [bottom,top]=std::minmax_element(vertices.begin(),vertices.end(),
+        [](const Vertex &a,const Vertex &b){return a.y<b.y;});
+    assert(top->y-centerY>centerY-bottom->y);
+    for(const auto &v:vertices)if(v.color>>24)assert(v.y==centerY);
     const std::vector<Puff> running={{{0,1.4f,2},.2f,{1,1,1,.9f}},
                                      {{-.5f,1.4f,2},.2f,{1,1,1,.8f}}};
     const Vec runningOrigin{.3f,1.4f,2}, raisedOrigin{.3f,1.7f,2};
