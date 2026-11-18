@@ -1,5 +1,14 @@
 [
   {
+    "file": "World/Texture/Obj_FLGR01.dds",
+    "kind": 6,
+    "width": 512,
+    "height": 512,
+    "decodedHash": "623364344fc3d367ac10998259d2765de90fb31523fbc61b7bd7e2340a2a6851",
+    "sourceHash": "4c25381fd708c651557275f9385ca7949eebe831c2ad06c9998ebf7d8597bb40",
+    "uploadHash": "366ef0c66410e139cdb345af9a8e14265bbf157fe3f8a7d21f89740a39109cd7"
+  },
+  {
     "file": "World/Texture/Upresia_Ground01.dds",
     "kind": 3,
     "width": 512,

@@ -56,7 +56,7 @@ class GrassFX {
     DWORD worldSrgb_=FALSE;
     int builtQuality_=-1,builtStyle_=-1;
     float builtDensity_=0,builtDistance_=0;
-    bool enabled_=false,started_=false,rendered_=false,clear_=true,failed_=false,checked_=false,capable_=false;
+    bool enabled_=false,initialized_=false,started_=false,rendered_=false,clear_=true,failed_=false,checked_=false,capable_=false;
     size_t bufferBytes_=0;
     unsigned classify(IDirect3DTexture9 *);
     bool programs();

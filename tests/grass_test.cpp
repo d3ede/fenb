@@ -112,6 +112,12 @@ int main(int argc,char **argv){
                 CHECK(SUCCEEDED(load(d,native.c_str(),UINT(-1),UINT(-1),0,0,format,D3DPOOL_MANAGED,1,1,0,nullptr,nullptr,source.out())));
                 CHECK(GrassFXFixture::kind(grass,source)==(!strcmp(name,"rustia_lawn01.dds")?1u:strstr(name,"ice")?4u:3u));}
         }
+        for(const char *name:{"brick_MaFl01_new.dds","5da3e18d.tga","Obj_FLGR01.dds"})for(auto format:{D3DFMT_UNKNOWN,D3DFMT_A8R8G8B8}){
+            const std::string file=std::string(assets)+"/World/Texture/"+name;
+            const std::wstring native(file.begin(),file.end());Com<IDirect3DTexture9> brick;
+            CHECK(SUCCEEDED(load(d,native.c_str(),UINT(-1),UINT(-1),0,0,format,D3DPOOL_MANAGED,1,1,0,nullptr,nullptr,brick.out())));
+            CHECK(GrassFXFixture::kind(grass,brick)==6);
+        }
         std::string path=std::string(assets)+"/World/Texture/ground_lawn001.dds";std::wstring wide(path.begin(),path.end());
         CHECK(SUCCEEDED(load(d,wide.c_str(),UINT(-1),UINT(-1),0,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,1,1,0,nullptr,nullptr,art.out())));
     }else{
@@ -154,7 +160,7 @@ int main(int argc,char **argv){
     bool groundTest=false,roadTest=false,sourceSRGB=false,roadWrite=true,leafProp=false,propBlend=false,doubleProp=false,nativeLeaf=false;float propHeight=0;int lightingCase=0;
     bool distantTiles=false;size_t pendingAfterTiles=0;
     bool translucentLeaf=false,earlyGrass=true,refinementBoundary=false,grassBeforeMist=false;
-    bool paving=false;
+    bool paving=false,earlyPaving=false,maskOnly=false;
     bool waterMask=false;
     float waterY=0;
     Com<IDirect3DTexture9> dirt,coverage;
@@ -192,6 +198,20 @@ int main(int argc,char **argv){
         d->SetStreamSource(0,vb,0,sizeof(Vertex));d->SetIndices(ib);
         d->BeginScene();const SurfaceDraw geometry{D3DPT_TRIANGLELIST,0,UINT(indices.size()/3),0,UINT(vertices.size()),0,true};
         auto draw=[&](){return d->DrawIndexedPrimitive(D3DPT_TRIANGLELIST,0,0,UINT(vertices.size()),0,UINT(indices.size()/3));};
+        if(on&&!proxy&&earlyPaving){
+            StateGuard roadState(d);
+            D3DLOCKED_RECT lock{};coverage->LockRect(0,&lock,nullptr,0);
+            for(int y=0;y<8;++y)for(int x=0;x<8;++x)((DWORD *)((BYTE *)lock.pBits+y*lock.Pitch))[x]=x<4?0:0xffffffff;
+            coverage->UnlockRect(0);
+            const DWORD tag=6;dirt->SetPrivateData(GrassTag,&tag,sizeof(tag),0);
+            d->SetTexture(0,dirt);d->SetTexture(1,coverage);
+            d->SetRenderState(D3DRS_ALPHABLENDENABLE,TRUE);d->SetRenderState(D3DRS_SRCBLEND,D3DBLEND_SRCALPHA);
+            d->SetRenderState(D3DRS_DESTBLEND,D3DBLEND_INVSRCALPHA);d->SetRenderState(D3DRS_ZWRITEENABLE,FALSE);
+            d->SetTextureStageState(1,D3DTSS_ALPHAOP,D3DTOP_SELECTARG1);d->SetTextureStageState(1,D3DTSS_ALPHAARG1,D3DTA_TEXTURE);
+            const Vertex strip[]={{-3,0,4,0,1,0,0,0,.125f,.5f},{3,0,4,0,1,0,1,0,.875f,.5f},
+                                  {-3,0,12,0,1,0,0,1,.125f,.5f},{3,0,12,0,1,0,1,1,.875f,.5f}};
+            grass.capture(settings,[&](){return d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP,2,strip,sizeof(Vertex));});
+        }
         if(on&&!proxy)grass.capture(settings,draw,geometry);draw();
         if(on&&!proxy&&extraDraws){
             // A shallow view of the native client contains more than 2,048 terrain
@@ -217,7 +237,8 @@ int main(int argc,char **argv){
             d->SetTextureStageState(1,D3DTSS_ALPHAOP,D3DTOP_SELECTARG1);d->SetTextureStageState(1,D3DTSS_ALPHAARG1,D3DTA_TEXTURE);
             if(roadProp){d->SetFVF(0x112);d->SetRenderState(D3DRS_ALPHABLENDENABLE,propBlend);d->SetTextureStageState(1,D3DTSS_COLOROP,D3DTOP_DISABLE);}
             auto drawRoad=[&](){return d->DrawPrimitiveUP(D3DPT_TRIANGLELIST,UINT(strip.size()/3),strip.data(),sizeof(Vertex));};
-            if(on&&!proxy){grass.capture(settings,drawRoad);grass.beforeTranslucency(settings);}drawRoad();
+            if(on&&!proxy){grass.capture(settings,drawRoad);grass.beforeTranslucency(settings);}
+            if(!maskOnly)drawRoad();
             if(doubleProp){
                 auto shifted=identity;shifted._42=paving?-2.f:5.f;
                 d->SetTransform(D3DTS_WORLD,&shifted);
@@ -443,6 +464,14 @@ int main(int argc,char **argv){
     const float canopy=GrassFXFixture::contact(grass,0,8);
     CHECK(std::abs((2.3f+(.5f-canopy)*1024)-Ground(0,8)-5)<.04f);
     CHECK(Save(render(true),L"artifacts/grass/high-canopy.png"));roadProp=false;propHeight=0;
+    roadProp=maskOnly=true;propHeight=.31f;
+    const auto beneathCanopy=render(true);
+    CHECK(beneathCanopy.size()==off.size());
+    unsigned shortened=0;
+    for(unsigned y=348;y<385;++y)for(unsigned x=480;x<520;++x)
+        shortened+=beneathCanopy[y*Width+x]!=off[y*Width+x];
+    CHECK(shortened>100);
+    maskOnly=false;propHeight=0;
     // Native proximity fades and surface overlays may appear only from a
     // close or steep camera angle. They must not erase world-space roots.
     followPlayer=true;roadProp=true;
@@ -467,6 +496,11 @@ int main(int argc,char **argv){
     paving=false;propHeight=0;doubleProp=false;
     roadProp=propBlend=false;roadWrite=true;
     road=false;
+    earlyPaving=true;
+    CHECK(render(true).size()==on.size());
+    CHECK(GrassFXFixture::contact(grass,2,8)>1&&GrassFXFixture::contact(grass,-2,8)==0);
+    CHECK(GrassFXFixture::surface(grass,2,8)[1]>.99f&&GrassFXFixture::surface(grass,-2,8)[1]>.99f);
+    earlyPaving=false;
     waterMask=true;waterY=.15f;
     const auto flooded=render(true);
     CHECK(GrassFXFixture::contact(grass,0,8)>2);

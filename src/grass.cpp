@@ -58,10 +58,10 @@ void GrassFX::invalidate(){
     contactSurface_.out();contacts_.out();
     captureVS_.out();capturePS_.out();bladeVS_.out();bladePS_.out();declaration_.out();
     for(auto &b:bands_){b.mesh.out();b.instances.out();b.indices.out();b.count=b.vertices=b.triangles=0;}
-    resolution_=0;bufferBytes_=0;builtQuality_=-1;started_=rendered_=false;clear_=true;failed_=false;checked_=false;
+    resolution_=0;bufferBytes_=0;builtQuality_=-1;initialized_=started_=rendered_=false;clear_=true;failed_=false;checked_=false;
 }
 void GrassFX::beginFrame(bool enabled,const float *player,uint64_t worldKey){
-    for(auto *c:pending_)c->clear();pending_.clear();worldTarget_.out();worldDepth_.out();started_=rendered_=false;clear_=true;
+    for(auto *c:pending_)c->clear();pending_.clear();worldTarget_.out();worldDepth_.out();initialized_=started_=rendered_=false;clear_=true;
     if(!enabled&&enabled_)invalidate();
     enabled_=enabled;
     contactClear_=true;contactTarget_=false;
@@ -209,7 +209,7 @@ bool GrassFX::initialize(const Settings &s){
     const D3DRENDERSTATETYPE keys[]={D3DRS_FOGDENSITY,D3DRS_FOGSTART,D3DRS_FOGEND};
     for(int i=0;i<3;++i){device_->GetRenderState(keys[i],&value);memcpy(fog_+i+1,&value,4);}
     device_->GetRenderState(D3DRS_FOGCOLOR,&value);Color(value,fogColor_);
-    started_=true;return true;
+    initialized_=true;return true;
 }
 void GrassFX::capture(const Settings &s,DrawCall draw,SurfaceDraw geometry,bool water){
     if(!enabled_||rendered_||failed_||!s.enabled||!s.grass)return;
@@ -228,15 +228,18 @@ void GrassFX::capture(const Settings &s,DrawCall draw,SurfaceDraw geometry,bool 
     const unsigned kind=water?0:classify(static_cast<IDirect3DTexture9 *>(art.p));
     if(kind==2||kind==5)return; // Vegetation cards never erase the ground below them.
     if(kind==4)winter_=true;
+    const bool paving=kind==6||kind==7;
     const bool ground=kind==1||kind==3||(kind==4&&s.grassSnow);
-    const bool prop=water||(fvf==0x112&&!ground);
+    const bool prop=water||paving||(fvf==0x112&&!ground);
     // A faded object or projected decal isn't a persistent obstacle. Its
     // visible pixels still occlude the blades through the native scene depth.
-    if(prop&&!water&&kind!=6&&kind!=7&&(!write||blend))return;
+    if(prop&&!water&&!paving&&(!write||blend))return;
     // Exact ground atlases are opaque. A preceding cutout leaf can leave the
     // native alpha-test enabled; it must not disable the next terrain receiver.
     if(!write&&!blend&&!prop)return;
-    if(!started_&&(!ground||!initialize(s)))return;
+    // Paving can be submitted before the first eligible receiver. Its mask
+    // is independent of the grass terrain pass and must survive that order.
+    if(!initialized_&&(!(ground||paving)||!initialize(s)))return;
     Com<IDirect3DVertexBuffer9> source;UINT offset=0,stride=0;
     if(geometry.primitives){
         device_->GetStreamSource(0,source.out(),&offset,&stride);
@@ -246,16 +249,17 @@ void GrassFX::capture(const Settings &s,DrawCall draw,SurfaceDraw geometry,bool 
     if(pending_.size()>=commands_.size())flush();
     auto release=[](Command *c){c->clear();};
     std::unique_ptr<Command,decltype(release)> command(&commands_[pending_.size()],release);
-    command->draw=geometry;command->fvf=fvf;command->blend=blend!=0&&!prop;command->prop=prop;
+    command->draw=geometry;command->fvf=fvf;
+    command->blend=blend&&(!prop||(paving&&fvf==0x212));command->prop=prop;
     command->contactMode=water?4.f:prop?(kind==7?3.f:kind==6?2.f:1.f):0.f;
     command->matrices[0]=world;
     D3DMATRIX view{},projection{};device_->GetTransform(D3DTS_VIEW,&view);device_->GetTransform(D3DTS_PROJECTION,&projection);
     if(memcmp(&view,&view_,sizeof(view))||memcmp(&projection,&projection_,sizeof(projection)))return;
     for(DWORD stage=0;stage<2;++stage){
-        if(water||(stage==1&&prop)){command->matrices[stage+1]=Identity();continue;}
+        if(water||(stage==1&&prop&&!command->blend)){command->matrices[stage+1]=Identity();continue;}
         DWORD coordinate=0,flags=0;device_->GetTextureStageState(stage,D3DTSS_TEXCOORDINDEX,&coordinate);
         device_->GetTextureStageState(stage,D3DTSS_TEXTURETRANSFORMFLAGS,&flags);
-        if((stage==0&&coordinate!=0)||(stage==1&&blend&&coordinate!=1)||
+        if((stage==0&&coordinate!=0)||(stage==1&&command->blend&&coordinate!=1)||
             (flags!=D3DTTFF_DISABLE&&flags!=D3DTTFF_COUNT2))return;
         if(flags)device_->GetTransform(D3DTRANSFORMSTATETYPE(D3DTS_TEXTURE0+stage),&command->matrices[stage+1]);
         else command->matrices[stage+1]=Identity();
@@ -277,6 +281,7 @@ void GrassFX::capture(const Settings &s,DrawCall draw,SurfaceDraw geometry,bool 
             if(lighting){D3DMATERIAL9 material{};device_->GetMaterial(&material);command->material[2]=material.Diffuse.a;}}}
     command->art.p=art.p;art->AddRef();if(blendMap)device_->GetTexture(1,command->blendMap.out());
     if(blendMap&&!command->blendMap.p)return;
+    started_|=ground;
     command->vertices.p=source.p;source.p=nullptr;command->offset=offset;command->stride=stride;
     if(geometry.primitives&&command->vertices.p&&(!geometry.indexed||SUCCEEDED(device_->GetIndices(command->indices.out())))){
         pending_.push_back(command.release());return;
@@ -332,7 +337,7 @@ void GrassFX::apply(const Command &c,bool heightOnly){
         device_->SetSamplerState(1,D3DSAMP_MAXMIPLEVEL,0);
         return;
     }
-    for(DWORD stage=0;stage<(c.prop?1u:2u);++stage)for(unsigned i=0;i<std::size(Samplers);++i)device_->SetSamplerState(stage,Samplers[i],c.samplers[stage][i]);
+    for(DWORD stage=0;stage<(c.prop&&!c.blend?1u:2u);++stage)for(unsigned i=0;i<std::size(Samplers);++i)device_->SetSamplerState(stage,Samplers[i],c.samplers[stage][i]);
     // Classification is calibrated in artist RGB, not camera-selected mip/sRGB
     // state. Its footprint comes from the fixed world map, independent of view.
     device_->SetSamplerState(0,D3DSAMP_SRGBTEXTURE,FALSE);

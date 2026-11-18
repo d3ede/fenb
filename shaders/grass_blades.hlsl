@@ -81,8 +81,10 @@ Output GrassBladeVS(Input i) {
     bool paving=contact>1&&!water;
     if(paving)obstacle=Center.y+(contact-1.5)*1024;
     bool submerged=water&&surface.r<=Center.y+(contact-2.5)*1024+.025;
-    if(any(uv<0)||any(uv>1)||coverage*slope<.001||(snow>0&&Extra.w<.5)||submerged||
-        (!water&&contact>0&&obstacle>=surface.r-.5&&obstacle<=surface.r+max(paving?.85:0,Shape.x*.9+.04))){
+    float clearance=obstacle-surface.r;
+    bool solid=contact>0&&!water;
+    bool blocked=solid&&(paving?clearance>=-.5&&clearance<=.85:clearance>=-.10&&clearance<=.14);
+    if(any(uv<0)||any(uv>1)||coverage*slope<.001||(snow>0&&Extra.w<.5)||submerged||blocked){
         o.position=float4(2,2,2,1);return o;
     }
     float fade=1;
@@ -94,6 +96,9 @@ Output GrassBladeVS(Input i) {
     float growth=sqrt(fade*coverage*slope);
     float t=i.blade.y;
     float height=Shape.x*i.height*lerp(1,.8+leaf*.55+patch*.15,Shape.z)*growth;
+    // A raised canopy or stall leaves room to grow. Shorten the blades
+    // underneath it instead of clearing the projection of the whole object.
+    if(solid&&!paving&&clearance>.14)height=min(height,clearance-.04);
     float phase=dot(root,float2(.19,.13))+Wind.w*Extra.x*1.35;
     float sway=(sin(phase)*.65+sin(phase*1.7+r3*6.2831853)*.35)*Wind.z;
     float2 lean=(radial*(.18+leaf*.6)+Wind.xy*sway)*height;

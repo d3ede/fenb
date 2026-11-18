@@ -31,17 +31,19 @@ float4 GrassCapturePS(Output i):COLOR0 {
         return float4(2+saturate(.5+(i.world.y-Contact.y)/1024),0,0,1);
     }
     float4 art=tex2D(Art,i.uv);
+    float opacity=Material.z<0?1:Material.y>.5?tex2D(BlendMap,i.blend).a:art.a*Material.z;
     if(Contact.x>.5){
         clip(art.a-.5);
-        if(Contact.x>1.5 && slope>.8){
+        if(Contact.x>1.5){
+            clip(opacity-.34);
             // Share the exact planter exclusion used by the surface mask.
             if(Contact.x>2.5 && i.uv.x>.805 && i.uv.y>.69 && i.uv.y<.86)discard;
+            clip(slope-.55);
             // Keep paving above unrelated geometry under it in the MAX pass.
             return float4(1+saturate(.5+(i.world.y-Contact.y)/1024),0,0,1);
         }
         return float4(saturate(.5+(Contact.y-i.world.y)/1024),0,0,1);
     }
-    float opacity=Material.z<0?1:Material.y>.5?tex2D(BlendMap,i.blend).a:art.a*Material.z;
     clip(opacity-.0001);
     // This mask is restricted to exactly identified mixed grass/soil atlases.
     // Warm bare soil receives no blades; source lighting cannot change coverage.
