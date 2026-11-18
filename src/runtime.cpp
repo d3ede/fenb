@@ -260,6 +260,12 @@ void Runtime::resetFrame() {
     invalidateDrawState();
 }
 void Runtime::beforeWaterDraw(UINT upStride, DrawCall draw,ParticleDraw particle) {
+    // Terrain layers have completed before the native translucent world queue.
+    // Blend fading leaves over the already drawn blades, using native depth.
+    if(!lost_&&!hudStarted_&&settings.enabled&&settings.grass&&!compare&&!vertexShaderActive_&&fvfKnown_&&
+        (drawFVF_==0x102||drawFVF_==0x112||drawFVF_==0x142||drawFVF_==0x152)&&
+        sceneBackbuffer_&&drawTarget_==sceneBackbuffer_)
+        grass_->beforeTranslucency(settings,!inScene_);
     // Inspect native state before FENB material/tree shaders wrap this draw.
     if (!lost_ && !hudStarted_ && settings.enabled && (settings.ssao || settings.grass) && !compare &&
         !vertexShaderActive_ && fvfKnown_ && sceneBackbuffer_ && drawTarget_==sceneBackbuffer_)

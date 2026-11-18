@@ -151,6 +151,7 @@ int main(int argc,char **argv){
     bool road=false,roadGradient=false,roadProp=false;DWORD roadAlpha=255,terrainFVF=0x212;unsigned stateErrors=0,extraDraws=0;
     bool groundTest=false,roadTest=false,sourceSRGB=false,roadWrite=true,leafProp=false,propBlend=false,doubleProp=false,nativeLeaf=false;float propHeight=0;int lightingCase=0;
     bool distantTiles=false;size_t pendingAfterTiles=0;
+    bool translucentLeaf=false,earlyGrass=true;
     Com<IDirect3DTexture9> dirt,coverage;
     CHECK(SUCCEEDED(d->CreateTexture(8,8,1,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,dirt.out(),nullptr)));
     CHECK(SUCCEEDED(d->CreateTexture(8,8,1,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,coverage.out(),nullptr)));
@@ -201,9 +202,27 @@ int main(int argc,char **argv){
             d->SetTextureStageState(1,D3DTSS_ALPHAOP,D3DTOP_SELECTARG1);d->SetTextureStageState(1,D3DTSS_ALPHAARG1,D3DTA_TEXTURE);
             if(roadProp){d->SetFVF(0x112);d->SetRenderState(D3DRS_ALPHABLENDENABLE,propBlend);d->SetTextureStageState(1,D3DTSS_COLOROP,D3DTOP_DISABLE);}
             auto drawRoad=[&](){return d->DrawPrimitiveUP(D3DPT_TRIANGLELIST,UINT(strip.size()/3),strip.data(),sizeof(Vertex));};
-            if(on&&!proxy)grass.capture(settings,drawRoad);drawRoad();
+            if(on&&!proxy){grass.capture(settings,drawRoad);grass.beforeTranslucency(settings);}drawRoad();
             if(doubleProp){auto raised=identity;raised._42=5;d->SetTransform(D3DTS_WORLD,&raised);
                 if(on&&!proxy)grass.capture(settings,drawRoad);drawRoad();d->SetTransform(D3DTS_WORLD,&identity);}
+        }
+        if(translucentLeaf){
+            d->SetRenderState(D3DRS_ALPHABLENDENABLE,TRUE);
+            d->SetRenderState(D3DRS_SRCBLEND,D3DBLEND_SRCALPHA);d->SetRenderState(D3DRS_DESTBLEND,D3DBLEND_INVSRCALPHA);
+            d->SetFVF(0x102);
+            if(on&&!proxy&&earlyGrass)grass.beforeTranslucency(settings);
+            // Native proximity-faded leaves can still write depth. Their color
+            // must blend over grass that has already been submitted.
+            struct Leaf {float x,y,z,w;DWORD color;};
+            const Leaf leaf[]={{-.5f,-.5f,.01f,1,0x40406020},{Width-.5f,-.5f,.01f,1,0x40406020},
+                               {-.5f,Height-.5f,.01f,1,0x40406020},{Width-.5f,Height-.5f,.01f,1,0x40406020}};
+            d->SetVertexShader(nullptr);d->SetPixelShader(nullptr);d->SetFVF(D3DFVF_XYZRHW|D3DFVF_DIFFUSE);
+            d->SetTexture(0,nullptr);d->SetRenderState(D3DRS_LIGHTING,FALSE);d->SetRenderState(D3DRS_ZWRITEENABLE,TRUE);
+            d->SetRenderState(D3DRS_ALPHATESTENABLE,FALSE);
+            d->SetTextureStageState(0,D3DTSS_COLOROP,D3DTOP_SELECTARG1);d->SetTextureStageState(0,D3DTSS_COLORARG1,D3DTA_DIFFUSE);
+            d->SetTextureStageState(0,D3DTSS_ALPHAOP,D3DTOP_SELECTARG1);d->SetTextureStageState(0,D3DTSS_ALPHAARG1,D3DTA_DIFFUSE);
+            d->SetTextureStageState(1,D3DTSS_COLOROP,D3DTOP_DISABLE);
+            d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP,2,leaf,sizeof(Leaf));
         }
         if(on&&!proxy){
             // Native software vertex processing has no vertex texture fetch.
@@ -233,6 +252,16 @@ int main(int argc,char **argv){
     CHECK(off.size()==Width*Height&&on.size()==off.size());CHECK(GrassFXFixture::started(grass)&&!GrassFXFixture::failed(grass));
     unsigned changed=0;for(size_t i=0;i<off.size();++i)changed+=off[i]!=on[i];printf("Changed pixels: %u\n",changed);CHECK(changed>10000);
     CreateDirectoryW(L"artifacts/grass",nullptr);CHECK(Save(off,L"artifacts/grass/field-off.png")&&Save(on,L"artifacts/grass/field-on.png"));
+    translucentLeaf=true;earlyGrass=false;const auto lateLeaf=render(true);
+    earlyGrass=true;const auto overGrass=render(true);translucentLeaf=false;
+    double blendError=0;
+    for(size_t i=0;i<on.size();++i)for(unsigned shift:{0u,8u,16u}){
+        const float native=float((on[i]>>shift)&255),leaf=float((0x406020u>>shift)&255);
+        const float expected=native*(191.f/255)+leaf*(64.f/255);
+        blendError+=std::abs(float((overGrass[i]>>shift)&255)-expected);
+    }
+    CHECK(blendError/(on.size()*3)<1.1&&Delta(lateLeaf,overGrass)>20);
+    CHECK(Save(lateLeaf,L"artifacts/grass/leaf-late-broken.png")&&Save(overGrass,L"artifacts/grass/leaf-early-correct.png"));
     CHECK(!stateErrors);auto repeated=render(true);unsigned large=0;double total=0;
     for(size_t px=0;px<on.size();++px){unsigned delta=0;for(unsigned shift:{0u,8u,16u})
         delta=std::max(delta,unsigned(std::abs(int((on[px]>>shift)&255)-int((repeated[px]>>shift)&255))));

@@ -49,7 +49,7 @@ class GrassFX {
     DWORD worldSrgb_=FALSE;
     int builtQuality_=-1;
     float builtDensity_=0,builtDistance_=0;
-    bool enabled_=false,started_=false,clear_=true,failed_=false,hidden_=false,checked_=false,capable_=false;
+    bool enabled_=false,started_=false,rendered_=false,clear_=true,failed_=false,hidden_=false,checked_=false,capable_=false;
     size_t bufferBytes_=0;
     unsigned classify(IDirect3DTexture9 *);
     bool programs();
@@ -68,6 +68,7 @@ public:
     void flush();
     bool pending() const {return !pending_.empty();}
     void draw(const Settings &,bool ownScene=false);
+    void beforeTranslucency(const Settings &,bool ownScene=false);
     void beginNative(const Settings &);
     void endNative();
     size_t bytes() const {return (ground_.p?size_t(resolution_)*resolution_*20:0)+bufferBytes_;}

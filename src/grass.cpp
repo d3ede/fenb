@@ -55,10 +55,10 @@ void GrassFX::invalidate(){
     contactSurface_.out();contacts_.out();
     captureVS_.out();capturePS_.out();bladeVS_.out();bladePS_.out();hidePS_.out();declaration_.out();
     for(auto &b:bands_){b.mesh.out();b.instances.out();b.indices.out();b.count=b.vertices=b.triangles=0;}
-    resolution_=0;bufferBytes_=0;builtQuality_=-1;started_=false;clear_=true;failed_=false;checked_=false;
+    resolution_=0;bufferBytes_=0;builtQuality_=-1;started_=rendered_=false;clear_=true;failed_=false;checked_=false;
 }
 void GrassFX::beginFrame(bool enabled,const float *player,uint64_t worldKey){
-    endNative();for(auto *c:pending_)c->clear();pending_.clear();worldTarget_.out();worldDepth_.out();started_=false;clear_=true;
+    endNative();for(auto *c:pending_)c->clear();pending_.clear();worldTarget_.out();worldDepth_.out();started_=rendered_=false;clear_=true;
     if(!enabled&&enabled_)invalidate();
     enabled_=enabled;
     contactClear_=true;contactTarget_=false;
@@ -195,7 +195,7 @@ bool GrassFX::initialize(const Settings &s){
     started_=true;return true;
 }
 void GrassFX::capture(const Settings &s,DrawCall draw,SurfaceDraw geometry){
-    if(!enabled_||failed_||!s.enabled||!s.grass)return;
+    if(!enabled_||rendered_||failed_||!s.enabled||!s.grass)return;
     DWORD fvf=0,z=0,write=0,test=0,blend=0,src=0,dst=0;
     if(FAILED(device_->GetFVF(&fvf))||(fvf!=0x212&&fvf!=0x112))return;
     D3DMATRIX world{};device_->GetTransform(D3DTS_WORLD,&world);
@@ -321,8 +321,21 @@ void GrassFX::flush(){
     else failed_=true;
     for(auto *c:pending_)c->clear();pending_.clear();
 }
+void GrassFX::beforeTranslucency(const Settings &s,bool ownScene){
+    if(rendered_||!started_||failed_)return;
+    DWORD blend=0;device_->GetRenderState(D3DRS_ALPHABLENDENABLE,&blend);if(!blend)return;
+    DWORD fvf=0;if(FAILED(device_->GetFVF(&fvf)))return;
+    if(fvf==0x112){
+        Com<IDirect3DBaseTexture9> art;device_->GetTexture(0,art.out());
+        if(!art.p||art->GetType()!=D3DRTYPE_TEXTURE||classify(static_cast<IDirect3DTexture9 *>(art.p))!=5)return;
+    }else if(fvf!=0x102&&fvf!=0x142&&fvf!=0x152)return;
+    D3DMATRIX view{},projection{};
+    if(FAILED(device_->GetTransform(D3DTS_VIEW,&view))||FAILED(device_->GetTransform(D3DTS_PROJECTION,&projection))||
+       memcmp(&view,&view_,sizeof(view))||memcmp(&projection,&projection_,sizeof(projection)))return;
+    draw(s,ownScene);
+}
 void GrassFX::draw(const Settings &s,bool ownScene){
-    if(!enabled_||!s.enabled||!s.grass||!started_||failed_||(winter_&&!s.grassSnow))return;
+    if(!enabled_||rendered_||!s.enabled||!s.grass||!started_||failed_||(winter_&&!s.grassSnow))return;
     if(ownScene&&FAILED(device_->BeginScene()))return;
     {
         flush();VertexProcessing hardware(device_);StateGuard guard(device_);StreamFrequencies frequencies(device_);
@@ -367,6 +380,7 @@ void GrassFX::draw(const Settings &s,bool ownScene){
                 device_->SetStreamSourceFreq(0,D3DSTREAMSOURCE_INDEXEDDATA|b.count);device_->SetStreamSourceFreq(1,D3DSTREAMSOURCE_INSTANCEDATA|1);
                 if(FAILED(device_->DrawIndexedPrimitive(D3DPT_TRIANGLELIST,0,0,b.vertices,0,b.triangles)))failed_=true;
             }
+            if(!failed_)rendered_=true;
         }
     }
     if(ownScene)device_->EndScene();
