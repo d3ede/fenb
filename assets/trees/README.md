@@ -12,9 +12,10 @@ The 33 DDS inputs contain complete mip chains. Opaque bark uses DXT1 and the
 cutout branch, leaf and vine atlases use DXT5. They total 2,233,168 bytes
 including DDS headers. The thirteen ordinary bark atlases retain distinct
 patterns and color grades. The new leaf artwork keeps the tree families'
-green, olive, bronze and copper palettes. Leaf and vine masks have openings
-between sprays and transparent margins where opaque artwork reached exposed
-mesh edges. The mip chain preserves cutout coverage through minification.
+green, olive, bronze and copper palettes. Leaf masks keep the denser inner
+canopy and the gaps between outer sprays. Leaf and vine masks preserve
+transparent margins at exposed mesh edges. The mip chain retains cutout
+coverage through minification.
 The catalog lists a second pattern
 for three shared bark sources and one shared leaf source. The object's world
 position selects the pattern in those cases.
