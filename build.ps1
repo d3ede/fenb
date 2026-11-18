@@ -61,8 +61,6 @@ if ($LASTEXITCODE) { throw 'SMAA shader compilation failed' }
 if($LASTEXITCODE){throw 'GrassCaptureVS compilation failed'}
 & './build/shaderc.exe' 'shaders/grass_capture.hlsl' 'src/generated/grass_capture_ps.hpp' 'GrassCapturePS' 'ps_3_0'
 if($LASTEXITCODE){throw 'GrassCapturePS compilation failed'}
-& './build/shaderc.exe' 'shaders/grass_capture.hlsl' 'src/generated/grass_hide_ps.hpp' 'GrassHidePS' 'ps_2_a'
-if($LASTEXITCODE){throw 'GrassHidePS compilation failed'}
 & './build/shaderc.exe' 'shaders/grass_blades.hlsl' 'src/generated/grass_blade_vs.hpp' 'GrassBladeVS' 'vs_3_0'
 if($LASTEXITCODE){throw 'GrassBladeVS compilation failed'}
 & './build/shaderc.exe' 'shaders/grass_blades.hlsl' 'src/generated/grass_blade_ps.hpp' 'GrassBladePS' 'ps_3_0'

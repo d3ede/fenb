@@ -32,7 +32,7 @@ if (-not $ReuseRaw) {
         'src/grass.cpp', 'src/effects.cpp', 'src/scene_fx.cpp', 'src/material.hpp', 'src/trees.hpp', 'src/sfx.hpp',
         'src/refinement_trail.hpp', 'src/actor_visibility.hpp', 'src/puddles.hpp', 'src/settings.hpp', 'src/scene_settings.inc',
         'src/generated/trees.hpp', 'src/generated/material_ps.hpp', 'src/generated/material_bark_ps.hpp', 'src/generated/material_snow_ps.hpp',
-        'src/generated/grass_capture_vs.hpp', 'src/generated/grass_capture_ps.hpp', 'src/generated/grass_hide_ps.hpp',
+        'src/generated/grass_capture_vs.hpp', 'src/generated/grass_capture_ps.hpp',
         'src/generated/grass_blade_vs.hpp', 'src/generated/grass_blade_ps.hpp', 'src/generated/scene_shaders.hpp', 'src/generated/sfx_shaders.hpp')
     $buildManifest = [ordered]@{
         sourceRevision = (git rev-parse HEAD).Trim(); version = ((Get-Content src/version.hpp -Raw) -split '"')[1]

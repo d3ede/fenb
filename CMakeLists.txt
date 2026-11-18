@@ -119,15 +119,14 @@ add_custom_command(OUTPUT "${FENB_GRASS_CATALOG}"
   COMMAND "${FENB_NODE_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/grass-catalog.mjs"
   DEPENDS tools/grass-catalog.mjs tools/grass-materials.json
   WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
-add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_capture_vs.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_capture_ps.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_hide_ps.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_blade_vs.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_blade_ps.hpp"
+add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_capture_vs.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_capture_ps.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_blade_vs.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_blade_ps.hpp"
   COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/generated"
   COMMAND shaderc "${CMAKE_CURRENT_SOURCE_DIR}/shaders/grass_capture.hlsl" "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_capture_vs.hpp" GrassCaptureVS vs_3_0
   COMMAND shaderc "${CMAKE_CURRENT_SOURCE_DIR}/shaders/grass_capture.hlsl" "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_capture_ps.hpp" GrassCapturePS ps_3_0
-  COMMAND shaderc "${CMAKE_CURRENT_SOURCE_DIR}/shaders/grass_capture.hlsl" "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_hide_ps.hpp" GrassHidePS ps_2_a
   COMMAND shaderc "${CMAKE_CURRENT_SOURCE_DIR}/shaders/grass_blades.hlsl" "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_blade_vs.hpp" GrassBladeVS vs_3_0
   COMMAND shaderc "${CMAKE_CURRENT_SOURCE_DIR}/shaders/grass_blades.hlsl" "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_blade_ps.hpp" GrassBladePS ps_3_0
   DEPENDS shaderc shaders/grass_capture.hlsl shaders/grass_blades.hlsl)
-set(FENB_GRASS_SHADERS "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_capture_vs.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_capture_ps.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_hide_ps.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_blade_vs.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_blade_ps.hpp")
+set(FENB_GRASS_SHADERS "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_capture_vs.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_capture_ps.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_blade_vs.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_blade_ps.hpp")
 target_sources(d3d9 PRIVATE src/grass.cpp "${FENB_GRASS_CATALOG}" ${FENB_GRASS_SHADERS})
 
 include(CTest)

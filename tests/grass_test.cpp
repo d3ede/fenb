@@ -72,7 +72,7 @@ int main(int argc,char **argv){
     if(proxy){
         const auto dll=std::filesystem::absolute(proxy);const auto config=dll.parent_path()/L"FENB.ini";
         FILE *f=_wfopen(config.c_str(),L"wb");CHECK(f);
-        fputs("[General]\nenabled=1\nopen_on_start=0\nunlock_fps=0\n[Bloom]\nbloom=0\n[Color]\ncolor=0\n[WaterFX]\nwater=0\n[SceneFX]\ngrass=1\ngrass_quality=2\ngrass_wind=0\n",f);fclose(f);
+        fputs("[General]\nenabled=1\nopen_on_start=0\nunlock_fps=0\n[Bloom]\nbloom=0\n[Color]\ncolor=0\n[WaterFX]\nwater=0\n[SceneFX]\ngrass=1\ngrass_quality=2\ngrass_distance=12\ngrass_wind=0\n",f);fclose(f);
         const auto module=LoadLibraryW(dll.c_str());CHECK(module);
         using Create=IDirect3D9*(WINAPI *)(UINT);auto create=reinterpret_cast<Create>(GetProcAddress(module,"Direct3DCreate9"));CHECK(create);root.p=create(D3D_SDK_VERSION);
     }else root.p=Direct3DCreate9(D3D_SDK_VERSION);
@@ -161,6 +161,16 @@ int main(int argc,char **argv){
     CHECK(SUCCEEDED(d->CreateTexture(8,8,1,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,dirt.out(),nullptr)));
     CHECK(SUCCEEDED(d->CreateTexture(8,8,1,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,coverage.out(),nullptr)));
     {D3DLOCKED_RECT lock{};dirt->LockRect(0,&lock,nullptr,0);for(int y=0;y<8;++y)for(int x=0;x<8;++x)((DWORD *)((BYTE *)lock.pBits+y*lock.Pitch))[x]=0xff826a40;dirt->UnlockRect(0);}
+    Com<IDirect3DTexture9> nativeCard;
+    if(proxy){
+        CHECK(SUCCEEDED(d->CreateTexture(1,1,1,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,nativeCard.out(),nullptr)));
+        D3DLOCKED_RECT lock{};
+        CHECK(SUCCEEDED(nativeCard->LockRect(0,&lock,nullptr,0)));
+        *static_cast<DWORD *>(lock.pBits)=0xffff00ff;
+        CHECK(SUCCEEDED(nativeCard->UnlockRect(0)));
+        const DWORD grassCardKind=2;
+        CHECK(SUCCEEDED(nativeCard->SetPrivateData(GrassTag,&grassCardKind,sizeof(grassCardKind),0)));
+    }
     auto render=[&](bool on){
         StateGuard outer(d);grass.beginFrame(on,followPlayer?player:nullptr,worldKey);
         d->Clear(0,nullptr,D3DCLEAR_TARGET|D3DCLEAR_ZBUFFER,0xff9aaeb7,1,0);
@@ -262,6 +272,16 @@ int main(int argc,char **argv){
             d->SetStreamSourceFreq(0,1);d->SetStreamSourceFreq(1,1);
         }
         if(proxy){
+            // The near field is eligible for generated grass. This stock patch
+            // at z=23 is beyond the 12-unit radius from the camera at z=-5.
+            struct CardVertex {float x,y,z,u,v;};
+            const CardVertex card[]={{-2,.1f,23,0,1},{2,.1f,23,1,1},{-2,1.5f,23,0,0},{2,1.5f,23,1,0}};
+            d->SetFVF(D3DFVF_XYZ|D3DFVF_TEX1);
+            d->SetTexture(0,nativeCard);
+            d->SetRenderState(D3DRS_LIGHTING,FALSE);
+            d->SetTextureStageState(0,D3DTSS_COLOROP,D3DTOP_SELECTARG1);
+            d->SetTextureStageState(0,D3DTSS_COLORARG1,D3DTA_TEXTURE);
+            if(FAILED(d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP,2,card,sizeof(CardVertex))))return std::vector<DWORD>{};
             struct Hud {float x,y,z,w;DWORD color;};const Hud marker[]={{8,8,0,1,0xffdc2020},{64,8,0,1,0xffdc2020},{8,30,0,1,0xffdc2020},{64,30,0,1,0xffdc2020}};
             d->SetVertexShader(nullptr);d->SetPixelShader(nullptr);d->SetFVF(D3DFVF_XYZRHW|D3DFVF_DIFFUSE);d->SetRenderState(D3DRS_ZENABLE,FALSE);d->SetRenderState(D3DRS_LIGHTING,FALSE);
             d->SetTexture(0,nullptr);d->SetTextureStageState(0,D3DTSS_COLOROP,D3DTOP_SELECTARG1);d->SetTextureStageState(0,D3DTSS_COLORARG1,D3DTA_DIFFUSE);
@@ -269,8 +289,18 @@ int main(int argc,char **argv){
         }
         d->EndScene();return Read(d);
     };
-    if(proxy){auto result=render(true);CHECK(result.size()==Width*Height);CreateDirectoryW(L"artifacts/grass",nullptr);
-        CHECK(Save(result,L"artifacts/grass/field-proxy.png"));CHECK((result[15*Width+15]&0xffffff)==0xdc2020);puts("PASS: native proxy grass draw completed before the untouched HUD.");return 0;}
+    if(proxy){
+        for(float yaw:{-.2f,0.f,.2f}){
+            camera(.16f,yaw);
+            const auto result=render(true);CHECK(result.size()==Width*Height);
+            CHECK((result[15*Width+15]&0xffffff)==0xdc2020);
+            CHECK(std::count_if(result.begin(),result.end(),[](DWORD p){return (p&0xffffff)==0xff00ff;})>100);
+            if(yaw==0)CHECK(Save(result,L"artifacts/grass/field-proxy.png"));
+            CHECK(SUCCEEDED(d->Present(nullptr,nullptr,nullptr,nullptr)));
+        }
+        puts("PASS: native grass outside generated coverage and HUD remain visible through the proxy.");
+        return 0;
+    }
     auto off=render(false),on=render(true);
     refinementBoundary=true;
     const auto atRefinement=render(true);

@@ -11,7 +11,6 @@
 #include <generated/grass_capture_ps.hpp>
 #include <generated/grass_blade_vs.hpp>
 #include <generated/grass_blade_ps.hpp>
-#include <generated/grass_hide_ps.hpp>
 #include <cstring>
 
 namespace {
@@ -55,14 +54,14 @@ bool GrassFX::supported(){
     return capable_;
 }
 void GrassFX::invalidate(){
-    endNative();for(auto *c:pending_)c->clear();pending_.clear();groundSurface_.out();ground_.out();worldTarget_.out();worldDepth_.out();
+    for(auto *c:pending_)c->clear();pending_.clear();groundSurface_.out();ground_.out();worldTarget_.out();worldDepth_.out();
     contactSurface_.out();contacts_.out();
-    captureVS_.out();capturePS_.out();bladeVS_.out();bladePS_.out();hidePS_.out();declaration_.out();
+    captureVS_.out();capturePS_.out();bladeVS_.out();bladePS_.out();declaration_.out();
     for(auto &b:bands_){b.mesh.out();b.instances.out();b.indices.out();b.count=b.vertices=b.triangles=0;}
     resolution_=0;bufferBytes_=0;builtQuality_=-1;started_=rendered_=false;clear_=true;failed_=false;checked_=false;
 }
 void GrassFX::beginFrame(bool enabled,const float *player,uint64_t worldKey){
-    endNative();for(auto *c:pending_)c->clear();pending_.clear();worldTarget_.out();worldDepth_.out();started_=rendered_=false;clear_=true;
+    for(auto *c:pending_)c->clear();pending_.clear();worldTarget_.out();worldDepth_.out();started_=rendered_=false;clear_=true;
     if(!enabled&&enabled_)invalidate();
     enabled_=enabled;
     contactClear_=true;contactTarget_=false;
@@ -101,7 +100,6 @@ bool GrassFX::programs(){
     if(!capturePS_.p&&FAILED(device_->CreatePixelShader(ShaderGrassCapturePS,capturePS_.out())))return false;
     if(!bladeVS_.p&&FAILED(device_->CreateVertexShader(ShaderGrassBladeVS,bladeVS_.out())))return false;
     if(!bladePS_.p&&FAILED(device_->CreatePixelShader(ShaderGrassBladePS,bladePS_.out())))return false;
-    if(!hidePS_.p&&FAILED(device_->CreatePixelShader(ShaderGrassHidePS,hidePS_.out())))return false;
     if(!declaration_.p){
         const D3DVERTEXELEMENT9 elements[]={
             {0,0,D3DDECLTYPE_FLOAT4,D3DDECLMETHOD_DEFAULT,D3DDECLUSAGE_POSITION,0},
@@ -439,17 +437,6 @@ void GrassFX::draw(const Settings &s,bool ownScene){
 #endif
     if(ownScene)device_->EndScene();
 }
-void GrassFX::beginNative(const Settings &s){
-    if(hidden_||!started_||failed_||!s.enabled||!s.grass)return;
-    Com<IDirect3DBaseTexture9> texture;device_->GetTexture(0,texture.out());
-    if(!texture.p||texture->GetType()!=D3DRTYPE_TEXTURE)return;
-    D3DSURFACE_DESC desc{};auto *art=static_cast<IDirect3DTexture9 *>(texture.p);art->GetLevelDesc(0,&desc);
-    if(desc.Width>256||desc.Height>256||classify(art)!=2)return;
-    Com<IDirect3DVertexShader9> vs;Com<IDirect3DPixelShader9> ps;device_->GetVertexShader(vs.out());device_->GetPixelShader(ps.out());
-    if(vs.p||ps.p)return;
-    hidden_=SUCCEEDED(device_->SetPixelShader(hidePS_));
-}
-void GrassFX::endNative(){if(hidden_){device_->SetPixelShader(nullptr);hidden_=false;}}
 #ifdef FENB_DIAGNOSTICS
 void GrassFX::probe(PipelineProbe &probe,bool after){
     const unsigned status=(started_?1u:0u)|(failed_?2u:0u)|(winter_?4u:0u)|

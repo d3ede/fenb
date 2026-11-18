@@ -51,4 +51,3 @@ float4 GrassCapturePS(Output i):COLOR0 {
     float luminance=dot(art.rgb,float3(.2126,.7152,.0722))*(Material.x<0?-1:1);
     return float4(i.world.y,coverage,slope,Material.w>.5?luminance:opacity);
 }
-float4 GrassHidePS():COLOR0 {clip(-1);return 0;}

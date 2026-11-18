@@ -21,7 +21,7 @@ class GrassFX {
     Com<IDirect3DTexture9> ground_,contacts_;
     Com<IDirect3DSurface9> groundSurface_,contactSurface_,worldTarget_,worldDepth_;
     Com<IDirect3DVertexShader9> captureVS_,bladeVS_;
-    Com<IDirect3DPixelShader9> capturePS_,bladePS_,hidePS_;
+    Com<IDirect3DPixelShader9> capturePS_,bladePS_;
     Com<IDirect3DVertexDeclaration9> declaration_;
     struct Band {
         Com<IDirect3DVertexBuffer9> mesh,instances;
@@ -56,7 +56,7 @@ class GrassFX {
     DWORD worldSrgb_=FALSE;
     int builtQuality_=-1,builtStyle_=-1;
     float builtDensity_=0,builtDistance_=0;
-    bool enabled_=false,started_=false,rendered_=false,clear_=true,failed_=false,hidden_=false,checked_=false,capable_=false;
+    bool enabled_=false,started_=false,rendered_=false,clear_=true,failed_=false,checked_=false,capable_=false;
     size_t bufferBytes_=0;
     unsigned classify(IDirect3DTexture9 *);
     bool programs();
@@ -77,8 +77,6 @@ public:
     void draw(const Settings &,bool ownScene=false);
     bool beforeRefinement(const Settings &,bool ownScene=false);
     void beforeTranslucency(const Settings &,bool ownScene=false);
-    void beginNative(const Settings &);
-    void endNative();
 #ifdef FENB_DIAGNOSTICS
     void probe(PipelineProbe &,bool after);
     void probeTarget(PipelineProbe *probe){probe_=probe;}
