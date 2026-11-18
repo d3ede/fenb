@@ -12,6 +12,7 @@
 #include "material.hpp"
 #include "grass.hpp"
 #include "trees.hpp"
+#include "native_skate.hpp"
 #include <commctrl.h>
 #ifdef FENB_DIAGNOSTICS
 #include "pipeline_probe.hpp"
@@ -38,7 +39,7 @@ Runtime::Runtime(IDirect3DDevice9 *device)
     : device_(device), effects_(std::make_unique<Effects>(device)),
       water_(std::make_unique<WaterFX>(device)), sfx_(std::make_unique<SfxFX>(device)),
       materials_(std::make_unique<MaterialFX>(device)),grass_(std::make_unique<GrassFX>(device)),
-      trees_(std::make_unique<TreeFX>(device)) {
+      trees_(std::make_unique<TreeFX>(device)),skateTrail_(std::make_unique<skate_trail::Renderer>(device)) {
     configPath = ModuleDirectory() + L"FENB.ini";
     settings.load(configPath);
     grass_->beginFrame(settings.enabled&&settings.grass);
@@ -63,6 +64,7 @@ Runtime::~Runtime() {
     std::lock_guard lock(mutex_);
     updateCursor(false);
     resetFrame();
+    native_skate::request(this,false);
 #ifdef FENB_DIAGNOSTICS
     effects_->sceneFX().setProbe(nullptr);
     probe_.reset();
@@ -188,6 +190,7 @@ void Runtime::invalidate() {
     effects_->invalidate();
     water_->invalidate();
     sfx_->invalidate();
+    skateTrail_->invalidate();
     materials_->invalidate();
     grass_->invalidate();
     trees_->invalidate();
@@ -243,6 +246,7 @@ void Runtime::resetFrame() {
     grass_->beginFrame(grassEnabled,hasPlayer?player:nullptr,worldKey);
     sfx_->beginFrame(settings.enabled && (settings.sfx || (settings.water && settings.sfxWake > 0)) && !compare,
                      settings.sfx&&settings.sfxSmoothAura&&settings.sfxAura>0);
+    native_skate::request(this,settings.enabled&&settings.sfx&&settings.skateTrailStyle>0&&!compare);
     effects_->sceneFX().beginFrame();
     effects_->sceneFX().updatePuddles(settings, environment_.rainIntensity(settings), GetTickCount64(), !compare && !lost_);
     lastWaterDraws = waterDraws;
@@ -261,6 +265,21 @@ void Runtime::resetFrame() {
     invalidateDrawState();
 }
 bool Runtime::beforeWaterDraw(UINT upStride, DrawCall draw,ParticleDraw particle) {
+    if(auto *skate=native_skate::current; skate&&!lost_&&!hudStarted_&&settings.enabled&&settings.sfx&&
+       settings.skateTrailStyle>0&&!compare&&!vertexShaderActive_&&fvfKnown_&&drawFVF_==0x142&&
+       sceneBackbuffer_&&drawTarget_==sceneBackbuffer_&&!particle.data&&!particle.buffered.indexed&&
+       particle.type==D3DPT_TRIANGLESTRIP&&particle.primitives>=2) {
+        if(!skate->attempted) {
+            skate->attempted=true;
+            std::array<skate_trail::Point,512> trail;
+            const size_t count=native_skate::points(skate->trail,trail);
+            auto channel=[](float v){return DWORD(std::clamp(v,0.f,1.f)*255+.5f);};
+            const DWORD tint=(channel(settings.skateTrailR)<<16)|(channel(settings.skateTrailG)<<8)|channel(settings.skateTrailB);
+            if(count)skate->replaced=skateTrail_->draw({trail.data(),count},
+                skate_trail::Style(int(settings.skateTrailStyle)),tint,settings.skateTrailCustomColor);
+        }
+        if(skate->replaced)return true;
+    }
     if(!lost_&&!hudStarted_&&settings.enabled&&settings.grass&&!compare&&!vertexShaderActive_&&fvfKnown_&&
         (drawFVF_==0x102||drawFVF_==0x112||drawFVF_==0x142||drawFVF_==0x152)&&
         sceneBackbuffer_&&drawTarget_==sceneBackbuffer_){
@@ -581,7 +600,7 @@ void Runtime::beforePresent(IDirect3DSwapChain9 *provided, DWORD flags, HWND win
     device_->EndScene();
 }
 double Runtime::gpuBytes() const {
-    return double(effects_->bytes() + water_->bytes() + sfx_->bytes()+grass_->bytes()+trees_->bytes());
+    return double(effects_->bytes() + water_->bytes() + sfx_->bytes()+grass_->bytes()+trees_->bytes()+skateTrail_->bytes());
 }
 bool Runtime::grassSupported(){return grass_->supported();}
 unsigned Runtime::activeMSAA() const {

@@ -15,6 +15,7 @@ class SfxFX;
 class MaterialFX;
 class GrassFX;
 class TreeFX;
+namespace skate_trail { class Renderer; }
 #ifdef FENB_DIAGNOSTICS
 class PipelineProbe;
 #endif
@@ -142,6 +143,7 @@ class Runtime {
     std::unique_ptr<MaterialFX> materials_;
     std::unique_ptr<GrassFX> grass_;
     std::unique_ptr<TreeFX> trees_;
+    std::unique_ptr<skate_trail::Renderer> skateTrail_;
     FpsLimiter fpsLimiter_;
     Environment environment_;
     Optimization optimization_;

@@ -1,20 +1,14 @@
 #pragma once
-#include "common.hpp"
+#include "skate_trail.hpp"
 #include <array>
 #include <cstdio>
 
 namespace skate_preview {
 constexpr UINT Width = 1000, Height = 650;
-constexpr float Pi = 3.14159265f;
+using skate_trail::Vec;
+using skate_trail::dot;
+using skate_trail::color;
 enum class Effect { Mist, Ribbons, Stardust, Count };
-enum class Mask { Vapor, Halo, Spark, Count };
-struct Vec {
-    float x, y, z;
-    Vec operator+(Vec b) const { return {x+b.x, y+b.y, z+b.z}; }
-    Vec operator-(Vec b) const { return {x-b.x, y-b.y, z-b.z}; }
-    Vec operator*(float k) const { return {x*k,y*k,z*k}; }
-};
-inline float dot(Vec a, Vec b) { return a.x*b.x+a.y*b.y+a.z*b.z; }
 inline Vec cross(Vec a, Vec b) { return {a.y*b.z-a.z*b.y,a.z*b.x-a.x*b.z,a.x*b.y-a.y*b.x}; }
 inline Vec normal(Vec v) { return v*(1.f/std::sqrt(dot(v,v))); }
 inline float unit(unsigned seed) {
@@ -22,10 +16,6 @@ inline float unit(unsigned seed) {
     seed *= 0x7feb352du;
     seed ^= seed >> 15;
     return float(seed & 0xffffu)/65535.f;
-}
-inline float smooth(float x) { x=std::clamp(x,0.f,1.f); return x*x*(3.f-2.f*x); }
-inline DWORD color(DWORD rgb, float opacity) {
-    return (rgb & 0xffffffu) | (DWORD(std::clamp(opacity,0.f,1.f)*255.f+.5f)<<24);
 }
 inline Vec path(float t, bool turning) {
     return {turning ? 2.9f*std::sin(t*2.15f) : .19f*t,1.15f+.12f*std::sin(t*4),t*9.f};
@@ -37,7 +27,7 @@ struct Vertex { float x,y,z,rhw; DWORD tint; float u,v; };
 
 class Scene {
     IDirect3DDevice9 *device_;
-    std::array<Com<IDirect3DTexture9>,size_t(Mask::Count)> masks_;
+    skate_trail::Renderer trail_;
     std::vector<Vertex> vertices_;
     Vec eye_{},right_{},up_{},forward_{};
     bool ok_ = true;
@@ -115,132 +105,17 @@ class Scene {
     Vec wake(float time,bool turning) const {
         return path(time,turning)-heading(time,turning)*.74f-Vec{0,.035f,0};
     }
-    void sprite(Vec p,float radius,DWORD tint) {
-        Vec a=right_*radius,b=up_*radius;
-        quad(project(p-a+b,tint,0,0),project(p+a+b,tint,1,0),
-             project(p-a-b,tint,0,1),project(p+a-b,tint,1,1));
-    }
-    struct Strip {
-        float width, offset, wave, lift, intensity;
-        DWORD rgb;
-        Mask mask;
-    };
-    void strip(float time,bool turning,float lifetime,Strip style) {
-        constexpr int Segments=100;
-        Vertex left{},right{};
-        for(int i=0;i<=Segments;++i) {
-            const float age=float(i)/Segments,t=time-age*lifetime;
-            const Vec forward=heading(t,turning), across={forward.z,0,-forward.x};
-            const Vec p=wake(t,turning)+across*((style.offset+style.wave*std::sin(t*10))*smooth(age*7))
-                +Vec{0,style.lift*smooth(age*8),0};
-            const float width=style.width*(.72f+smooth(age*7)*.46f)*(1-.36f*age);
-            const float strength=style.intensity*(1-smooth((age-.13f)/.87f));
-            const DWORD tint=color(style.rgb,strength);
-            const float phase=t*1.85f;
-            const Vertex a=project(p-across*width,tint,0,phase),b=project(p+across*width,tint,1,phase);
-            if(i)quad(left,right,a,b);
-            left=a;
-            right=b;
-        }
-        draw(masks_[size_t(style.mask)]);
-    }
-    void trail(float time,bool turning,Effect effect) {
-        device_->SetRenderState(D3DRS_ZWRITEENABLE,FALSE);
-        device_->SetRenderState(D3DRS_ALPHABLENDENABLE,TRUE);
-        switch(effect) {
-        case Effect::Mist:
-            strip(time,turning,1.68f,{1.05f,0,.11f,.13f,.29f,0x5276ef,Mask::Vapor});
-            strip(time,turning,1.54f,{.62f,.09f,.17f,.05f,.46f,0x54efed,Mask::Vapor});
-            strip(time,turning,1.28f,{.29f,-.11f,-.21f,.04f,.35f,0xafe9ff,Mask::Vapor});
-            break;
-        case Effect::Ribbons:
-            strip(time,turning,1.60f,{.69f,0,0,0,.13f,0x729eff,Mask::Halo});
-            for(float side:{-1.f,1.f}) {
-                const DWORD tint=side<0?0x69ecff:0xcf9aff;
-                strip(time,turning,1.59f,{.17f,side*.23f,side*.30f,side*.13f,.37f,tint,Mask::Halo});
-                strip(time,turning,1.59f,{.048f,side*.23f,side*.30f,side*.13f,.95f,tint,Mask::Halo});
-            }
-            break;
-        case Effect::Stardust: {
-            strip(time,turning,1.52f,{.76f,0,.06f,0,.19f,0x7276ff,Mask::Vapor});
-            const int newest=int(std::floor(time*124));
-            for(int i=newest-183;i<=newest;++i) {
-                const float t=float(i)/124,age=(time-t)/1.49f;
-                const unsigned seed=unsigned(i)*13u;
-                const Vec forward=heading(t,turning), side={forward.z,0,-forward.x};
-                const float spread=.12f+age*.82f;
-                const Vec p=wake(t,turning)+side*((unit(seed)*2-1)*spread)
-                    +Vec{0,(unit(seed+1)*2-1)*spread*.45f,0};
-                const bool burst=unit(seed+2)>.94f;
-                const float size=burst?.19f+unit(seed+3)*.13f:.029f+unit(seed+3)*.05f;
-                const float opacity=smooth(age*32)*(1-smooth(age))*(.59f+unit(seed+4)*.41f);
-                sprite(p,size,color(burst?0xc5ddff:0xa79aff,opacity));
-            }
-            draw(masks_[size_t(Mask::Spark)]);
-            break;
-        }
-        case Effect::Count: break;
-        }
-        sprite(wake(time,turning),.35f,color(effect==Effect::Stardust?0x929bff:0x99eaff,.43f));
-        draw(masks_[size_t(Mask::Spark)]);
-        device_->SetRenderState(D3DRS_ALPHABLENDENABLE,FALSE);
-        device_->SetRenderState(D3DRS_ZWRITEENABLE,TRUE);
-    }
-
 public:
-    explicit Scene(IDirect3DDevice9 *device):device_(device) { vertices_.reserve(14000); }
-    bool initialize() {
-        constexpr int Size=128;
-        for(size_t i=0;i<masks_.size();++i) {
-            auto &texture=masks_[i];
-            if(FAILED(device_->CreateTexture(Size,Size,1,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,texture.out(),nullptr)))return false;
-            D3DLOCKED_RECT locked{};
-            if(FAILED(texture->LockRect(0,&locked,nullptr,0)))return false;
-            for(int y=0;y<Size;++y)for(int x=0;x<Size;++x) {
-                const float u=(x+.5f)*2/Size-1,v=(y+.5f)*2/Size-1;
-                float density=0;
-                switch(Mask(i)) {
-                case Mask::Vapor: {
-                    const float phase=v*Pi;
-                    const float swirl=u+.12f*std::sin(phase)+.07f*std::sin(3*phase+u*2);
-                    density=std::exp(-swirl*swirl*3.2f)*smooth((1-std::abs(u))*3)
-                        *(.79f+.16f*std::sin(phase*2+u*5)+.05f*std::cos(phase*4-u*5));
-                    break;
-                }
-                case Mask::Halo:
-                    density=std::exp(-u*u*3.7f)*smooth((1-std::abs(u))*4);
-                    break;
-                case Mask::Spark: {
-                    const float r=u*u+v*v;
-                    const float core=std::exp(-r*16);
-                    const float flare=std::exp(-std::min(u*u,v*v)*980)*std::exp(-std::max(u*u,v*v)*3.8f);
-                    density=std::min(1.f,core*.88f+flare*.42f)*smooth((1-std::sqrt(r))*5);
-                    break;
-                }
-                case Mask::Count: break;
-                }
-                auto *row=reinterpret_cast<DWORD*>(static_cast<BYTE*>(locked.pBits)+y*locked.Pitch);
-                row[x]=color(0xffffff,density);
-            }
-            if(FAILED(texture->UnlockRect(0)))return false;
-        }
+    explicit Scene(IDirect3DDevice9 *device):device_(device),trail_(device) {
+        vertices_.reserve(14000);
         device_->SetFVF(D3DFVF_XYZRHW|D3DFVF_DIFFUSE|D3DFVF_TEX1);
         device_->SetRenderState(D3DRS_CULLMODE,D3DCULL_NONE);
         device_->SetRenderState(D3DRS_LIGHTING,FALSE);
         device_->SetRenderState(D3DRS_ZENABLE,TRUE);
-        device_->SetRenderState(D3DRS_SRCBLEND,D3DBLEND_SRCALPHA);
-        device_->SetRenderState(D3DRS_DESTBLEND,D3DBLEND_ONE);
-        device_->SetTextureStageState(0,D3DTSS_COLORARG1,D3DTA_TEXTURE);
         device_->SetTextureStageState(0,D3DTSS_COLORARG2,D3DTA_DIFFUSE);
-        device_->SetTextureStageState(0,D3DTSS_ALPHAARG1,D3DTA_TEXTURE);
         device_->SetTextureStageState(0,D3DTSS_ALPHAARG2,D3DTA_DIFFUSE);
-        device_->SetSamplerState(0,D3DSAMP_MINFILTER,D3DTEXF_LINEAR);
-        device_->SetSamplerState(0,D3DSAMP_MAGFILTER,D3DTEXF_LINEAR);
-        device_->SetSamplerState(0,D3DSAMP_ADDRESSU,D3DTADDRESS_CLAMP);
-        device_->SetSamplerState(0,D3DSAMP_ADDRESSV,D3DTADDRESS_WRAP);
-        return true;
     }
-    bool render(float time,bool turning,Effect effect) {
+    bool render(float time,bool turning,Effect effect,DWORD rgb=0,bool custom=false) {
         const Vec p=path(time,turning);
         eye_={-.9f,12.7f,p.z-15.8f};
         forward_=normal(Vec{-.4f,.2f,p.z-6.6f}-eye_);
@@ -250,7 +125,25 @@ public:
         if(FAILED(device_->BeginScene()))return false;
         ground(time);
         rider(time,turning);
-        trail(time,turning,effect);
+        D3DMATRIX view{};
+        view._11=right_.x; view._21=right_.y; view._31=right_.z; view._41=-dot(eye_,right_);
+        view._12=up_.x; view._22=up_.y; view._32=up_.z; view._42=-dot(eye_,up_);
+        view._13=forward_.x; view._23=forward_.y; view._33=forward_.z; view._43=-dot(eye_,forward_);
+        view._44=1;
+        D3DMATRIX projection{};
+        projection._11=2.f*705/Width;
+        projection._22=2.f*705/Height;
+        projection._33=1.002f; projection._34=1; projection._43=-.2f;
+        device_->SetTransform(D3DTS_VIEW,&view);
+        device_->SetTransform(D3DTS_PROJECTION,&projection);
+        std::array<skate_trail::Point,128> points{};
+        for(size_t i=0;i<points.size();++i) {
+            const float age=float(i)/(points.size()-1);
+            const float t=time-age*1.64f;
+            const Vec forward=heading(t,turning);
+            points[i]={wake(t,turning),{forward.z,0,-forward.x},1};
+        }
+        ok_ &= trail_.draw(points,skate_trail::Style(int(effect)+1),rgb,custom);
         return SUCCEEDED(device_->EndScene())&&ok_;
     }
 };
@@ -292,7 +185,6 @@ inline int run(bool capture,WNDPROC windowProcedure,Screenshot screenshot) {
     if(FAILED(root->CreateDevice(0,D3DDEVTYPE_HAL,window,D3DCREATE_HARDWARE_VERTEXPROCESSING,
                                  &parameters,device.out())))return 4;
     Scene scene(device);
-    if(!scene.initialize())return 5;
     constexpr const wchar_t *Names[]={L"Mist",L"Light ribbons",L"Stardust"};
     if(capture) {
         CreateDirectoryW(L"artifacts",nullptr);
@@ -307,6 +199,8 @@ inline int run(bool capture,WNDPROC windowProcedure,Screenshot screenshot) {
             if(!scene.render(.97f,turning,Effect(i))||!screenshot(device,target,filename))return 6;
             wprintf(L"Captured %ls\n",filename);
         }
+        if(!scene.render(.97f,true,Effect::Ribbons,0xff651f,true)||
+           !screenshot(device,target,L"artifacts/skate-preview/ribbons-custom-orange.png"))return 6;
         DestroyWindow(window);
         return 0;
     }

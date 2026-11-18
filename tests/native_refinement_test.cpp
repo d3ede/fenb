@@ -1,4 +1,5 @@
 #include "refinement_trail.hpp"
+#include "native_skate.hpp"
 #include <cassert>
 #include <cstdio>
 void Log(const char*){}
@@ -105,11 +106,28 @@ int main(int argc,char **argv){
         float origin[]={1,2,3};native_refinement::Scope anchored(&model,origin);
         origin[0]=10;assert(anchored.context.hasOrigin&&anchored.context.origin[0]==1);
     }
+    {
+        assert(native_skate::boardTrail(1,0x3cf5c28f)&&native_skate::boardTrail(2,0x3cf5c28f));
+        assert(!native_skate::boardTrail(2,0x3eb33333)&&!native_skate::boardTrail(3,0x3cf5c28f));
+        std::array<native_skate::Node,512> pool{};
+        pool[20].left={-.5f,1,4};pool[20].right={.5f,1,4};pool[20].next=&pool[7];
+        pool[7].left={-.5f,1,2};pool[7].right={.5f,1,2};pool[7].age=1.5f;
+        std::array<DWORD,11> belt{};
+        belt[4]=2;belt[5]=reinterpret_cast<uintptr_t>(pool.data());belt[10]=reinterpret_cast<uintptr_t>(&pool[20]);
+        std::array<skate_trail::Point,4> decoded{};
+        assert(native_skate::points(belt.data(),decoded)==2);
+        assert(decoded[0].center.z==4&&decoded[0].across.x==1&&decoded[1].opacity==.5f);
+        pool[7].next=&pool[20];assert(native_skate::points(belt.data(),decoded)==0);
+    }
     if(argc>1){
         auto image=LoadLibraryExA(argv[1],nullptr,DONT_RESOLVE_DLL_REFERENCES);assert(image);
         native_patch::imageOverride=image;assert(native_binding::prepare(image));
         auto **table=reinterpret_cast<void **>(native_binding::cached.address(0x7b73f4));
         assert(table);void *before=table[19];
+        auto **skate=native_skate::discover(image);assert(skate);
+        auto *skateBefore=*skate;
+        native_skate::request(&model,true);assert(*skate==reinterpret_cast<void*>(&native_skate::renderHook));
+        native_skate::request(&model,false);assert(*skate==skateBefore);
         for(int repeat=0;repeat<3;++repeat){
             native_refinement::request(&model,true);assert(table[19]==reinterpret_cast<void*>(&native_refinement::renderHook));
             assert(native_refinement::positionAvailable);

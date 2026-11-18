@@ -1,4 +1,5 @@
 #include "runtime.hpp"
+#include "native_skate.hpp"
 #include <cstdio>
 std::wstring ModuleDirectory() {
     wchar_t cwd[32768]{};
@@ -83,6 +84,79 @@ int main() {
     Com<IDirect3DDevice9> device;
     CHECK(SUCCEEDED(d3d->CreateDevice(0, D3DDEVTYPE_HAL, window, D3DCREATE_SOFTWARE_VERTEXPROCESSING, &pp,
                                       device.out())));
+    {
+        Runtime runtime(device);
+        runtime.settings=Settings{};
+        runtime.settings.enabled=runtime.settings.sfx=true;
+        runtime.settings.skateTrailCustomColor=true;
+        runtime.settings.skateTrailR=1;
+        runtime.settings.skateTrailG=runtime.settings.skateTrailB=0;
+        D3DMATRIX identity{},projection{};
+        identity._11=identity._22=identity._33=identity._44=1;
+        projection._11=1.25f;projection._22=1.75f;
+        projection._33=1.001f;projection._34=1;projection._43=-.1f;
+        device->SetTransform(D3DTS_WORLD,&identity);
+        device->SetTransform(D3DTS_VIEW,&identity);
+        device->SetTransform(D3DTS_PROJECTION,&projection);
+        device->SetFVF(0x142);
+        device->SetRenderState(D3DRS_DESTBLEND,D3DBLEND_INVSRCALPHA);
+        Com<IDirect3DVertexBuffer9> nativeStream;
+        CHECK(SUCCEEDED(device->CreateVertexBuffer(256,0,0x142,D3DPOOL_DEFAULT,nativeStream.out(),nullptr)));
+        CHECK(SUCCEEDED(device->SetStreamSource(0,nativeStream,0,24)));
+        std::array<native_skate::Node,512> pool{};
+        constexpr size_t count=6;
+        for(size_t i=0;i<count;++i) {
+            const float y=.9f-float(i)*.37f;
+            pool[i].left={-.3f,y,4};
+            pool[i].right={.3f,y,4};
+            pool[i].next=i+1<count?&pool[i+1]:nullptr;
+        }
+        std::array<DWORD,11> nativeTrail{};
+        nativeTrail[4]=count;
+        nativeTrail[5]=reinterpret_cast<uintptr_t>(pool.data());
+        nativeTrail[10]=reinterpret_cast<uintptr_t>(pool.data());
+        const ParticleDraw geometry{D3DPT_TRIANGLESTRIP,10,nullptr,0,nullptr,D3DFMT_UNKNOWN,0,0,
+                                    {D3DPT_TRIANGLESTRIP,0,10}};
+        Com<IDirect3DSurface9> target,pixels;
+        CHECK(SUCCEEDED(device->GetRenderTarget(0,target.out())));
+        CHECK(SUCCEEDED(device->CreateOffscreenPlainSurface(800,600,D3DFMT_X8R8G8B8,D3DPOOL_SYSTEMMEM,pixels.out(),nullptr)));
+        auto originalDraw=[](){return D3D_OK;};
+        for(int style=0;style<=3;++style) {
+            runtime.settings.skateTrailStyle=float(style);
+            native_skate::Context scope{nativeTrail.data()};
+            CHECK(SUCCEEDED(device->Clear(0,nullptr,D3DCLEAR_TARGET,0xff202020,1,0)));
+            CHECK(SUCCEEDED(device->BeginScene()));
+            runtime.scene(true);
+            runtime.beforeDraw(10);
+            native_skate::current=&scope;
+            const bool replaced=runtime.beforeWaterDraw(0,originalDraw,geometry);
+            runtime.afterWaterDraw();
+            native_skate::current=nullptr;
+            CHECK(replaced==(style>0)&&scope.replaced==replaced);
+            runtime.scene(false);
+            CHECK(SUCCEEDED(device->EndScene()));
+            DWORD fvf=0,blend=0;UINT offset=0,stride=0;
+            Com<IDirect3DVertexBuffer9> restored;
+            CHECK(SUCCEEDED(device->GetFVF(&fvf))&&fvf==0x142);
+            CHECK(SUCCEEDED(device->GetRenderState(D3DRS_DESTBLEND,&blend))&&blend==D3DBLEND_INVSRCALPHA);
+            CHECK(SUCCEEDED(device->GetStreamSource(0,restored.out(),&offset,&stride))&&restored.p==nativeStream.p&&offset==0&&stride==24);
+            CHECK(SUCCEEDED(device->GetRenderTargetData(target,pixels)));
+            D3DLOCKED_RECT lock{};
+            CHECK(SUCCEEDED(pixels->LockRect(&lock,nullptr,D3DLOCK_READONLY)));
+            unsigned colored=0,other=0;
+            for(int y=140;y<450;++y) {
+                const auto *row=reinterpret_cast<const DWORD*>(static_cast<BYTE*>(lock.pBits)+y*lock.Pitch);
+                for(int x=280;x<520;++x) {
+                    colored+=((row[x]>>16)&255)>38;
+                    other+=(row[x]&0xffff)!=0x2020;
+                }
+            }
+            pixels->UnlockRect();
+            CHECK(other==0&&(style?colored>100:colored==0));
+        }
+        device->SetStreamSource(0,nullptr,0,0);
+        puts("PASS: native skate draw replacement, three styles, custom tint and device state restoration.");
+    }
     {
         Runtime runtime(device);
         runtime.visible = true;

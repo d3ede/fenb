@@ -360,6 +360,7 @@ int main() {
         CHECK(colors->Pos.x>=0&&colors->Pos.x+colors->Size.x<=io.DisplaySize.x&&colors->Pos.y>=0&&colors->Pos.y+colors->Size.y<=io.DisplaySize.y);
         ImGui::ClosePopupToLevel(0,true);frame();
         r.settings.sfxSmoothAura=false;
+        ImGui::SetScrollY(inspector(),inspector()->ScrollMax.y);frame();frame();
         control("particles","reset-section");CHECK(r.settings.sfxSmoothAura&&!r.settings.sfxAuraCustomColor&&r.settings.sfx&&r.settings.language==static_cast<Language>(language));
         const auto colorDisplay=io.DisplaySize;io.DisplaySize={334,400};r.centerPanel=true;frame();frame();
         ImGui::SetScrollY(inspector(),inspector()->ScrollMax.y);frame();frame();
@@ -380,6 +381,22 @@ int main() {
         CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-weapon-color.png").c_str()));
         ImGui::ClosePopupToLevel(0,true);frame();
         CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-equipment-colors.png").c_str()));
+        ImGui::SetScrollY(inspector(),inspector()->ScrollMax.y);frame();frame();
+        control("particles","##skate-trail");CHECK(!ImGui::GetCurrentContext()->OpenPopupStack.empty());
+        CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-skate-styles.png").c_str()));
+        auto *skateStyles=ImGui::GetCurrentContext()->OpenPopupStack.back().Window;
+        const int ribbons=2;
+        ImGui::ActivateItemByID(ImHashStr("###option",0,ImHashData(&ribbons,sizeof(ribbons),skateStyles->IDStack.back())));frame();frame();
+        CHECK(r.settings.skateTrailStyle==2);
+        ImGui::ActivateItemByID(ImHashStr("open",0,ImHashStr("skate-color",0,inspector()->GetID("particles"))));frame();frame();
+        CHECK(!ImGui::GetCurrentContext()->OpenPopupStack.empty());
+        auto *skateColors=ImGui::GetCurrentContext()->OpenPopupStack.back().Window;
+        activate(skateColors,"##hex");input("#FF651F");
+        CHECK(r.settings.skateTrailCustomColor&&r.settings.skateTrailR==1&&
+              std::abs(r.settings.skateTrailG-101.f/255)<.000001f&&std::abs(r.settings.skateTrailB-31.f/255)<.000001f);
+        CHECK(r.settings.sfxWeaponG==.6f&&r.settings.sfxAuraR==armorBefore.sfxAuraR);
+        CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-skate-color.png").c_str()));
+        ImGui::ClosePopupToLevel(0,true);frame();
         r.editorPage=9;r.editorSelection[9]=0;frame();frame();
         r.settings.grass=false;control("grass","enabled");CHECK(r.settings.grass);
         r.settings.grassSnow=false;control("grass","snow-grass");CHECK(r.settings.grassSnow);

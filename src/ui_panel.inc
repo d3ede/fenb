@@ -39,11 +39,9 @@ const char *SceneItemName(int i, bool full = false) {
     return Tr(effect.shortName);
 }
 
-void AuraColorPicker(Settings &s,bool weapon=false) {
-    bool &custom=weapon?s.sfxWeaponCustomColor:s.sfxAuraCustomColor;
-    float &red=weapon?s.sfxWeaponR:s.sfxAuraR,&green=weapon?s.sfxWeaponG:s.sfxAuraG,&blue=weapon?s.sfxWeaponB:s.sfxAuraB;
-    const auto label=weapon?UiText::WeaponColor:UiText::ArmorColor;
-    ImGui::PushID(weapon?"weapon-color":"aura-color");
+void EffectColorPicker(const char *id,UiText label,bool &custom,float &red,float &green,float &blue,
+                       UiText defaultColor=UiText::AuraNativeColor,UiText restore=UiText::AuraRestoreColor) {
+    ImGui::PushID(id);
     ImGui::PushFont(nullptr,13);
     ImGui::BeginDisabled(uiParameterDisabled);
     const auto p=ImGui::GetCursorScreenPos();const float width=ImGui::GetContentRegionAvail().x;
@@ -51,7 +49,7 @@ void AuraColorPicker(Settings &s,bool weapon=false) {
     auto *draw=ImGui::GetWindowDrawList();
     TextAt(draw,{p.x+4,p.y+7},Tr(label),Text,13);
     char hex[10];std::snprintf(hex,sizeof(hex),"#%02X%02X%02X",int(red*255+.5f),int(green*255+.5f),int(blue*255+.5f));
-    const char *value=custom?hex:Tr(UiText::AuraNativeColor);
+    const char *value=custom?hex:Tr(defaultColor);
     const float valueWidth=ImGui::CalcTextSize(value).x,swatchX=p.x+width-valueWidth-37;
     auto swatch=Opacity(custom?ImGui::ColorConvertFloat4ToU32({red,green,blue,1}):Raised);
     draw->AddRectFilled({swatchX,p.y+5},{swatchX+22,p.y+25},swatch,3);
@@ -102,7 +100,7 @@ void AuraColorPicker(Settings &s,bool weapon=false) {
             green=std::round(rgb[1]*1000000)/1000000;
             blue=std::round(rgb[2]*1000000)/1000000;custom=true;
         }
-        if(ImGui::Button((std::string(Tr(UiText::AuraRestoreColor))+"###native").c_str(),{pickerWidth,24}))
+        if(ImGui::Button((std::string(Tr(restore))+"###native").c_str(),{pickerWidth,24}))
             custom=false;
         ImGui::EndPopup();
     }
@@ -110,6 +108,7 @@ void AuraColorPicker(Settings &s,bool weapon=false) {
     ImGui::EndDisabled();ImGui::PopFont();ImGui::PopID();
 }
 void PanelToggle(const char *,const char *,bool &,const char *,bool);
+void PanelCombo(UiText,const char *,int &,const char *const *,int);
 void SceneParameters(Runtime &r) {
     auto &s = r.settings;
     const Settings defaults;
@@ -204,15 +203,25 @@ void SceneParameters(Runtime &r) {
     case 9:
         RR(Distance, SurfaceDistanceHelp, surfaceDistance, 5, 100, "%.0f", 5);
         break;
-    case 10:
+    case 10: {
         RR(Saturation, SaturationHelp, sfxSaturation, .5f, 1.5f, "%.2f", .05f);
         RR(SfxSoftness, SfxSoftnessHelp, sfxSoftness, 0, 1, "%.2f", .05f);
         ImGui::BeginDisabled(uiParameterDisabled);
         PanelToggle("smooth-aura",Tr(UiText::SmoothAura),s.sfxSmoothAura,nullptr,true);
         ImGui::EndDisabled();
-        AuraColorPicker(s);
-        AuraColorPicker(s,true);
+        EffectColorPicker("aura-color",UiText::ArmorColor,s.sfxAuraCustomColor,s.sfxAuraR,s.sfxAuraG,s.sfxAuraB);
+        EffectColorPicker("weapon-color",UiText::WeaponColor,s.sfxWeaponCustomColor,s.sfxWeaponR,s.sfxWeaponG,s.sfxWeaponB);
+        const char *trails[]={Tr(UiText::SkateTrailNative),Tr(UiText::SkateTrailMist),
+                             Tr(UiText::SkateTrailRibbons),Tr(UiText::SkateTrailStardust)};
+        int style=int(s.skateTrailStyle);
+        PanelCombo(UiText::SkateTrail,"skate-trail",style,trails,4);
+        s.skateTrailStyle=float(style);
+        ImGui::BeginDisabled(style==0);
+        EffectColorPicker("skate-color",UiText::SkateTrailColor,s.skateTrailCustomColor,
+                          s.skateTrailR,s.skateTrailG,s.skateTrailB,UiText::SkateTrailDefaultColor,UiText::SkateTrailRestoreColor);
+        ImGui::EndDisabled();
         break;
+    }
     }
 #undef RR
 }

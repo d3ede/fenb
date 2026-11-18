@@ -99,6 +99,11 @@ inline void ApplyBuiltInVisuals(Settings &s, int index) {
     s.sfxSoftness = 0.350000f;
     s.sfxAura = 1.000000f;
     s.sfxSmoothAura = true;
+    s.skateTrailStyle = 0.000000f;
+    s.skateTrailCustomColor = false;
+    s.skateTrailR = 0.330000f;
+    s.skateTrailG = 0.820000f;
+    s.skateTrailB = 1.000000f;
     s.sfxAuraCustomColor = false;
     s.sfxAuraR = 0.160000f;
     s.sfxAuraG = 0.620000f;

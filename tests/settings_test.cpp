@@ -132,12 +132,18 @@ int main() {
         particles.sfxSmoothAura=false;
         CHECK(!particles.sfxAuraCustomColor);
         CHECK(!particles.sfxWeaponCustomColor);
+        CHECK(particles.skateTrailStyle==0&&!particles.skateTrailCustomColor);
+        particles.skateTrailStyle=2.2f;
+        particles.skateTrailCustomColor=true;
+        particles.skateTrailR=1; particles.skateTrailG=.4f; particles.skateTrailB=.1f;
         particles.sfxWeaponCustomColor=true;particles.sfxWeaponR=.8f;particles.sfxWeaponG=.1f;particles.sfxWeaponB=.3f;
         particles.sfxAuraCustomColor=true;particles.sfxAuraR=18.f/255;particles.sfxAuraG=52.f/255;particles.sfxAuraB=86.f/255;
         particles.language=Language::Portuguese;
         CHECK(particles.save(L"build/aura-color-settings.ini"));
         Settings restoredColor;CHECK(restoredColor.load(L"build/aura-color-settings.ini"));
         CHECK(!restoredColor.sfxSmoothAura);
+        CHECK(restoredColor.skateTrailStyle==2&&restoredColor.skateTrailCustomColor&&
+              restoredColor.skateTrailR==1&&restoredColor.skateTrailG==.4f&&restoredColor.skateTrailB==.1f);
         CHECK(restoredColor.sfxWeaponCustomColor&&restoredColor.sfxWeaponR==.8f&&restoredColor.sfxWeaponG==.1f&&restoredColor.sfxWeaponB==.3f);
         CHECK(restoredColor.sfxAuraCustomColor&&std::abs(restoredColor.sfxAuraR-18.f/255)<.000001f&&
               std::abs(restoredColor.sfxAuraG-52.f/255)<.000001f&&std::abs(restoredColor.sfxAuraB-86.f/255)<.000001f);
@@ -145,6 +151,7 @@ int main() {
         CHECK(particles.sfxAuraR==1&&particles.sfxAuraG==0&&particles.sfxAuraB==Settings{}.sfxAuraB);
         particles.resetSceneSection(11);
         CHECK(particles.sfxSmoothAura);
+        CHECK(particles.skateTrailStyle==0&&!particles.skateTrailCustomColor);
         CHECK(!particles.sfxWeaponCustomColor&&particles.sfxWeaponR==Settings{}.sfxWeaponR);
         CHECK(!particles.sfxAuraCustomColor&&particles.sfxAuraR==Settings{}.sfxAuraR&&particles.language==Language::Portuguese);
         FILE *legacyColor=_wfopen(L"build/aura-color-settings.ini",L"wb");CHECK(legacyColor);
