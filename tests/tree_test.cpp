@@ -45,6 +45,40 @@ int main(int argc,char**argv){
     }
     size_t total=0;for(const auto&a:TreeAssets)total+=a.size;CHECK(trees.bytes()==total);
     trees.beginFrame(false);CHECK(!trees.bytes());
+    // Shared native textures pick two stable replacements without changing the source tag.
+    unsigned variantCount = 0;
+    for (unsigned i = 0; i < std::size(TreeAssets); ++i) {
+        if (TreeAssets[i].alternate == i) continue;
+        ++variantCount;
+        id = i + 1;
+        CHECK(SUCCEEDED(original->SetPrivateData(TreeTag, &id, sizeof(id), 0)));
+        D3DMATRIX world{};
+        world._11 = world._22 = world._33 = world._44 = 1;
+        CHECK(SUCCEEDED(d->SetTransform(D3DTS_WORLD, &world)));
+        CHECK(trees.begin(settings));
+        Com<IDirect3DBaseTexture9> primary;
+        CHECK(SUCCEEDED(d->GetTexture(0, primary.out())));
+        trees.end();
+        bool foundAlternate = false;
+        for (int x = 1; x <= 64 && !foundAlternate; ++x) {
+            world._41 = float(x);
+            CHECK(SUCCEEDED(d->SetTransform(D3DTS_WORLD, &world)));
+            CHECK(trees.begin(settings));
+            Com<IDirect3DBaseTexture9> chosen;
+            CHECK(SUCCEEDED(d->GetTexture(0, chosen.out())));
+            trees.end();
+            if (chosen.p != primary.p) {
+                CHECK(trees.begin(settings));
+                CHECK(SUCCEEDED(d->GetTexture(0, restored.out())) && restored.p == chosen.p);
+                trees.end();
+                foundAlternate = true;
+            }
+        }
+        CHECK(foundAlternate);
+        CHECK(SUCCEEDED(d->GetTexture(0, restored.out())) && restored.p == original.p);
+        trees.beginFrame(false);
+    }
+    CHECK(variantCount == 3);
     if(argc>1){
         // Optional read-only integration check against explicitly supplied local artwork.
         HMODULE library=LoadLibraryExW(L"d3dx9_43.dll",nullptr,LOAD_LIBRARY_SEARCH_SYSTEM32);CHECK(library);

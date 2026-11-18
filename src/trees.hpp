@@ -5,6 +5,8 @@
 #include <bcrypt.h>
 #include <cstring>
 #include <array>
+#include <bit>
+#include <cstdint>
 
 // Replaces only an exactly identified native tree draw. No retained game texture cache.
 class TreeFX {
@@ -57,6 +59,22 @@ class TreeFX {
         }
         textures_[index].p=texture.p;texture.p=nullptr;return textures_[index];
     }
+    unsigned placementAsset(unsigned index) const {
+        const unsigned alternate = TreeAssets[index].alternate;
+        if (alternate == index) return index;
+        D3DMATRIX world{};
+        if (FAILED(device_->GetTransform(D3DTS_WORLD, &world))) return index;
+        // Hash the static object's translation, independent of view and draw order.
+        uint32_t hash = 0;
+        for (float coordinate : {world._41, world._42, world._43}) {
+            if (!std::isfinite(coordinate)) return index;
+            hash = (hash ^ (coordinate == 0.f ? 0u : std::bit_cast<uint32_t>(coordinate))) * 0x9e3779b1u;
+        }
+        hash ^= hash >> 16;
+        hash *= 0x7feb352du;
+        hash ^= hash >> 15;
+        return hash & 1 ? alternate : index;
+    }
   public:
     explicit TreeFX(IDirect3DDevice9 *device):device_(device){}
     ~TreeFX(){invalidate();if(hash_)BCryptCloseAlgorithmProvider(hash_,0);}
@@ -76,7 +94,10 @@ class TreeFX {
         if(FAILED(device_->GetTexture(0,original.out()))||!original.p||original->GetType()!=D3DRTYPE_TEXTURE)return false;
         const unsigned id=identify(static_cast<IDirect3DTexture9*>(original.p));
         if(!id)return false;
-        auto*texture=replacement(id-1);if(!texture||FAILED(device_->SetTexture(0,texture)))return false;
+        const unsigned index = id - 1, selected = placementAsset(index);
+        auto *texture = replacement(selected);
+        if (!texture && selected != index) texture = replacement(index);
+        if (!texture || FAILED(device_->SetTexture(0,texture))) return false;
         saved_.p=original.p;original.p=nullptr;active_=enabled_=true;return true;
     }
     size_t bytes()const{size_t bytes=0;for(size_t i=0;i<textures_.size();i++)if(textures_[i].p)bytes+=TreeAssets[i].size;return bytes;}

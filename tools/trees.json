@@ -99,7 +99,8 @@
       "sourceSha256": "288ad10d67b90937d3dbaba4f13ecc96d54c0b26226e701c549fb2f2bb421bb3",
       "uploadSha256": "e8812133c4dc14cbe61f9449629f77157ea7ea0e4a11bb70b8ab5a9b15a03743",
       "decodedSha256": "2d84bc61b1fa5a3b7e7ddcf84a8c4b83f7cf98f5061e0ee7df4136ebd1fe5f37",
-      "asset": "assets/trees/bark-09.dds"
+      "asset": "assets/trees/bark-09.dds",
+      "alternateAsset": "assets/trees/flaris-round-alt.dds"
     },
     {
       "file": "obj_macoprtr03-02.dds",
@@ -109,7 +110,7 @@
       "sourceSha256": "d97a34750ddbfaa0daa31dbebf3ef736bd3f3b6b2da7c23242eef48d118b3f2b",
       "uploadSha256": "c15658faf6391eabbee0de16d5ec33a1754eb71c4a65bcc7ea4957eda9740b0b",
       "decodedSha256": "cfd510f32a818d8efa26c20cf3b53aa8fbe8bfb5e3b40af6ee63a02cb8d76bf9",
-      "asset": "assets/trees/bark-09.dds"
+      "asset": "assets/trees/flaris-round-03.dds"
     },
     {
       "file": "obj_macoprtr04-02.dds",
@@ -139,7 +140,8 @@
       "sourceSha256": "2a2f29f548a5ea548faad35aefb9d3f8905f5dd71cc08b8f1079a03555f42f46",
       "uploadSha256": "61fca935da0d44811867b065399d84bdc67a687b3c1eda2f9df7ccf84efab0ea",
       "decodedSha256": "299321383e0fe9142f708a329a830d60d956ef1640239c32f026773934d833cf",
-      "asset": "assets/trees/bark-12.dds"
+      "asset": "assets/trees/bark-12.dds",
+      "alternateAsset": "assets/trees/flaris-needle-alt.dds"
     },
     {
       "file": "obj_macoprtr11-02.dds",
@@ -149,7 +151,8 @@
       "sourceSha256": "2a2f29f548a5ea548faad35aefb9d3f8905f5dd71cc08b8f1079a03555f42f46",
       "uploadSha256": "61fca935da0d44811867b065399d84bdc67a687b3c1eda2f9df7ccf84efab0ea",
       "decodedSha256": "299321383e0fe9142f708a329a830d60d956ef1640239c32f026773934d833cf",
-      "asset": "assets/trees/bark-12.dds"
+      "asset": "assets/trees/bark-12.dds",
+      "alternateAsset": "assets/trees/flaris-needle-alt.dds"
     },
     {
       "file": "obj_macoprtr12-02.dds",
@@ -169,7 +172,8 @@
       "sourceSha256": "7666b9c1c5106d461180ed643eff74bb4e5009ee61d58dfc9fcd5da9599c4799",
       "uploadSha256": "8a8007a5c89f269a5728b321c9845c46b36349f15154ba57fbfa6432f57b67dc",
       "decodedSha256": "535791224f7c6d8c1059a4eeff7180c6bc89e2ed7e7a61869df2b85e1ff95168",
-      "asset": "assets/trees/bark-12.dds"
+      "asset": "assets/trees/flaris-large-13.dds",
+      "alternateAsset": "assets/trees/flaris-large-alt.dds"
     },
     {
       "file": "obj_macoprtr13-03.dds",
@@ -189,7 +193,7 @@
       "sourceSha256": "a6fe7773844b409dc9665db258f7c16eea4fe00ae12b94661e4578b0a3dc628d",
       "uploadSha256": "abca87c05ad1ca3c5d326753f1bd374ddc8f81e4917f170fed218b1701f64996",
       "decodedSha256": "ea7f48a7822f16de6d09bdcece188e3851637f0d0ed699b110f1681323efcd1f",
-      "asset": "assets/trees/bark-12.dds"
+      "asset": "assets/trees/flaris-sparse-14.dds"
     },
     {
       "file": "obj_macoprtr15-02.dds",
@@ -199,7 +203,8 @@
       "sourceSha256": "7666b9c1c5106d461180ed643eff74bb4e5009ee61d58dfc9fcd5da9599c4799",
       "uploadSha256": "8a8007a5c89f269a5728b321c9845c46b36349f15154ba57fbfa6432f57b67dc",
       "decodedSha256": "535791224f7c6d8c1059a4eeff7180c6bc89e2ed7e7a61869df2b85e1ff95168",
-      "asset": "assets/trees/bark-12.dds"
+      "asset": "assets/trees/flaris-large-13.dds",
+      "alternateAsset": "assets/trees/flaris-large-alt.dds"
     },
     {
       "file": "obj_macoprtr15-03.dds",

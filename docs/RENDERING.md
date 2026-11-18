@@ -49,10 +49,13 @@ The optional panel cursor acquires a balanced negative Windows cursor-display co
 Experimental. It changes recognized tree bark independently of Materials and
 Grass; image profiles retain its switch. Native geometry, UVs, lighting and
 foliage remain in use, with the identified snowy branch atlas also replaced.
-Shared source atlases receive the same appearance wherever they occur; there is
-no map-coordinate gate.
+Ordinary Flaris trees use individual color grades and bark patterns. Three
+source textures shared by multiple models have two patterns chosen by each
+object's world position. The choice is stable as the camera moves, and two
+placements can still pick the same pattern. Texture matching is independent of
+the current map.
 
-The DLL embeds 15 shared DXT1/DXT5 textures with complete mip chains (830,400 bytes
+The DLL embeds 21 DXT1/DXT5 textures with complete mip chains (1,223,728 bytes
 of compressed GPU data) for 22 original atlas files. Exact first-mip SHA-256 upload
 identities, including verified ARGB8 decodes, use texture-private metadata and the
 existing resource-write invalidation hooks. Replacements load lazily per device
