@@ -173,5 +173,6 @@ class Runtime {
     DWORD drawFVF_ = 0;
     bool fvfKnown_ = false, shaderKnown_ = false, targetKnown_ = false, vertexShaderActive_ = false;
     bool sawWorld_ = false, hudStarted_ = false, sawScreenSpace_ = false;
+    bool winterFlaris_ = false;
 };
 void DrawPanel(Runtime &runtime);

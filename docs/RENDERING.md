@@ -45,31 +45,37 @@ The optional panel cursor acquires a balanced negative Windows cursor-display co
 
 ### Experimental trees
 
-**World → Vegetation → Trees** is opt-in and marked Experimental. Its Bark and
-Foliage switches are independent when Trees is enabled. Bark is on by default
-within the section and includes the snowy branch atlas. Foliage is off by
-default and replaces the leaves of eleven ordinary Flaris tree models and the
-hanging vines of the forked tree. Night foliage fill can still
-identify the original leaf material while the replacement texture is bound.
+**World → Vegetation → Trees** is opt-in and marked Experimental. Under Trees,
+Bark updates the trunks and snowy branch material, and Foliage repaints Flaris
+leaves and willow vines as well as the needles on Azria's spruces and bare
+branches. Azria keeps its native distribution of snow and exposed needles.
+Winter foliage selects separate snow-covered broadleaf and willow atlases
+while the player is in Flaris, even with Foliage off. It takes precedence over
+the regular Flaris repaint. Night foliage fill identifies the original leaf
+material while the replacement texture is bound.
 Flaris foliage retains denser coverage near the trunk, with smaller openings
 between outer leaf sprays and clear margins at exposed mesh edges. The masks
 retain cutout coverage as the crown recedes, using the original material alpha state.
-Older configurations keep their bark setting. Image profiles retain all three
-switches. The replacements use native geometry, UVs, lighting and alpha state.
-Ordinary Flaris trees use individual color grades and bark patterns. Three
-shared bark sources and one shared leaf source each have two patterns. The
-object's world position selects the pattern. The choice is stable as the camera moves, and two
-placements can still pick the same pattern. Texture matching is independent of
-the current map.
+Winter crowns inherit the regular repaint's alpha data at every mip. Azria
+needle masks retain the original leaves and gaps at full size. The replacements
+use native geometry, UVs, lighting and alpha state. Four shared bark sources and
+one shared leaf source each have two patterns selected by world translation.
 
-The DLL embeds 33 DXT1/DXT5 textures with complete mip chains (2,228,944 bytes
-of compressed GPU data) for 34 original atlas files. Exact first-mip SHA-256 upload
+**World → Vegetation → Ground snow** replaces recognized Flaris ground
+textures with uneven snow and frost over grass, soil, rock and paving. It has
+its own switch and uses the native terrain blend masks. The native player
+position and Madrigal world ID gate both winter options to Flaris on the
+supported client. Existing 3D grass keeps its original placement data. Both
+winter switches are off by default and persist across image profiles.
+
+The DLL embeds 80 DXT1/DXT5 textures with complete mip chains (6,402,496 bytes
+of compressed GPU data) for 69 original atlas files. Exact first-mip SHA-256 upload
 identities, including verified ARGB8 decodes, use texture-private metadata and the
 existing resource-write invalidation hooks. Replacements load lazily per device
 and bind only for an accepted native perspective draw before the HUD. Unknown
-resources, custom shaders and off-screen targets stay native. Disabling Trees or
-the master switch releases its cache on the next frame; device invalidation
-releases it immediately. Production needs no D3DX or image decoder.
+resources, custom shaders and off-screen targets stay native. The shared cache
+is released when all replacement features are disabled, on master disable or
+on device invalidation. Production needs no D3DX or image decoder.
 
 ## When an effect is visible
 

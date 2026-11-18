@@ -69,7 +69,8 @@
       "sourceSha256": "2bb650410a191565509242b8d97c3e6a894149b5f656d3ed84fcde20c0a28e03",
       "uploadSha256": "af8be7aaf4a62ba18c1d7f29b9f3ef0cbf1436e6eab88e767e8e1dee4371d4af",
       "decodedSha256": "336f735225755273b9e7e34fac42b7f3cb67789e23c77d80e889b28bd8b0f049",
-      "asset": "assets/trees/bark-07.dds"
+      "asset": "assets/trees/bark-07.dds",
+      "alternateAsset": "assets/trees/azria-bark-08.dds"
     },
     {
       "file": "obj_azriatree08-b1.dds",
@@ -79,7 +80,8 @@
       "sourceSha256": "2bb650410a191565509242b8d97c3e6a894149b5f656d3ed84fcde20c0a28e03",
       "uploadSha256": "af8be7aaf4a62ba18c1d7f29b9f3ef0cbf1436e6eab88e767e8e1dee4371d4af",
       "decodedSha256": "336f735225755273b9e7e34fac42b7f3cb67789e23c77d80e889b28bd8b0f049",
-      "asset": "assets/trees/bark-07.dds"
+      "asset": "assets/trees/bark-07.dds",
+      "alternateAsset": "assets/trees/azria-bark-08.dds"
     },
     {
       "file": "obj_azriatree09-b1.dds",
@@ -100,7 +102,8 @@
       "uploadSha256": "adf298f8a443f3af4802b8eae5c469154c7fef572b1b4716705df952317af259",
       "decodedSha256": "8fd4edb957197077ad34f1ccd3be0421edb1be23637c23a1cbeeead7daac1f0d",
       "asset": "assets/trees/flaris-leaves-round-01.dds",
-      "kind": "foliage"
+      "kind": "foliage",
+      "winterAsset": "assets/trees/flaris-snow-leaves-round-01.dds"
     },
     {
       "file": "obj_macoprtr02-01.dds",
@@ -111,7 +114,8 @@
       "uploadSha256": "732b05a51125179866bb15a7b0e60419c48bcea712c796c8490752bfcae8f5f5",
       "decodedSha256": "9e8db02494f2d56edc5341432f99f6139265029162b968b9fff38023600d78a1",
       "asset": "assets/trees/flaris-leaves-bronze-02.dds",
-      "kind": "foliage"
+      "kind": "foliage",
+      "winterAsset": "assets/trees/flaris-snow-leaves-bronze-02.dds"
     },
     {
       "file": "obj_macoprtr02-02.dds",
@@ -133,7 +137,8 @@
       "uploadSha256": "a5323360f29d793aa48af8083e837feeca28c42a0aaff1fca4dbde858ba6adce",
       "decodedSha256": "4843973c429f88562a682ed4aac56690b2dbb87e3fdf1a41da489dc8f786f1f6",
       "asset": "assets/trees/flaris-leaves-spring-03.dds",
-      "kind": "foliage"
+      "kind": "foliage",
+      "winterAsset": "assets/trees/flaris-snow-leaves-spring-03.dds"
     },
     {
       "file": "obj_macoprtr03-02.dds",
@@ -154,7 +159,8 @@
       "uploadSha256": "45231467df11994a2ebce7c66edfbbb2226e334d749918741b32aedbe968829a",
       "decodedSha256": "4840be222504c16bc3c0f314b91155b628391e4a4af4e13601356b283f4dcdda",
       "asset": "assets/trees/flaris-leaves-dense-04.dds",
-      "kind": "foliage"
+      "kind": "foliage",
+      "winterAsset": "assets/trees/flaris-snow-leaves-dense-04.dds"
     },
     {
       "file": "obj_macoprtr04-02.dds",
@@ -175,7 +181,8 @@
       "uploadSha256": "e6c7fd2749e99d30cec649955dbed3d7380a6a260cd0da5aa5ebe7c213e47b61",
       "decodedSha256": "0654005f54ac943ec0e74be9077a49d50e72d7e58a53c1fafc1c998116818339",
       "asset": "assets/trees/flaris-leaves-maple-05.dds",
-      "kind": "foliage"
+      "kind": "foliage",
+      "winterAsset": "assets/trees/flaris-snow-leaves-maple-05.dds"
     },
     {
       "file": "obj_macoprtr05-02.dds",
@@ -196,7 +203,8 @@
       "uploadSha256": "d98fdb0e2b7d6f9660667ef8037f712dd3a91bd131a2a58b3f86102a9d1ce3cb",
       "decodedSha256": "06de2594bdac8fd09134562d069fe2d95b089d86ef0420de0cf3ccab3b109674",
       "asset": "assets/trees/flaris-leaves-narrow-10.dds",
-      "kind": "foliage"
+      "kind": "foliage",
+      "winterAsset": "assets/trees/flaris-snow-leaves-narrow-10.dds"
     },
     {
       "file": "obj_macoprtr10-02.dds",
@@ -218,7 +226,8 @@
       "uploadSha256": "ef112a4187d3781f5b801b42b18f4716f7caadada705e0f1bbf79a804dfa2201",
       "decodedSha256": "2bd35a0781aee0b6fe2a0bf6964018b6a9c4c852fa2d7479ea49642f24ae5f5f",
       "asset": "assets/trees/flaris-leaves-olive-11.dds",
-      "kind": "foliage"
+      "kind": "foliage",
+      "winterAsset": "assets/trees/flaris-snow-leaves-olive-11.dds"
     },
     {
       "file": "obj_macoprtr11-02.dds",
@@ -240,7 +249,8 @@
       "uploadSha256": "f556d36bb2398a8cb671dfe968ead6789cd4193efee9b20d160756f75579b5d3",
       "decodedSha256": "ff55df3188b10bc93f5638386d4191b1b5f643df12d2171976f5632fd86b0494",
       "asset": "assets/trees/flaris-willow-foliage.dds",
-      "kind": "foliage"
+      "kind": "foliage",
+      "winterAsset": "assets/trees/flaris-snow-willow-foliage.dds"
     },
     {
       "file": "obj_macoprtr12-02.dds",
@@ -261,7 +271,8 @@
       "uploadSha256": "360b93e02dd9a0896769d3f1468307c072802e2747a9b0bb40e99f1641e36d7a",
       "decodedSha256": "d44f7784ee2e909caeaf4fbf23d164613a4c78e46e84c2de54cd6dc43b0cd8f7",
       "asset": "assets/trees/flaris-willow-vines.dds",
-      "kind": "foliage"
+      "kind": "foliage",
+      "winterAsset": "assets/trees/flaris-snow-willow-vines.dds"
     },
     {
       "file": "obj_macoprtr13-01.dds",
@@ -273,7 +284,9 @@
       "decodedSha256": "91a64af9f0dace17d292fe37410143dee9ff03e6224f2b1617e4e69a12d4d731",
       "asset": "assets/trees/flaris-leaves-roots-13.dds",
       "kind": "foliage",
-      "alternateAsset": "assets/trees/flaris-leaves-tall-15.dds"
+      "alternateAsset": "assets/trees/flaris-leaves-tall-15.dds",
+      "winterAsset": "assets/trees/flaris-snow-leaves-roots-13.dds",
+      "alternateWinterAsset": "assets/trees/flaris-snow-leaves-tall-15.dds"
     },
     {
       "file": "obj_macoprtr13-02.dds",
@@ -305,7 +318,8 @@
       "uploadSha256": "46f36acd226f55b47de4daab301fb23351ddfaf7e1542a9ec5c0771454bce4a0",
       "decodedSha256": "1e8e90a0810bff3294700934bfce32fb422b25701e54ad304497bfa6ee0f306b",
       "asset": "assets/trees/flaris-leaves-copper-14.dds",
-      "kind": "foliage"
+      "kind": "foliage",
+      "winterAsset": "assets/trees/flaris-snow-leaves-copper-14.dds"
     },
     {
       "file": "obj_macoprtr14-02.dds",
@@ -327,7 +341,9 @@
       "decodedSha256": "91a64af9f0dace17d292fe37410143dee9ff03e6224f2b1617e4e69a12d4d731",
       "asset": "assets/trees/flaris-leaves-roots-13.dds",
       "kind": "foliage",
-      "alternateAsset": "assets/trees/flaris-leaves-tall-15.dds"
+      "alternateAsset": "assets/trees/flaris-leaves-tall-15.dds",
+      "winterAsset": "assets/trees/flaris-snow-leaves-roots-13.dds",
+      "alternateWinterAsset": "assets/trees/flaris-snow-leaves-tall-15.dds"
     },
     {
       "file": "obj_macoprtr15-02.dds",
@@ -359,6 +375,391 @@
       "uploadSha256": "344456fee59e9f381ed7d651eec85cb8dd5a7dfe46fc189230b858f4df0b3565",
       "decodedSha256": "77bea04aadabfbec644b4d2e1cf96851b2c511ad557d4c99ca85009ddb8810f7",
       "asset": "assets/trees/bark-15.dds"
+    },
+    {
+      "file": "obj_azriatree01-1.dds",
+      "width": 256,
+      "height": 256,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "f1ba737319b2887638c4dfe8839926def0232d5f4cebc13f98028329e2c1a4a6",
+      "uploadSha256": "762c6c9c84c49b7c5df3c5384050106a9db16a1a5f26361e98fe90e6a8ca98b2",
+      "decodedSha256": "fa3f7d58b70d02dc355bcdbd7bcab46b73ac8793a0416b5b2b4b18f8f97391f4",
+      "kind": "foliage",
+      "asset": "assets/trees/azria-01-1.dds"
+    },
+    {
+      "file": "obj_azriatree01-2.dds",
+      "width": 256,
+      "height": 256,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "44383037bf27469757989001f1acba7f00a3df6b47cbc28be31c585c8c91629f",
+      "uploadSha256": "25faa4e9dd1366fb0871f7b5496aa7e557e3187bce7d6f3fbe6a3475361a9295",
+      "decodedSha256": "7415f07dda6ba6038c4b7afeb190a3aae4c2c106dea79b50b421b1e01f1741b4",
+      "kind": "foliage",
+      "asset": "assets/trees/azria-01-2.dds"
+    },
+    {
+      "file": "obj_azriatree01-3.dds",
+      "width": 256,
+      "height": 256,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "9c0d7746c7098b3976a708d1fe0b50af6c651378d6574f463aec8eece9ad77fd",
+      "uploadSha256": "1ad293e9929608119f242ec269bcca680a85fedd67d57e91c04dd459bc34ffb4",
+      "decodedSha256": "adc5bdfed1214c1bf3979455afa08d1bbec2df0859a597a22c2edf1a28d8c848",
+      "kind": "foliage",
+      "asset": "assets/trees/azria-01-3.dds"
+    },
+    {
+      "file": "obj_azriatree01-4.dds",
+      "width": 256,
+      "height": 256,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "d9b69ae0d1da10947c3966d1a01a437e745cdcf9b3ad080ec51feff80bece039",
+      "uploadSha256": "696f2d7310d4d4071a6de6a77bcb5aee82f4eb2d2fed81dd3394c45d215c0a9e",
+      "decodedSha256": "52316c3a5366df18d5d3e3a70d424d06d720962d03dce6d6d49f19741d3f8ec3",
+      "kind": "foliage",
+      "asset": "assets/trees/azria-01-4.dds"
+    },
+    {
+      "file": "obj_azriatree02-1.dds",
+      "width": 256,
+      "height": 256,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "6068ac43939a887096230c8b9641b68848f3baf220d24a3c243b7a47a2e7d69c",
+      "uploadSha256": "b37e01e4068e1602fd3601135b972a7139b5aaef1817da5ca64e4e4aeb9e5ee0",
+      "decodedSha256": "1e03dd4d08f3cecb5e7501d165d648560c61d0dda381b160d5c7d46f61f86f3c",
+      "kind": "foliage",
+      "asset": "assets/trees/azria-02-1.dds"
+    },
+    {
+      "file": "obj_azriatree02-2.dds",
+      "width": 256,
+      "height": 256,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "2585344248bbfdd3a1db7e8e981ad98f83b17d04905d5232af705d8344146446",
+      "uploadSha256": "b670c4d3876b5fda87eaa0ff9466089b69852c1e7729ca2f422e0f3167d80a55",
+      "decodedSha256": "9b421adaa4edf315fc0bdd0bd93e09b8125f3473e37df176db7afac098c7caab",
+      "kind": "foliage",
+      "asset": "assets/trees/azria-02-2.dds"
+    },
+    {
+      "file": "obj_azriatree02-3.dds",
+      "width": 256,
+      "height": 256,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "389008c7c5164ae3b45cfaa5a7d16465b568d75d328150c1ca917ff792c5789d",
+      "uploadSha256": "db937ec74d89cce49e8d8be29734eac80a58e4f7fcdd702275018b1d5b35afe6",
+      "decodedSha256": "f0d4c74d8063ceb6cfc6d875bd3c36435fdd1970279fcd9917467c67b5acf198",
+      "kind": "foliage",
+      "asset": "assets/trees/azria-02-3.dds"
+    },
+    {
+      "file": "obj_azriatree02-4.dds",
+      "width": 256,
+      "height": 256,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "06a4ff5765cb77fe2a2cc5818113a1b004159952fb21134aadcdc12bac58ae25",
+      "uploadSha256": "a4ea18f6fd1ea32172186ddbd33ee2fde8ae0ff8bb309ec28fa51eab007a122f",
+      "decodedSha256": "d6980d5b184a9e6a9854e0fe435faceb3b2af8e4a405fd6794e6e82726ea6635",
+      "kind": "foliage",
+      "asset": "assets/trees/azria-02-4.dds"
+    },
+    {
+      "file": "obj_azriatree03-1.dds",
+      "width": 256,
+      "height": 256,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "30a410f79d26a81ed71c564a47e732cd32b180d7b5705cf25b3517daa3971913",
+      "uploadSha256": "60c5aba84e0ba9ab9cabe8004a315dec38e51fc8f03504bb36275ed7be2e5efb",
+      "decodedSha256": "048248de2109efe341099c247211198eeff670a7b2e86070e6caa406f6e732fc",
+      "kind": "foliage",
+      "asset": "assets/trees/azria-03-1.dds"
+    },
+    {
+      "file": "obj_azriatree03-2.dds",
+      "width": 256,
+      "height": 256,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "ea98786cb3465e0dc0bbc6394bafa4370bb326338e460ae1cc16a2cfb3c6ba1e",
+      "uploadSha256": "7714c2d0a6e15cd3415eb1af50bdf884e2367da6de9340898b6dee9e758a8ca7",
+      "decodedSha256": "617715a9bdcbc2a17abaa14256ba9fd910f409e09a95b1ec03f5d50b278584b3",
+      "kind": "foliage",
+      "asset": "assets/trees/azria-03-2.dds"
+    },
+    {
+      "file": "obj_azriatree03-3.dds",
+      "width": 256,
+      "height": 256,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "f2f9d12dad212b9e3af1da5a00b04555eed71e268c1ae2c5d0113d820c66f612",
+      "uploadSha256": "edd028ca6ed606576a8976d402d624a45c32588669ba60391e7753f4e2f81334",
+      "decodedSha256": "fcad5427705b436e4151ffe1fb75709f386186aa515beb06b10cc4b4c1f9f7c5",
+      "kind": "foliage",
+      "asset": "assets/trees/azria-03-3.dds"
+    },
+    {
+      "file": "obj_azriatree03-4.dds",
+      "width": 256,
+      "height": 256,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "21af9d068fce5c485a4681d8336b0fc0f0a2b0312e9348f648d43c16905f74a9",
+      "uploadSha256": "80a17ed7dcb31081b1a0388b74ac9aa7a85e06667b20bf97d4466bde78834ee7",
+      "decodedSha256": "db34d0304d873bccf69e6b6e49bc3c4e0b1e8f647796a9ad3002a836293629c7",
+      "kind": "foliage",
+      "asset": "assets/trees/azria-03-4.dds"
+    },
+    {
+      "file": "obj_azriatree05-1.dds",
+      "width": 256,
+      "height": 256,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "3eaf6ddb1337e0de9fc30c9b393648e1c77211bb430f3d306b8889e451a1f677",
+      "uploadSha256": "95598d1530b6d14775a3fc22df782a4176ad2185056ebfbdf30f4fcb3da0cad2",
+      "decodedSha256": "71e6c9522331aa19d2d39e3874b5c631a3ca35aca6101ecbe2b877e5a88e53b3",
+      "kind": "foliage",
+      "asset": "assets/trees/azria-05-1.dds"
+    },
+    {
+      "file": "obj_azriatree05-2.dds",
+      "width": 256,
+      "height": 256,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "1152141a15af22cd757f5139c3d19b7546d037683fbf7cf5a596dcfa7ccf96d1",
+      "uploadSha256": "99a3317fdb0c4011ddc64aa2150700ffb7706de733833bbb2e441555a95a26c1",
+      "decodedSha256": "7b488def8e5d25073098415b6846ecbda0933823bd746da5fa2111426abae812",
+      "kind": "foliage",
+      "asset": "assets/trees/azria-05-2.dds"
+    },
+    {
+      "file": "obj_azriatree05-3.dds",
+      "width": 256,
+      "height": 256,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "26fba308247ac420068e0b77ea47b51640e20f9c5e4bc12504a3d5505348555e",
+      "uploadSha256": "d7e774cecf7e4f35f30fe3da1f2e7c5b5582920991c41bd7f813b2aa4532f338",
+      "decodedSha256": "7ab63e7e17ddbdba7beeac50baf1496bf412615eb9633233b3aedd42732ff10d",
+      "kind": "foliage",
+      "asset": "assets/trees/azria-05-3.dds"
+    },
+    {
+      "file": "obj_azriatree05-4.dds",
+      "width": 256,
+      "height": 256,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "1a2060bea315e740b89787122a83bac72d5a30c08baa27c8035cfe72cade64a7",
+      "uploadSha256": "db34841a7a5ad739e645560f8c53f863a77d2205c896e61733bea42469df7de9",
+      "decodedSha256": "d315bacfe532c602b779e3fef24d49bca0cbfab84c40969f3c404e23e1dd4c6e",
+      "kind": "foliage",
+      "asset": "assets/trees/azria-05-4.dds"
+    },
+    {
+      "file": "obj_azriatree06-1.dds",
+      "width": 256,
+      "height": 256,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "dcbdc8c37c8d8bc1ecef17b5858b2dac6302df6c3a58964065eeac849e832a0b",
+      "uploadSha256": "89ae0f6296d713afc545136fd296601c88b412843a0a4487b96d360661788c89",
+      "decodedSha256": "5a6be06c093550d65f88494eda9c57344b7c5547afd3564e9a32649240d53eba",
+      "kind": "foliage",
+      "asset": "assets/trees/azria-06-1.dds"
+    },
+    {
+      "file": "obj_azriatree06-2.dds",
+      "width": 256,
+      "height": 256,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "296ccf7d840831a95d78afcb87ddb40cd93592defa97ce43d90618d7634a0bf0",
+      "uploadSha256": "9b69bc33dbb6a61f3e570ab9cfa709d3c4083f9a1da653ffaf94ea72eff5a326",
+      "decodedSha256": "295ebd4f6ca2ccb65128bca87d358db6985187085e2c74393500afb4a9daac51",
+      "kind": "foliage",
+      "asset": "assets/trees/azria-06-2.dds"
+    },
+    {
+      "file": "obj_azriatree07-1.dds",
+      "width": 256,
+      "height": 256,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "4f75b4ed4e9943970b13422324ff9851b0666cce7266d6a7206049e7bfc8e090",
+      "uploadSha256": "c0981dbfdcaf5805f794db57089b6e5c6fb1504b521bbc25e1efa52fbb12e8b1",
+      "decodedSha256": "98b96aa5bb7c159697119e68116bd0933e6248b07ba5ce83f1ecb5f90734b039",
+      "kind": "foliage",
+      "asset": "assets/trees/azria-07-1.dds"
+    },
+    {
+      "file": "obj_azriatree08-1.dds",
+      "width": 256,
+      "height": 256,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "296ccf7d840831a95d78afcb87ddb40cd93592defa97ce43d90618d7634a0bf0",
+      "uploadSha256": "9b69bc33dbb6a61f3e570ab9cfa709d3c4083f9a1da653ffaf94ea72eff5a326",
+      "decodedSha256": "295ebd4f6ca2ccb65128bca87d358db6985187085e2c74393500afb4a9daac51",
+      "kind": "foliage",
+      "asset": "assets/trees/azria-06-2.dds"
+    },
+    {
+      "file": "obj_azriatree09-1.dds",
+      "width": 256,
+      "height": 256,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "78f7a552d483d6cfc5e7cc5f02157430d711d4c61a1b87a0213fff4bb1ffbba8",
+      "uploadSha256": "fda49a19e41043614ff302a784923e41deb1908ee314b1f5d299d95785034a75",
+      "decodedSha256": "98e8a1cbe4d1b82a665fd62da31346d481acce4952bc5247a2cb3dfec879229d",
+      "kind": "foliage",
+      "asset": "assets/trees/azria-09-1.dds"
+    },
+    {
+      "file": "obj_azriatree09-2.dds",
+      "width": 128,
+      "height": 256,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "82a1b716ad2c00052c53d3feab4a3fc12f5c4f08d3d0acdec0956420efa30fc6",
+      "uploadSha256": "bd1c196c0e259b6a9c6b806a9a2363353a6c0d950d2db64aa714e0fb5d01597d",
+      "decodedSha256": "1b35e5356048d04a6259267f9bfdecd13bccb6417c2d25a2418304ae6599e181",
+      "kind": "foliage",
+      "asset": "assets/trees/azria-09-2.dds"
+    },
+    {
+      "file": "World/Texture/default.dds",
+      "width": 256,
+      "height": 256,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "76ace32e760cfdb3201c9a2f1bbb76875fd93ea663f283f058751d3f6024d2b9",
+      "uploadSha256": "584db2e3261087bd2b7286dd1ebec2eb8cc08e91a0d740089843b195e053afe6",
+      "decodedSha256": "bc86859a8b191666fad33fe5c55819bb47013ee7270202a2609b620b8cd61223",
+      "kind": "ground",
+      "asset": "assets/trees/flaris-ground-default.dds"
+    },
+    {
+      "file": "World/Texture/ground_lawn001.dds",
+      "width": 256,
+      "height": 256,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "cac19aabe93003ede3328dbdf17e6f77ce2edaed273bd86db8238091216419b5",
+      "uploadSha256": "f1e54130da2e27afc90fd7e9705f18c67e6f2d8c4783109d73bdf1c4f007db24",
+      "decodedSha256": "fc603d6b63e0fb2f40f1236c339e239d46b4e2762e5107a5904527cc2ce0dbda",
+      "kind": "ground",
+      "asset": "assets/trees/flaris-ground-ground_lawn001.dds"
+    },
+    {
+      "file": "World/Texture/ground_lawn007.dds",
+      "width": 256,
+      "height": 256,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "aa9371d99daae056507101241cb3043f4bed6f0ab86b62309c72e10d3720f1a3",
+      "uploadSha256": "bd475d3e4d6c58af22fa2c2f57d0176145a73d618f849d778eb392f172e1bde7",
+      "decodedSha256": "000b58fd491a7b73e3fe2de321a53d13af923dae769e7e4d20058b3f8696a71d",
+      "kind": "ground",
+      "asset": "assets/trees/flaris-ground-ground_lawn007.dds"
+    },
+    {
+      "file": "World/Texture/Upresia_Ground01.dds",
+      "width": 512,
+      "height": 512,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "af37711d00a4ceec87b1e0b71fdee2aa121e7c01a95dced2f4ff79f9cbf7bea3",
+      "uploadSha256": "151360d893f4c7a375d427623587b66998a2ab1b9be28c7a2aa623b292c1aaa0",
+      "decodedSha256": "b2bff5c81cd405df12bc0312dd35d015aa0d4f48e5b2795859b2265cb4e46968",
+      "kind": "ground",
+      "asset": "assets/trees/flaris-ground-upresia_ground01.dds"
+    },
+    {
+      "file": "World/Texture/Upresia_Ground01_01.dds",
+      "width": 512,
+      "height": 512,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "f3cddf8920c2b609db3cc08cb94a089163df6a8f114248d7e3b7b969b9edaa23",
+      "uploadSha256": "f17c64fca93131a953bbdea1c06d5e0573a24376624cf7965ee5577a375cfaed",
+      "decodedSha256": "c1041c7e4efce95ffd7fd56682febf982deccab924a73f270a13bfd463cca211",
+      "kind": "ground",
+      "asset": "assets/trees/flaris-ground-upresia_ground01_01.dds"
+    },
+    {
+      "file": "World/Texture/Kalilun_Grass01.dds",
+      "width": 512,
+      "height": 512,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "5bce575134073564fd8f4d0dbc63d68bc6888ff159ef042c3429e68517320c53",
+      "uploadSha256": "bebf8c73531511801bf5bccf19b4548f19905e1732b3d45cfc0103a29b11dda9",
+      "decodedSha256": "ccf59d5e330c2d21049d1878340145ad8f5822d9fa9a56ae07f34ee269d5ed45",
+      "kind": "ground",
+      "asset": "assets/trees/flaris-ground-kalilun_grass01.dds"
+    },
+    {
+      "file": "World/Texture/Kalilun_Grass02.dds",
+      "width": 512,
+      "height": 512,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "dcbd2df23dc25ecab0d7f19df36f76c43d994d29404cddac81b92a8650ddc7e3",
+      "uploadSha256": "243a5dece02b785a47630581e254f6b882b7e529ba85dd8c679c906c67b70300",
+      "decodedSha256": "288c216f3e7e2cd60307bb3be71014c81717c7c1de766efbd56fa7f9e473d312",
+      "kind": "ground",
+      "asset": "assets/trees/flaris-ground-kalilun_grass02.dds"
+    },
+    {
+      "file": "World/Texture/ground_clay001.dds",
+      "width": 256,
+      "height": 256,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "4e4cd627ce358da90c62695689e1f853f413779c8a062b23b85bf353ce750255",
+      "uploadSha256": "82e73174917997903f2e0fb417e16be1d4a2fb0d8aebfb4abba0de273c5c977a",
+      "decodedSha256": "2416599925ee1567d93c8a28f3562eac02b1e9de452fb86defec962b73f6c03a",
+      "kind": "ground",
+      "asset": "assets/trees/flaris-ground-ground_clay001.dds"
+    },
+    {
+      "file": "World/Texture/NewFlrock01.dds",
+      "width": 256,
+      "height": 256,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "f164b7d3d4ea8f7da2f09fff8fe965b3c445b3928b276661759bffc71f3fe359",
+      "uploadSha256": "121c2b0c2010363ef31e6b4b34a5d3cca92b0cd01479dd3f3b9e36c9682f6556",
+      "decodedSha256": "ebd30e0ebf0c50f95d43d8243c383b68ba52ad12c485ab4db184a47039f46081",
+      "kind": "ground",
+      "asset": "assets/trees/flaris-ground-newflrock01.dds"
+    },
+    {
+      "file": "World/Texture/brick_MaFl01.dds",
+      "width": 512,
+      "height": 512,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "79fdbf03af90b47828de741635eb5795482893a768f1c9c59405ff094f38db24",
+      "uploadSha256": "53e76b79fbcdd5d9e6d0f51f372edd94afb62e179cfb7d5fd49dba4b5d9ad66e",
+      "decodedSha256": "3a326c374573cd78f6e5426dd2f40f95b2482bcc49b9661f2bfe40ae79782cae",
+      "kind": "ground",
+      "asset": "assets/trees/flaris-ground-brick_mafl01.dds"
+    },
+    {
+      "file": "World/Texture/brick_MaFl01_new.dds",
+      "width": 512,
+      "height": 512,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "aa3dcdd6d067b16600c140befaa72910528992e7d5a7b0d81c05a1a8b56595c3",
+      "uploadSha256": "9880147723806e89dd400d8ad4bfc50aba844b6b7facaf3fda6b6104f2f76e2a",
+      "decodedSha256": "c4f5aaf9ff9965336ceb98bf8bc6ece2b2ac109b8474a227332070af39b831a1",
+      "kind": "ground",
+      "asset": "assets/trees/flaris-ground-brick_mafl01_new.dds"
+    },
+    {
+      "file": "World/Texture/MaFlPrStone01.dds",
+      "width": 256,
+      "height": 256,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "a5ecb294ee8c717e4f851a3e87cb5361566e72643a614ff3a315ebe47fa64fdb",
+      "uploadSha256": "da90c5a1d170bee314f105d1ed5af3ed7beabbedc62a43232b8ab2fe9d4eb703",
+      "decodedSha256": "aabba855c5016a8c8aaba4cc874ee971fb84379074701227c0fc4bb780460a0f",
+      "kind": "ground",
+      "asset": "assets/trees/flaris-ground-maflprstone01.dds"
+    },
+    {
+      "file": "World/Texture/MaFlPrStone02.dds",
+      "width": 256,
+      "height": 256,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "ea0a914160fff1bd9b609fb5ec2ee78b85a40ef8f05f291c758add24a0b729b5",
+      "uploadSha256": "2a3f9dd15904d980f31476bcf33807f8c5b2ce58428457a811aa9f70613bc4ea",
+      "decodedSha256": "9214b9c1edbe37f2096f12a1dbbca3803f29545a69477c223069182318298e2e",
+      "kind": "ground",
+      "asset": "assets/trees/flaris-ground-maflprstone02.dds"
     }
   ]
 }

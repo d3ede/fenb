@@ -39,14 +39,16 @@ int main() {
         CHECK(fputs("[SceneFX]\ntrees=1\n", legacy) >= 0);
         CHECK(fclose(legacy) == 0);
         Settings trees;
-        CHECK(!trees.trees && trees.treeBark && !trees.treeFoliage);
+        CHECK(!trees.trees && trees.treeBark && !trees.treeFoliage && !trees.treeWinterFoliage && !trees.winterGround);
         CHECK(trees.load(path) && trees.trees && trees.treeBark && !trees.treeFoliage);
-        trees.treeBark=false;trees.treeFoliage=true;trees.language=Language::Portuguese;
+        trees.treeBark=false;trees.treeFoliage=true;trees.treeWinterFoliage=true;trees.winterGround=true;
+        trees.language=Language::Portuguese;
         CHECK(trees.save(L"build/tree-settings.ini"));Settings restored;
         CHECK(restored.load(path)&&restored.trees&&!restored.treeBark&&restored.treeFoliage&&
-              restored.language==trees.language);
+              restored.treeWinterFoliage&&restored.winterGround&&restored.language==trees.language);
         restored.preset(0);
-        CHECK(restored.trees&&!restored.treeBark&&restored.treeFoliage&&restored.language==trees.language);
+        CHECK(restored.trees&&!restored.treeBark&&restored.treeFoliage&&
+              restored.treeWinterFoliage&&restored.winterGround&&restored.language==trees.language);
         restored.resetSceneSection(16);CHECK(restored.trees);
         restored.resetSceneSection(18);CHECK(restored.trees&&!restored.treeBark&&restored.treeFoliage);
         DeleteFileW(path);

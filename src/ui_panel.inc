@@ -281,6 +281,7 @@ std::vector<PanelItem> PanelItems(Runtime &r) {
                 {"weather", g(UiText::PanelWorld), Tr(UiText::WeatherOverride), &s.weatherOverride},
                 {"trees",g(UiText::Vegetation),g(UiText::Trees),&s.trees},
                 {"grass",g(UiText::Vegetation),g(UiText::Grass),nullptr,9},
+                {"winter-ground",g(UiText::Vegetation),g(UiText::WinterGround),&s.winterGround},
                 {"puddles",g(UiText::WetSurfaces),g(UiText::Puddles),&s.puddles}};
     case 9:
         return {{"grass",g(UiText::Grass),g(UiText::GrassCoverage),&s.grass},
@@ -780,6 +781,8 @@ void PanelParameters(Runtime &r, int item) {
         ImGui::BeginDisabled(uiParameterDisabled || !s.enabled);
         PanelToggle("tree-bark", Tr(UiText::TreeBark), s.treeBark);
         PanelToggle("tree-foliage", Tr(UiText::TreeFoliage), s.treeFoliage, Tr(UiText::TreeFoliageHelp));
+        PanelToggle("tree-winter-foliage", Tr(UiText::TreeWinterFoliage), s.treeWinterFoliage,
+                    Tr(UiText::TreeWinterFoliageHelp));
         ImGui::EndDisabled();
     }
     if (page == 5) {
@@ -820,7 +823,7 @@ PanelMaster EditorMaster(Runtime &r) {
     }
 }
 bool CanResetPanel(int page, int item) {
-    if(page==4&&item==2)return false;
+    if(page==4&&(item==2||item==4))return false;
     if (page == 3)
         return item == 2;
     if (page == 5)
@@ -1003,6 +1006,7 @@ void PanelEditor(Runtime &r) {
     if(r.editorPage==4&&selected==2)help=Tr(UiText::TreesExperimental);
     const bool puddleItem=r.editorPage==4 && !strcmp(item.id,"puddles");
     if(puddleItem)help=Tr(UiText::PuddlesHelp);
+    if(r.editorPage==4 && !strcmp(item.id,"winter-ground"))help=Tr(UiText::WinterGroundHelp);
     ImGui::InvisibleButton("description", {std::max(1.f,w-(showEnable?40:5)),25});
     Tip(help);
     draw->PushClipRect(p, {p.x + w - (showEnable ? 40 : 5), p.y + 25}, true);

@@ -139,6 +139,8 @@ inline void ApplyBuiltInVisuals(Settings &s, int index) {
     s.trees = false;
     s.treeBark = true;
     s.treeFoliage = false;
+    s.treeWinterFoliage = false;
+    s.winterGround = false;
     s.grassSnow = false;
     s.grassQuality = 1.000000f;
     s.grassDistance = 40.000000f;

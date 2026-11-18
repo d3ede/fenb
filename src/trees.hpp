@@ -8,7 +8,7 @@
 #include <bit>
 #include <cstdint>
 
-// Replaces only an exactly identified native tree draw. No retained game texture cache.
+// Replaces exactly identified native tree and ground materials.
 class TreeFX {
     IDirect3DDevice9 *device_;
     std::array<Com<IDirect3DTexture9>,std::size(TreeAssets)> textures_;
@@ -84,8 +84,27 @@ class TreeFX {
     IDirect3DTexture9 *nativeFoliage() const {
         return active_ && foliage_ ? static_cast<IDirect3DTexture9 *>(saved_.p) : nullptr;
     }
-    bool begin(const Settings&s){
-        if (active_ || !s.enabled || !s.trees || (!s.treeBark && !s.treeFoliage)) return false;
+    static bool inFlaris(uint64_t worldKey, float x, float z) {
+        // Madrigal's Flaris continent boundary on the supported client.
+        if (uint32_t(worldKey) != 1) return false;
+        constexpr float boundary[][2] = {
+            {6159,3407}, {6350,3825}, {6736,4649}, {7246,4570}, {8258,5022}, {8213,4367},
+            {8021,4037}, {8017,3496}, {7245,2685}, {6783,2631}, {6366,2922}, {7087,8157},
+            {6393,3207}, {6390,3200}
+        };
+        bool inside = false;
+        for (size_t i=0,j=std::size(boundary)-1; i<std::size(boundary); j=i++) {
+            const auto &a=boundary[i], &b=boundary[j];
+            if ((a[1]>z)!=(b[1]>z) && x<(b[0]-a[0])*(z-a[1])/(b[1]-a[1])+a[0]) inside=!inside;
+        }
+        return inside;
+    }
+    static bool enabled(const Settings &s, bool flaris) {
+        return s.enabled && ((s.trees && (s.treeBark || s.treeFoliage || (flaris && s.treeWinterFoliage))) ||
+                             (flaris && s.winterGround));
+    }
+    bool begin(const Settings &s, bool flaris = false) {
+        if (active_ || !enabled(s, flaris)) return false;
         DWORD fvf=0,z=0;D3DMATRIX projection{};
         if(FAILED(device_->GetFVF(&fvf))||(fvf!=0x112&&fvf!=0x212)||
            FAILED(device_->GetRenderState(D3DRS_ZENABLE,&z))||!z||
@@ -98,13 +117,19 @@ class TreeFX {
         const unsigned id=identify(static_cast<IDirect3DTexture9*>(original.p));
         if(!id)return false;
         const unsigned index = id - 1;
-        if (TreeAssets[index].foliage ? !s.treeFoliage : !s.treeBark) return false;
-        const unsigned selected = placementAsset(index);
+        const auto &asset = TreeAssets[index];
+        const bool foliage = asset.kind == VegetationKind::Foliage;
+        const bool winter = foliage && flaris && s.treeWinterFoliage && asset.winter != index;
+        if (asset.kind == VegetationKind::Ground ? !flaris || !s.winterGround :
+            !s.trees || (foliage ? !winter && !s.treeFoliage : !s.treeBark)) return false;
+        const unsigned placement = placementAsset(index);
+        const unsigned selected = winter ? TreeAssets[placement].winter : placement;
+        const unsigned fallback = winter ? asset.winter : index;
         auto *texture = replacement(selected);
-        if (!texture && selected != index) texture = replacement(index);
+        if (!texture && selected != fallback) texture = replacement(fallback);
         if (!texture || FAILED(device_->SetTexture(0,texture))) return false;
         saved_.p=original.p;original.p=nullptr;active_=enabled_=true;
-        foliage_=TreeAssets[index].foliage;
+        foliage_=foliage;
         return true;
     }
     size_t bytes()const{size_t bytes=0;for(size_t i=0;i<textures_.size();i++)if(textures_[i].p)bytes+=TreeAssets[i].size;return bytes;}

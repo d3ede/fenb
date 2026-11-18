@@ -13,20 +13,25 @@ int main(int argc,char**argv){
     D3DMATRIX projection{};projection._11=projection._22=1;projection._33=1.01f;projection._34=1;projection._43=-.101f;
     CHECK(SUCCEEDED(d->SetTransform(D3DTS_PROJECTION,&projection)));d->SetFVF(0x112);d->SetRenderState(D3DRS_ZENABLE,TRUE);
     d->SetSamplerState(0,D3DSAMP_MINFILTER,D3DTEXF_POINT);d->SetSamplerState(0,D3DSAMP_ADDRESSU,D3DTADDRESS_CLAMP);
+    const auto *firstBark = std::find_if(std::begin(TreeAssets), std::end(TreeAssets), [](const TreeAsset &asset) {
+        return asset.kind == VegetationKind::Bark && asset.format == D3DFMT_DXT1;
+    });
+    CHECK(firstBark != std::end(TreeAssets));
     Com<IDirect3DTexture9> original,second;
-    CHECK(SUCCEEDED(d->CreateTexture(TreeAssets[0].width,TreeAssets[0].height,1,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,original.out(),nullptr)));
-    CHECK(SUCCEEDED(d->CreateTexture(TreeAssets[0].width,TreeAssets[0].height,1,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,second.out(),nullptr)));
+    CHECK(SUCCEEDED(d->CreateTexture(firstBark->width,firstBark->height,1,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,original.out(),nullptr)));
+    CHECK(SUCCEEDED(d->CreateTexture(firstBark->width,firstBark->height,1,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,second.out(),nullptr)));
     D3DLOCKED_RECT lock{};CHECK(SUCCEEDED(original->LockRect(0,&lock,nullptr,0)));
-    for(UINT y=0;y<TreeAssets[0].height;y++)std::fill_n((DWORD*)((BYTE*)lock.pBits+y*lock.Pitch),TreeAssets[0].width,0xff326489);
+    for(UINT y=0;y<firstBark->height;y++)std::fill_n((DWORD*)((BYTE*)lock.pBits+y*lock.Pitch),firstBark->width,0xff326489);
     original->UnlockRect(0);CHECK(SUCCEEDED(d->SetTexture(0,original)));
     trees.beginFrame(true);CHECK(!trees.begin(settings));CHECK(trees.bytes()==0); // unknown uploads stay native
-    unsigned id=1;original->SetPrivateData(TreeTag,&id,sizeof(id),0);second->SetPrivateData(TreeTag,&id,sizeof(id),0);
+    unsigned id=unsigned(firstBark-TreeAssets)+1;
+    original->SetPrivateData(TreeTag,&id,sizeof(id),0);second->SetPrivateData(TreeTag,&id,sizeof(id),0);
     CHECK(trees.begin(settings));Com<IDirect3DBaseTexture9> replacement;CHECK(SUCCEEDED(d->GetTexture(0,replacement.out())));
-    CHECK(replacement.p&&replacement.p!=original.p);CHECK(trees.bytes()==TreeAssets[0].size);
+    CHECK(replacement.p&&replacement.p!=original.p);CHECK(trees.bytes()==firstBark->size);
     auto*tex=static_cast<IDirect3DTexture9*>(replacement.p);D3DSURFACE_DESC desc{};tex->GetLevelDesc(0,&desc);
-    CHECK(desc.Width==TreeAssets[0].width&&desc.Height==TreeAssets[0].height&&desc.Format==D3DFORMAT(TreeAssets[0].format));
-    CHECK(tex->GetLevelCount()==TreeAssets[0].levels);CHECK(SUCCEEDED(tex->LockRect(0,&lock,nullptr,D3DLOCK_READONLY)));
-    CHECK(!memcmp(lock.pBits,TreeTextureData+TreeAssets[0].offset,std::max(1u,(TreeAssets[0].width+3)/4)*8));tex->UnlockRect(0);
+    CHECK(desc.Width==firstBark->width&&desc.Height==firstBark->height&&desc.Format==D3DFORMAT(firstBark->format));
+    CHECK(tex->GetLevelCount()==firstBark->levels);CHECK(SUCCEEDED(tex->LockRect(0,&lock,nullptr,D3DLOCK_READONLY)));
+    CHECK(!memcmp(lock.pBits,TreeTextureData+firstBark->offset,std::max(1u,(firstBark->width+3)/4)*8));tex->UnlockRect(0);
     CHECK(!trees.begin(settings));trees.end();Com<IDirect3DBaseTexture9> restored;d->GetTexture(0,restored.out());CHECK(restored.p==original.p);
     DWORD sampler=0;d->GetSamplerState(0,D3DSAMP_MINFILTER,&sampler);CHECK(sampler==D3DTEXF_POINT);
     d->GetSamplerState(0,D3DSAMP_ADDRESSU,&sampler);CHECK(sampler==D3DTADDRESS_CLAMP);
@@ -40,9 +45,9 @@ int main(int argc,char**argv){
     CHECK(trees.begin(settings));trees.end(); // lazily recreated after reset/invalidation
     InvalidateWaterTag(second);CHECK(!trees.begin(settings));
     d->SetTexture(0,original);
-    settings.treeFoliage = true;
+    settings.treeFoliage = settings.winterGround = true;
     for(unsigned i=0;i<std::size(TreeAssets);i++){
-        id=i+1;original->SetPrivateData(TreeTag,&id,sizeof(id),0);CHECK(trees.begin(settings));trees.end();
+        id=i+1;original->SetPrivateData(TreeTag,&id,sizeof(id),0);CHECK(trees.begin(settings,true));trees.end();
     }
     size_t total=0;for(const auto&a:TreeAssets)total+=a.size;CHECK(trees.bytes()==total);
     trees.beginFrame(false);CHECK(!trees.bytes());
@@ -79,32 +84,66 @@ int main(int argc,char**argv){
         CHECK(SUCCEEDED(d->GetTexture(0, restored.out())) && restored.p == original.p);
         trees.beginFrame(false);
     }
-    CHECK(variantCount == 4);
+    CHECK(variantCount == 5);
     CHECK(SUCCEEDED(d->SetRenderState(D3DRS_ALPHATESTENABLE, TRUE)));
     CHECK(SUCCEEDED(d->SetRenderState(D3DRS_ALPHAREF, 128)));
     CHECK(SUCCEEDED(d->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE)));
-    unsigned foliageCount = 0;
+    unsigned winterCount = 0, groundCount = 0, foliageCount = 0;
+    CHECK(TreeFX::inFlaris(1, 7012.85f, 3410.32f));
+    CHECK(!TreeFX::inFlaris(4, 7012.85f, 3410.32f));
+    CHECK(!TreeFX::inFlaris(1, 4397.92f, 4189.21f));
+    CHECK(!TreeFX::inFlaris(1, 7254.33f, 9155.15f));
     for (unsigned i = 0; i < std::size(TreeAssets); ++i) {
         const auto &asset = TreeAssets[i];
-        if (asset.foliage) {
+        id = i + 1;
+        CHECK(SUCCEEDED(original->SetPrivateData(TreeTag, &id, sizeof(id), 0)));
+        const bool foliage = asset.kind == VegetationKind::Foliage;
+        if (asset.kind == VegetationKind::Ground) {
+            ++groundCount;
+            settings.trees = false;
+            CHECK(!trees.begin(settings));
+            CHECK(trees.begin(settings, true) && !trees.nativeFoliage());
+            trees.end();
+            settings.winterGround = false;
+            CHECK(!trees.begin(settings, true));
+            settings.winterGround = settings.trees = true;
+            continue;
+        }
+        if (foliage) {
             ++foliageCount;
             CHECK(asset.format == D3DFMT_DXT5);
         }
-        id = i + 1;
-        CHECK(SUCCEEDED(original->SetPrivateData(TreeTag, &id, sizeof(id), 0)));
-        settings.treeBark = !asset.foliage;
-        settings.treeFoliage = asset.foliage;
+        settings.treeBark = !foliage;
+        settings.treeFoliage = foliage;
         CHECK(trees.begin(settings));
-        CHECK(trees.nativeFoliage() == (asset.foliage ? original.p : nullptr));
+        CHECK(trees.nativeFoliage() == (foliage ? original.p : nullptr));
+        Com<IDirect3DBaseTexture9> normal;
+        CHECK(SUCCEEDED(d->GetTexture(0, normal.out())));
         trees.end();
         CHECK(!trees.nativeFoliage());
         CHECK(SUCCEEDED(d->GetTexture(0, restored.out())) && restored.p == original.p);
-        settings.treeBark = asset.foliage;
-        settings.treeFoliage = !asset.foliage;
+        settings.treeBark = foliage;
+        settings.treeFoliage = !foliage;
         CHECK(!trees.begin(settings));
         CHECK(SUCCEEDED(d->GetTexture(0, restored.out())) && restored.p == original.p);
+        settings.treeWinterFoliage = true;
+        if (asset.winter != i) {
+            ++winterCount;
+            CHECK(!trees.begin(settings));
+            CHECK(trees.begin(settings, true) && trees.nativeFoliage() == original.p);
+            CHECK(SUCCEEDED(d->GetTexture(0, restored.out())) && restored.p != normal.p && restored.p != original.p);
+            trees.end();
+            settings.treeFoliage = true;
+            CHECK(trees.begin(settings, true));
+            Com<IDirect3DBaseTexture9> both;
+            CHECK(SUCCEEDED(d->GetTexture(0, both.out())) && both.p == restored.p);
+            trees.end();
+        } else if (foliage) {
+            CHECK(!trees.begin(settings, true));
+        }
+        settings.treeWinterFoliage = false;
     }
-    CHECK(foliageCount == 12);
+    CHECK(foliageCount == 45 && winterCount == 12 && groundCount == 13);
     DWORD alphaState = 0;
     CHECK(SUCCEEDED(d->GetRenderState(D3DRS_ALPHATESTENABLE, &alphaState)) && alphaState == TRUE);
     CHECK(SUCCEEDED(d->GetRenderState(D3DRS_ALPHAREF, &alphaState)) && alphaState == 128);
@@ -122,7 +161,7 @@ int main(int argc,char**argv){
             std::wstring file(count,L'\0');MultiByteToWideChar(CP_UTF8,0,argv[i],-1,file.data(),count);
             Com<IDirect3DTexture9> source;
             CHECK(SUCCEEDED(load(d,file.c_str(),UINT(-1),UINT(-1),0,0,format,D3DPOOL_MANAGED,1,1,0,nullptr,nullptr,source.out())));
-            d->SetTexture(0,source);CHECK(trees.begin(settings));d->GetTexture(0,restored.out());CHECK(restored.p!=source.p);
+            d->SetTexture(0,source);CHECK(trees.begin(settings,true));d->GetTexture(0,restored.out());CHECK(restored.p!=source.p);
             trees.end();d->GetTexture(0,restored.out());CHECK(restored.p==source.p);accepted++;
         }
         FreeLibrary(library);trees.beginFrame(false);CHECK(!trees.bytes());
