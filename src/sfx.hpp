@@ -28,11 +28,8 @@ class SfxFX {
     void finishTrail() {
         if(!trailContext_)return;
         refinement_trail::Vec origin{trailContext_->origin[0],trailContext_->origin[1],trailContext_->origin[2]};
-        D3DMATRIX mistView=view_;
-        mistView._41+=view_._21*trailLift_;
-        mistView._42+=view_._22*trailLift_;
-        mistView._43+=view_._23*trailLift_;
-        refinement_trail::mesh(trailPuffs_,mistView,trailVertices_,trailContext_->hasOrigin?&origin:nullptr,true);
+        refinement_trail::mesh(trailPuffs_,view_,trailVertices_,
+                               trailContext_->hasOrigin?&origin:nullptr,true,trailLift_);
         RefinementState state(device_);
         if(state.valid()&&!trailVertices_.empty()) {
             D3DMATRIX identity{};identity._11=identity._22=identity._33=identity._44=1;
@@ -460,8 +457,8 @@ class SfxFX {
     }
     bool skipNativeDraw()const{return captured_;}
     void grassClearance(float height) {
-        // Keep some visible vapor above the blades while preserving the
-        // real depth test against terrain and foreground geometry.
+        // Detached vapor can rise above the blades while its head stays
+        // attached to the armor and the real scene depth still applies.
         if(captured_)trailLift_=std::min(.4f,height*.48f);
     }
     void end(bool up = false, bool indexed = false) {

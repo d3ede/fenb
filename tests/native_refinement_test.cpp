@@ -71,6 +71,26 @@ int main(int argc,char **argv){
     const DWORD freshAlpha=peak();
     fading[0].color[3]=.3f;mesh(fading,identity,vertices);
     assert(width()>freshWidth && peak()<freshAlpha);
+    // At rest the model origin can be offset from the visible native particles.
+    const std::vector<Puff> attached={{{0,1.4f,2},.2f,{1,1,1,.9f}},
+                                      {{0,1.38f,2},.2f,{1,1,1,.8f}}};
+    puffs=attached;mesh(puffs,identity,vertices,nullptr,true);
+    const auto attachedVertices=vertices;
+    const Vec offsetOrigin{0,1.7f,2};
+    puffs=attached;mesh(puffs,identity,vertices,&offsetOrigin,true,.4f);
+    assert(vertices.size()==12&&vertices.size()==attachedVertices.size());
+    assert(!memcmp(vertices.data(),attachedVertices.data(),vertices.size()*sizeof(Vertex)));
+    const std::vector<Puff> running={{{0,1.4f,2},.2f,{1,1,1,.9f}},
+                                     {{-.5f,1.4f,2},.2f,{1,1,1,.8f}}};
+    const Vec runningOrigin{.3f,1.4f,2}, raisedOrigin{.3f,1.7f,2};
+    puffs=running;mesh(puffs,identity,vertices,&runningOrigin,true);
+    assert(std::any_of(vertices.begin(),vertices.end(),[](const Vertex &v){
+        return std::abs(v.x-.3f)<.00001f&&(v.color>>24)>0;
+    }));
+    const auto runningVertices=vertices;
+    puffs=running;mesh(puffs,identity,vertices,&raisedOrigin,true);
+    assert(vertices.size()==runningVertices.size());
+    assert(!memcmp(vertices.data(),runningVertices.data(),vertices.size()*sizeof(Vertex)));
     // Co-moving sample points must retain the same energy across a full native
     // emission cycle, including spacing beyond the previous 2.75-unit cutoff.
     auto coverage=[&](float x,float y){

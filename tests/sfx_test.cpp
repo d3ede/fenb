@@ -466,7 +466,7 @@ int main(int argc, char **argv) {
         auto saved=settings;settings=Settings{};settings.sfx=true;settings.sceneQuality=true;
         flatBackground=true;
         auto clouds=[&](bool continuous,float amount,float phase=17,bool buffered=false,bool separateModels=false,
-                        unsigned modelsCount=1,unsigned pointsCount=6,float grassHeight=0)->int {
+                        unsigned modelsCount=1,unsigned pointsCount=6,float grassHeight=0,bool moving=false)->int {
             sfx.beginFrame(true);background();setup();
             Com<IDirect3DVertexBuffer9> fan;
             if(buffered){
@@ -490,6 +490,7 @@ int main(int argc, char **argv) {
                     const int i=point%6;
                     if(separateModels&&side!=(owner?1:-1))continue;
                     auto matrix=id;matrix._41=side*.09f;matrix._42=.8f-i*.28f;
+                    if(moving)matrix._43=i*.35f;
                     if(buffered){matrix._11=.07f;matrix._22=.2f;}
                     d->SetTransform(D3DTS_WORLD,&matrix);
                     DWORD color=(DWORD(amount*(1-i*.13f)*200)<<24)|0x00ffffff;
@@ -646,8 +647,11 @@ int main(int argc, char **argv) {
         occlude=true;CHECK(clouds(false,1)==0);const auto blocked=Read(d);
         CHECK(clouds(true,1)==0);const auto blockedMist=Read(d);
         for(UINT y=0;y<H;++y)for(UINT x=0;x<W/2;++x)CHECK(blocked[y*W+x]==blockedMist[y*W+x]);
-        CHECK(clouds(true,1,17,false,false,1,6,.55f)==0);const auto raisedMist=Read(d);
-        CHECK(Difference(blockedMist,raisedMist)>100);
+        CHECK(clouds(true,1,17,false,false,1,6,.55f)==0);
+        CHECK(Difference(blockedMist,Read(d))==0); // Grass clearance must not lift an attached aura.
+        CHECK(clouds(true,1,17,false,false,1,6,0,true)==0);const auto movingMist=Read(d);
+        CHECK(clouds(true,1,17,false,false,1,6,.55f,true)==0);const auto raisedMist=Read(d);
+        CHECK(Difference(movingMist,raisedMist)>100);
         for(UINT y=0;y<H;++y)for(UINT x=0;x<W/2;++x)CHECK(blocked[y*W+x]==raisedMist[y*W+x]);
         occlude=false;sfx.invalidate();CHECK(clouds(true,1)==0);CHECK(Difference(mist,Read(d),1)==0);
         flatBackground=false;settings=saved;Drop(texture.p);texture.p=previous.p;previous.p=nullptr;

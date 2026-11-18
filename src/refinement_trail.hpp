@@ -87,7 +87,7 @@ inline void merge(std::vector<Puff>&puffs){
 // A joined camera-facing surface has one coverage layer regardless of native
 // emission spacing. New particles subdivide it instead of adding bright blobs.
 inline void mesh(std::vector<Puff>&puffs,const D3DMATRIX &view,std::vector<Vertex>&out,
-                 const Vec *emitter=nullptr,bool perspective=false){
+                 const Vec *emitter=nullptr,bool perspective=false,float grassLift=0){
     out.clear();merge(puffs);
     if(puffs.empty())return;
     // A regular fast trail can have arbitrarily wider spacing than a walk.
@@ -105,9 +105,11 @@ inline void mesh(std::vector<Puff>&puffs,const D3DMATRIX &view,std::vector<Verte
     }
     struct Node {Vec p;float width;std::array<float,4> color;};
     std::array<Node,262> nodes{};
-    auto node=[&](const Puff &p){
+    auto node=[&](const Puff &p,float separation){
         const float alpha=std::clamp(p.color[3],0.f,1.f),age=1-alpha;
-        return Node{transform(p.position+Vec{0,age*.08f,0},view),
+        const float drift=std::clamp((separation-.25f)/.9f,0.f,1.f);
+        const float rise=(age*.08f+grassLift)*drift*drift*(3-2*drift);
+        return Node{transform(p.position+Vec{0,rise,0},view),
             p.radius*(1.3f+age*.9f),p.color};
     };
     auto unit=[](Vec v){float n=length(v);return n>.00001f?v*(1/n):Vec{0,1,0};};
@@ -128,21 +130,41 @@ inline void mesh(std::vector<Puff>&puffs,const D3DMATRIX &view,std::vector<Verte
     for(size_t first=0;first<puffs.size();){
         size_t end=first+1;
         while(end<puffs.size()&&length(puffs[end].position-puffs[end-1].position)<=maxGap)++end;
+        const auto &newest=puffs[first];
+        // A resting effect is a soft glow centered on its newest particle.
+        // Connecting small idle offsets would leave one long cap and a flat edge.
+        if(std::all_of(puffs.begin()+first+1,puffs.begin()+end,[&](const Puff &p){
+            return length(p.position-newest.position)<newest.radius*.5f;
+        })){
+            nodes[0]=node(newest,0);
+            emit(1);
+            first=end;
+            continue;
+        }
         unsigned count=0;
-        // The current native emitter fills the unsampled part of a fast run.
-        // Linear fade extrapolation keeps the head's energy steady across births.
-        if(!first&&emitter&&finite(*emitter)){
-            const auto &a=puffs[first];float distance=length(*emitter-a.position);
-            float spacing=end-first>1?length(puffs[first+1].position-a.position):a.radius*2;
-            if(distance>.001f&&distance<=std::min(maxGap,std::max(a.radius*2,spacing*2.5f))){
-                Puff head=a;head.position=*emitter;
-                if(end-first>1&&spacing>.001f)
-                    head.color[3]=std::clamp(a.color[3]+(a.color[3]-puffs[first+1].color[3])*distance/spacing,0.f,1.f);
-                nodes[count++]=node(head);
+        // Use the model origin only when the newest visible particles confirm
+        // that it extends their path. A resting emitter can have a local offset.
+        if(!first&&emitter&&end-first>1&&finite(*emitter)){
+            const auto &previous=puffs[first+1];
+            const Vec motion=newest.position-previous.position,offset=*emitter-newest.position;
+            const float spacing=length(motion),distance=length(offset);
+            const float along=offset.x*motion.x+offset.y*motion.y+offset.z*motion.z;
+            if(spacing>=newest.radius*.5f&&distance>.001f&&
+               distance<=std::min(maxGap,std::max(newest.radius*2,spacing*2.5f))&&
+               along>=.5f*distance*spacing){
+                // Advance along the particle path without importing any
+                // perpendicular offset between the model and visible glow.
+                const float progress=along/(spacing*spacing);
+                Puff head=newest;
+                head.position=newest.position+motion*progress;
+                head.color[3]=std::clamp(newest.color[3]+(newest.color[3]-previous.color[3])*progress,0.f,1.f);
+                nodes[count++]=node(head,0);
             }
         }
         for(size_t i=first;i<end&&count<257;++i){
-            Node n=node(puffs[i]);
+            const Vec offset=puffs[i].position-newest.position;
+            const float separation=std::sqrt(offset.x*offset.x+offset.z*offset.z);
+            Node n=node(puffs[i],separation);
             if(count&&length(n.p-nodes[count-1].p)<.001f)continue;
             nodes[count++]=n;
         }
