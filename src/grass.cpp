@@ -1,4 +1,7 @@
 #include "grass.hpp"
+#ifdef FENB_DIAGNOSTICS
+#include "pipeline_probe.hpp"
+#endif
 #include "grass_bounds.hpp"
 #include "generated/grass_catalog.hpp"
 #include "generated/foliage_catalog.hpp"
@@ -337,6 +340,9 @@ void GrassFX::beforeTranslucency(const Settings &s,bool ownScene){
 void GrassFX::draw(const Settings &s,bool ownScene){
     if(!enabled_||rendered_||!s.enabled||!s.grass||!started_||failed_||(winter_&&!s.grassSnow))return;
     if(ownScene&&FAILED(device_->BeginScene()))return;
+#ifdef FENB_DIAGNOSTICS
+    if(probe_)probe(*probe_,false);
+#endif
     {
         flush();VertexProcessing hardware(device_);StateGuard guard(device_);StreamFrequencies frequencies(device_);
         if(guard.valid()&&!failed_&&!clear_){
@@ -383,6 +389,9 @@ void GrassFX::draw(const Settings &s,bool ownScene){
             if(!failed_)rendered_=true;
         }
     }
+#ifdef FENB_DIAGNOSTICS
+    if(probe_)probe(*probe_,true);
+#endif
     if(ownScene)device_->EndScene();
 }
 void GrassFX::beginNative(const Settings &s){
@@ -396,3 +405,10 @@ void GrassFX::beginNative(const Settings &s){
     hidden_=SUCCEEDED(device_->SetPixelShader(hidePS_));
 }
 void GrassFX::endNative(){if(hidden_){device_->SetPixelShader(nullptr);hidden_=false;}}
+#ifdef FENB_DIAGNOSTICS
+void GrassFX::probe(PipelineProbe &probe,bool after){
+    const unsigned status=(started_?1u:0u)|(failed_?2u:0u)|(winter_?4u:0u)|
+                          (centered_?8u:0u)|(enabled_?16u:0u);
+    probe.grass(ground_,contacts_,map_,center_,resolution_,status,after);
+}
+#endif

@@ -14,6 +14,8 @@ struct PipelineProbeFixture {
     static bool crop(PipelineProbe& p,IDirect3DSurface9* s,const RECT& r){return p.readSurface(s,"surface-crop.rgba16f",&r);}
     static void allowPoll(PipelineProbe& p){p.checked_=GetTickCount()-1001;}
     static bool surfaceMode(PipelineProbe& p){return p.active_&&p.surfaceOnly_;}
+    static bool grassMode(PipelineProbe& p){return p.active_&&p.grassOnly_;}
+    static const auto& lines(PipelineProbe& p){return p.lines_;}
 };
 int main(){
     CreateDirectoryW(L"build\\water-capture-test",nullptr);
@@ -129,6 +131,28 @@ int main(){
         CHECK(SUCCEEDED(device->EndScene()));probe.boundary();
     }
     CHECK(PipelineProbeFixture::blobs(probe).empty());
+    const auto grassMarker=ModuleDirectory()+L"FENB-grass.request";
+    FILE* grassRequest=_wfopen(grassMarker.c_str(),L"wb");CHECK(grassRequest);fclose(grassRequest);
+    PipelineProbeFixture::allowPoll(probe);probe.boundary();CHECK(PipelineProbeFixture::grassMode(probe));
+    Com<IDirect3DTexture9> grassGround,grassContacts;
+    CHECK(SUCCEEDED(device->CreateTexture(64,64,1,D3DUSAGE_RENDERTARGET,D3DFMT_A32B32G32R32F,D3DPOOL_DEFAULT,grassGround.out(),nullptr)));
+    CHECK(SUCCEEDED(device->CreateTexture(64,64,1,D3DUSAGE_RENDERTARGET,D3DFMT_R32F,D3DPOOL_DEFAULT,grassContacts.out(),nullptr)));
+    const float grassMap[]={7000,3300,57,1.f/64},grassCenter[]={7001,101,3301};
+    for(unsigned frame=0;frame<3;++frame){
+        const size_t previous=PipelineProbeFixture::blobs(probe).size();
+        CHECK(SUCCEEDED(device->BeginScene()));
+        probe.grass(grassGround,grassContacts,grassMap,grassCenter,64,25,false);
+        probe.grass(grassGround,grassContacts,grassMap,grassCenter,64,25,true);
+        CHECK(PipelineProbeFixture::blobs(probe).size()==previous+4);
+        probe.grass(grassGround,grassContacts,grassMap,grassCenter,64,25,true);
+        CHECK(PipelineProbeFixture::blobs(probe).size()==previous+4);
+        CHECK(PipelineProbeFixture::blobs(probe)[previous+2].bytes.size()==64*64*16);
+        CHECK(PipelineProbeFixture::blobs(probe)[previous+3].bytes.size()==64*64*4);
+        CHECK(PipelineProbeFixture::lines(probe).find("\"status\":25")!=std::string::npos);
+        CHECK(SUCCEEDED(device->EndScene()));probe.boundary();
+    }
+    CHECK(PipelineProbeFixture::blobs(probe).empty());
+    puts("PASS: opt-in grass maps, native before/after color, bounded three-frame capture and cleanup");
     DestroyWindow(window);puts("PASS: write-only GPU vertex extraction with native offsets, exact R32F depth, state restoration, bounds and cleanup");
     return 0;
 }

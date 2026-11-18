@@ -5,11 +5,17 @@
 #include "scene_tags.hpp"
 #include <bcrypt.h>
 #include <array>
+#ifdef FENB_DIAGNOSTICS
+class PipelineProbe;
+#endif
 
 // World-anchored, instanced blade geometry. The native terrain is only replayed
 // into a bounded local height/coverage map; client geometry and depth stay native.
 class GrassFX {
     friend struct GrassFXFixture;
+#ifdef FENB_DIAGNOSTICS
+    PipelineProbe *probe_=nullptr;
+#endif
     IDirect3DDevice9 *device_;
     BCRYPT_ALG_HANDLE hash_=nullptr;
     Com<IDirect3DTexture9> ground_,contacts_;
@@ -71,5 +77,9 @@ public:
     void beforeTranslucency(const Settings &,bool ownScene=false);
     void beginNative(const Settings &);
     void endNative();
+#ifdef FENB_DIAGNOSTICS
+    void probe(PipelineProbe &,bool after);
+    void probeTarget(PipelineProbe *probe){probe_=probe;}
+#endif
     size_t bytes() const {return (ground_.p?size_t(resolution_)*resolution_*20:0)+bufferBytes_;}
 };

@@ -55,6 +55,7 @@ Runtime::Runtime(IDirect3DDevice9 *device)
     configTime_ = FileTime(configPath);
 #ifdef FENB_DIAGNOSTICS
     probe_ = std::make_unique<PipelineProbe>(device);
+    grass_->probeTarget(probe_.get());
     effects_->sceneFX().setProbe(probe_.get());
 #endif
 }
@@ -419,7 +420,13 @@ void Runtime::finishWorld() {
 #endif
     if (!sawWorld_ || !settings.enabled || compare)
         return;
+#ifdef FENB_DIAGNOSTICS
+    grass_->probe(*probe_,false);
+#endif
     if(settings.grass)grass_->draw(settings,!inScene_);
+#ifdef FENB_DIAGNOSTICS
+    grass_->probe(*probe_,true);
+#endif
     if (!settings.postEnabled()) {
         if(settings.water && settings.sfxWake>0 && waterDraws>0)sfx_->snapshotWorld();
         return;
@@ -481,6 +488,7 @@ void Runtime::beforePresent(IDirect3DSwapChain9 *provided, DWORD flags, HWND win
     bool main = attachWindow(window);
 #ifdef FENB_DIAGNOSTICS
     if (main) {
+        grass_->probe(*probe_,true);
         if (captureDeadline_ && GetTickCount64() >= captureDeadline_) {
             captureDeadline_ = 0;
             probe_->request();

@@ -1,6 +1,7 @@
 #ifdef FENB_DIAGNOSTICS
 #include "pipeline_probe.hpp"
 #include "water.hpp"
+#include "scene_tags.hpp"
 #include <generated/probe_depth.hpp>
 #include <generated/probe_vertices_vs.hpp>
 #include <generated/probe_vertices_ps.hpp>
@@ -29,14 +30,14 @@ std::string PipelineProbe::digest(const void* data,size_t rowBytes,UINT rows,UIN
 void PipelineProbe::begin(){
     active_=true;requested_=false;frame_=draws_=totalDraws_=0;truncated_=false;started_=GetTickCount();
     lines_.clear();lines_.reserve(1024*1024);textures_.clear();shaders_.clear();blobs_.clear();
-    replayBytes_=0;waterDraws_=0;waterSource_=waterFinished_=false;surfaceFrames_=0;lastUP_=nullptr;lastApi_.clear();
+    replayBytes_=0;waterDraws_=0;waterSource_=waterFinished_=false;surfaceFrames_=grassFrames_=0;lastUP_=nullptr;lastApi_.clear();
     BCryptOpenAlgorithmProvider(&hashAlgorithm_,BCRYPT_SHA256_ALGORITHM,nullptr,0);
     D3DCAPS9 caps{};device_->GetDeviceCaps(&caps);
     D3DDEVICE_CREATION_PARAMETERS creation{};device_->GetCreationParameters(&creation);
     Com<IDirect3D9> root;device_->GetDirect3D(root.out());D3DDISPLAYMODE mode{};
     if(root.p)root->GetAdapterDisplayMode(creation.AdapterOrdinal,&mode);
     std::ostringstream out;
-    out<<"{\"kind\":\"header\",\"schema\":2,\"mode\":\""<<(surfaceOnly_?"surface":"pipeline")<<"\",\"pid\":"<<GetCurrentProcessId()<<",\"vertexShaderVersion\":"<<caps.VertexShaderVersion
+    out<<"{\"kind\":\"header\",\"schema\":2,\"mode\":\""<<(grassOnly_?"grass":surfaceOnly_?"surface":"pipeline")<<"\",\"pid\":"<<GetCurrentProcessId()<<",\"vertexShaderVersion\":"<<caps.VertexShaderVersion
        <<",\"pixelShaderVersion\":"<<caps.PixelShaderVersion<<",\"maxVSConstants\":"<<caps.MaxVertexShaderConst
        <<",\"maxRTs\":"<<caps.NumSimultaneousRTs<<",\"creationFlags\":"<<creation.BehaviorFlags<<",\"depthTextureFormats\":[";
     DWORD formats[]={MAKEFOURCC('I','N','T','Z'),MAKEFOURCC('D','F','2','4'),MAKEFOURCC('R','A','W','Z')};
@@ -71,6 +72,8 @@ void PipelineProbe::boundary(){
             if(GetFileAttributesW(marker.c_str())!=INVALID_FILE_ATTRIBUTES){DeleteFileW(marker.c_str());request();}
             marker=ModuleDirectory()+L"FENB-surface.request";
             if(GetFileAttributesW(marker.c_str())!=INVALID_FILE_ATTRIBUTES){DeleteFileW(marker.c_str());requestSurface();}
+            marker=ModuleDirectory()+L"FENB-grass.request";
+            if(GetFileAttributesW(marker.c_str())!=INVALID_FILE_ATTRIBUTES){DeleteFileW(marker.c_str());requestGrass();}
         }
         if(requested_)begin();
     }
@@ -104,8 +107,9 @@ int PipelineProbe::texture(IDirect3DBaseTexture9* object){
             if(row&&row*rows<=1024*1024&&SUCCEEDED(tex->LockRect(0,&lock,nullptr,D3DLOCK_READONLY))){if(lock.Pitch>0&&UINT(lock.Pitch)>=row)hash=digest(lock.pBits,row,rows,UINT(lock.Pitch));tex->UnlockRect(0);}
         }
     }
+    DWORD grassKind=0,grassBytes=sizeof(grassKind);const bool tagged=SUCCEEDED(object->GetPrivateData(GrassTag,&grassKind,&grassBytes))&&grassBytes==sizeof(grassKind);
     std::ostringstream out;out<<"{\"kind\":\"texture\",\"id\":"<<id<<",\"type\":"<<object->GetType()<<",\"width\":"<<d.Width<<",\"height\":"<<d.Height
-        <<",\"format\":"<<DWORD(d.Format)<<",\"pool\":"<<d.Pool<<",\"usage\":"<<d.Usage<<",\"hr\":"<<hr<<",\"firstMipSHA256\":\""<<hash<<"\"}\n";
+        <<",\"format\":"<<DWORD(d.Format)<<",\"pool\":"<<d.Pool<<",\"usage\":"<<d.Usage<<",\"hr\":"<<hr<<",\"grassKind\":"<<(tagged?int(grassKind):-1)<<",\"firstMipSHA256\":\""<<hash<<"\"}\n";
     lines_+=out.str();return id;
 }
 bool PipelineProbe::addBlob(const std::string& name,const void* data,size_t bytes){
@@ -137,7 +141,7 @@ bool PipelineProbe::readSurface(IDirect3DSurface9* source,const std::string& nam
     if(ok)for(UINT y=0;y<height;++y)memcpy(pixels.data()+size_t(y)*width*pixelBytes,
         (BYTE*)lock.pBits+size_t(y+area.top)*lock.Pitch+size_t(area.left)*pixelBytes,width*pixelBytes);
     read->UnlockRect();if(!ok||!addBlob(name,pixels.data(),pixels.size()))return false;
-    std::ostringstream out;out<<"{\"kind\":\""<<(name.starts_with("surface-")?"surface-image":"water-image")<<"\",\"file\":\""<<name<<"\",\"width\":"<<width<<",\"height\":"<<height<<",\"format\":"<<DWORD(d.Format)<<",\"pixelBytes\":"<<pixelBytes
+    std::ostringstream out;out<<"{\"kind\":\""<<(name.starts_with("grass-")?"grass-image":name.starts_with("surface-")?"surface-image":"water-image")<<"\",\"file\":\""<<name<<"\",\"width\":"<<width<<",\"height\":"<<height<<",\"format\":"<<DWORD(d.Format)<<",\"pixelBytes\":"<<pixelBytes
         <<",\"x\":"<<area.left<<",\"y\":"<<area.top<<",\"sourceWidth\":"<<d.Width<<",\"sourceHeight\":"<<d.Height<<"}\n";lines_+=out.str();return true;
 }
 namespace {
@@ -193,6 +197,34 @@ void PipelineProbe::surface(IDirect3DTexture9* before,IDirect3DTexture9* mask,ID
         <<",\"mask\":"<<(receiver?"true":"false")<<",\"result\":"<<(result?"true":"false")<<"}\n";
     lines_+=out.str();
 }
+void PipelineProbe::grass(IDirect3DTexture9* ground,IDirect3DTexture9* contacts,const float* map,
+                          const float* center,UINT resolution,unsigned status,bool after){
+    if(!active_||!grassOnly_||frame_>=3)return;
+    const unsigned bit=1u<<(frame_+(after?3:0));if(grassFrames_&bit)return;grassFrames_|=bit;
+    const auto prefix="grass-"+std::to_string(frame_);
+    Com<IDirect3DSurface9> target;D3DSURFACE_DESC desc{};
+    bool color=false,coverage=false,contact=false;
+    if(SUCCEEDED(device_->GetRenderTarget(0,target.out()))&&target.p&&SUCCEEDED(target->GetDesc(&desc))){
+        const UINT w=std::min(960u,desc.Width),h=std::min(640u,desc.Height);
+        const LONG x=LONG((desc.Width-w)/2),y=LONG((desc.Height-h)*2/3);
+        RECT crop{x,y,x+LONG(w),y+LONG(h)};
+        color=readSurface(target,prefix+(after?"-after.argb":"-before.argb"),&crop);
+    }
+    if(!after)return;
+    if(ground&&contacts&&resolution){
+        const UINT width=std::min(512u,resolution),origin=(resolution-width)/2;
+        RECT crop{LONG(origin),LONG(origin),LONG(origin+width),LONG(origin+width)};
+        Com<IDirect3DSurface9> surface;
+        coverage=SUCCEEDED(ground->GetSurfaceLevel(0,surface.out()))&&readSurface(surface,prefix+"-ground.rgba32f",&crop);
+        contact=SUCCEEDED(contacts->GetSurfaceLevel(0,surface.out()))&&readSurface(surface,prefix+"-contacts.r32f",&crop);
+    }
+    std::ostringstream out;out<<"{\"kind\":\"grass-frame\",\"frame\":"<<frame_<<",\"prefix\":\""<<prefix
+        <<"\",\"status\":"<<status<<",\"resolution\":"<<resolution<<",\"map\":[";
+    for(unsigned i=0;i<4;++i){if(i)out<<',';out<<map[i];}
+    out<<"],\"center\":[";for(unsigned i=0;i<3;++i){if(i)out<<',';out<<center[i];}
+    out<<"],\"color\":"<<(color?"true":"false")<<",\"ground\":"<<(coverage?"true":"false")
+       <<",\"contacts\":"<<(contact?"true":"false")<<"}\n";lines_+=out.str();
+}
 bool PipelineProbe::readVertices(const std::string& name,UINT count){
     if(lastUP_){
         if(lastStride_<12)return false;
@@ -226,7 +258,7 @@ bool PipelineProbe::readVertices(const std::string& name,UINT count){
     device_->SetStreamSourceFreq(0,freq[0]);device_->SetStreamSourceFreq(1,freq[1]);return ok;
 }
 void PipelineProbe::water(WaterFX& water){
-    if(!active_||surfaceOnly_||frame_!=0||!water.state_||lastApi_.empty())return;
+    if(!active_||surfaceOnly_||grassOnly_||frame_!=0||!water.state_||lastApi_.empty())return;
     if(waterDraws_>=32){truncated_=true;return;}
     if(!waterSource_){
         waterSource_=true;readSurface(water.sceneSurface_,"water-color.argb");readDepth(water.depth_.texture());
@@ -251,13 +283,18 @@ void PipelineProbe::water(WaterFX& water){
     lines_+=out.str();lastUP_=nullptr;
 }
 void PipelineProbe::waterEnd(WaterFX& water){
-    if(!active_||surfaceOnly_||frame_!=0||!waterSource_||waterFinished_)return;waterFinished_=true;
+    if(!active_||surfaceOnly_||grassOnly_||frame_!=0||!waterSource_||waterFinished_)return;waterFinished_=true;
     StateGuard guard(device_);if(!guard.valid())return;
     readSurface(water.reflectionSurface_,"water-reflection.argb");
     Com<IDirect3DSurface9> bb;if(SUCCEEDED(device_->GetRenderTarget(0,bb.out())))readSurface(bb,"water-final.argb");
 }
 void PipelineProbe::draw(const char* api,UINT type,UINT primitives,UINT vertices,UINT stride,const void* up,UINT first){
     if(!active_)return;++totalDraws_;
+    if(grassOnly_){
+        D3DMATRIX projection{};Com<IDirect3DSurface9> target,backbuffer;
+        if(FAILED(device_->GetTransform(D3DTS_PROJECTION,&projection))||std::abs(projection._34-1)>.001f||std::abs(projection._44)>.001f||
+           FAILED(device_->GetRenderTarget(0,target.out()))||FAILED(device_->GetBackBuffer(0,0,D3DBACKBUFFER_TYPE_MONO,backbuffer.out()))||target.p!=backbuffer.p)return;
+    }
     if(draws_>=MaxDraws||lines_.size()>MaxBytes){lastApi_.clear();lastUP_=nullptr;truncated_=true;return;}
     if(up&&!vertices){switch(type){case D3DPT_POINTLIST:vertices=primitives;break;case D3DPT_LINELIST:vertices=primitives*2;break;case D3DPT_LINESTRIP:vertices=primitives+1;break;case D3DPT_TRIANGLELIST:vertices=primitives*3;break;case D3DPT_TRIANGLESTRIP:case D3DPT_TRIANGLEFAN:vertices=primitives+2;break;}}
     lastApi_=api;lastType_=type;lastPrimitives_=primitives;lastVertices_=vertices;lastStride_=stride;lastFirst_=first;lastUP_=up;
@@ -275,6 +312,12 @@ void PipelineProbe::draw(const char* api,UINT type,UINT primitives,UINT vertices
     const char* names[]={"zEnable","zWrite","zFunc","blend","srcBlend","dstBlend","alphaTest","alphaRef","cull","lighting","ambient","fogEnable","fogColor","fogTable","fogVertex","fogStartBits","fogEndBits","fogDensityBits","stencil","sRGB"};
     for(int i=0;i<20;++i){DWORD value=0;HRESULT hr=device_->GetRenderState(states[i],&value);if(i)s<<',';s<<'"'<<names[i]<<"\":["<<hr<<','<<value<<']';}s<<"},\"stages\":[";
     for(DWORD stage=0;stage<2;++stage){if(stage)s<<',';s<<'[';D3DTEXTURESTAGESTATETYPE st[]={D3DTSS_COLOROP,D3DTSS_COLORARG1,D3DTSS_COLORARG2,D3DTSS_ALPHAOP,D3DTSS_TEXCOORDINDEX,D3DTSS_TEXTURETRANSFORMFLAGS};for(int j=0;j<6;++j){DWORD v=0;device_->GetTextureStageState(stage,st[j],&v);if(j)s<<',';s<<v;}s<<']';}s<<']';
+    if(grassOnly_){
+        s<<",\"alphaArgs\":[";
+        for(DWORD stage=0;stage<2;++stage){if(stage)s<<',';DWORD a=0,b=0;device_->GetTextureStageState(stage,D3DTSS_ALPHAARG1,&a);device_->GetTextureStageState(stage,D3DTSS_ALPHAARG2,&b);s<<'['<<a<<','<<b<<']';}
+        DWORD writes=0,factor=0;device_->GetRenderState(D3DRS_COLORWRITEENABLE,&writes);device_->GetRenderState(D3DRS_TEXTUREFACTOR,&factor);
+        s<<"],\"colorWrites\":"<<writes<<",\"textureFactor\":"<<factor;
+    }
     Com<IDirect3DVertexBuffer9> vb;UINT offset=0,streamStride=0;D3DVERTEXBUFFER_DESC vbDesc{};
     HRESULT streamHr=device_->GetStreamSource(0,vb.out(),&offset,&streamStride);if(vb.p)vb->GetDesc(&vbDesc);
     s<<",\"stream0\":{\"hr\":"<<streamHr<<",\"stride\":"<<streamStride<<",\"offset\":"<<offset<<",\"bytes\":"<<vbDesc.Size<<",\"usage\":"<<vbDesc.Usage<<",\"pool\":"<<vbDesc.Pool<<'}';
