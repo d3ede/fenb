@@ -330,6 +330,40 @@ int main() {
         CHECK(activeWindow("##Tooltip"));
         CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-refinement-help.png").c_str()));
         io.AddMousePosEvent(-FLT_MAX,-FLT_MAX);frame();
+        const auto colorOpen=ImHashStr("open",0,ImHashStr("aura-color",0,inspector()->GetID("particles")));
+        ImGui::ActivateItemByID(colorOpen);frame();frame();
+        CHECK(!ImGui::GetCurrentContext()->OpenPopupStack.empty());
+        auto *colors=ImGui::GetCurrentContext()->OpenPopupStack.back().Window;CHECK(colors);
+        r.settings.sfxAuraCustomColor=false;
+        r.settings.sfxAuraR=.16f;r.settings.sfxAuraG=.62f;r.settings.sfxAuraB=1;frame();
+        const auto &style=ImGui::GetStyle();const float bars=13+style.FramePadding.y*2;
+        const float sv=260-bars-style.ItemInnerSpacing.x;
+        click(colors->Pos.x+colors->WindowPadding.x+(sv+bars)*.5f+sv*.46f,
+              colors->Pos.y+colors->WindowPadding.y+13+18+style.ItemSpacing.y*2+sv*.5f);
+        CHECK(r.settings.sfxAuraCustomColor&&r.settings.sfxAuraR>r.settings.sfxAuraG+.1f&&r.settings.sfxAuraR>r.settings.sfxAuraB+.1f);
+        for(const auto channel: {std::pair{"##red",17},std::pair{"##green",34},std::pair{"##blue",51}}){
+            ImGui::ActivateItemByID(ImHashStr(channel.first,0,colors->GetID("rgb")));frame();input(std::to_string(channel.second).c_str());
+        }
+        CHECK(std::abs(r.settings.sfxAuraR-17.f/255)<.000001f&&std::abs(r.settings.sfxAuraG-34.f/255)<.000001f&&std::abs(r.settings.sfxAuraB-51.f/255)<.000001f);
+        activate(colors,"##hex");input("#a1b2c3");
+        CHECK(std::abs(r.settings.sfxAuraR-161.f/255)<.000001f&&std::abs(r.settings.sfxAuraG-178.f/255)<.000001f&&std::abs(r.settings.sfxAuraB-195.f/255)<.000001f);
+        const auto chosen=r.settings;
+        activate(colors,"##hex");input("12");
+        CHECK(r.settings.sfxAuraR==chosen.sfxAuraR&&r.settings.sfxAuraG==chosen.sfxAuraG&&r.settings.sfxAuraB==chosen.sfxAuraB);
+        activate(colors,"###native");CHECK(!r.settings.sfxAuraCustomColor&&r.settings.sfxAuraR==chosen.sfxAuraR);
+        activate(colors,"custom");CHECK(r.settings.sfxAuraCustomColor);
+        io.AddMousePosEvent(-FLT_MAX,-FLT_MAX);frame();frame();
+        CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-aura-color.png").c_str()));
+        CHECK(colors->Pos.x>=0&&colors->Pos.x+colors->Size.x<=io.DisplaySize.x&&colors->Pos.y>=0&&colors->Pos.y+colors->Size.y<=io.DisplaySize.y);
+        ImGui::ClosePopupToLevel(0,true);frame();
+        control("particles","reset-section");CHECK(!r.settings.sfxAuraCustomColor&&r.settings.sfx&&r.settings.language==static_cast<Language>(language));
+        const auto colorDisplay=io.DisplaySize;io.DisplaySize={334,400};r.centerPanel=true;frame();frame();
+        ImGui::ActivateItemByID(ImHashStr("open",0,ImHashStr("aura-color",0,inspector()->GetID("particles"))));frame();frame();
+        CHECK(!ImGui::GetCurrentContext()->OpenPopupStack.empty());
+        auto *smallColors=ImGui::GetCurrentContext()->OpenPopupStack.back().Window;
+        CHECK(smallColors->Pos.x>=0&&smallColors->Pos.y>=0&&smallColors->Pos.x+smallColors->Size.x<=334&&smallColors->Pos.y+smallColors->Size.y<=400);
+        CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-aura-color-narrow.png").c_str()));
+        ImGui::ClosePopupToLevel(0,true);io.DisplaySize=colorDisplay;r.centerPanel=true;frame();frame();
         r.editorPage=9;r.editorSelection[9]=0;frame();frame();
         r.settings.grass=false;control("grass","enabled");CHECK(r.settings.grass);
         r.settings.grassSnow=false;control("grass","snow-grass");CHECK(r.settings.grassSnow);

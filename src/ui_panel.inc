@@ -39,6 +39,74 @@ const char *SceneItemName(int i, bool full = false) {
     return Tr(effect.shortName);
 }
 
+void AuraColorPicker(Settings &s) {
+    ImGui::PushID("aura-color");
+    ImGui::PushFont(nullptr,13);
+    ImGui::BeginDisabled(uiParameterDisabled);
+    const auto p=ImGui::GetCursorScreenPos();const float width=ImGui::GetContentRegionAvail().x;
+    const bool open=ImGui::InvisibleButton("open",{width,30},ImGuiButtonFlags_EnableNav);
+    auto *draw=ImGui::GetWindowDrawList();
+    TextAt(draw,{p.x+4,p.y+7},Tr(UiText::AuraColor),Text,13);
+    char hex[10];std::snprintf(hex,sizeof(hex),"#%02X%02X%02X",int(s.sfxAuraR*255+.5f),int(s.sfxAuraG*255+.5f),int(s.sfxAuraB*255+.5f));
+    const char *value=s.sfxAuraCustomColor?hex:Tr(UiText::AuraNativeColor);
+    const float valueWidth=ImGui::CalcTextSize(value).x,swatchX=p.x+width-valueWidth-37;
+    auto swatch=Opacity(s.sfxAuraCustomColor?ImGui::ColorConvertFloat4ToU32({s.sfxAuraR,s.sfxAuraG,s.sfxAuraB,1}):Raised);
+    draw->AddRectFilled({swatchX,p.y+5},{swatchX+22,p.y+25},swatch,3);
+    draw->AddRect({swatchX,p.y+5},{swatchX+22,p.y+25},Opacity(Line),3);
+    if(!s.sfxAuraCustomColor)draw->AddLine({swatchX+4,p.y+21},{swatchX+18,p.y+9},Opacity(Muted));
+    TextAt(draw,{swatchX+29,p.y+7},value,ImGui::IsItemHovered()?Lavender:Muted,13);
+    Tip(Tr(UiText::AuraColorHelp));
+    if(open)ImGui::OpenPopup("picker");
+    const auto display=ImGui::GetIO().DisplaySize;
+    const float pickerWidth=std::clamp(std::min(display.x-42,display.y-142),160.f,260.f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,{10,10});
+    ImGui::SetNextWindowSize({pickerWidth+20,0});
+    if(ImGui::BeginPopup("picker",ImGuiWindowFlags_NoMove)) {
+        ImGui::TextUnformatted(Tr(UiText::AuraColor));
+        SquareSwitch("custom",s.sfxAuraCustomColor);ImGui::SameLine();
+        ImGui::TextUnformatted(Tr(UiText::AuraCustomColor));
+        float rgb[]={s.sfxAuraR,s.sfxAuraG,s.sfxAuraB};
+        ImGui::SetNextItemWidth(pickerWidth);
+        constexpr auto flags=ImGuiColorEditFlags_PickerHueWheel|ImGuiColorEditFlags_InputRGB|
+            ImGuiColorEditFlags_NoSidePreview|ImGuiColorEditFlags_NoOptions|ImGuiColorEditFlags_NoLabel|
+            ImGuiColorEditFlags_NoTooltip|ImGuiColorEditFlags_NoSmallPreview|ImGuiColorEditFlags_NoInputs;
+        bool changed=ImGui::ColorPicker3("##wheel",rgb,flags);
+        ImGui::TextUnformatted(Tr(UiText::AuraRGB));
+        if(ImGui::BeginTable("rgb",3,ImGuiTableFlags_SizingStretchSame)){
+            constexpr const char *channels[]={"R","G","B"};
+            constexpr const char *ids[]={"##red","##green","##blue"};
+            for(int i=0;i<3;++i){
+                ImGui::TableNextColumn();ImGui::TextUnformatted(channels[i]);ImGui::SameLine();
+                ImGui::SetNextItemWidth(-FLT_MIN);
+                int value=int(rgb[i]*255+.5f);
+                if(ImGui::InputInt(ids[i],&value,0,0)){
+                    rgb[i]=std::clamp(value,0,255)/255.f;changed=true;
+                }
+            }
+            ImGui::EndTable();
+        }
+        char code[7];std::snprintf(code,sizeof(code),"%02X%02X%02X",int(rgb[0]*255+.5f),int(rgb[1]*255+.5f),int(rgb[2]*255+.5f));
+        ImGui::TextUnformatted(Tr(UiText::AuraHex));ImGui::SameLine();ImGui::TextUnformatted("#");ImGui::SameLine();
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        if(ImGui::InputText("##hex",code,sizeof(code),ImGuiInputTextFlags_CharsHexadecimal|
+                           ImGuiInputTextFlags_CharsUppercase|ImGuiInputTextFlags_AutoSelectAll)&&std::strlen(code)==6){
+            unsigned packed=0;
+            if(std::sscanf(code,"%06X",&packed)==1){
+                rgb[0]=float((packed>>16)&255)/255;rgb[1]=float((packed>>8)&255)/255;rgb[2]=float(packed&255)/255;changed=true;
+            }
+        }
+        if(changed) {
+            s.sfxAuraR=std::round(rgb[0]*1000000)/1000000;
+            s.sfxAuraG=std::round(rgb[1]*1000000)/1000000;
+            s.sfxAuraB=std::round(rgb[2]*1000000)/1000000;s.sfxAuraCustomColor=true;
+        }
+        if(ImGui::Button((std::string(Tr(UiText::AuraRestoreColor))+"###native").c_str(),{pickerWidth,24}))
+            s.sfxAuraCustomColor=false;
+        ImGui::EndPopup();
+    }
+    ImGui::PopStyleVar();
+    ImGui::EndDisabled();ImGui::PopFont();ImGui::PopID();
+}
 void SceneParameters(Runtime &r) {
     auto &s = r.settings;
     const Settings defaults;
@@ -136,6 +204,7 @@ void SceneParameters(Runtime &r) {
     case 10:
         RR(Saturation, SaturationHelp, sfxSaturation, .5f, 1.5f, "%.2f", .05f);
         RR(SfxSoftness, SfxSoftnessHelp, sfxSoftness, 0, 1, "%.2f", .05f);
+        AuraColorPicker(s);
         break;
     }
 #undef RR

@@ -20,10 +20,13 @@ float4 Factor : register(c3);
 float4 Constant : register(c4);
 float4 Bounds : register(c5);
 float4 Texel : register(c6); // texel xy, kind, crowding/age attenuation
-float4 Screen : register(c7); // inverse viewport, snapshot valid, wake strength / curtain time / refinement phase
+float4 Screen : register(c7); // inverse viewport / refinement RGB, snapshot valid, wake strength / curtain time / refinement phase
 float4 FogColor : register(c8);
 float4 Fog : register(c9);
-float4 FogExtra : register(c10);
+float4 FogExtra : register(c10); // fog density, aura strength, custom refinement color enabled
+float3 RefinementColor(float3 rgb) {
+ return FogExtra.z>.5?Screen.xyz*max(rgb.r,max(rgb.g,rgb.b)):rgb;
+}
 float4 Argument(float argument,float4 textureValue,float4 diffuse) {
  float base=fmod(argument,16);
  float4 value=base==2?textureValue:base==3?Factor:base==6?Constant:diffuse;
@@ -175,6 +178,7 @@ float4 StyleAura(float4 original,float2 uv,float fogDepth,float4 color,bool wisp
  if(AlphaStage.z>.5 && FogExtra.y>0)
   original.a=1-pow(saturate(1-original.a),1+FogExtra.y*.7);
  }
+ original.rgb=RefinementColor(original.rgb);
  float visibility=1;
  if(Fog.x>.5) {
   if(Fog.y>2.5)visibility=saturate((Fog.w-fogDepth)/max(.001,Fog.w-Fog.z));
@@ -208,6 +212,7 @@ float4 RefinementCloudPS(float2 uv:TEXCOORD0,float fogDepth:TEXCOORD1,float4 col
  palette/=max(1,max(palette.r,max(palette.g,palette.b)));
  float luma=dot(palette,float3(.2126,.7152,.0722));
  float3 rgb=max(0,lerp(luma.xxx,palette,Style.z))*color.rgb*Style.x*(1+FogExtra.y*.35);
+ rgb=RefinementColor(rgb);
  float opacity=saturate(color.a*density*saturate(FogExtra.y));
  float visibility=1;
  if(Fog.x>.5){

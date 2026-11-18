@@ -128,6 +128,22 @@ int main() {
     }
     {
         Settings particles;
+        CHECK(!particles.sfxAuraCustomColor);
+        particles.sfxAuraCustomColor=true;particles.sfxAuraR=18.f/255;particles.sfxAuraG=52.f/255;particles.sfxAuraB=86.f/255;
+        particles.language=Language::Portuguese;
+        CHECK(particles.save(L"build/aura-color-settings.ini"));
+        Settings restoredColor;CHECK(restoredColor.load(L"build/aura-color-settings.ini"));
+        CHECK(restoredColor.sfxAuraCustomColor&&std::abs(restoredColor.sfxAuraR-18.f/255)<.000001f&&
+              std::abs(restoredColor.sfxAuraG-52.f/255)<.000001f&&std::abs(restoredColor.sfxAuraB-86.f/255)<.000001f);
+        particles.sfxAuraR=2;particles.sfxAuraG=-1;particles.sfxAuraB=std::numeric_limits<float>::quiet_NaN();particles.sanitize();
+        CHECK(particles.sfxAuraR==1&&particles.sfxAuraG==0&&particles.sfxAuraB==Settings{}.sfxAuraB);
+        particles.resetSceneSection(11);
+        CHECK(!particles.sfxAuraCustomColor&&particles.sfxAuraR==Settings{}.sfxAuraR&&particles.language==Language::Portuguese);
+        FILE *legacyColor=_wfopen(L"build/aura-color-settings.ini",L"wb");CHECK(legacyColor);
+        fputs("[SceneFX]\nsfx=1\nsfx_aura=1\n",legacyColor);fclose(legacyColor);
+        CHECK(restoredColor.load(L"build/aura-color-settings.ini")&&!restoredColor.sfxAuraCustomColor&&
+              restoredColor.sfxAuraR==Settings{}.sfxAuraR);
+        DeleteFileW(L"build/aura-color-settings.ini");
         particles.sfx = false;
         particles.sfxIntensity = 8;
         particles.sfxAura = 4;

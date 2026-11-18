@@ -419,6 +419,10 @@ class SfxFX {
         memcpy(&c[9][3], &end, 4);
         memcpy(c[10], &density, 4);
         c[10][1] = aura ? s.sfxAura : 0;
+        if(kind==7&&s.sfxAuraCustomColor){
+            c[10][2]=1;
+            c[7][0]=s.sfxAuraR;c[7][1]=s.sfxAuraG;c[7][2]=s.sfxAuraB;
+        }
         device_->SetVertexShader(vs_);
         const bool fullTexture=std::abs(c[5][0])+std::abs(c[5][1])+std::abs(c[5][2]-1)+std::abs(c[5][3]-1)<.00001f;
         const bool cloud=refinement&&fullTexture&&captureTrail(draw,fvf,world,texture,c,src,dst);

@@ -464,6 +464,33 @@ int main(int argc, char **argv) {
         unsigned filled=0;
         for(UINT y=65;y<150;++y)filled+=((mist[y*W+W/2]&255)>(strips[y*W+W/2]&255)+2);
         CHECK(filled>60); // No empty stripe between the two native emitters.
+        settings.sfxAuraCustomColor=true;
+        auto checkColor=[&](float red,float green,float blue,bool continuous)->int {
+            settings.sfxAuraR=red;settings.sfxAuraG=green;settings.sfxAuraB=blue;
+            CHECK(clouds(continuous,1)==0);const auto pixels=Read(d);
+            unsigned lit=0;
+            for(DWORD p:pixels){
+                const int r=int((p>>16)&255)-0x30,g=int((p>>8)&255)-0x40,b=int(p&255)-0x50;
+                if(red==0)CHECK(r==0);if(green==0)CHECK(g==0);if(blue==0)CHECK(b==0);
+                lit+=(r+g+b)>5;
+            }
+            CHECK((red+green+blue==0)?lit==0:lit>50);
+            return 0;
+        };
+        for(bool detailed:{false,true}){
+            settings.sceneQuality=detailed;
+            CHECK(checkColor(1,0,0,false)==0); // Both native-material fallback quality tiers.
+        }
+        CHECK(checkColor(1,0,0,true)==0);Save(Read(d),L"build/refinement-color-red.bmp");
+        CHECK(checkColor(0,1,0,true)==0);Save(Read(d),L"build/refinement-color-green.bmp");
+        CHECK(checkColor(0,0,1,true)==0);
+        CHECK(checkColor(0,0,0,true)==0);
+        // Pet beads and weapon-element auras retain their own palette.
+        tag=6;texture->SetPrivateData(SfxTag,&tag,4,0);
+        CHECK(clouds(false,1)==0);const auto otherAuras=Read(d);
+        settings.sfxAuraCustomColor=false;CHECK(clouds(false,1)==0);CHECK(Difference(otherAuras,Read(d))==0);
+        tag=7;texture->SetPrivateData(SfxTag,&tag,4,0);
+        CHECK(clouds(true,1)==0);CHECK(Difference(mist,Read(d),1)==0);
         CHECK(clouds(true,1,0)==0);const auto initialPhase=Read(d);
         CHECK(clouds(true,1,6.28318530718f)==0);CHECK(Difference(initialPhase,Read(d),1)==0);
         CHECK(clouds(true,1,1)==0);CHECK(Difference(initialPhase,Read(d),1)>20);
