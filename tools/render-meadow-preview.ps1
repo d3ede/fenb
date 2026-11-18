@@ -13,10 +13,14 @@ $cxx=Join-Path $toolchain.FullName 'bin/i686-w64-mingw32-clang++.exe'
 if($LASTEXITCODE){throw 'Meadow preview compilation failed.'}
 & './build/meadow-preview.exe' $client $output
 if($LASTEXITCODE){throw 'Meadow preview rendering failed.'}
-$artworkFiles=@('Model/Texture/Obj_MaCoPrGr07.dds','World/Texture/ground_lawn001.dds','World/Texture/ground_n_ice02.dds')
+$artworkFiles=@('World/Texture/ground_lawn001.dds','World/Texture/ground_n_ice02.dds')
 $manifest=[ordered]@{
     sourceRevision=(git rev-parse HEAD).Trim()
     studySourceSha256=(Get-FileHash -LiteralPath tools/render-meadow-preview.cpp -Algorithm SHA256).Hash
+    artworkSourceSha256=(Get-FileHash -LiteralPath tools/meadow_artwork.hpp -Algorithm SHA256).Hash
+    atlasSize=@(2048,2048)
+    atlasVariants=4
+    generatedArtwork=@(@('summer-atlas.png','winter-atlas.png') | ForEach-Object { [ordered]@{path=$_;sha256=(Get-FileHash -LiteralPath (Join-Path $output $_) -Algorithm SHA256).Hash} })
     patchMeters=@(3,3)
     nativeArtwork=@($artworkFiles | ForEach-Object { [ordered]@{path=$_;sha256=(Get-FileHash -LiteralPath (Join-Path $client $_) -Algorithm SHA256).Hash} })
     limitations=@('Isolated flat test patch; not installed in the game.','No terrain masks, wind, fog, HUD, LOD or live-client lighting.','Card sorting uses root depth; intersecting translucent cards can have ordering artifacts.')
