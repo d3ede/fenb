@@ -27,8 +27,10 @@ The dense card experiment was rejected. It retained the same planting-site count
 but hid many additional leaves inside each painted card, so it still increased
 the visible density and exposed flat faces at some angles.
 
-The current fixed-seed patch has 392 separate summer leaves, about 44 per square
-metre of the entire patch, and 334 winter leaves. Each leaf has its own jittered
+The current fixed-seed patch has 485 separate summer leaves, about 54 per square
+metre of the entire patch, and 403 winter leaves. This raises summer leaf density
+by about 24% from the previous 392-leaf review while retaining the same irregular
+density mask, leaf shapes and materials. Each leaf has its own jittered
 root, height, direction, bend and twist. Roots follow a smooth irregular density
 mask and a soft boundary. There is no shared ornamental-plant root and no painted
 undergrowth adding an unreported second population. Ground remains visible
@@ -39,7 +41,7 @@ Each leaf is a tapered ribbon with eight height segments and two folded faces,
 supplies pigment changes, fibers and veins; varying UV windows and orientation
 lighting make the faces differ. Silhouettes come from geometry, so hardware MSAA
 can smooth their actual edges. There is no grass alpha-card painting or vector
-atlas generator in this path. Summer has 12,544 triangles in this review patch;
+atlas generator in this path. Summer has 15,520 triangles in this review patch;
 this is not a tested whole-field performance budget.
 
 Winter roots are sunk into the snow and the leaves are shorter. A separate
@@ -48,7 +50,7 @@ a raised surface and a softly blended starting edge. Its separate painted
 [snow material](../assets/grass/snow-surface.png) gives white powder and cool
 recesses. Lower stems remain partly exposed. This is attached geometry, not a
 gray recolor, and it is not a simulation of accumulating weather. The winter
-patch has 16,704 triangles including the coating.
+patch has 20,324 triangles including the coating.
 
 The materials are original `image_gen` outputs. Their full prompts and provenance
 are tracked under [assets/grass](../assets/grass/README.md); no raw Universe

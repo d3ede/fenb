@@ -120,7 +120,7 @@ public:
         Com<ID3DBlob> code,error;HRESULT hr=D3DCompile(GrassPS,strlen(GrassPS),"meadow-study",nullptr,nullptr,"main","ps_2_a",D3DCOMPILE_OPTIMIZATION_LEVEL3,0,code.out(),error.out());
         if(error.p)fputs((char*)error->GetBufferPointer(),stderr);Check(SUCCEEDED(hr),"grass shader compile");Check(SUCCEEDED(d_->CreatePixelShader((DWORD*)code->GetBufferPointer(),grassPS_.out())),"grass shader");
         projection_={};projection_._11=1.4f;projection_._22=1.4f*Width/Height;projection_._33=100/99.9f;projection_._34=1;projection_._43=-.1f*projection_._33;
-        Random r;constexpr unsigned Grid=38;
+        Random r;constexpr unsigned Grid=42;
         for(unsigned z=0;z<Grid;++z)for(unsigned x=0;x<Grid;++x){
             float px=-1.5f+(x+.12f+r.next()*.76f)*3/Grid,pz=-1.5f+(z+.12f+r.next()*.76f)*3/Grid;
             const float edge=Smooth(0,.35f,std::min(1.5f-std::abs(px),1.5f-std::abs(pz)));
