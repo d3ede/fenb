@@ -125,17 +125,30 @@ bool GrassFX::geometry(){
     const float baseSpacing=std::max(.28f/std::sqrt(frame_.grassDensity),std::sqrt(weightedArea/(budgets[quality]*.94f)));
     for(int lod=0;lod<3;++lod){
         auto &b=bands_[lod];b.mesh.out();b.instances.out();b.indices.out();b.count=0;
-        const int blades=style==1?quality+3:quality==0?4:quality==1?7:10;
-        const int segments=lod==2?1:style==1||lod==1?2:quality+2;
+        const bool simple=style==1;
+        const int blades=simple?quality+2:quality==0?4:quality==1?7:10;
+        const int segments=lod==2?1:lod==1?2:simple?(quality==0?3:4):quality+2;
+        const WORD rails=simple&&lod<2?3:2;
         std::vector<BladeVertex> mesh;std::vector<WORD> indices;unsigned seed=0x39c1a265u;
         for(int blade=0;blade<blades;++blade){
             const float angle=blade*6.2831853f/blades+Random(seed)*.3f;
             const float radius=.08f+Random(seed)*.16f,h=.75f+Random(seed)*.5f;
             const unsigned first=unsigned(mesh.size());
-            for(int segment=0;segment<=segments;++segment)for(int side:{-1,1})
-                mesh.push_back({float(side),float(segment)/segments,angle,float(blade),radius,float(style),h});
-            for(int segment=0;segment<segments;++segment){WORD a=WORD(first+segment*2),c=a+2;
-                indices.insert(indices.end(),{a,WORD(a+1),c,c,WORD(a+1),WORD(c+1)});}
+            const int rows=simple?segments:segments+1;
+            for(int segment=0;segment<rows;++segment)for(WORD rail=0;rail<rails;++rail){
+                const float side=2.f*rail/(rails-1)-1;
+                mesh.push_back({side,float(segment)/segments,angle,float(blade),radius,float(style),h});
+            }
+            if(simple)mesh.push_back({0,1,angle,float(blade),radius,float(style),h});
+            for(int segment=0;segment<segments;++segment)for(WORD rail=0;rail+1<rails;++rail){
+                const WORD a=WORD(first+segment*rails+rail);
+                if(simple&&segment==segments-1){
+                    indices.insert(indices.end(),{a,WORD(a+1),WORD(first+segments*rails)});
+                }else{
+                    const WORD c=a+rails;
+                    indices.insert(indices.end(),{a,WORD(a+1),c,c,WORD(a+1),WORD(c+1)});
+                }
+            }
         }
         b.inner=cuts[lod];b.outer=cuts[lod+1];b.factor=float(1<<lod);
         b.spacing=baseSpacing*b.factor;

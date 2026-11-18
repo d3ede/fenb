@@ -386,8 +386,8 @@ void PanelToggle(const char *id, const char *label, bool &value, const char *hel
 void ResetPanelParameters(int page, int item, Settings &s, bool puddleItem=false) {
     if(puddleItem){s.resetSceneSection(17);return;}
     if(page==9){const Settings d;
-        if(item==0){s.grassQuality=d.grassQuality;s.grassDistance=d.grassDistance;s.grassDensity=d.grassDensity;s.grassSlope=d.grassSlope;s.grassFade=d.grassFade;}
-        if(item==1){s.grassStyle=d.grassStyle;s.grassHeight=d.grassHeight;s.grassWidth=d.grassWidth;s.grassVariation=d.grassVariation;}
+        if(item==0){s.grassStyle=d.grassStyle;s.grassQuality=d.grassQuality;s.grassDistance=d.grassDistance;s.grassDensity=d.grassDensity;s.grassSlope=d.grassSlope;s.grassFade=d.grassFade;}
+        if(item==1){s.grassHeight=d.grassHeight;s.grassWidth=d.grassWidth;s.grassVariation=d.grassVariation;}
         if(item==2){s.grassWind=d.grassWind;s.grassWindSpeed=d.grassWindSpeed;s.grassWindDirection=d.grassWindDirection;}
         if(item==3){s.grassBrightness=d.grassBrightness;s.grassSaturation=d.grassSaturation;s.grassDryness=d.grassDryness;s.grassShading=d.grassShading;}
         return;}
@@ -493,6 +493,10 @@ void PanelParameters(Runtime &r, int item) {
     if(page==9){
         switch(item){
         case 0:{
+            const char *styles[]={Tr(UiText::GrassStyleDetailed),Tr(UiText::GrassStyleSimple)};
+            int style=int(std::round(s.grassStyle));
+            PanelCombo(UiText::GrassStyle,"grass-style",style,styles,2);
+            s.grassStyle=float(style);
             const char *quality[]={Tr(UiText::GrassLow),Tr(UiText::GrassMedium),Tr(UiText::High)};
             int q=int(std::round(s.grassQuality));PanelCombo(UiText::Quality,"grass-quality",q,quality,3);s.grassQuality=float(q);
             Tip(Tr(UiText::GrassQualityHelp));
@@ -504,14 +508,10 @@ void PanelParameters(Runtime &r, int item) {
             PanelToggle("snow-grass",Tr(UiText::GrassSnow),s.grassSnow,Tr(UiText::GrassSnowHelp));
             ImGui::EndDisabled();
             break;}
-        case 1:{
-            const char *styles[]={Tr(UiText::GrassStyleDetailed),Tr(UiText::GrassStyleSimple)};
-            int style=int(std::round(s.grassStyle));
-            PanelCombo(UiText::GrassStyle,"grass-style",style,styles,2);
-            s.grassStyle=float(style);
+        case 1:
             SR(GrassHeight,GrassHeightHelp,grassHeight,.1f,1.5f,"%.2f",.05f);
             SR(GrassWidth,GrassWidthHelp,grassWidth,.01f,.08f,"%.3f",.005f);
-            SR(GrassVariation,GrassVariationHelp,grassVariation,0,1,"%.2f",.05f);break;}
+            SR(GrassVariation,GrassVariationHelp,grassVariation,0,1,"%.2f",.05f);break;
         case 2:
             SR(Strength,GrassWindHelp,grassWind,0,1.5f,"%.2f",.05f);
             SR(GrassWindSpeed,GrassWindSpeedHelp,grassWindSpeed,0,3,"%.2f",.1f);

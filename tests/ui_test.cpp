@@ -412,16 +412,17 @@ int main() {
         r.editorPage=9;r.editorSelection[9]=0;frame();frame();
         r.settings.grass=false;control("grass","enabled");CHECK(r.settings.grass);
         r.settings.grassSnow=false;control("grass","snow-grass");CHECK(r.settings.grassSnow);
-        ImGui::ActivateItemByID(numeric("grass",r.settings.grassDistance));frame();input("55");CHECK(r.settings.grassDistance==55);
-        CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-grass-coverage.png").c_str()));
-        r.editorSelection[9]=1;frame();frame();
-        ImGui::ActivateItemByID(numeric("grass-shape",r.settings.grassHeight));frame();input("0.85");CHECK(r.settings.grassHeight==.85f);
-        control("grass-shape","##grass-style");CHECK(!ImGui::GetCurrentContext()->OpenPopupStack.empty());
+        control("grass","##grass-style");CHECK(!ImGui::GetCurrentContext()->OpenPopupStack.empty());
         CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-grass-style-menu.png").c_str()));
         auto *stylePopup=ImGui::GetCurrentContext()->OpenPopupStack.back().Window;
         const int simpleStyle=1;
         ImGui::ActivateItemByID(ImHashStr("###option",0,ImHashData(&simpleStyle,sizeof(simpleStyle),stylePopup->IDStack.back())));frame();frame();
         CHECK(r.settings.grassStyle==1);
+        control("grass","reset-section");CHECK(r.settings.grassStyle==Settings{}.grassStyle&&r.settings.grass&&r.settings.grassSnow);
+        ImGui::ActivateItemByID(numeric("grass",r.settings.grassDistance));frame();input("55");CHECK(r.settings.grassDistance==55);
+        CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-grass-coverage.png").c_str()));
+        r.editorSelection[9]=1;frame();frame();
+        ImGui::ActivateItemByID(numeric("grass-shape",r.settings.grassHeight));frame();input("0.85");CHECK(r.settings.grassHeight==.85f);
         control("grass-shape","reset-section");CHECK(r.settings.grass&&r.settings.grassHeight==Settings{}.grassHeight&&r.settings.grassDistance==55);
         CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-grass-shape.png").c_str()));
         for(int page:{2,3}){r.editorSelection[9]=page;frame();frame();CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-grass-"+std::to_wstring(page)+L".png").c_str()));}

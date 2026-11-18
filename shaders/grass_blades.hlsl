@@ -96,16 +96,26 @@ Output GrassBladeVS(Input i) {
     float height=Shape.x*i.height*lerp(1,.8+leaf*.55+patch*.15,Shape.z)*growth;
     float phase=dot(root,float2(.19,.13))+Wind.w*Extra.x*1.35;
     float sway=(sin(phase)*.65+sin(phase*1.7+r3*6.2831853)*.35)*Wind.z;
-    float2 lean=radial*lerp(.18+leaf*.6,.2+leaf*.48,simple)*height+Wind.xy*sway*height;
+    float2 lean=(radial*(.18+leaf*.6)+Wind.xy*sway)*height;
     // A fuller curved leaf reads as a blade instead of a dark needle.
     float coverScale=1+smoothstep(min(15,Lod.z*.34)*.65,min(15,Lod.z*.34),distance)+
         2*smoothstep(min(42,Lod.z*.7)*.65,min(42,Lod.z*.7),distance);
     float width=Shape.y*1.15*(1-t)*(.9+.8*sin(t*3.14159265))*(.85+leaf*.3)*growth*
         sqrt(coverScale)*max(1,cameraDistance/40);
-    if(simple>.5)
-        width=Shape.y*1.75*(1-t)*growth*sqrt(coverScale)*max(1,cameraDistance/45);
     float3 p=float3(root.x+offset.x,surface.r+.008,root.y+offset.y);
-    p.xz+=lean*lerp(t*t,t*(.55+.45*t),simple)+side*((leaf-.5)*height*.16*t*t*(1-simple)+i.blade.x*width*.5);
+    float ridge=1-abs(i.blade.x);
+    if(simple>.5){
+        // The leaves open out above the root and curl more sharply in the
+        // upper half. The middle rail raises the fold out of the leaf plane.
+        float spread=.50+.91*sin(3.14159265*t);
+        width=Shape.y*1.85*spread*(1-t)*(.8+leaf*.42)*growth*sqrt(coverScale)*max(1,cameraDistance/45);
+        float curl=t*(.16+.84*t*t);
+        p.xz+=radial*(height*(.31+leaf*.40)*curl+ridge*width*.33);
+        p.xz+=Wind.xy*sway*height*t*t+side*(height*(leaf-.5)*.24*t*t+i.blade.x*width*.5);
+        p.y-=height*(.02+leaf*.06)*t*t*t*t;
+    }else{
+        p.xz+=lean*t*t+side*((leaf-.5)*height*.16*t*t+i.blade.x*width*.5);
+    }
     p.y+=height*t;
     // Soft, upward-biased leaf normals keep the native directional light while
     // avoiding near-black strips at ground level. Both faces transmit some light.
@@ -113,9 +123,16 @@ Output GrassBladeVS(Input i) {
     float light=.45+.55*abs(dot(n,SunDirection.xyz));
     float3 base=lerp(float3(.16,.30,.055),float3(.25,.39,.07),leaf*.35+patch*.65);
     float3 tip=lerp(float3(.43,.60,.13),float3(.56,.68,.18),leaf*.4+patch*.6);
-    base=lerp(base,lerp(float3(.14,.31,.055),float3(.19,.38,.075),leaf),simple);
-    tip=lerp(tip,lerp(float3(.37,.58,.13),float3(.48,.65,.16),leaf),simple);
-    float3 fresh=lerp(base,tip,smoothstep(.08,lerp(.95,1,simple),t));
+    float3 fresh=lerp(base,tip,smoothstep(.08,.95,t));
+    if(simple>.5){
+        float3 green=lerp(float3(.14,.29,.055),float3(.20,.40,.075),leaf);
+        float3 lime=lerp(float3(.30,.52,.095),float3(.45,.62,.135),leaf);
+        float3 tip=lerp(float3(.48,.65,.14),float3(.66,.75,.20),leaf);
+        fresh=lerp(lerp(green,lime,smoothstep(.05,.64,t)),tip,smoothstep(.45,1,t));
+        float face=.5+.5*dot(side,SunDirection.xz);
+        float fold=lerp(lerp(.87,1.03,face),lerp(1.03,.87,face),i.blade.x*.5+.5);
+        fresh*=lerp(fold,1.15,ridge*(1-.65*t));
+    }
     float3 tint=lerp(fresh,float3(.58,.49,.20),Look.z);
     tint=lerp(tint,lerp(float3(.52,.58,.61),float3(.79,.83,.85),t),snow);
     tint*=lerp(.96,1.04,r3);
@@ -125,6 +142,7 @@ Output GrassBladeVS(Input i) {
     lighting/=max(1,max(lighting.r,max(lighting.g,lighting.b)));
     float neutral=dot(lighting,float3(.2126,.7152,.0722));
     lighting=lerp(lighting,lerp(neutral,lighting,.25),snow);
+    lighting=lerp(lighting,lerp(neutral,lighting,.6),simple*(1-snow));
     float3 color=tint*lighting;
     color*=lerp(1-Look.w*lerp(.22,.38,snow),lerp(1.04,1.02,snow),t);
     color*=lerp(.88+abs(surface.a)*.22,.94,snow);
