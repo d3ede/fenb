@@ -170,10 +170,19 @@ int main(int argc,char **argv){
     bool translucentLeaf=false,earlyGrass=true,refinementBoundary=false,grassBeforeMist=false;
     bool paving=false,earlyPaving=false,maskOnly=false;
     bool waterMask=false;
+    DWORD maskMip=0;
     float waterY=0;
     Com<IDirect3DTexture9> dirt,coverage;
     CHECK(SUCCEEDED(d->CreateTexture(8,8,1,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,dirt.out(),nullptr)));
-    CHECK(SUCCEEDED(d->CreateTexture(8,8,1,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,coverage.out(),nullptr)));
+    CHECK(SUCCEEDED(d->CreateTexture(8,8,0,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,coverage.out(),nullptr)));
+    // Deliberately different lower mips expose camera-selected mask sampling.
+    for(UINT level=1;level<coverage->GetLevelCount();++level){
+        D3DLOCKED_RECT lock{};CHECK(SUCCEEDED(coverage->LockRect(level,&lock,nullptr,0)));
+        const UINT size=8u>>level;
+        for(UINT y=0;y<size;++y)for(UINT x=0;x<size;++x)
+            reinterpret_cast<DWORD *>(static_cast<BYTE *>(lock.pBits)+y*lock.Pitch)[x]=0x00ffffff;
+        CHECK(SUCCEEDED(coverage->UnlockRect(level)));
+    }
     {D3DLOCKED_RECT lock{};dirt->LockRect(0,&lock,nullptr,0);for(int y=0;y<8;++y)for(int x=0;x<8;++x)((DWORD *)((BYTE *)lock.pBits+y*lock.Pitch))[x]=0xff826a40;dirt->UnlockRect(0);}
     Com<IDirect3DTexture9> nativeCard;
     if(proxy){
@@ -213,6 +222,7 @@ int main(int argc,char **argv){
             coverage->UnlockRect(0);
             const DWORD tag=6;dirt->SetPrivateData(GrassTag,&tag,sizeof(tag),0);
             d->SetTexture(0,dirt);d->SetTexture(1,coverage);
+            d->SetSamplerState(1,D3DSAMP_MAXMIPLEVEL,maskMip);
             d->SetRenderState(D3DRS_ALPHABLENDENABLE,TRUE);d->SetRenderState(D3DRS_SRCBLEND,D3DBLEND_SRCALPHA);
             d->SetRenderState(D3DRS_DESTBLEND,D3DBLEND_INVSRCALPHA);d->SetRenderState(D3DRS_ZWRITEENABLE,FALSE);
             d->SetTextureStageState(1,D3DTSS_ALPHAOP,D3DTOP_SELECTARG1);d->SetTextureStageState(1,D3DTSS_ALPHAARG1,D3DTA_TEXTURE);
@@ -240,6 +250,7 @@ int main(int argc,char **argv){
             d->SetRenderState(D3DRS_ALPHATESTENABLE,roadTest);
             if(!nativeLeaf){DWORD tag=leafProp?5u:paving?6u:0u;dirt->SetPrivateData(GrassTag,&tag,4,0);}
             d->SetTexture(0,dirt);d->SetTexture(1,coverage);
+            d->SetSamplerState(1,D3DSAMP_MAXMIPLEVEL,maskMip);
             d->SetRenderState(D3DRS_ALPHABLENDENABLE,TRUE);d->SetRenderState(D3DRS_SRCBLEND,D3DBLEND_SRCALPHA);d->SetRenderState(D3DRS_DESTBLEND,D3DBLEND_INVSRCALPHA);
             d->SetTextureStageState(1,D3DTSS_COLOROP,D3DTOP_SELECTARG1);d->SetTextureStageState(1,D3DTSS_COLORARG1,D3DTA_CURRENT);
             d->SetTextureStageState(1,D3DTSS_ALPHAOP,D3DTOP_SELECTARG1);d->SetTextureStageState(1,D3DTSS_ALPHAARG1,D3DTA_TEXTURE);
@@ -489,6 +500,15 @@ int main(int argc,char **argv){
         CHECK(std::abs(sample[1]-(1-alpha/255.f))<.01f);CHECK(std::abs(sample[0]-Ground(0,8))<.03f);
         if(alpha==255)CHECK(Save(result,L"artifacts/grass/field-road.png"));}
     roadTest=true;CHECK(render(true).size()==on.size());CHECK(GrassFXFixture::surface(grass,0,8)[1]<.01f);roadTest=false;
+    // Turning the camera can change native terrain mask mip limits. The local
+    // world map must keep its own footprint and the same planted coverage.
+    maskOnly=true;
+    const auto fullMask=render(true);
+    maskMip=3;
+    const auto cameraMask=render(true);
+    CHECK(GrassFXFixture::surface(grass,0,8)[1]<.01f);
+    CHECK(Delta(fullMask,cameraMask)<=(msaa?32u:0u));
+    maskMip=0;maskOnly=false;
     roadGradient=true;CHECK(render(true).size()==on.size()&&!GrassFXFixture::failed(grass));
     const auto left=GrassFXFixture::surface(grass,-1,8),middle=GrassFXFixture::surface(grass,0,8),right=GrassFXFixture::surface(grass,1,8);
     CHECK(left[1]>.8f&&middle[1]>.45f&&middle[1]<.55f&&right[1]<.2f);

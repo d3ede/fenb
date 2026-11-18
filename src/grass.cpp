@@ -358,12 +358,15 @@ void GrassFX::apply(const Command &c,bool heightOnly){
         return;
     }
     for(DWORD stage=0;stage<(c.prop&&!c.blend?1u:2u);++stage)for(unsigned i=0;i<std::size(Samplers);++i)device_->SetSamplerState(stage,Samplers[i],c.samplers[stage][i]);
-    // Classification is calibrated in artist RGB, not camera-selected mip/sRGB
-    // state. Its footprint comes from the fixed world map, independent of view.
-    device_->SetSamplerState(0,D3DSAMP_SRGBTEXTURE,FALSE);
-    device_->SetSamplerState(0,D3DSAMP_MAXMIPLEVEL,0);device_->SetSamplerState(0,D3DSAMP_MIPMAPLODBIAS,0);
-    device_->SetSamplerState(0,D3DSAMP_MINFILTER,D3DTEXF_LINEAR);device_->SetSamplerState(0,D3DSAMP_MAGFILTER,D3DTEXF_LINEAR);
-    device_->SetSamplerState(0,D3DSAMP_MIPFILTER,D3DTEXF_LINEAR);device_->SetSamplerState(0,D3DSAMP_MAXANISOTROPY,1);
+    // Both the artist RGB and terrain blend mask use the fixed world-map
+    // footprint. Inheriting camera-selected mip limits on the mask can erase
+    // whole patches even though the ground texture itself samples consistently.
+    for(DWORD stage=0;stage<(c.material[1]>.5f?2u:1u);++stage){
+        device_->SetSamplerState(stage,D3DSAMP_SRGBTEXTURE,FALSE);
+        device_->SetSamplerState(stage,D3DSAMP_MAXMIPLEVEL,0);device_->SetSamplerState(stage,D3DSAMP_MIPMAPLODBIAS,0);
+        device_->SetSamplerState(stage,D3DSAMP_MINFILTER,D3DTEXF_LINEAR);device_->SetSamplerState(stage,D3DSAMP_MAGFILTER,D3DTEXF_LINEAR);
+        device_->SetSamplerState(stage,D3DSAMP_MIPFILTER,D3DTEXF_LINEAR);device_->SetSamplerState(stage,D3DSAMP_MAXANISOTROPY,1);
+    }
 }
 void GrassFX::replay(const Command &c){
     device_->SetStreamSource(0,c.vertices,c.offset,c.stride);device_->SetIndices(c.indices);
