@@ -278,7 +278,7 @@ int main(int argc,char **argv){
             auto drawWater=[&](){return d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP,2,strip,sizeof(WaterVertex));};
             if(on&&!proxy)grass.capture(settings,drawWater,{},true);
         }
-        if(refinementBoundary&&on&&!proxy)grassBeforeMist=grass.beforeRefinement(settings);
+        if(refinementBoundary&&on&&!proxy)grassBeforeMist=grass.drawBeforeEffect(settings);
         if(translucentLeaf){
             d->SetRenderState(D3DRS_ALPHABLENDENABLE,TRUE);
             d->SetRenderState(D3DRS_SRCBLEND,D3DBLEND_SRCALPHA);d->SetRenderState(D3DRS_DESTBLEND,D3DBLEND_INVSRCALPHA);

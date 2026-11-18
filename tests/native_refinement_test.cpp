@@ -180,5 +180,8 @@ int main(int argc,char **argv){
         }
         native_patch::imageOverride=nullptr;FreeLibrary(image);
     }
+    std::array<skate_trail::Point,2> nearGrass={{{{0,2,4},{1,0,0},1},{{0,2,6},{1,0,0},1}}};
+    skate_trail::Path raised(nearGrass,.5f);
+    assert(raised.at(0).center.y==2&&raised.at(.5f).center.y>2&&raised.at(2).center.y==2.5f);
     puts("PASS: refinement scopes, paired merge, gap resampling, bounded geometry, UP validation and isolation");
 }

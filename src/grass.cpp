@@ -399,7 +399,7 @@ void GrassFX::beforeTranslucency(const Settings &s,bool ownScene){
        memcmp(&view,&view_,sizeof(view))||memcmp(&projection,&projection_,sizeof(projection)))return;
     draw(s,ownScene);
 }
-bool GrassFX::beforeRefinement(const Settings &s,bool ownScene){
+bool GrassFX::drawBeforeEffect(const Settings &s,bool ownScene){
     if(rendered_)return true;
     if(!started_||failed_)return false;
     D3DMATRIX view{},projection{};

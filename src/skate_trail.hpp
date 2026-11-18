@@ -37,8 +37,9 @@ class Path {
     std::array<float,512> distances_{};
     std::array<Vec,512> sides_{};
     size_t size_=0;
+    float grassLift_=0;
 public:
-    explicit Path(std::span<const Point> points):points_(points) {
+    explicit Path(std::span<const Point> points,float grassLift=0):points_(points),grassLift_(grassLift) {
         if(points.size()<2||points.size()>distances_.size())return;
         sides_[0]=points[0].across;
         for(size_t i=1;i<points.size();++i) {
@@ -62,7 +63,8 @@ public:
         const auto &p=points_[a],&q=points_[b];
         const Vec side=sides_[a]+(sides_[b]-sides_[a])*t;
         const float width=length(side);
-        return {p.center+(q.center-p.center)*t,width>.001f?side*(1/width):sides_[a],
+        const Vec lift{0,grassLift_*smooth(distance/1.35f),0};
+        return {p.center+(q.center-p.center)*t+lift,width>.001f?side*(1/width):sides_[a],
                 p.opacity+(q.opacity-p.opacity)*t};
     }
 };
@@ -186,8 +188,8 @@ public:
         for(const auto &mask:masks_)if(mask.p)total+=128*128*4;
         return total;
     }
-    bool draw(std::span<const Point> points,Style style,DWORD customColor=0,bool custom=false) {
-        Path path(points);
+    bool draw(std::span<const Point> points,Style style,DWORD customColor=0,bool custom=false,float grassLift=0) {
+        Path path(points,grassLift);
         if(style==Style::Game||path.lengthInWorld()<.05f||!prepare())return false;
         D3DMATRIX world{};
         if(FAILED(device_->GetTransform(D3DTS_WORLD,&world))||FAILED(device_->GetTransform(D3DTS_VIEW,&view_))||

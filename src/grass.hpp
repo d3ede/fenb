@@ -76,7 +76,7 @@ public:
     void flush();
     bool pending() const {return !pending_.empty();}
     void draw(const Settings &,bool ownScene=false);
-    bool beforeRefinement(const Settings &,bool ownScene=false);
+    bool drawBeforeEffect(const Settings &,bool ownScene=false);
     void beforeTranslucency(const Settings &,bool ownScene=false);
 #ifdef FENB_DIAGNOSTICS
     void probe(PipelineProbe &,bool after);

@@ -251,7 +251,7 @@ void Runtime::resetFrame() {
     grass_->beginFrame(grassEnabled, hasPlayer ? player : nullptr, worldKey);
     sfx_->beginFrame(settings.enabled && (settings.sfx || (settings.water && settings.sfxWake > 0)) && !compare,
                      settings.sfx&&settings.sfxSmoothAura&&settings.sfxAura>0);
-    native_skate::request(this,settings.enabled&&settings.sfx&&settings.skateTrailStyle>0&&!compare);
+    native_skate::request(this,effectsEnabled&&settings.sfx&&(settings.skateTrailStyle>0||grassEnabled));
     effects_->sceneFX().beginFrame();
     effects_->sceneFX().updatePuddles(settings, environment_.rainIntensity(settings), GetTickCount64(), !compare && !lost_);
     lastWaterDraws = waterDraws;
@@ -271,17 +271,22 @@ void Runtime::resetFrame() {
 }
 bool Runtime::beforeWaterDraw(UINT upStride, DrawCall draw,ParticleDraw particle) {
     if(auto *skate=native_skate::current; skate&&!lost_&&!hudStarted_&&settings.enabled&&settings.sfx&&
-       settings.skateTrailStyle>0&&!compare&&!vertexShaderActive_&&fvfKnown_&&drawFVF_==0x142&&
+       !compare&&!vertexShaderActive_&&fvfKnown_&&drawFVF_==0x142&&
        sceneBackbuffer_&&drawTarget_==sceneBackbuffer_&&!particle.data&&!particle.buffered.indexed&&
        particle.type==D3DPT_TRIANGLESTRIP&&particle.primitives>=2) {
         if(!skate->attempted) {
             skate->attempted=true;
-            std::array<skate_trail::Point,512> trail;
-            const size_t count=native_skate::points(skate->trail,trail);
-            auto channel=[](float v){return DWORD(std::clamp(v,0.f,1.f)*255+.5f);};
-            const DWORD tint=(channel(settings.skateTrailR)<<16)|(channel(settings.skateTrailG)<<8)|channel(settings.skateTrailB);
-            if(count)skate->replaced=skateTrail_->draw({trail.data(),count},
-                skate_trail::Style(int(settings.skateTrailStyle)),tint,settings.skateTrailCustomColor);
+            const bool aboveGrass=sawWorld_&&settings.grass&&grass_->drawBeforeEffect(settings,!inScene_);
+            if(settings.skateTrailStyle>0) {
+                std::array<skate_trail::Point,512> trail;
+                const size_t count=native_skate::points(skate->trail,trail);
+                auto channel=[](float v){return DWORD(std::clamp(v,0.f,1.f)*255+.5f);};
+                const DWORD tint=(channel(settings.skateTrailR)<<16)|(channel(settings.skateTrailG)<<8)|
+                    channel(settings.skateTrailB);
+                const float clearance=aboveGrass?std::min(.66f,settings.grassHeight*.67f):0;
+                if(count)skate->replaced=skateTrail_->draw({trail.data(),count},
+                    skate_trail::Style(int(settings.skateTrailStyle)),tint,settings.skateTrailCustomColor,clearance);
+            }
         }
         if(skate->replaced)return true;
     }
@@ -314,7 +319,7 @@ bool Runtime::beforeWaterDraw(UINT upStride, DrawCall draw,ParticleDraw particle
             // Armor mist is translucent and is submitted when its native
             // model scope closes. Render opaque blades first even in maps
             // without an earlier native foliage trigger.
-            if(grass_->beforeRefinement(settings,!inScene_))sfx_->grassClearance(settings.grassHeight);
+            if(grass_->drawBeforeEffect(settings,!inScene_))sfx_->grassClearance(settings.grassHeight);
         }
     }
     if (!lost_ && settings.enabled && !compare && !vertexShaderActive_ && fvfKnown_ &&
