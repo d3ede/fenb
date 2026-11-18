@@ -396,6 +396,8 @@ int main() {
           potato.saturation==builtIn.saturation && potato.temperature==builtIn.temperature && potato.tint==builtIn.tint &&
           potato.shadows==builtIn.shadows && potato.highlights==builtIn.highlights && potato.bloomStrength==builtIn.bloomStrength);
     Settings highEnd;highEnd.preset(1);
+    CHECK(highEnd.grass&&highEnd.grassSnow&&highEnd.grassQuality==2&&highEnd.grassDistance==55&&
+          highEnd.grassDensity==1.5f&&highEnd.grassWidth==.042f&&highEnd.grassSlope==60&&highEnd.materials);
     CHECK(highEnd.ssao && highEnd.sunRays && highEnd.sky && highEnd.fog && highEnd.dof &&
           highEnd.adaptation && highEnd.localLighting && highEnd.lightingBalance && highEnd.smaa);
     CHECK(highEnd.sceneQuality && highEnd.sfx && highEnd.surfaceReflections &&

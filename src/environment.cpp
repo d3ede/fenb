@@ -160,7 +160,7 @@ environment_detail::Binding environment_detail::InspectImage(HMODULE image, cons
             reinterpret_cast<InitFall>(base + l.initFall)};
 }
 
-bool environment_detail::PlayerPosition(const Binding &binding,float (&position)[3]) {
+bool environment_detail::PlayerPosition(const Binding &binding,float (&position)[3],uint64_t *worldKey) {
     void *player=nullptr;SIZE_T read=0;
     if(!binding.player||!ReadProcessMemory(GetCurrentProcess(),binding.player,&player,sizeof(player),&read)||
         read!=sizeof(player)||!player)return false;
@@ -168,11 +168,17 @@ bool environment_detail::PlayerPosition(const Binding &binding,float (&position)
     if(!ReadProcessMemory(GetCurrentProcess(),static_cast<unsigned char *>(player)+0x160,sample,sizeof(sample),&read)||
         read!=sizeof(sample))return false;
     for(float v:sample)if(!std::isfinite(v)||std::abs(v)>1e7f)return false;
+    if(worldKey){
+        *worldKey=0;void *world=nullptr;int id=0;
+        if(ReadProcessMemory(GetCurrentProcess(),static_cast<unsigned char *>(player)+0x16c,&world,sizeof(world),&read)&&
+            read==sizeof(world)&&world&&ReadProcessMemory(GetCurrentProcess(),world,&id,sizeof(id),&read)&&read==sizeof(id))
+            *worldKey=(uint64_t(reinterpret_cast<uintptr_t>(world))<<32)|uint32_t(id);
+    }
     memcpy(position,sample,sizeof(sample));return true;
 }
-bool Environment::playerPosition(float (&position)[3]) const {
+bool Environment::playerPosition(float (&position)[3],uint64_t *worldKey) const {
     auto &s=State();std::lock_guard lock(s.mutex);
-    return environment_detail::PlayerPosition(s.binding,position);
+    return environment_detail::PlayerPosition(s.binding,position,worldKey);
 }
 environment_detail::FrameScope::FrameScope(const Binding &binding, FrameState &state, const Settings &s,
                                            ULONGLONG now)

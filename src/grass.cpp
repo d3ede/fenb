@@ -44,18 +44,25 @@ bool GrassFX::supported(){
     const auto format=D3DFMT_A32B32G32R32F;
     capable_=SUCCEEDED(root->CheckDeviceFormat(cp.AdapterOrdinal,cp.DeviceType,mode.Format,
         D3DUSAGE_RENDERTARGET|D3DUSAGE_QUERY_VERTEXTEXTURE|D3DUSAGE_QUERY_POSTPIXELSHADER_BLENDING,D3DRTYPE_TEXTURE,format));
+    capable_=capable_&&(caps.PrimitiveMiscCaps&D3DPMISCCAPS_BLENDOP)&&SUCCEEDED(root->CheckDeviceFormat(cp.AdapterOrdinal,
+        cp.DeviceType,mode.Format,D3DUSAGE_RENDERTARGET|D3DUSAGE_QUERY_VERTEXTEXTURE|
+        D3DUSAGE_QUERY_POSTPIXELSHADER_BLENDING,D3DRTYPE_TEXTURE,D3DFMT_R32F));
     return capable_;
 }
 void GrassFX::invalidate(){
     endNative();for(auto *c:pending_)c->clear();pending_.clear();groundSurface_.out();ground_.out();worldTarget_.out();worldDepth_.out();
+    contactSurface_.out();contacts_.out();
     captureVS_.out();capturePS_.out();bladeVS_.out();bladePS_.out();hidePS_.out();declaration_.out();
     for(auto &b:bands_){b.mesh.out();b.instances.out();b.indices.out();b.count=b.vertices=b.triangles=0;}
     resolution_=0;bufferBytes_=0;builtQuality_=-1;started_=false;clear_=true;failed_=false;checked_=false;
 }
-void GrassFX::beginFrame(bool enabled,const float *player){
+void GrassFX::beginFrame(bool enabled,const float *player,uint64_t worldKey){
     endNative();for(auto *c:pending_)c->clear();pending_.clear();worldTarget_.out();worldDepth_.out();started_=false;clear_=true;
     if(!enabled&&enabled_)invalidate();
     enabled_=enabled;
+    contactClear_=true;contactTarget_=false;
+    if(!worldKey||worldKey!=worldKey_)winter_=false;
+    worldKey_=worldKey;
     centered_=player&&std::isfinite(player[0])&&std::isfinite(player[1])&&std::isfinite(player[2]);
     if(centered_)memcpy(center_,player,3*sizeof(float));
 }
@@ -105,11 +112,14 @@ bool GrassFX::geometry(){
     const float distance=frame_.grassDistance;
     const float cuts[]={0,std::min(15.f,distance*.34f),std::min(42.f,distance*.7f),distance};
     const unsigned budgets[]={16000,42000,80000};
+    const float weightedArea=3.14159265f*(cuts[1]*cuts[1]+(cuts[2]*cuts[2]-cuts[1]*cuts[1])*.25f+
+        (cuts[3]*cuts[3]-cuts[2]*cuts[2])*.0625f);
+    const float baseSpacing=std::max(.28f/std::sqrt(frame_.grassDensity),std::sqrt(weightedArea/(budgets[quality]*.94f)));
     for(int lod=0;lod<3;++lod){
         auto &b=bands_[lod];b.mesh.out();b.instances.out();b.indices.out();b.count=0;
-        const int blades=lod==0?(quality==0?4:quality==1?7:10):lod==1?(quality==0?4:quality==1?6:8):(quality==0?4:6);
+        const int blades=quality==0?4:quality==1?7:10;
         const int segments=lod==0?quality+2:lod==1?2:1;
-        std::vector<BladeVertex> mesh;std::vector<WORD> indices;unsigned seed=0x39c1a265u+lod*17;
+        std::vector<BladeVertex> mesh;std::vector<WORD> indices;unsigned seed=0x39c1a265u;
         for(int blade=0;blade<blades;++blade){
             const float angle=blade*6.2831853f/blades+Random(seed)*.3f;
             const float radius=.08f+Random(seed)*.16f,h=.75f+Random(seed)*.5f;
@@ -119,10 +129,8 @@ bool GrassFX::geometry(){
             for(int segment=0;segment<segments;++segment){WORD a=WORD(first+segment*2),c=a+2;
                 indices.insert(indices.end(),{a,WORD(a+1),c,c,WORD(a+1),WORD(c+1)});}
         }
-        b.inner=lod?cuts[lod]*.88f:0;b.outer=cuts[lod+1];
-        b.spacing=(lod==0?.28f:lod==1?.43f:.72f)/std::sqrt(frame_.grassDensity);
-        const float minimum=b.outer/std::sqrt(float(budgets[quality])/12);
-        b.spacing=std::max(b.spacing,minimum);
+        b.inner=cuts[lod];b.outer=cuts[lod+1];b.factor=float(1<<lod);
+        b.spacing=baseSpacing*b.factor;
         const int cells=int(std::ceil(b.outer/b.spacing))+1;
         std::vector<Cell> roots;
         for(int z=-cells;z<=cells;++z)for(int x=-cells;x<=cells;++x){
@@ -157,12 +165,16 @@ bool GrassFX::initialize(const Settings &s){
     device_->GetRenderState(D3DRS_SRGBWRITEENABLE,&worldSrgb_);
     const unsigned resolution=int(std::round(s.grassQuality))==0?256:int(std::round(s.grassQuality))==1?512:1024;
     if(!ground_.p||resolution!=resolution_){
-        groundSurface_.out();ground_.out();resolution_=resolution;
+        groundSurface_.out();ground_.out();contactSurface_.out();contacts_.out();resolution_=resolution;
         if(FAILED(device_->CreateTexture(resolution,resolution,1,D3DUSAGE_RENDERTARGET,D3DFMT_A32B32G32R32F,D3DPOOL_DEFAULT,ground_.out(),nullptr))||
            FAILED(ground_->GetSurfaceLevel(0,groundSurface_.out()))){failed_=true;return false;}
+        if(FAILED(device_->CreateTexture(resolution,resolution,1,D3DUSAGE_RENDERTARGET,D3DFMT_R32F,D3DPOOL_DEFAULT,contacts_.out(),nullptr))||
+           FAILED(contacts_->GetSurfaceLevel(0,contactSurface_.out()))){failed_=true;return false;}
     }
     if(!programs()||!geometry()){failed_=true;return false;}
-    map_[0]=std::floor(center_[0]*4)*.25f;map_[1]=std::floor(center_[2]*4)*.25f;map_[2]=s.grassDistance+2;map_[3]=1.f/resolution_;
+    map_[2]=s.grassDistance+2;map_[3]=1.f/resolution_;
+    const float texel=2*map_[2]/resolution_;
+    map_[0]=std::floor(center_[0]/texel)*texel;map_[1]=std::floor(center_[2]/texel)*texel;
     DWORD value=0;device_->GetRenderState(D3DRS_AMBIENT,&value);Color(value,ambient_);
     for(int axis=0;axis<3;++axis)ambient_[axis]=std::max(.12f,ambient_[axis]);
     memset(sunColor_,0,sizeof(sunColor_));sunDirection_[0]=0;sunDirection_[1]=1;sunDirection_[2]=0;
@@ -190,18 +202,19 @@ void GrassFX::capture(const Settings &s,DrawCall draw,SurfaceDraw geometry){
     device_->GetRenderState(D3DRS_ZENABLE,&z);device_->GetRenderState(D3DRS_ZWRITEENABLE,&write);
     device_->GetRenderState(D3DRS_ALPHATESTENABLE,&test);device_->GetRenderState(D3DRS_ALPHABLENDENABLE,&blend);
     device_->GetRenderState(D3DRS_SRCBLEND,&src);device_->GetRenderState(D3DRS_DESTBLEND,&dst);
-    if(!z||(!write&&(!blend||fvf!=0x212))||(blend&&(fvf!=0x212||src!=D3DBLEND_SRCALPHA||dst!=D3DBLEND_INVSRCALPHA)))return;
+    if(!z||(blend&&(src!=D3DBLEND_SRCALPHA||dst!=D3DBLEND_INVSRCALPHA)))return;
     DWORD clip=0;device_->GetRenderState(D3DRS_CLIPPLANEENABLE,&clip);if(clip)return;
     Com<IDirect3DBaseTexture9> art;device_->GetTexture(0,art.out());
     if(!art.p||art->GetType()!=D3DRTYPE_TEXTURE)return;
     const unsigned kind=classify(static_cast<IDirect3DTexture9 *>(art.p));
     if(kind==2||kind==5)return; // Vegetation cards never erase the ground below them.
+    if(kind==4)winter_=true;
     const bool ground=kind==1||kind==3||(kind==4&&s.grassSnow);
+    const bool prop=fvf==0x112&&!ground;
     // Exact ground atlases are opaque. A preceding cutout leaf can leave the
     // native alpha-test enabled; it must not disable the next terrain receiver.
-    if(test&&!ground)return;
+    if(!write&&!blend&&!prop)return;
     if(!started_&&(!ground||!initialize(s)))return;
-    if(fvf==0x112&&!ground&&std::hypot(world._41-center_[0],world._43-center_[2])>map_[2]+12)return;
     Com<IDirect3DVertexBuffer9> source;UINT offset=0,stride=0;
     if(geometry.primitives){
         device_->GetStreamSource(0,source.out(),&offset,&stride);
@@ -211,11 +224,12 @@ void GrassFX::capture(const Settings &s,DrawCall draw,SurfaceDraw geometry){
     if(pending_.size()>=commands_.size())flush();
     auto release=[](Command *c){c->clear();};
     std::unique_ptr<Command,decltype(release)> command(&commands_[pending_.size()],release);
-    command->draw=geometry;command->fvf=fvf;command->blend=blend!=0;
+    command->draw=geometry;command->fvf=fvf;command->blend=blend!=0&&!prop;command->prop=prop;
     command->matrices[0]=world;
     D3DMATRIX view{},projection{};device_->GetTransform(D3DTS_VIEW,&view);device_->GetTransform(D3DTS_PROJECTION,&projection);
     if(memcmp(&view,&view_,sizeof(view))||memcmp(&projection,&projection_,sizeof(projection)))return;
     for(DWORD stage=0;stage<2;++stage){
+        if(stage==1&&prop){command->matrices[2]=Identity();continue;}
         DWORD coordinate=0,flags=0;device_->GetTextureStageState(stage,D3DTSS_TEXCOORDINDEX,&coordinate);
         device_->GetTextureStageState(stage,D3DTSS_TEXTURETRANSFORMFLAGS,&flags);
         if((stage==0&&coordinate!=0)||(stage==1&&blend&&coordinate!=1)||
@@ -225,7 +239,7 @@ void GrassFX::capture(const Settings &s,DrawCall draw,SurfaceDraw geometry){
         for(unsigned i=0;i<std::size(Samplers);++i)device_->GetSamplerState(stage,Samplers[i],&command->samplers[stage][i]);
     }
     bool blendMap=false;
-    if(blend){DWORD op=0,arg=0;device_->GetTextureStageState(1,D3DTSS_ALPHAOP,&op);
+    if(command->blend){DWORD op=0,arg=0;device_->GetTextureStageState(1,D3DTSS_ALPHAOP,&op);
         if(op!=D3DTOP_DISABLE){
             if(op!=D3DTOP_SELECTARG1&&op!=D3DTOP_SELECTARG2)return;
             device_->GetTextureStageState(1,op==D3DTOP_SELECTARG1?D3DTSS_ALPHAARG1:D3DTSS_ALPHAARG2,&arg);
@@ -235,7 +249,7 @@ void GrassFX::capture(const Settings &s,DrawCall draw,SurfaceDraw geometry){
     }
     command->material[0]=kind==3?2.f:kind==1?1.f:kind==4&&s.grassSnow?-1.f:0.f;command->material[1]=blendMap?1.f:0.f;
     command->material[2]=-1;
-    if(blend){command->material[2]=1;
+    if(command->blend){command->material[2]=1;
         if(!blendMap){DWORD lighting=0;device_->GetRenderState(D3DRS_LIGHTING,&lighting);
             if(lighting){D3DMATERIAL9 material{};device_->GetMaterial(&material);command->material[2]=material.Diffuse.a;}}}
     command->art.p=art.p;art->AddRef();if(blendMap)device_->GetTexture(1,command->blendMap.out());
@@ -248,12 +262,15 @@ void GrassFX::capture(const Settings &s,DrawCall draw,SurfaceDraw geometry){
     apply(*command);if(FAILED(draw())){failed_=true;return;}
     if(command->blend&&command->material[0]!=0){apply(*command,true);if(FAILED(draw()))failed_=true;}
 }
-bool GrassFX::target(){
+bool GrassFX::target(bool contacts){
     device_->SetStreamSourceFreq(0,1);device_->SetStreamSourceFreq(1,1);
     device_->SetTexture(D3DVERTEXTEXTURESAMPLER0,nullptr);
-    if(FAILED(device_->SetRenderTarget(0,groundSurface_)))return false;
+    device_->SetTexture(D3DVERTEXTEXTURESAMPLER1,nullptr);
+    if(FAILED(device_->SetRenderTarget(0,contacts?contactSurface_:groundSurface_)))return false;
+    contactTarget_=contacts;
     D3DVIEWPORT9 viewport{0,0,resolution_,resolution_,0,1};device_->SetViewport(&viewport);
-    if(clear_){if(FAILED(device_->Clear(0,nullptr,D3DCLEAR_TARGET,0,1,0)))return false;clear_=false;}
+    auto &clear=contacts?contactClear_:clear_;
+    if(clear){if(FAILED(device_->Clear(0,nullptr,D3DCLEAR_TARGET,0,1,0)))return false;clear=false;}
     device_->SetVertexShader(captureVS_);device_->SetPixelShader(capturePS_);
     device_->SetVertexShaderConstantF(12,map_,1);
     for(auto key:{D3DRS_ZENABLE,D3DRS_ZWRITEENABLE,D3DRS_ALPHATESTENABLE,D3DRS_FOGENABLE,D3DRS_STENCILENABLE,
@@ -265,17 +282,28 @@ bool GrassFX::target(){
     return true;
 }
 void GrassFX::apply(const Command &c,bool heightOnly){
+    if(c.prop!=contactTarget_&&!target(c.prop)){failed_=true;return;}
     device_->SetFVF(c.fvf);device_->SetTexture(0,c.art);device_->SetTexture(1,c.blendMap);
     device_->SetVertexShaderConstantF(0,&c.matrices[0].m[0][0],12);
     float material[]={c.material[0],c.material[1],c.material[2],!c.blend||heightOnly?1.f:0.f};
     device_->SetPixelShaderConstantF(0,material,1);
-    device_->SetRenderState(D3DRS_ALPHABLENDENABLE,c.blend&&!heightOnly);
+    const float contact[]={c.prop?1.f:0.f,center_[1],0,0};device_->SetPixelShaderConstantF(1,contact,1);
+    device_->SetRenderState(D3DRS_ALPHABLENDENABLE,c.prop||(c.blend&&!heightOnly));
+    device_->SetRenderState(D3DRS_BLENDOP,c.prop?D3DBLENDOP_MAX:D3DBLENDOP_ADD);
+    device_->SetRenderState(D3DRS_SRCBLEND,c.prop?D3DBLEND_ONE:D3DBLEND_SRCALPHA);
+    device_->SetRenderState(D3DRS_DESTBLEND,c.prop?D3DBLEND_ONE:D3DBLEND_INVSRCALPHA);
     // Props and roads erase coverage, never replace the receiver height. Otherwise
     // bilinear samples at a roof edge lift surviving ground blades into the air.
-    device_->SetRenderState(D3DRS_COLORWRITEENABLE,c.material[0]==0?
+    device_->SetRenderState(D3DRS_COLORWRITEENABLE,c.prop?D3DCOLORWRITEENABLE_RED:c.material[0]==0?
         D3DCOLORWRITEENABLE_GREEN|D3DCOLORWRITEENABLE_BLUE:!c.blend?15:heightOnly?
         D3DCOLORWRITEENABLE_RED|D3DCOLORWRITEENABLE_ALPHA:D3DCOLORWRITEENABLE_GREEN|D3DCOLORWRITEENABLE_BLUE);
-    for(DWORD stage=0;stage<2;++stage)for(unsigned i=0;i<std::size(Samplers);++i)device_->SetSamplerState(stage,Samplers[i],c.samplers[stage][i]);
+    for(DWORD stage=0;stage<(c.prop?1u:2u);++stage)for(unsigned i=0;i<std::size(Samplers);++i)device_->SetSamplerState(stage,Samplers[i],c.samplers[stage][i]);
+    // Classification is calibrated in artist RGB, not camera-selected mip/sRGB
+    // state. Its footprint comes from the fixed world map, independent of view.
+    device_->SetSamplerState(0,D3DSAMP_SRGBTEXTURE,FALSE);
+    device_->SetSamplerState(0,D3DSAMP_MAXMIPLEVEL,0);device_->SetSamplerState(0,D3DSAMP_MIPMAPLODBIAS,0);
+    device_->SetSamplerState(0,D3DSAMP_MINFILTER,D3DTEXF_LINEAR);device_->SetSamplerState(0,D3DSAMP_MAGFILTER,D3DTEXF_LINEAR);
+    device_->SetSamplerState(0,D3DSAMP_MIPFILTER,D3DTEXF_LINEAR);device_->SetSamplerState(0,D3DSAMP_MAXANISOTROPY,1);
 }
 void GrassFX::replay(const Command &c){
     device_->SetStreamSource(0,c.vertices,c.offset,c.stride);device_->SetIndices(c.indices);
@@ -292,20 +320,21 @@ void GrassFX::flush(){
     for(auto *c:pending_)c->clear();pending_.clear();
 }
 void GrassFX::draw(const Settings &s,bool ownScene){
-    if(!enabled_||!s.enabled||!s.grass||!started_||failed_)return;
+    if(!enabled_||!s.enabled||!s.grass||!started_||failed_||(winter_&&!s.grassSnow))return;
     if(ownScene&&FAILED(device_->BeginScene()))return;
     {
         flush();VertexProcessing hardware(device_);StateGuard guard(device_);StreamFrequencies frequencies(device_);
         if(guard.valid()&&!failed_&&!clear_){
+            if(contactClear_&&!target(true))failed_=true;
             guard.isolateTargets();device_->SetRenderTarget(0,worldTarget_);device_->SetDepthStencilSurface(worldDepth_);device_->SetViewport(&viewport_);
             device_->SetVertexDeclaration(declaration_);device_->SetVertexShader(bladeVS_);device_->SetPixelShader(bladePS_);
             device_->SetTexture(D3DVERTEXTEXTURESAMPLER0,ground_);
-            for(auto key:{D3DSAMP_MINFILTER,D3DSAMP_MAGFILTER,D3DSAMP_MIPFILTER})device_->SetSamplerState(D3DVERTEXTEXTURESAMPLER0,key,key==D3DSAMP_MIPFILTER?D3DTEXF_NONE:D3DTEXF_POINT);
-            device_->SetSamplerState(D3DVERTEXTEXTURESAMPLER0,D3DSAMP_ADDRESSU,D3DTADDRESS_CLAMP);
-            device_->SetSamplerState(D3DVERTEXTEXTURESAMPLER0,D3DSAMP_ADDRESSV,D3DTADDRESS_CLAMP);
-            device_->SetSamplerState(D3DVERTEXTEXTURESAMPLER0,D3DSAMP_MAXMIPLEVEL,0);
-            device_->SetSamplerState(D3DVERTEXTEXTURESAMPLER0,D3DSAMP_MIPMAPLODBIAS,0);
-            device_->SetSamplerState(D3DVERTEXTEXTURESAMPLER0,D3DSAMP_SRGBTEXTURE,FALSE);
+            device_->SetTexture(D3DVERTEXTEXTURESAMPLER1,contacts_);
+            for(DWORD slot:{DWORD(D3DVERTEXTEXTURESAMPLER0),DWORD(D3DVERTEXTEXTURESAMPLER1)}){
+                for(auto key:{D3DSAMP_MINFILTER,D3DSAMP_MAGFILTER,D3DSAMP_MIPFILTER})device_->SetSamplerState(slot,key,key==D3DSAMP_MIPFILTER?D3DTEXF_NONE:D3DTEXF_POINT);
+                device_->SetSamplerState(slot,D3DSAMP_ADDRESSU,D3DTADDRESS_CLAMP);device_->SetSamplerState(slot,D3DSAMP_ADDRESSV,D3DTADDRESS_CLAMP);
+                device_->SetSamplerState(slot,D3DSAMP_MAXMIPLEVEL,0);device_->SetSamplerState(slot,D3DSAMP_MIPMAPLODBIAS,0);device_->SetSamplerState(slot,D3DSAMP_SRGBTEXTURE,FALSE);
+            }
             device_->SetRenderState(D3DRS_ZENABLE,TRUE);device_->SetRenderState(D3DRS_ZWRITEENABLE,TRUE);
             device_->SetRenderState(D3DRS_ZFUNC,D3DCMP_LESSEQUAL);device_->SetRenderState(D3DRS_CULLMODE,D3DCULL_NONE);
             for(auto key:{D3DRS_ALPHABLENDENABLE,D3DRS_ALPHATESTENABLE,D3DRS_FOGENABLE,D3DRS_STENCILENABLE,
@@ -322,7 +351,7 @@ void GrassFX::draw(const Settings &s,bool ownScene){
             p[8][0]=std::cos(angle);p[8][1]=std::sin(angle);p[8][2]=frame_.grassWind;p[8][3]=frame_.grassWind>0&&frame_.grassWindSpeed>0?float(GetTickCount64()%3600000)*.001f:0;
             memcpy(p[9],sunDirection_,16);memcpy(p[10],sunColor_,16);memcpy(p[11],ambient_,16);
             p[12][0]=frame_.grassBrightness;p[12][1]=frame_.grassSaturation;p[12][2]=frame_.grassDryness;p[12][3]=frame_.grassShading;
-            memcpy(p[13],fog_,16);memcpy(p[14],fogColor_,16);p[15][0]=frame_.grassWindSpeed;p[15][3]=frame_.grassSnow?1.f:0.f;
+            memcpy(p[13],fog_,16);memcpy(p[14],fogColor_,16);p[15][0]=frame_.grassWindSpeed;p[15][3]=frame_.grassSnow?(winter_?2.f:1.f):0.f;
             device_->SetPixelShaderConstantF(14,fogColor_,1);
             for(int axis=0;axis<3;++axis)p[16][axis]=view_.m[axis][2];
             for(auto &b:bands_){if(!b.count)continue;
@@ -330,6 +359,8 @@ void GrassFX::draw(const Settings &s,bool ownScene){
                 p[15][1]=std::floor(center_[0]/b.spacing);p[15][2]=std::floor(center_[2]/b.spacing);
                 device_->SetVertexShaderConstantF(0,p[0],17);
                 device_->SetVertexShaderConstantF(17,center_,1);
+                const float lod[]={b.factor,b.spacing/b.factor,frame_.grassDistance,frame_.grassFade};
+                device_->SetVertexShaderConstantF(18,lod,1);
                 device_->SetStreamSource(0,b.mesh,0,sizeof(BladeVertex));device_->SetStreamSource(1,b.instances,0,sizeof(Cell));device_->SetIndices(b.indices);
                 device_->SetStreamSourceFreq(0,D3DSTREAMSOURCE_INDEXEDDATA|b.count);device_->SetStreamSourceFreq(1,D3DSTREAMSOURCE_INSTANCEDATA|1);
                 if(FAILED(device_->DrawIndexedPrimitive(D3DPT_TRIANGLELIST,0,0,b.vertices,0,b.triangles)))failed_=true;

@@ -56,6 +56,8 @@ int main() {
     {std::array<unsigned char,0x180> player{};void *slot=player.data();Binding binding;binding.player=&slot;
         const float expected[]={123,45,678};memcpy(player.data()+0x160,expected,sizeof(expected));float position[3]{};
         CHECK(PlayerPosition(binding,position)&&!memcmp(position,expected,sizeof(expected)));
+        int worldId=29;void *world=&worldId;memcpy(player.data()+0x16c,&world,sizeof(world));uint64_t worldKey=0;
+        CHECK(PlayerPosition(binding,position,&worldKey)&&worldKey==((uint64_t(reinterpret_cast<uintptr_t>(world))<<32)|29));
         const float invalid=std::numeric_limits<float>::quiet_NaN();memcpy(player.data()+0x160,&invalid,4);
         CHECK(!PlayerPosition(binding,position));slot=nullptr;CHECK(!PlayerPosition(binding,position));
         binding.player=reinterpret_cast<void **>(1);CHECK(!PlayerPosition(binding,position));}

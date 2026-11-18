@@ -131,6 +131,27 @@ inline void ApplyBuiltInVisuals(Settings &s, int index) {
     switch(index) {
     case 1: // Default (High-end PC)
     s.sceneQuality = true;
+    s.materials = true;
+    s.materialStrength = 1.000000f;
+    s.materialRelief = 0.350000f;
+    s.materialGlints = 0.150000f;
+    s.materialSnow = 1.000000f;
+    s.grass = true;
+    s.grassSnow = true;
+    s.grassQuality = 2.000000f;
+    s.grassDistance = 55.000000f;
+    s.grassDensity = 1.500000f;
+    s.grassHeight = 0.600000f;
+    s.grassWidth = 0.042000f;
+    s.grassVariation = 0.300000f;
+    s.grassSlope = 60.000000f;
+    s.grassFade = 0.400000f;
+    s.grassWind = 0.250000f;
+    s.grassWindSpeed = 0.700000f;
+    s.grassBrightness = 1.000000f;
+    s.grassSaturation = 1.050000f;
+    s.grassDryness = 0.020000f;
+    s.grassShading = 0.300000f;
     s.sfx = true;
     s.surfaceReflections = true;
     s.waterReflectionMethod = 2;

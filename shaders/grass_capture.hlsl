@@ -6,6 +6,7 @@ row_major float4x4 Tex0:register(c4);
 row_major float4x4 Tex1:register(c8);
 float4 Map:register(c12); // center xz, radius, texel size
 float4 Material:register(c0); // coverage (2 = mixed soil), blend map, opacity, height/luminance write
+float4 Contact:register(c1); // contact-height pass, player height
 struct Input {float3 position:POSITION;float3 normal:NORMAL;float2 uv:TEXCOORD0;float2 blend:TEXCOORD1;};
 struct Output {float4 position:POSITION;float3 world:TEXCOORD0;float2 uv:TEXCOORD1;float2 blend:TEXCOORD2;};
 Output GrassCaptureVS(Input i) {
@@ -19,13 +20,17 @@ Output GrassCaptureVS(Input i) {
 }
 float4 GrassCapturePS(Output i):COLOR0 {
     float4 art=tex2D(Art,i.uv);
+    if(Contact.x>.5){clip(art.a-.5);return float4(saturate(.5+(Contact.y-i.world.y)/1024),0,0,1);}
     float opacity=Material.z<0?1:Material.y>.5?tex2D(BlendMap,i.blend).a:art.a*Material.z;
     clip(opacity-.0001);
     float3 n=cross(ddx(i.world),ddy(i.world));
     float slope=abs(n.y)*rsqrt(max(dot(n,n),1e-12));
     // This mask is restricted to exactly identified mixed grass/soil atlases.
     // Warm bare soil receives no blades; source lighting cannot change coverage.
-    float coverage=Material.x>1.5?saturate((art.g-art.r*.82-.015)*18)*saturate((art.g-art.b-.02)*14):Material.x;
-    return float4(i.world.y,coverage,slope,Material.w>.5?dot(art.rgb,float3(.2126,.7152,.0722)):opacity);
+    float coverage=Material.x>1.5?saturate((art.g-art.r*.82-.015)*18)*saturate((art.g-art.b-.02)*14):abs(Material.x);
+    // Snow identity belongs to luminance, never to the blended coverage channel:
+    // snow and grass layers must not cancel each other's coverage at their seam.
+    float luminance=dot(art.rgb,float3(.2126,.7152,.0722))*(Material.x<0?-1:1);
+    return float4(i.world.y,coverage,slope,Material.w>.5?luminance:opacity);
 }
 float4 GrassHidePS():COLOR0 {clip(-1);return 0;}
