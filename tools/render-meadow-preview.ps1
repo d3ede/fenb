@@ -14,13 +14,13 @@ if($LASTEXITCODE){throw 'Meadow preview compilation failed.'}
 $materials=[IO.Path]::GetFullPath((Join-Path $PWD 'assets/grass'))
 & './build/meadow-preview.exe' $client $output $materials
 if($LASTEXITCODE){throw 'Meadow preview rendering failed.'}
-$artworkFiles=@('World/Texture/ground_lawn001.dds','World/Texture/ground_n_ice02.dds')
+$artworkFiles=@('World/Texture/ground_lawn001.dds','World/Texture/ground_n_ice02.dds','Model/Texture/Obj_MaCoPrGr07.dds')
 $manifest=[ordered]@{
     sourceRevision=(git rev-parse HEAD).Trim()
     studySourceSha256=(Get-FileHash -LiteralPath tools/render-meadow-preview.cpp -Algorithm SHA256).Hash
-    materialInputs=@(@('leaf-surface.png','snow-surface.png') | ForEach-Object { [ordered]@{path=$_;sha256=(Get-FileHash -LiteralPath (Join-Path $materials $_) -Algorithm SHA256).Hash} })
+    materialInputs=@(@('vanilla-meadow.png','snow-surface.png') | ForEach-Object { [ordered]@{path=$_;sha256=(Get-FileHash -LiteralPath (Join-Path $materials $_) -Algorithm SHA256).Hash} })
     patchMeters=@(3,3)
     nativeArtwork=@($artworkFiles | ForEach-Object { [ordered]@{path=$_;sha256=(Get-FileHash -LiteralPath (Join-Path $client $_) -Algorithm SHA256).Hash} })
-    limitations=@('Isolated flat test patch; not installed in the game.','No terrain masks, wind, fog, HUD, LOD or live-client lighting.','Snow is a separate attached mesh layer, not accumulated by a weather simulation.')
+    limitations=@('Isolated flat test patch; not installed in the game.','No terrain masks, wind, fog, HUD, LOD or live-client lighting.','Alpha strips are sorted by root depth; intersections can show ordering artifacts.','Winter coating is texture shading, without physical snow thickness.')
 }
 $manifest | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $output 'manifest.json') -Encoding UTF8

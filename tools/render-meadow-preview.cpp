@@ -1,4 +1,4 @@
-// Isolated 3x3 metre study: independently rooted leaves and attached snow meshes.
+// Isolated 3x3 metre study: refreshed vanilla-style alpha strips and native comparison.
 // The client directory is read-only. Captures and metadata go to artifacts/.
 #include "common.hpp"
 #include <d3dcompiler.h>
@@ -22,61 +22,89 @@ struct Random {unsigned state=0x5a97c913u;float next(){state^=state<<13;state^=s
 struct Vertex {float x,y,z;DWORD color;float u,v;};
 constexpr DWORD Fvf=D3DFVF_XYZ|D3DFVF_DIFFUSE|D3DFVF_TEX1;
 DWORD Color(float r,float g,float b){auto c=[](float a){return unsigned(std::clamp(a,0.f,1.f)*255+.5f);};return D3DCOLOR_XRGB(c(r),c(g),c(b));}
-struct Blade {Vec root;float width,height,yaw,bend,twist,seasonGate;unsigned variant;bool mirror;};
-Blade DetailBlade(){return {{0,.004f,0},.022f,.32f,1.5707963f,.65f,.35f,0,2,false};}
+struct Card {Vec root;float width,height,yaw,bend,twist,seasonGate,tone;bool mirror;};
+Card DetailCard(){return {{0,-.006f,0},.40f,.46f,0,.12f,.08f,0,1,false};}
 using LoadTexture=HRESULT(WINAPI *)(IDirect3DDevice9*,LPCWSTR,UINT,UINT,UINT,DWORD,D3DFORMAT,D3DPOOL,DWORD,DWORD,D3DCOLOR,void*,PALETTEENTRY*,IDirect3DTexture9**);
-constexpr float WinterCoverage=.84f;
+constexpr float WinterCoverage=.90f;
 const char *GrassPS=R"(
 sampler2D Art:register(s0);
+sampler2D Snow:register(s1);
 float4 Season:register(c0);
+float4 ArtworkUV:register(c1);
 float4 main(float4 light:COLOR0,float2 uv:TEXCOORD0):COLOR0 {
- float3 color=tex2D(Art,uv).rgb;
- if(Season.x<.5)color=saturate(color*float3(1.25,1.35,1.03));
- if(Season.x>.5&&Season.x<1.5){
+ float4 art=tex2D(Art,uv*ArtworkUV.xy+ArtworkUV.zw);
+ float alpha=Season.y>.5?art.a:smoothstep(.18,.80,art.a);clip(alpha-(Season.y>.5?.035:.30));
+ float3 color=art.rgb;
+ if(Season.y<.5)color=saturate(color*float3(.88,1.04,.94));
+ if(Season.x>.5){
   float value=dot(color,float3(.2126,.7152,.0722));
-  color=lerp(float3(.20,.24,.15),float3(.58,.60,.40),value);
+  float3 stem=lerp(float3(.24,.27,.17),float3(.55,.58,.42),value);
+  float3 snow=tex2D(Snow,uv*float2(2,1.3)).rgb*(.78+.22*value);
+  float coating=smoothstep(.60,.95,1-uv.y)*(.65+.35*smoothstep(.3,.7,value));
+  color=lerp(stem,snow,coating);
  }
- return float4(color*light.rgb,light.a);
+ float root=smoothstep(0,.065,1-uv.y);
+ return float4(color*light.rgb,alpha*root);
 })";
 class Preview {
     HWND window_=nullptr;HMODULE d3dx_=nullptr;
     Com<IDirect3D9> d3d_;Com<IDirect3DDevice9> d_;
-    Com<IDirect3DTexture9> ground_[2],art_[2];Com<IDirect3DPixelShader9> grassPS_;
-    std::vector<Blade> blades_;std::filesystem::path output_;
+    Com<IDirect3DTexture9> ground_[2],art_[2],snow_;Com<IDirect3DPixelShader9> grassPS_;
+    std::vector<Card> cards_;std::filesystem::path output_;
     unsigned samples_=0;D3DMATRIX view_{},projection_{};
+    float artworkUV_[2][4]{{1,1,0,0},{1,1,0,0}};
     void load(Com<IDirect3DTexture9>&t,const std::filesystem::path &path){
         auto fn=reinterpret_cast<LoadTexture>(GetProcAddress(d3dx_,"D3DXCreateTextureFromFileExW"));Check(fn,"D3DX texture API");
         Check(SUCCEEDED(fn(d_,path.c_str(),UINT(-1),UINT(-1),0,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,3,5,0,nullptr,nullptr,t.out())),"native texture read");
     }
-    std::vector<Vertex> mesh(const Blade &c,bool winter,bool snow=false)const{
-        constexpr unsigned Segments=8,Columns=2;
-        const float h=c.height*(winter?.72f:1.f),w=c.width*(winter?.92f:1.f);
+    void alphaMips(IDirect3DTexture9 *texture,float *uv){
+        D3DSURFACE_DESC desc{};texture->GetLevelDesc(0,&desc);
+        unsigned width=desc.Width,height=desc.Height;std::vector<DWORD> pixels(width*height);
+        D3DLOCKED_RECT lock{};Check(SUCCEEDED(texture->LockRect(0,&lock,nullptr,D3DLOCK_READONLY)),"alpha source lock");
+        for(unsigned y=0;y<height;++y)memcpy(pixels.data()+y*width,(BYTE*)lock.pBits+y*lock.Pitch,width*4);texture->UnlockRect(0);
+        unsigned minX=width,minY=height,maxX=0,maxY=0,occupied=0;
+        for(unsigned y=0;y<height;++y)for(unsigned x=0;x<width;++x)if((pixels[y*width+x]>>24)>=128){minX=std::min(minX,x);maxX=std::max(maxX,x);minY=std::min(minY,y);maxY=std::max(maxY,y);++occupied;}
+        Check(occupied>100&&occupied<width*height*.65f,"transparent grass artwork");
+        uv[0]=float(maxX-minX)/width;uv[1]=float(maxY-minY)/height;uv[2]=(minX+.5f)/width;uv[3]=(minY+.5f)/height;
+        printf("ARTWORK size=%ux%u occupiedPixels=%u bounds=%u,%u..%u,%u\n",width,height,occupied,minX,minY,maxX,maxY);
+        for(unsigned level=0;level<texture->GetLevelCount();++level){
+            // Extend RGB only into empty texels of the owned texture, preserving alpha.
+            auto padded=pixels;std::vector<unsigned char> valid(pixels.size());
+            for(size_t i=0;i<pixels.size();++i)valid[i]=(pixels[i]>>24)>8;
+            for(unsigned pass=0;pass<4;++pass){auto next=padded;auto nextValid=valid;
+                for(unsigned y=0;y<height;++y)for(unsigned x=0;x<width;++x){size_t i=y*width+x;if(valid[i])continue;unsigned rgb[3]{},n=0;
+                    for(int dy=-1;dy<=1;++dy)for(int dx=-1;dx<=1;++dx){int px=int(x)+dx,py=int(y)+dy;if(px<0||py<0||px>=int(width)||py>=int(height))continue;size_t j=py*width+px;if(!valid[j])continue;
+                        for(unsigned c=0;c<3;++c)rgb[c]+=(padded[j]>>(c*8))&255;++n;}
+                    if(n){next[i]=(padded[i]&0xff000000)|(rgb[0]/n)|((rgb[1]/n)<<8)|((rgb[2]/n)<<16);nextValid[i]=1;}}
+                padded.swap(next);valid.swap(nextValid);}
+            Check(SUCCEEDED(texture->LockRect(level,&lock,nullptr,0)),"alpha mip lock");
+            for(unsigned y=0;y<height;++y)memcpy((BYTE*)lock.pBits+y*lock.Pitch,padded.data()+y*width,width*4);texture->UnlockRect(level);
+            if(level+1==texture->GetLevelCount())break;
+            unsigned w=std::max(1u,width/2),h=std::max(1u,height/2);std::vector<DWORD> mip(w*h);
+            for(unsigned y=0;y<h;++y)for(unsigned x=0;x<w;++x){unsigned alpha=0,rgb[3]{};
+                for(unsigned dy=0;dy<2;++dy)for(unsigned dx=0;dx<2;++dx){DWORD p=pixels[std::min(height-1,y*2+dy)*width+std::min(width-1,x*2+dx)];unsigned a=p>>24;alpha+=a;for(unsigned c=0;c<3;++c)rgb[c]+=((p>>(c*8))&255)*a;}
+                mip[y*w+x]=((alpha+2)/4)<<24;for(unsigned c=0;c<3;++c)mip[y*w+x]|=(alpha?rgb[c]/alpha:0)<<(c*8);}
+            pixels.swap(mip);width=w;height=h;
+        }
+    }
+    std::vector<Vertex> mesh(const Card &c,bool winter)const{
+        constexpr unsigned Segments=4,Columns=4;
+        const float h=c.height*(winter?.78f:1.f),w=c.width*(winter?.94f:1.f);
         const Vec sun=Unit({-.30f,.86f,-.40f});
         std::vector<Vertex> vertices,triangles;
         for(unsigned segment=0;segment<=Segments;++segment){
             float t=float(segment)/Segments,angle=c.yaw+c.twist*t;
-            Vec outward{std::cos(angle),0,std::sin(angle)},side{-outward.z,0,outward.x};
-            Vec center=c.root+Vec{0,h*(t-c.bend*.22f*t*t*t)-(winter?.045f:0),0}+outward*(h*c.bend*t*t);
-            Vec tangent=Unit(Vec{0,h*(1-c.bend*.66f*t*t),0}+outward*(h*c.bend*2*t));
-            Vec normal=Unit(Cross(side,tangent));
-            float width=w*(.72f+1.3f*t)*std::pow(std::max(0.f,1-t),.85f);
-            float snowStart=c.variant==0?.625f:.375f;
-            if(snow)width=width*(1.5f+.35f*std::sin(t*25+c.yaw)*std::sin(t*25+c.yaw))+w*.18f*Smooth(.65f,.85f,t)*(1-Smooth(.92f,1,t));
+            Vec side{std::cos(angle),0,std::sin(angle)},normal{-side.z,0,side.x};
+            Vec center=c.root+Vec{0,h*t-(winter?.028f:0),0}+normal*(h*c.bend*t*t);
+            float light=(winter?.88f:.91f)+(winter?.12f:.30f)*std::abs(Dot(Unit(normal+Vec{0,.35f,0}),sun));
+            light*=c.tone*(.84f+.16f*Smooth(0,.65f,t));
             for(unsigned column=0;column<=Columns;++column){
-                float across=float(column)-1;
-                Vec faceNormal=Unit(normal+side*(across<0?.55f:across>0?-.55f:0));
-                float direct=std::abs(Dot(faceNormal,sun));
-                float lighting=(.62f+.48f*direct)*(.78f+.22f*Smooth(0,.65f,t));
-                if(snow)lighting=.77f+.23f*direct;
-                DWORD color=Color(lighting*(snow?.96f:1.f),lighting,lighting*(snow?1.f:.90f));
-                if(snow)color=(color&0xffffff)|(DWORD(Smooth(snowStart,snowStart+.15f,t)*255)<<24);
-                Vec position=center+side*(across*width*.5f)+normal*(width*.14f*(1-std::abs(across))+(snow?.0055f:0));
-                float u=snow?(across+1)*.25f+c.variant*.11f:.03f+c.variant*.20f+(c.mirror?1-(across+1)*.5f:(across+1)*.5f)*.15f;
-                vertices.push_back({position.x,position.y,position.z,color,u,1-t*.94f});
+                float across=float(column)/Columns;
+                Vec position=center+side*((across-.5f)*w)+normal*(w*.14f*std::sin(across*6.2831853f+c.yaw)*(1-t*.5f));
+                vertices.push_back({position.x,position.y,position.z,Color(light,light,light),c.mirror?1-across:across,1-t});
             }
         }
         for(unsigned segment=0;segment<Segments;++segment){
-            if(snow&&float(segment)/Segments<(c.variant==0?.625f:.375f))continue;
             for(unsigned column=0;column<Columns;++column){unsigned first=segment*(Columns+1)+column,last=first+Columns+1;
                 triangles.insert(triangles.end(),{vertices[first],vertices[first+1],vertices[last],vertices[last],vertices[first+1],vertices[last+1]});}
         }
@@ -116,62 +144,61 @@ public:
         Check(SUCCEEDED(d3d_->CreateDevice(0,D3DDEVTYPE_HAL,window_,D3DCREATE_HARDWARE_VERTEXPROCESSING,&pp,d_.out())),"D3D device");
         d3dx_=LoadLibraryExW(L"d3dx9_43.dll",nullptr,LOAD_LIBRARY_SEARCH_SYSTEM32);Check(d3dx_,"system D3DX9");
         load(ground_[0],client/L"World/Texture/ground_lawn001.dds");load(ground_[1],client/L"World/Texture/ground_n_ice02.dds");
-        load(art_[0],materials/L"leaf-surface.png");load(art_[1],materials/L"snow-surface.png");
+        load(art_[0],materials/L"vanilla-meadow.png");load(art_[1],client/L"Model/Texture/Obj_MaCoPrGr07.dds");load(snow_,materials/L"snow-surface.png");
+        alphaMips(art_[0],artworkUV_[0]);alphaMips(art_[1],artworkUV_[1]);
         Com<ID3DBlob> code,error;HRESULT hr=D3DCompile(GrassPS,strlen(GrassPS),"meadow-study",nullptr,nullptr,"main","ps_2_a",D3DCOMPILE_OPTIMIZATION_LEVEL3,0,code.out(),error.out());
         if(error.p)fputs((char*)error->GetBufferPointer(),stderr);Check(SUCCEEDED(hr),"grass shader compile");Check(SUCCEEDED(d_->CreatePixelShader((DWORD*)code->GetBufferPointer(),grassPS_.out())),"grass shader");
         projection_={};projection_._11=1.4f;projection_._22=1.4f*Width/Height;projection_._33=100/99.9f;projection_._34=1;projection_._43=-.1f*projection_._33;
-        Random r;constexpr unsigned Grid=42;
+        Random r;constexpr unsigned Grid=24;
         for(unsigned z=0;z<Grid;++z)for(unsigned x=0;x<Grid;++x){
             float px=-1.5f+(x+.12f+r.next()*.76f)*3/Grid,pz=-1.5f+(z+.12f+r.next()*.76f)*3/Grid;
             const float edge=Smooth(0,.35f,std::min(1.5f-std::abs(px),1.5f-std::abs(pz)));
             const float lumps=.5f+.28f*std::sin(px*2.4f+pz*.7f)+.22f*std::cos(pz*3.2f-px*.9f);
-            if(r.next()>(.12f+.52f*std::clamp(lumps,0.f,1.f))*edge)continue;
-            Blade c{};c.root={px,.004f,pz};float length=r.next();
-            c.height=length<.25f?.12f+length*.48f:length<.85f?.25f+(length-.25f)*.35f:.46f+(length-.85f)*.9f;
-            c.width=.009f+r.next()*.013f;
-            c.yaw=r.next()*6.2831853f;c.bend=.35f+r.next()*.45f;c.twist=(r.next()-.5f)*.60f;c.mirror=r.next()>.5f;c.seasonGate=r.next();c.variant=(x+z*3)%4;blades_.push_back(c);
+            if(r.next()>(.20f+.64f*std::clamp(lumps,0.f,1.f))*edge)continue;
+            Card c{};c.root={px,-.006f,pz};float length=r.next();
+            c.height=length<.2f?.17f+length*.35f:.25f+(length-.2f)*.40f;
+            c.width=.33f+r.next()*.18f;
+            c.yaw=r.next()*6.2831853f;c.bend=.06f+r.next()*.16f;c.twist=(r.next()-.5f)*.22f;c.mirror=r.next()>.5f;c.seasonGate=r.next();c.tone=.84f+r.next()*.25f;cards_.push_back(c);
         }
     }
     ~Preview(){if(d3dx_)FreeLibrary(d3dx_);if(window_)DestroyWindow(window_);}
-    std::vector<DWORD> frame(bool winter,bool close,bool grass,bool detail=false){
-        view_=detail?Look({.045f,.19f,-.48f},{0,.14f,.035f}):close?Look({.15f,.78f,-2.8f},{0,.23f,0}):Look({1.9f,2.0f,-2.6f},{0,.12f,0});setup();
+    std::vector<DWORD> frame(bool winter,bool close,bool grass,bool detail=false,bool native=false){
+        view_=detail?Look({.02f,.30f,-.90f},{0,.23f,.035f}):close?Look({.15f,.78f,-2.8f},{0,.23f,0}):Look({1.9f,2.0f,-2.6f},{0,.12f,0});setup();
         Check(SUCCEEDED(d_->Clear(0,nullptr,D3DCLEAR_TARGET|D3DCLEAR_ZBUFFER,winter?0xffc4ccd7:0xff8ba4ad,1,0)),"clear");Check(SUCCEEDED(d_->BeginScene()),"BeginScene");
         d_->SetPixelShader(nullptr);d_->SetTexture(0,ground_[winter?1:0]);d_->SetSamplerState(0,D3DSAMP_ADDRESSU,D3DTADDRESS_WRAP);d_->SetSamplerState(0,D3DSAMP_ADDRESSV,D3DTADDRESS_WRAP);
         DWORD floorColor=winter?Color(1.f,.98f,.95f):Color(.86f,.87f,.80f);
         const Vertex floor[]={{-64,0,-64,floorColor,-22.4f,-22.4f},{-64,0,64,floorColor,-22.4f,22.4f},{64,0,-64,floorColor,22.4f,-22.4f},{64,0,64,floorColor,22.4f,22.4f}};
         Check(SUCCEEDED(d_->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP,2,floor,sizeof(Vertex))),"ground draw");
         if(grass){
-            d_->SetPixelShader(grassPS_);d_->SetTexture(0,art_[0]);
-            const float season[]={winter?1.f:0.f,0,0,0};d_->SetPixelShaderConstantF(0,season,1);
-            std::vector<Vertex> leaves,snow;
-            const auto selected=detail?std::vector<Blade>{DetailBlade()}:blades_;
-            for(const auto &blade:selected){if(winter&&blade.seasonGate>WinterCoverage)continue;
-                auto vertices=mesh(blade,winter);leaves.insert(leaves.end(),vertices.begin(),vertices.end());
-                if(winter){vertices=mesh(blade,true,true);snow.insert(snow.end(),vertices.begin(),vertices.end());}}
-            Check(SUCCEEDED(d_->DrawPrimitiveUP(D3DPT_TRIANGLELIST,UINT(leaves.size()/3),leaves.data(),sizeof(Vertex))),"leaf draw");
-            if(winter){
-                d_->SetTexture(0,art_[1]);const float coating[]={2,0,0,0};d_->SetPixelShaderConstantF(0,coating,1);
-                d_->SetRenderState(D3DRS_ALPHABLENDENABLE,TRUE);d_->SetRenderState(D3DRS_SRCBLEND,D3DBLEND_SRCALPHA);d_->SetRenderState(D3DRS_DESTBLEND,D3DBLEND_INVSRCALPHA);d_->SetRenderState(D3DRS_ZWRITEENABLE,FALSE);
-                Check(SUCCEEDED(d_->DrawPrimitiveUP(D3DPT_TRIANGLELIST,UINT(snow.size()/3),snow.data(),sizeof(Vertex))),"attached snow draw");
-            }
+            d_->SetPixelShader(grassPS_);d_->SetTexture(0,art_[native?1:0]);d_->SetTexture(1,snow_);
+            const float season[]={winter?1.f:0.f,native?1.f:0.f,0,0};d_->SetPixelShaderConstantF(0,season,1);
+            d_->SetPixelShaderConstantF(1,artworkUV_[native?1:0],1);
+            d_->SetRenderState(D3DRS_ALPHABLENDENABLE,TRUE);d_->SetRenderState(D3DRS_SRCBLEND,D3DBLEND_SRCALPHA);d_->SetRenderState(D3DRS_DESTBLEND,D3DBLEND_INVSRCALPHA);d_->SetRenderState(D3DRS_ZWRITEENABLE,FALSE);
+            for(unsigned sampler:{0u,1u}){d_->SetSamplerState(sampler,D3DSAMP_ADDRESSU,D3DTADDRESS_CLAMP);d_->SetSamplerState(sampler,D3DSAMP_ADDRESSV,D3DTADDRESS_CLAMP);d_->SetSamplerState(sampler,D3DSAMP_MINFILTER,D3DTEXF_LINEAR);d_->SetSamplerState(sampler,D3DSAMP_MAGFILTER,D3DTEXF_LINEAR);d_->SetSamplerState(sampler,D3DSAMP_MIPFILTER,D3DTEXF_LINEAR);}
+            auto selected=detail?std::vector<Card>{DetailCard()}:cards_;
+            std::stable_sort(selected.begin(),selected.end(),[this](const Card&a,const Card&b){auto depth=[this](Vec p){return p.x*view_._13+p.y*view_._23+p.z*view_._33;};return depth(a.root)>depth(b.root);});
+            for(const auto &card:selected){if(winter&&card.seasonGate>WinterCoverage)continue;auto vertices=mesh(card,winter);
+                Check(SUCCEEDED(d_->DrawPrimitiveUP(D3DPT_TRIANGLELIST,UINT(vertices.size()/3),vertices.data(),sizeof(Vertex))),"grass strip draw");}
         }
         Check(SUCCEEDED(d_->EndScene()),"EndScene");return read();
     }
-    void capture(bool winter,bool close,bool detail=false){
-        auto bare=frame(winter,close,false,detail),grass=frame(winter,close,true,detail);
-        std::wstring name=(winter?L"winter-":L"summer-")+std::wstring(detail?L"leaf-detail":close?L"close":L"game");save(bare,name+L"-ground.png");save(grass,name+L".png");
-        unsigned changed=0,leaves=0,snowTriangles=0;for(size_t i=0;i<grass.size();++i)changed+=(grass[i]&0xffffff)!=(bare[i]&0xffffff);
-        for(const auto &c:blades_)if(!winter||c.seasonGate<=WinterCoverage){++leaves;if(winter)snowTriangles+=unsigned(mesh(c,true,true).size()/3);}
-        if(detail){leaves=1;snowTriangles=winter?unsigned(mesh(DetailBlade(),true,true).size()/3):0;}
-        printf("STUDY leaves=%u changed=%u\n",leaves,changed);Check(changed>1000&&leaves>0,"nonempty grass study");
-        printf("CAPTURE %ls patch=3x3 leaves=%u triangles=%u changedPixels=%u winter=%d MSAA=%u\n",name.c_str(),leaves,leaves*32+snowTriangles,changed,winter,samples_);
-        std::ofstream log(output_/L"study.jsonl",std::ios::app);log<<"{\"season\":\""<<(winter?"winter":"summer")<<"\",\"camera\":\""<<(detail?"leaf-detail":close?"close":"game")<<"\",\"patchMeters\":[3,3],\"leaves\":"<<leaves<<",\"triangles\":"<<leaves*32+snowTriangles<<",\"changedPixels\":"<<changed<<",\"msaa\":"<<samples_<<"}\n";
+    void capture(bool winter,bool close,bool detail=false,bool native=false){
+        auto bare=frame(winter,close,false,detail,native),grass=frame(winter,close,true,detail,native);
+        std::wstring name=std::wstring(native?L"native-":L"")+(winter?L"winter-":L"summer-")+std::wstring(detail?L"strip-detail":close?L"close":L"game");save(bare,name+L"-ground.png");save(grass,name+L".png");
+        unsigned changed=0,cards=0;for(size_t i=0;i<grass.size();++i)changed+=(grass[i]&0xffffff)!=(bare[i]&0xffffff);
+        std::vector<DWORD> coverage(grass.size());for(size_t i=0;i<grass.size();++i)coverage[i]=(grass[i]&0xffffff)!=(bare[i]&0xffffff)?0xffffffff:0xff000000;
+        save(coverage,name+L"-coverage.png");
+        for(const auto &c:cards_)if(!winter||c.seasonGate<=WinterCoverage)++cards;
+        if(detail)cards=1;
+        Check(changed>1000&&cards>0,"nonempty grass study");
+        printf("CAPTURE %ls patch=3x3 strips=%u triangles=%u changedPixels=%u MSAA=%u\n",name.c_str(),cards,cards*32,changed,samples_);
+        std::ofstream log(output_/L"study.jsonl",std::ios::app);log<<"{\"season\":\""<<(winter?"winter":"summer")<<"\",\"artwork\":\""<<(native?"native":"refreshed")<<"\",\"camera\":\""<<(detail?"strip-detail":close?"close":"game")<<"\",\"patchMeters\":[3,3],\"strips\":"<<cards<<",\"triangles\":"<<cards*32<<",\"changedPixels\":"<<changed<<",\"msaa\":"<<samples_<<"}\n";
     }
 };
 }
 int wmain(int argc,wchar_t **argv){
     if(argc!=4){puts("Usage: meadow-preview <read-only-client-artwork-root> <output-artifacts-directory> <painted-material-directory>");return 2;}
     Gdiplus::GdiplusStartupInput input;ULONG_PTR token=0;if(Gdiplus::GdiplusStartup(&token,&input,nullptr)!=Gdiplus::Ok)return 3;
-    int result=0;try{Preview p(argv[1],argv[2],argv[3]);p.capture(false,true);p.capture(false,false);p.capture(true,true);p.capture(true,false);p.capture(false,true,true);p.capture(true,true,true);}
+    int result=0;try{Preview p(argv[1],argv[2],argv[3]);p.capture(false,true);p.capture(false,false);p.capture(true,true);p.capture(true,false);p.capture(false,true,true);p.capture(true,true,true);p.capture(false,true,false,true);p.capture(false,false,false,true);}
     catch(const std::exception &e){fprintf(stderr,"FAIL: %s\n",e.what());result=1;}Gdiplus::GdiplusShutdown(token);return result;
 }

@@ -1,0 +1,21 @@
+{
+  "generator": "OpenAI built-in image_gen",
+  "asset": "vanilla-meadow.png",
+  "dimensions": [
+    1254,
+    1254
+  ],
+  "references": [
+    {
+      "role": "Structural reference",
+      "source": "Locally installed Flyff Model/Texture/Obj_MaCoPrGr07.dds; decoded only to ignored artifacts for inspection; original DDS not redistributed."
+    },
+    {
+      "role": "Color and surface reference",
+      "source": "User-supplied Flyff Universe daylight screenshot; not redistributed."
+    }
+  ],
+  "generationPrompt": "Use case: stylized-concept. Asset type: production RGBA grass alpha-cutout texture for a classic colorful fantasy MMORPG, square, transparent background. Input image 1 is the actual vanilla Flyff grass sprite: use its distributed roots, uneven arching silhouette and painted colors as structural reference. Input image 2 is the Flyff Universe daylight game reference: use its richer green leaf surfaces, bright yellow-green lit ridges, darker folded faces and mixture of slender and moderately wide blades. Create ONE original improved grass strip sprite, not a scene and not a decorative bush. About 18-22 distinct long flexible grass blades with roots distributed across the lower 80 percent of the image width, not a common central root. Some short blades, many medium blades, a few tall gently drooping ones; pointed tapering tips, smooth asymmetrical curves, several leaning left and several right. Longest blades reach close to top with a little transparent margin. Root band near bottom, sparse enough transparent gaps remain all the way to roots. Individual blades roughly 1 to 3 percent of canvas width near their lower middle, broad enough for hand-painted fine longitudinal veins, broken green pigment streaks and a yellow-lime illuminated edge, darker green folded face, soft color transitions. Keep the vanilla grass's informal meadow silhouette and fine overlapping arching leaves. Original hand-painted 2000s fantasy game texture, clearer and more detailed than the low-resolution sprite. Natural grass green, olive green, light lime and restrained warm yellow highlights, no glow. NO soil, pot, central bush, onion, tropical plant, flowers, seed heads, background scenery, shadow, black rectangle, border, text, checkerboard or thick rigid triangular swords. Genuinely transparent background and transparent spaces between every blade. Flat front elevation sprite view, no perspective.",
+  "refinementPrompt": "Edit target: the supplied original grass alpha sprite. Make each individual grass blade approximately half its current width while keeping its length, curved path and location. Keep the same horizontal distribution of separate roots and varied heights. These must be thin meadow grass blades like the vanilla Flyff sprite, NOT broad corn leaves. Keep the painted dark green fold, longitudinal veins and yellow-green edge but on the narrower blades. REMOVE every green or yellow paint fleck, fuzzy glow, halo, spray and particle outside the blade silhouettes. All gaps and surrounding space must be completely transparent and clean. The ONLY opaque shapes are the approximately 25 thin grass blades themselves. No soil, no shadow, no backdrop, no texture outside blades. Preserve true transparent background. Original game sprite, flat front elevation.",
+  "notes": "The refreshed alpha strip replaces the rejected isolated modeled-leaf prototype in the offline review renderer. No raw Universe asset was extracted. Generated alpha is retained; renderer builds alpha-weighted mips and pads RGB in owned textures."
+}
