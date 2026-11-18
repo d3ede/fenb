@@ -6,15 +6,19 @@ namespace grass_card {
 inline constexpr unsigned Size=256;
 inline constexpr size_t Bytes=(Size*Size*4-1)/3*4;
 
-// The art is defined in card coordinates. The four leaves share a small
-// root area, with independent silhouettes, heights and painted highlights.
+// Painted narrow leaves on transparent crossed cards. Staggered roots and
+// independently curved tips keep each tuft open instead of forming a broad fan.
 inline std::vector<DWORD> paint(){
     struct Leaf {float root,tip,height,width,bend,tint;};
     constexpr Leaf leaves[]={
-        {.53f,.78f,.76f,.104f,-.020f,.09f},
-        {.48f,.17f,.85f,.096f,.074f,.02f},
-        {.49f,.72f,.98f,.101f,-.075f,.15f},
-        {.51f,.38f,.68f,.087f,.041f,-.03f},
+        {.19f,.05f,.67f,.043f,.034f,-.02f},
+        {.30f,.48f,.97f,.054f,-.060f,.02f},
+        {.39f,.16f,.84f,.048f,.052f,.00f},
+        {.46f,.63f,.73f,.040f,-.022f,-.03f},
+        {.54f,.36f,1.00f,.055f,.075f,.03f},
+        {.62f,.85f,.89f,.047f,-.041f,.01f},
+        {.72f,.57f,.80f,.044f,.034f,-.01f},
+        {.81f,.96f,.62f,.038f,-.025f,-.03f},
     };
     std::vector<DWORD> pixels(Size*Size);
     for(unsigned y=0;y<Size;++y)for(unsigned x=0;x<Size;++x){
@@ -24,19 +28,19 @@ inline std::vector<DWORD> paint(){
         for(const auto &leaf:leaves){
             const float t=std::min(v/leaf.height,1.f);
             const float center=std::lerp(leaf.root,leaf.tip,t*t*.78f+t*.22f)+leaf.bend*4*t*(1-t);
-            const float half=leaf.width*.5f*(.57f+.98f*std::sin(t*3.14159265f))*(1-t);
+            const float half=leaf.width*.5f*(.76f+.36f*std::sin(t*3.14159265f))*(1-t);
             const float distance=std::max(std::abs(u-center)-half,v-leaf.height);
             const float left=std::max(u-.5f/Size,center-half);
             const float right=std::min(u+.5f/Size,center+half);
             const float coverage=std::max(0.f,(right-left)*Size)*std::clamp((leaf.height-v)*Size+.5f,0.f,1.f);
             const float across=std::clamp((u-center)/std::max(half,1.f/Size),-1.f,1.f);
-            const float rim=std::exp(-13*(across+.48f)*(across+.48f));
-            const float shade=.80f+.16f*(1-across)*.5f+rim*.21f;
-            const float tip=t*t*(3-2*t);
+            const float rib=std::exp(-32*(across+.18f)*(across+.18f));
+            const float shade=.72f+.22f*(1-across)*.5f+rib*.12f;
+            const float tip=std::sqrt(t);
             const std::array<float,3> color={
-                (.11f+.50f*tip+leaf.tint*t)*shade,
-                (.36f+.42f*tip+leaf.tint*.43f)*shade,
-                (.078f+.14f*tip)*shade,
+                (.075f+.29f*tip+leaf.tint)*shade,
+                (.20f+.36f*tip+leaf.tint*.6f)*shade,
+                (.018f+.043f*tip)*shade,
             };
             if(distance<nearest){nearest=distance;edge=color;}
             for(int c=0;c<3;++c)rgb[c]=color[c]*coverage+rgb[c]*(1-coverage);

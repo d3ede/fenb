@@ -118,10 +118,10 @@ Output GrassBlade(Input i,bool adapt) {
     float span=growth*sqrt(coverScale)*max(1,cameraDistance/40);
     float3 p=float3(root.x+offset.x,surface.r+.008,root.y+offset.y);
     if(simple>.5){
-        // A fixed tilt gives the crossed cards a footprint from above. The
-        // texture supplies the curved silhouettes and fine leaf highlights.
+        // The painted leaves carry their own curves. Keep the cards mostly
+        // upright so the tuft reads as long grass rather than a low leafy fan.
         float width=Shape.y*14*(.88+leaf*.26)*span;
-        p.xz+=radial*height*(.29+leaf*.21)*t+Wind.xy*sway*height*t*t+side*i.blade.x*width*.5;
+        p.xz+=radial*height*(.08+leaf*.12)*t+Wind.xy*sway*height*t*t+side*i.blade.x*width*.5;
     }else{
         float2 lean=(radial*(.18+leaf*.6)+Wind.xy*sway)*height;
         float width=Shape.y*1.15*(1-t)*(.9+.8*sin(t*3.14159265))*(.85+leaf*.3)*span;
