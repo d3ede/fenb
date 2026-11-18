@@ -3,6 +3,7 @@
 #include "state_guard.hpp"
 #include "generated/shaders.hpp"
 #include "refinement_preview.hpp"
+#include "skate_preview.hpp"
 #include "particle_buffer.hpp"
 #include <gdiplus.h>
 #include <cstdio>
@@ -91,6 +92,8 @@ void Scene(IDirect3DDevice9* dev,IDirect3DSurface9* surface,UINT width,UINT heig
 }
 }
 int main(int argc,char** argv) {
+    if(argc>1 && (!strcmp(argv[1],"--skate-preview") || !strcmp(argv[1],"--skate-capture")))
+        return skate_preview::run(!strcmp(argv[1],"--skate-capture"),Wnd,Screenshot);
     if(argc>1 && (!strcmp(argv[1],"--refinement-preview") || !strcmp(argv[1],"--refinement-capture")))
         return RefinementPreview(!strcmp(argv[1],"--refinement-capture"));
     if(argc>1 && (!strcmp(argv[1],"--refinement-speed-preview") || !strcmp(argv[1],"--refinement-speed-capture")))
