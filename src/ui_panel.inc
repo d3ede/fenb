@@ -39,33 +39,35 @@ const char *SceneItemName(int i, bool full = false) {
     return Tr(effect.shortName);
 }
 
-void AuraColorPicker(Settings &s) {
-    ImGui::PushID("aura-color");
+void AuraColorPicker(Settings &s,bool weapon=false) {
+    bool &custom=weapon?s.sfxWeaponCustomColor:s.sfxAuraCustomColor;
+    float &red=weapon?s.sfxWeaponR:s.sfxAuraR,&green=weapon?s.sfxWeaponG:s.sfxAuraG,&blue=weapon?s.sfxWeaponB:s.sfxAuraB;
+    const auto label=weapon?UiText::WeaponColor:UiText::ArmorColor;
+    ImGui::PushID(weapon?"weapon-color":"aura-color");
     ImGui::PushFont(nullptr,13);
     ImGui::BeginDisabled(uiParameterDisabled);
     const auto p=ImGui::GetCursorScreenPos();const float width=ImGui::GetContentRegionAvail().x;
     const bool open=ImGui::InvisibleButton("open",{width,30},ImGuiButtonFlags_EnableNav);
     auto *draw=ImGui::GetWindowDrawList();
-    TextAt(draw,{p.x+4,p.y+7},Tr(UiText::AuraColor),Text,13);
-    char hex[10];std::snprintf(hex,sizeof(hex),"#%02X%02X%02X",int(s.sfxAuraR*255+.5f),int(s.sfxAuraG*255+.5f),int(s.sfxAuraB*255+.5f));
-    const char *value=s.sfxAuraCustomColor?hex:Tr(UiText::AuraNativeColor);
+    TextAt(draw,{p.x+4,p.y+7},Tr(label),Text,13);
+    char hex[10];std::snprintf(hex,sizeof(hex),"#%02X%02X%02X",int(red*255+.5f),int(green*255+.5f),int(blue*255+.5f));
+    const char *value=custom?hex:Tr(UiText::AuraNativeColor);
     const float valueWidth=ImGui::CalcTextSize(value).x,swatchX=p.x+width-valueWidth-37;
-    auto swatch=Opacity(s.sfxAuraCustomColor?ImGui::ColorConvertFloat4ToU32({s.sfxAuraR,s.sfxAuraG,s.sfxAuraB,1}):Raised);
+    auto swatch=Opacity(custom?ImGui::ColorConvertFloat4ToU32({red,green,blue,1}):Raised);
     draw->AddRectFilled({swatchX,p.y+5},{swatchX+22,p.y+25},swatch,3);
     draw->AddRect({swatchX,p.y+5},{swatchX+22,p.y+25},Opacity(Line),3);
-    if(!s.sfxAuraCustomColor)draw->AddLine({swatchX+4,p.y+21},{swatchX+18,p.y+9},Opacity(Muted));
+    if(!custom)draw->AddLine({swatchX+4,p.y+21},{swatchX+18,p.y+9},Opacity(Muted));
     TextAt(draw,{swatchX+29,p.y+7},value,ImGui::IsItemHovered()?Lavender:Muted,13);
-    Tip(Tr(UiText::AuraColorHelp));
     if(open)ImGui::OpenPopup("picker");
     const auto display=ImGui::GetIO().DisplaySize;
     const float pickerWidth=std::clamp(std::min(display.x-42,display.y-142),160.f,260.f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,{10,10});
     ImGui::SetNextWindowSize({pickerWidth+20,0});
     if(ImGui::BeginPopup("picker",ImGuiWindowFlags_NoMove)) {
-        ImGui::TextUnformatted(Tr(UiText::AuraColor));
-        SquareSwitch("custom",s.sfxAuraCustomColor);ImGui::SameLine();
+        ImGui::TextUnformatted(Tr(label));
+        SquareSwitch("custom",custom);ImGui::SameLine();
         ImGui::TextUnformatted(Tr(UiText::AuraCustomColor));
-        float rgb[]={s.sfxAuraR,s.sfxAuraG,s.sfxAuraB};
+        float rgb[]={red,green,blue};
         ImGui::SetNextItemWidth(pickerWidth);
         constexpr auto flags=ImGuiColorEditFlags_PickerHueWheel|ImGuiColorEditFlags_InputRGB|
             ImGuiColorEditFlags_NoSidePreview|ImGuiColorEditFlags_NoOptions|ImGuiColorEditFlags_NoLabel|
@@ -96,12 +98,12 @@ void AuraColorPicker(Settings &s) {
             }
         }
         if(changed) {
-            s.sfxAuraR=std::round(rgb[0]*1000000)/1000000;
-            s.sfxAuraG=std::round(rgb[1]*1000000)/1000000;
-            s.sfxAuraB=std::round(rgb[2]*1000000)/1000000;s.sfxAuraCustomColor=true;
+            red=std::round(rgb[0]*1000000)/1000000;
+            green=std::round(rgb[1]*1000000)/1000000;
+            blue=std::round(rgb[2]*1000000)/1000000;custom=true;
         }
         if(ImGui::Button((std::string(Tr(UiText::AuraRestoreColor))+"###native").c_str(),{pickerWidth,24}))
-            s.sfxAuraCustomColor=false;
+            custom=false;
         ImGui::EndPopup();
     }
     ImGui::PopStyleVar();
@@ -205,6 +207,7 @@ void SceneParameters(Runtime &r) {
         RR(Saturation, SaturationHelp, sfxSaturation, .5f, 1.5f, "%.2f", .05f);
         RR(SfxSoftness, SfxSoftnessHelp, sfxSoftness, 0, 1, "%.2f", .05f);
         AuraColorPicker(s);
+        AuraColorPicker(s,true);
         break;
     }
 #undef RR

@@ -6,6 +6,7 @@
 #include <bcrypt.h>
 #include <cstring>
 #include "refinement_trail.hpp"
+#include "particle_buffer.hpp"
 
 // Material styling plus scoped reconstruction of recognized native refinement trails.
 class SfxFX {
@@ -47,7 +48,7 @@ class SfxFX {
         }
         trailContext_=nullptr;trailPuffs_.clear();trailVertices_.clear();trailArt_.out();
     }
-    bool captureTrail(const ParticleDraw &draw,DWORD fvf,const D3DMATRIX &world,
+    bool captureTrail(ParticleDraw draw,DWORD fvf,const D3DMATRIX &world,
                       IDirect3DTexture9 *texture,const float c[11][4],DWORD src,DWORD dst) {
         auto *context=native_refinement::current;
         if(!context||!context->model||dst!=D3DBLEND_ONE||trailPoints_+draw.primitives/2>2048||
@@ -59,6 +60,8 @@ class SfxFX {
            (!discardPS_.p&&FAILED(device_->CreatePixelShader(ShaderRefinementDiscardPS,discardPS_.out()))))return false;
         if(trailPuffs_.capacity()<256)trailPuffs_.reserve(256);
         if(trailVertices_.capacity()<12288)trailVertices_.reserve(12288);
+        particle_buffer::Snapshot snapshot;
+        if(!draw.data&&!particle_buffer::read(device_,draw.buffered,draw,snapshot))return false;
         const size_t before=trailPuffs_.size();
         if(!refinement_trail::extract(draw,fvf,world,{1,1,1,1},trailPuffs_))return false;
         auto operation=[](float op,float a,float b){return std::clamp(op<2.5f?a:op<3.5f?b:a*b*(op>5.5f?4:op>4.5f?2:1),0.f,1.f);};
@@ -345,7 +348,7 @@ class SfxFX {
             return false;
         if (wake && (s.sfxWake <= 0 || (!snapshot_ && !canSnapshot) || !snapshotWorld()))
             return false;
-        const bool aura = kind == 6 || kind == 7;
+        const bool aura = kind == 6 || kind == 7 || kind == 8;
         const bool refinement = kind == 7 && s.sceneQuality && s.sfxAura > 0 &&
                                 (!transform || std::abs(uv._12) + std::abs(uv._21) < .00001f);
         if ((!vs_.p && FAILED(device_->CreateVertexShader(ShaderSfxVS, vs_.out()))) ||
@@ -419,9 +422,11 @@ class SfxFX {
         memcpy(&c[9][3], &end, 4);
         memcpy(c[10], &density, 4);
         c[10][1] = aura ? s.sfxAura : 0;
-        if(kind==7&&s.sfxAuraCustomColor){
+        if((kind==7&&s.sfxAuraCustomColor)||(kind==8&&s.sfxWeaponCustomColor)){
             c[10][2]=1;
-            c[7][0]=s.sfxAuraR;c[7][1]=s.sfxAuraG;c[7][2]=s.sfxAuraB;
+            c[7][0]=kind==8?s.sfxWeaponR:s.sfxAuraR;
+            c[7][1]=kind==8?s.sfxWeaponG:s.sfxAuraG;
+            c[7][2]=kind==8?s.sfxWeaponB:s.sfxAuraB;
         }
         device_->SetVertexShader(vs_);
         const bool fullTexture=std::abs(c[5][0])+std::abs(c[5][1])+std::abs(c[5][2]-1)+std::abs(c[5][3]-1)<.00001f;

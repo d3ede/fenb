@@ -63,7 +63,7 @@ inline bool extract(const ParticleDraw &draw,DWORD fvf,const D3DMATRIX &world,
         for(unsigned j=0;j<4;++j){puff.position=puff.position+positions[j]*.25f;for(int c=0;c<4;++c)puff.color[c]+=colors[j][c]*tint[c]*.25f;}
         float width=length(positions[1]-positions[0]),height=length(positions[2]-positions[0]);
         if(width<.001f||height<.001f||width>2||height>2){out.resize(before);return false;}
-        puff.radius=std::clamp(std::max(width*.8f,height*.5f),.16f,.6f);
+        puff.radius=std::clamp(std::max(width*1.4f,height*.65f),.20f,.75f);
         out.push_back(puff);
     }
     return true;
@@ -96,7 +96,7 @@ inline void mesh(std::vector<Puff>&puffs,const D3DMATRIX &view,std::vector<Verte
         for(int i:{0,1,2,2,1,3})out.push_back(quad[i]);
     };
     for(size_t i=0;i<puffs.size();++i){
-        const auto &a=puffs[i];size_t next=puffs.size();float distance=std::min(1.25f,a.radius*7);
+        const auto &a=puffs[i];size_t next=puffs.size();float distance=std::min(2.75f,a.radius*10);
         for(size_t j=i+1;j<puffs.size();++j){float d=length(a.position-puffs[j].position);
             if(d>.005f&&d<distance){distance=d;next=j;}}
         if(next==puffs.size()){append(a,.75f);continue;}

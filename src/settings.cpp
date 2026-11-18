@@ -136,7 +136,7 @@ void Settings::sanitize() {
     grassQuality=std::round(grassQuality);
 }
 void Settings::resetSceneSection(int group) {
-    if(group==11)sfxAuraCustomColor=false;
+    if(group==11)sfxAuraCustomColor=sfxWeaponCustomColor=false;
 #define SCENE_BOOL(g, m, k, d)
 #define SCENE_FLOAT(g, m, k, d, lo, hi)                                                                      \
     if (group == g)                                                                                          \

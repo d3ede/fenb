@@ -428,22 +428,40 @@ int main(int argc, char **argv) {
         texture->UnlockRect(0);tag=7;texture->SetPrivateData(SfxTag,&tag,4,0);
         auto saved=settings;settings=Settings{};settings.sfx=true;settings.sceneQuality=true;
         flatBackground=true;
-        auto clouds=[&](bool continuous,float amount,float phase=17)->int {
+        auto clouds=[&](bool continuous,float amount,float phase=17,bool buffered=false,bool separateModels=false)->int {
             sfx.beginFrame(true);background();setup();
+            Com<IDirect3DVertexBuffer9> fan;
+            if(buffered){
+                CHECK(SUCCEEDED(d->CreateVertexBuffer(80,D3DUSAGE_WRITEONLY,0x102,D3DPOOL_SYSTEMMEM,fan.out(),nullptr)));
+                struct NativeVertex{float x,y,z,u,v;};
+                NativeVertex quad[]={{-.5f,.5f,0,0,0},{.5f,.5f,0,1,0},{.5f,-.5f,0,1,1},{-.5f,-.5f,0,0,1}};
+                void *data=nullptr;CHECK(SUCCEEDED(fan->Lock(0,0,&data,0)));
+                particle_buffer::Write upload(fan);upload.begin(fan,0,0,data,0);
+                memcpy(data,quad,sizeof(quad));upload.finish(fan);CHECK(SUCCEEDED(fan->Unlock()));
+                d->SetStreamSource(0,fan,0,20);d->SetFVF(0x102);
+                d->SetTextureStageState(0,D3DTSS_COLOROP,D3DTOP_SELECTARG1);
+                d->SetTextureStageState(0,D3DTSS_ALPHAOP,D3DTOP_MODULATE);
+                d->SetTextureStageState(0,D3DTSS_ALPHAARG1,D3DTA_TEXTURE);
+                d->SetTextureStageState(0,D3DTSS_ALPHAARG2,D3DTA_TFACTOR);
+            }
             d->SetRenderState(D3DRS_ZWRITEENABLE,TRUE);sfx.observe();d->SetRenderState(D3DRS_ZWRITEENABLE,FALSE);
             d->BeginScene();
-            int model=0;
-            {
-                native_refinement::Scope scope(&model);
+            int models[2]{};
+            for(int owner=0;owner<(separateModels?2:1);++owner){
+                native_refinement::Scope scope(&models[owner]);
                 for(int i=5;i>=0;--i)for(int side:{-1,1}){
+                    if(separateModels&&side!=(owner?1:-1))continue;
                     auto matrix=id;matrix._41=side*.09f;matrix._42=.8f-i*.28f;
+                    if(buffered){matrix._11=.07f;matrix._22=.2f;}
                     d->SetTransform(D3DTS_WORLD,&matrix);
                     DWORD color=(DWORD(amount*(1-i*.13f)*200)<<24)|0x00ffffff;
                     V particle[]={{-.035f,.10f,0,color,0,0},{.035f,.10f,0,color,1,0},
                                   {-.035f,-.10f,0,color,0,1},{.035f,-.10f,0,color,1,1}};
                     ParticleDraw geometry{D3DPT_TRIANGLESTRIP,2,particle,sizeof(V)};
+                    if(buffered){geometry={D3DPT_TRIANGLEFAN,2,nullptr,0,nullptr,D3DFMT_UNKNOWN,0,0,{D3DPT_TRIANGLEFAN,0,2}};d->SetRenderState(D3DRS_TEXTUREFACTOR,color);}
                     CHECK(sfx.begin(settings,false,true,continuous?geometry:ParticleDraw{}));
-                    d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP,2,particle,sizeof(V));sfx.end(true);
+                    if(buffered)d->DrawPrimitive(D3DPT_TRIANGLEFAN,0,2);
+                    else d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP,2,particle,sizeof(V));sfx.end(!buffered);
                 }
                 CHECK(!continuous || scope.context.finish);
                 float vsBefore[13][4]{},psBefore[11][4]{},vsAfter[13][4]{},psAfter[11][4]{};
@@ -459,11 +477,18 @@ int main(int argc, char **argv) {
         };
         CHECK(clouds(false,1)==0);const auto strips=Read(d);
         CHECK(clouds(true,1)==0);const auto mist=Read(d);
+        CHECK(clouds(true,1,17,true)==0);CHECK(Difference(mist,Read(d),1)==0);
+        Save(Read(d),L"build/refinement-buffered-mist.bmp");
         CHECK(Difference(strips,mist)>100&&sfx.bytes()==0);
         Save(strips,L"build/refinement-paired-before.bmp");Save(mist,L"build/refinement-connected-after.bmp");
         unsigned filled=0;
         for(UINT y=65;y<150;++y)filled+=((mist[y*W+W/2]&255)>(strips[y*W+W/2]&255)+2);
         CHECK(filled>60); // No empty stripe between the two native emitters.
+        CHECK(clouds(true,1,17,true,true)==0);const auto separateMist=Read(d);
+        unsigned separateFilled=0;
+        for(UINT y=65;y<150;++y)separateFilled+=((separateMist[y*W+W/2]&255)>(strips[y*W+W/2]&255)+2);
+        CHECK(separateFilled>60); // The client's two foot models remain independent but overlap softly.
+        Save(separateMist,L"build/refinement-two-model-mist.bmp");
         settings.sfxAuraCustomColor=true;
         auto checkColor=[&](float red,float green,float blue,bool continuous)->int {
             settings.sfxAuraR=red;settings.sfxAuraG=green;settings.sfxAuraB=blue;
@@ -485,7 +510,15 @@ int main(int argc, char **argv) {
         CHECK(checkColor(0,1,0,true)==0);Save(Read(d),L"build/refinement-color-green.bmp");
         CHECK(checkColor(0,0,1,true)==0);
         CHECK(checkColor(0,0,0,true)==0);
-        // Pet beads and weapon-element auras retain their own palette.
+        // Independent weapon color must not inherit the armor color; pet beads stay native.
+        tag=8;texture->SetPrivateData(SfxTag,&tag,4,0);
+        settings.sfxWeaponCustomColor=false;
+        CHECK(clouds(false,1)==0);const auto nativeWeapon=Read(d);
+        settings.sfxAuraR=1;settings.sfxAuraG=0;settings.sfxAuraB=0;
+        CHECK(clouds(false,1)==0);CHECK(Difference(nativeWeapon,Read(d))==0);
+        settings.sfxWeaponCustomColor=true;settings.sfxWeaponR=0;settings.sfxWeaponG=1;settings.sfxWeaponB=0;
+        CHECK(clouds(false,1)==0);CHECK(Difference(nativeWeapon,Read(d))>50);
+        for(DWORD pixel:Read(d))CHECK(((pixel>>16)&255)==0x30&&(pixel&255)==0x50);
         tag=6;texture->SetPrivateData(SfxTag,&tag,4,0);
         CHECK(clouds(false,1)==0);const auto otherAuras=Read(d);
         settings.sfxAuraCustomColor=false;CHECK(clouds(false,1)==0);CHECK(Difference(otherAuras,Read(d))==0);
@@ -514,12 +547,14 @@ int main(int argc, char **argv) {
                                    L"sfx_EffectEnchant.dds", L"sfx_EffectEnchant_black.dds",
                                    L"sfx_EffectEnchant_gold.dds", L"sfx_EffectEnchant_green.dds",
                                    L"sfx_EffectEnchant_purple.dds", L"sfx_EffectEnchant_red.dds",
-                                   L"sfx_EffectEnchant_white.dds", L"sfx_buffpet01-01.dds"})
+                                   L"sfx_EffectEnchant_white.dds", L"sfx_buffpet01-01.dds",
+                                   L"fly_weaponfx_white_color_1.dds",L"sfx_ItemFire.dds"})
       if (FILE *file = _wfopen((std::wstring(L"X:/Games/Homesickness/SFX/Texture/") + material).c_str(), L"rb")) {
         const bool curtain = std::wcsstr(material, L"skylighting") != nullptr;
         const bool refinement = std::wcsstr(material, L"Enchant") != nullptr;
+        const bool weapon = std::wcsstr(material,L"weaponfx")||std::wcsstr(material,L"ItemFire");
         const bool luminous = !refinement || !std::wcsstr(material,L"_black");
-        const bool aura = refinement || std::wcsstr(material, L"buffpet");
+        const bool aura = refinement || weapon || std::wcsstr(material, L"buffpet");
         depthEnabled = !curtain; fixedCurtainTime = curtain || refinement;
         DWORD header[32]{};
         CHECK(fread(header, 1, 128, file) == 128);
@@ -560,7 +595,14 @@ int main(int argc, char **argv) {
         Save(detailed, aura ? L"build/sfx-aura-detailed.bmp" : curtain ? L"build/sfx-aurora-detailed.bmp" : L"build/sfx-rune-detailed.bmp");
         if (aura) {
             DWORD actualKind=0, size=4;
-            CHECK(SUCCEEDED(texture->GetPrivateData(SfxTag,&actualKind,&size)) && actualKind==(refinement?7u:6u));
+            CHECK(SUCCEEDED(texture->GetPrivateData(SfxTag,&actualKind,&size)) && actualKind==(refinement?7u:weapon?8u:6u));
+            if(weapon){
+                settings.sfxAuraCustomColor=true;settings.sfxAuraR=1;settings.sfxAuraG=settings.sfxAuraB=0;
+                CHECK(render(true));CHECK(Difference(detailed,Read(d))==0);
+                settings.sfxWeaponCustomColor=true;settings.sfxWeaponR=0;settings.sfxWeaponG=1;settings.sfxWeaponB=0;
+                CHECK(render(true));CHECK(Difference(detailed,Read(d))>100);
+                settings.sfxAuraCustomColor=settings.sfxWeaponCustomColor=false;
+            }
             settings.sceneQuality=false; settings.sfxAura=0;
             CHECK(render(true)); const auto auraOff=Read(d);
             settings.sfxAura=1; CHECK(render(true)); const auto auraOn=Read(d);

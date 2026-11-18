@@ -16,7 +16,7 @@ inline int RefinementPreview(bool capture) {
     wc.lpszClassName = L"FENBRefinementPreview";
     RegisterClassW(&wc);
     HWND window = CreateWindowW(wc.lpszClassName,
-        L"FENB refinement fixture | Previous wisps: left | Continuous mist: right", WS_OVERLAPPEDWINDOW,
+        L"FENB refinement fixture | Previous wisps: left | Native buffered mist: right", WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT, CW_USEDEFAULT, width + 16, height + 39, nullptr, nullptr, wc.hInstance, nullptr);
     if (!window) return 2;
     // Use the system renderer, independent of profiles beside the preview executable.
@@ -80,6 +80,13 @@ inline int RefinementPreview(bool capture) {
     projection._11 = 1.3f; projection._22 = 2; projection._33 = 100.f / 99.9f;
     projection._34 = 1; projection._43 = -.1f * projection._33;
     struct Vertex { float x, y, z; DWORD color; float u, v; };
+    Com<IDirect3DVertexBuffer9> fan;
+    if(FAILED(device->CreateVertexBuffer(80,D3DUSAGE_WRITEONLY,0x102,D3DPOOL_SYSTEMMEM,fan.out(),nullptr)))return 5;
+    struct NativeVertex{float x,y,z,u,v;};
+    NativeVertex nativeQuad[]={{-.5f,.5f,0,0,0},{.5f,.5f,0,1,0},{.5f,-.5f,0,1,1},{-.5f,-.5f,0,0,1}};
+    void *upload=nullptr;if(FAILED(fan->Lock(0,0,&upload,0)))return 5;
+    particle_buffer::Write mirror(fan);mirror.begin(fan,0,0,upload,0);memcpy(upload,nativeQuad,sizeof(nativeQuad));mirror.finish(fan);
+    if(FAILED(fan->Unlock()))return 5;
     if(!capture)ShowWindow(window, SW_SHOW);
     const ULONGLONG start = GetTickCount64();
     unsigned frames = 0;
@@ -115,10 +122,16 @@ inline int RefinementPreview(bool capture) {
         device->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
         device->BeginScene();
         for (int side = 0; side < 2; ++side) {
-          native_refinement::Scope modelScope(&side);
-          for (int i = 9; i >= 0; --i) for(int foot : {-1,1}) {
+          device->SetFVF(side?0x102:0x142);
+          device->SetTextureStageState(0,D3DTSS_COLOROP,side?D3DTOP_SELECTARG1:D3DTOP_MODULATE);
+          device->SetTextureStageState(0,D3DTSS_ALPHAARG2,side?D3DTA_TFACTOR:D3DTA_DIFFUSE);
+          if(side)device->SetStreamSource(0,fan,0,20);
+          for(int foot : {-1,1}) {
+           native_refinement::Scope modelScope(&foot);
+           for (int i = 9; i >= 0; --i) {
             float age = (i + std::fmod(time * 2, 1.f)) / 10.f;
             auto world = identity;
+            if(side){world._11=.09f;world._22=.32f;}
             world._41 = (side ? 1.2f : -1.2f) + std::sin(age * 4 + time * .35f) * .16f + foot*.11f;
             world._42 = 1.35f - age * 2.8f;
             device->SetTransform(D3DTS_WORLD, &world);
@@ -127,9 +140,12 @@ inline int RefinementPreview(bool capture) {
             Vertex quad[] = {{-.045f,.16f,0,color,0,0},{.045f,.16f,0,color,1,0},
                              {-.045f,-.16f,0,color,0,1},{.045f,-.16f,0,color,1,1}};
             ParticleDraw geometry{D3DPT_TRIANGLESTRIP,2,quad,sizeof(Vertex)};
+            if(side){geometry={D3DPT_TRIANGLEFAN,2,nullptr,0,nullptr,D3DFMT_UNKNOWN,0,0,{D3DPT_TRIANGLEFAN,0,2}};device->SetRenderState(D3DRS_TEXTUREFACTOR,color);}
             bool styled = effects.begin(settings, false,true,side?geometry:ParticleDraw{});
-            device->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, quad, sizeof(Vertex));
-            if (styled) effects.end(true);
+            if(side)device->DrawPrimitive(D3DPT_TRIANGLEFAN,0,2);
+            else device->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, quad, sizeof(Vertex));
+            if (styled) effects.end(!side);
+          }
           }
         }
         device->EndScene();

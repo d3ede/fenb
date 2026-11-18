@@ -3,6 +3,7 @@
 #include "state_guard.hpp"
 #include "generated/shaders.hpp"
 #include "refinement_preview.hpp"
+#include "particle_buffer.hpp"
 #include <gdiplus.h>
 #include <cstdio>
 #include <cstring>
@@ -141,6 +142,15 @@ int main(int argc,char** argv) {
         bindingLifetime&=SUCCEEDED(dev->SetTexture(0,texture));
     }
     Check(bindingLifetime,"cached bindings retain COM identity across resource destruction and recreation");
+    {
+        Com<IDirect3DVertexBuffer9> fan;
+        bool mirrored=SUCCEEDED(dev->CreateVertexBuffer(80,D3DUSAGE_WRITEONLY,0x102,D3DPOOL_SYSTEMMEM,fan.out(),nullptr));
+        void *upload=nullptr;particle_buffer::Snapshot snapshot;DWORD size=sizeof(snapshot);
+        mirrored=mirrored&&SUCCEEDED(fan->Lock(0,0,&upload,0));
+        if(mirrored){memset(upload,0x5a,80);mirrored=SUCCEEDED(fan->Unlock())&&SUCCEEDED(fan->GetPrivateData(particle_buffer::Tag,&snapshot,&size))&&snapshot.size==80&&snapshot.bytes[79]==0x5a;}
+        Check(mirrored,"native SFX fan upload mirrored through proxy without readback");
+        if(mirrored){fan->Lock(0,20,&upload,0);memset(upload,0,20);fan->Unlock();size=sizeof(snapshot);Check(FAILED(fan->GetPrivateData(particle_buffer::Tag,&snapshot,&size)),"partial SFX fan mutation invalidates stale geometry");}
+    }
     Com<IDirect3DSurface9> bb;dev->GetBackBuffer(0,0,D3DBACKBUFFER_TYPE_MONO,bb.out());
     Com<IDirect3DSwapChain9> chain;dev->GetSwapChain(0,chain.out());
     Com<IDirect3DDevice9> chainDevice;chain->GetDevice(chainDevice.out());Check(chainDevice.p==dev.p,"swap-chain device identity");Drop(chainDevice.p);

@@ -364,6 +364,17 @@ int main() {
         CHECK(smallColors->Pos.x>=0&&smallColors->Pos.y>=0&&smallColors->Pos.x+smallColors->Size.x<=334&&smallColors->Pos.y+smallColors->Size.y<=400);
         CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-aura-color-narrow.png").c_str()));
         ImGui::ClosePopupToLevel(0,true);io.DisplaySize=colorDisplay;r.centerPanel=true;frame();frame();
+        ImGui::ActivateItemByID(ImHashStr("open",0,ImHashStr("weapon-color",0,inspector()->GetID("particles"))));frame();frame();
+        CHECK(!ImGui::GetCurrentContext()->OpenPopupStack.empty());
+        auto *weaponColors=ImGui::GetCurrentContext()->OpenPopupStack.back().Window;
+        const auto armorBefore=r.settings;
+        activate(weaponColors,"##hex");input("FF9900");
+        CHECK(r.settings.sfxWeaponCustomColor&&r.settings.sfxWeaponR==1&&r.settings.sfxWeaponG==.6f&&r.settings.sfxWeaponB==0);
+        CHECK(r.settings.sfxAuraCustomColor==armorBefore.sfxAuraCustomColor&&r.settings.sfxAuraR==armorBefore.sfxAuraR&&r.settings.sfxAuraG==armorBefore.sfxAuraG&&r.settings.sfxAuraB==armorBefore.sfxAuraB);
+        io.AddMousePosEvent(-FLT_MAX,-FLT_MAX);frame();frame();
+        CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-weapon-color.png").c_str()));
+        ImGui::ClosePopupToLevel(0,true);frame();
+        CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-equipment-colors.png").c_str()));
         r.editorPage=9;r.editorSelection[9]=0;frame();frame();
         r.settings.grass=false;control("grass","enabled");CHECK(r.settings.grass);
         r.settings.grassSnow=false;control("grass","snow-grass");CHECK(r.settings.grassSnow);

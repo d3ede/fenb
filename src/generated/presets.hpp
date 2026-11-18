@@ -102,6 +102,10 @@ inline void ApplyBuiltInVisuals(Settings &s, int index) {
     s.sfxAuraR = 0.160000f;
     s.sfxAuraG = 0.620000f;
     s.sfxAuraB = 1.000000f;
+    s.sfxWeaponCustomColor = false;
+    s.sfxWeaponR = 0.160000f;
+    s.sfxWeaponG = 0.620000f;
+    s.sfxWeaponB = 1.000000f;
     s.sfxWake = 0.700000f;
     s.surfaceReflections = false;
     s.surfaceStrength = 0.550000f;

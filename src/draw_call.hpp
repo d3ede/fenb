@@ -19,6 +19,7 @@ struct ParticleDraw {
     const void *indices = nullptr;
     D3DFORMAT indexFormat = D3DFMT_UNKNOWN;
     UINT minVertex = 0, vertices = 0;
+    SurfaceDraw buffered{};
 };
 
 // Non-owning synchronous callback. Native draw arguments remain live for this whole call;
