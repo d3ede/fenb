@@ -24,10 +24,15 @@ class SfxFX {
     float trailConstants_[11][4]{};
     DWORD trailSource_=D3DBLEND_SRCALPHA;
     bool trailRange_=false;
+    float trailLift_=0;
     void finishTrail() {
         if(!trailContext_)return;
         refinement_trail::Vec origin{trailContext_->origin[0],trailContext_->origin[1],trailContext_->origin[2]};
-        refinement_trail::mesh(trailPuffs_,view_,trailVertices_,trailContext_->hasOrigin?&origin:nullptr);
+        D3DMATRIX mistView=view_;
+        mistView._41+=view_._21*trailLift_;
+        mistView._42+=view_._22*trailLift_;
+        mistView._43+=view_._23*trailLift_;
+        refinement_trail::mesh(trailPuffs_,mistView,trailVertices_,trailContext_->hasOrigin?&origin:nullptr);
         RefinementState state(device_);
         if(state.valid()&&!trailVertices_.empty()) {
             D3DMATRIX identity{};identity._11=identity._22=identity._33=identity._44=1;
@@ -48,7 +53,7 @@ class SfxFX {
             device_->SetRenderState(D3DRS_BLENDOP,D3DBLENDOP_ADD);device_->SetRenderState(D3DRS_SEPARATEALPHABLENDENABLE,FALSE);
             device_->DrawPrimitiveUP(D3DPT_TRIANGLELIST,UINT(trailVertices_.size()/3),trailVertices_.data(),sizeof(refinement_trail::Vertex));
         }
-        trailContext_=nullptr;trailPuffs_.clear();trailVertices_.clear();trailArt_.out();
+        trailContext_=nullptr;trailPuffs_.clear();trailVertices_.clear();trailArt_.out();trailLift_=0;
     }
     bool captureTrail(ParticleDraw draw,DWORD fvf,const D3DMATRIX &world,
                       IDirect3DTexture9 *texture,const float c[11][4],DWORD src,DWORD dst) {
@@ -202,6 +207,7 @@ class SfxFX {
         cloudPS_.out();trailArt_.out();
         if(trailContext_){trailContext_->consumer=nullptr;trailContext_->finish=nullptr;trailContext_=nullptr;}
         trailPuffs_.clear();trailVertices_.clear();
+        trailLift_=0;
         backgroundSurface_.out();
         background_.out();
         width_ = height_ = 0;
@@ -453,6 +459,11 @@ class SfxFX {
         return true;
     }
     bool skipNativeDraw()const{return captured_;}
+    void grassClearance(float height) {
+        // Keep some visible vapor above the blades while preserving the
+        // real depth test against terrain and foreground geometry.
+        if(captured_)trailLift_=std::min(.4f,height*.48f);
+    }
     void end(bool up = false, bool indexed = false) {
         if(captured_){
             // Skipped UP calls must retain the D3D9 stream/index-clearing contract.

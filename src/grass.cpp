@@ -357,6 +357,15 @@ void GrassFX::beforeTranslucency(const Settings &s,bool ownScene){
        memcmp(&view,&view_,sizeof(view))||memcmp(&projection,&projection_,sizeof(projection)))return;
     draw(s,ownScene);
 }
+bool GrassFX::beforeRefinement(const Settings &s,bool ownScene){
+    if(rendered_)return true;
+    if(!started_||failed_)return false;
+    D3DMATRIX view{},projection{};
+    if(FAILED(device_->GetTransform(D3DTS_VIEW,&view))||FAILED(device_->GetTransform(D3DTS_PROJECTION,&projection))||
+       memcmp(&view,&view_,sizeof(view))||memcmp(&projection,&projection_,sizeof(projection)))return false;
+    draw(s,ownScene);
+    return rendered_;
+}
 void GrassFX::draw(const Settings &s,bool ownScene){
     if(!enabled_||rendered_||!s.enabled||!s.grass||!started_||failed_||(winter_&&!s.grassSnow))return;
     if(ownScene&&FAILED(device_->BeginScene()))return;

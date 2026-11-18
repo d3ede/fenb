@@ -303,8 +303,15 @@ bool Runtime::beforeWaterDraw(UINT upStride, DrawCall draw,ParticleDraw particle
         sceneBackbuffer_&&drawTarget_==sceneBackbuffer_&&trees_->begin(settings);
     if (!lost_ && settings.enabled && (settings.sfx || (settings.water && settings.sfxWake > 0)) && !compare && !vertexShaderActive_ &&
         fvfKnown_ && (drawFVF_ == 0x102 || drawFVF_ == 0x142) &&
-        sceneBackbuffer_ && drawTarget_ == sceneBackbuffer_)
+        sceneBackbuffer_ && drawTarget_ == sceneBackbuffer_) {
         sfx_->begin(settings, waterDraws > 0, !hudStarted_,hudStarted_?ParticleDraw{}:particle);
+        if(sfx_->skipNativeDraw()&&sawWorld_&&settings.grass) {
+            // Armor mist is translucent and is submitted when its native
+            // model scope closes. Render opaque blades first even in maps
+            // without an earlier native foliage trigger.
+            if(grass_->beforeRefinement(settings,!inScene_))sfx_->grassClearance(settings.grassHeight);
+        }
+    }
     if (!lost_ && settings.enabled && !compare && !vertexShaderActive_ && fvfKnown_ &&
         drawFVF_ == 0x142 && sceneBackbuffer_ && drawTarget_ == sceneBackbuffer_)
         effects_->sceneFX().beginFlare(settings);

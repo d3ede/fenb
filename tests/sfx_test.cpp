@@ -465,7 +465,8 @@ int main(int argc, char **argv) {
         texture->UnlockRect(0);tag=7;texture->SetPrivateData(SfxTag,&tag,4,0);
         auto saved=settings;settings=Settings{};settings.sfx=true;settings.sceneQuality=true;
         flatBackground=true;
-        auto clouds=[&](bool continuous,float amount,float phase=17,bool buffered=false,bool separateModels=false,unsigned modelsCount=1,unsigned pointsCount=6)->int {
+        auto clouds=[&](bool continuous,float amount,float phase=17,bool buffered=false,bool separateModels=false,
+                        unsigned modelsCount=1,unsigned pointsCount=6,float grassHeight=0)->int {
             sfx.beginFrame(true);background();setup();
             Com<IDirect3DVertexBuffer9> fan;
             if(buffered){
@@ -498,6 +499,7 @@ int main(int argc, char **argv) {
                     if(buffered){geometry={D3DPT_TRIANGLEFAN,2,nullptr,0,nullptr,D3DFMT_UNKNOWN,0,0,{D3DPT_TRIANGLEFAN,0,2}};d->SetRenderState(D3DRS_TEXTUREFACTOR,color);}
                     CHECK(sfx.begin(settings,false,true,continuous?geometry:ParticleDraw{}));
                     if(continuous&&settings.sfxSmoothAura)CHECK(SfxFXFixture::captured(sfx,d));
+                    if(grassHeight>0)sfx.grassClearance(grassHeight);
                     if(!sfx.skipNativeDraw()){
                         if(buffered)d->DrawPrimitive(D3DPT_TRIANGLEFAN,0,2);
                         else d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP,2,particle,sizeof(V));
@@ -644,6 +646,9 @@ int main(int argc, char **argv) {
         occlude=true;CHECK(clouds(false,1)==0);const auto blocked=Read(d);
         CHECK(clouds(true,1)==0);const auto blockedMist=Read(d);
         for(UINT y=0;y<H;++y)for(UINT x=0;x<W/2;++x)CHECK(blocked[y*W+x]==blockedMist[y*W+x]);
+        CHECK(clouds(true,1,17,false,false,1,6,.55f)==0);const auto raisedMist=Read(d);
+        CHECK(Difference(blockedMist,raisedMist)>100);
+        for(UINT y=0;y<H;++y)for(UINT x=0;x<W/2;++x)CHECK(blocked[y*W+x]==raisedMist[y*W+x]);
         occlude=false;sfx.invalidate();CHECK(clouds(true,1)==0);CHECK(Difference(mist,Read(d),1)==0);
         flatBackground=false;settings=saved;Drop(texture.p);texture.p=previous.p;previous.p=nullptr;
         puts("PASS: continuous refinement mist fills paired gaps, fades to zero, preserves depth/state and recreates resources");

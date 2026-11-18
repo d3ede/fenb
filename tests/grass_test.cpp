@@ -153,7 +153,7 @@ int main(int argc,char **argv){
     bool road=false,roadGradient=false,roadProp=false;DWORD roadAlpha=255,terrainFVF=0x212;unsigned stateErrors=0,extraDraws=0;
     bool groundTest=false,roadTest=false,sourceSRGB=false,roadWrite=true,leafProp=false,propBlend=false,doubleProp=false,nativeLeaf=false;float propHeight=0;int lightingCase=0;
     bool distantTiles=false;size_t pendingAfterTiles=0;
-    bool translucentLeaf=false,earlyGrass=true;
+    bool translucentLeaf=false,earlyGrass=true,refinementBoundary=false,grassBeforeMist=false;
     bool paving=false;
     bool waterMask=false;
     float waterY=0;
@@ -228,6 +228,7 @@ int main(int argc,char **argv){
             auto drawWater=[&](){return d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP,2,strip,sizeof(WaterVertex));};
             if(on&&!proxy)grass.capture(settings,drawWater,{},true);
         }
+        if(refinementBoundary&&on&&!proxy)grassBeforeMist=grass.beforeRefinement(settings);
         if(translucentLeaf){
             d->SetRenderState(D3DRS_ALPHABLENDENABLE,TRUE);
             d->SetRenderState(D3DRS_SRCBLEND,D3DBLEND_SRCALPHA);d->SetRenderState(D3DRS_DESTBLEND,D3DBLEND_INVSRCALPHA);
@@ -271,6 +272,10 @@ int main(int argc,char **argv){
     if(proxy){auto result=render(true);CHECK(result.size()==Width*Height);CreateDirectoryW(L"artifacts/grass",nullptr);
         CHECK(Save(result,L"artifacts/grass/field-proxy.png"));CHECK((result[15*Width+15]&0xffffff)==0xdc2020);puts("PASS: native proxy grass draw completed before the untouched HUD.");return 0;}
     auto off=render(false),on=render(true);
+    refinementBoundary=true;
+    const auto atRefinement=render(true);
+    CHECK(grassBeforeMist&&atRefinement.size()==on.size()&&Delta(atRefinement,off)>20);
+    refinementBoundary=false;
     printf("Grass started=%d failed=%d instances=%u bytes=%zu\n",GrassFXFixture::started(grass),GrassFXFixture::failed(grass),GrassFXFixture::count(grass),grass.bytes());
     CHECK(off.size()==Width*Height&&on.size()==off.size());CHECK(GrassFXFixture::started(grass)&&!GrassFXFixture::failed(grass));
     unsigned changed=0;for(size_t i=0;i<off.size();++i)changed+=off[i]!=on[i];printf("Changed pixels: %u\n",changed);CHECK(changed>10000);
