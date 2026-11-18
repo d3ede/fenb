@@ -1,18 +1,20 @@
 # Experimental tree appearance
 
 Reviewed replacement bark for the Flaris common-tree and Azria tree families,
-plus leaves and vines for the forked Flaris tree. These assets retain the
+plus repainted leaves and hanging vines in Flaris. These assets retain the
 game's existing geometry and UV layout.
 The artwork uses each original atlas's dimensions and retains source opacity
 and snow coverage where applicable. The rounded, autumn and tall Flaris
 tree families use the more defined painted bark. Other ordinary Flaris
 trees use painted plates blended with the grain of their stock textures.
 
-The 23 DDS inputs contain complete mip chains. Opaque bark uses DXT1 and the
-cutout branch, leaf and vine atlases use DXT5. They total 1,357,808 bytes
-including DDS headers. Thirteen bark replacements are for ordinary trees, with distinct patterns and
-color grades. For three shared ordinary source textures, the catalog lists a
-second pattern selected by the object's world position.
+The 33 DDS inputs contain complete mip chains. Opaque bark uses DXT1 and the
+cutout branch, leaf and vine atlases use DXT5. They total 2,233,168 bytes
+including DDS headers. The thirteen ordinary bark atlases retain distinct
+patterns and color grades. The new leaf artwork keeps the tree families'
+green, olive, bronze and copper palettes. The catalog lists a second pattern
+for three shared bark sources and one shared leaf source. The object's world
+position selects the pattern in those cases.
 `tools/trees.json` maps exact original compressed and ARGB8 upload identities to
 these assets. `node tools/embed-trees.mjs` regenerates the tracked embedded
 data and identity catalog. Production has no D3DX, image decoder or external

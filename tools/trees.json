@@ -92,6 +92,28 @@
       "asset": "assets/trees/bark-08.dds"
     },
     {
+      "file": "obj_macoprtr01-01.dds",
+      "width": 256,
+      "height": 256,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "0f2fa295b0f5a39bcb27813aa90c46d91f4d91fe86ee1157d18e37b5ed112dfa",
+      "uploadSha256": "adf298f8a443f3af4802b8eae5c469154c7fef572b1b4716705df952317af259",
+      "decodedSha256": "8fd4edb957197077ad34f1ccd3be0421edb1be23637c23a1cbeeead7daac1f0d",
+      "asset": "assets/trees/flaris-leaves-round-01.dds",
+      "kind": "foliage"
+    },
+    {
+      "file": "obj_macoprtr02-01.dds",
+      "width": 256,
+      "height": 256,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "a552ccd14943374f6f6dbe27ab9bb80214aae1d07cd1d0876526c97bc75a6710",
+      "uploadSha256": "732b05a51125179866bb15a7b0e60419c48bcea712c796c8490752bfcae8f5f5",
+      "decodedSha256": "9e8db02494f2d56edc5341432f99f6139265029162b968b9fff38023600d78a1",
+      "asset": "assets/trees/flaris-leaves-bronze-02.dds",
+      "kind": "foliage"
+    },
+    {
       "file": "obj_macoprtr02-02.dds",
       "width": 128,
       "height": 256,
@@ -101,6 +123,17 @@
       "decodedSha256": "2d84bc61b1fa5a3b7e7ddcf84a8c4b83f7cf98f5061e0ee7df4136ebd1fe5f37",
       "asset": "assets/trees/bark-09.dds",
       "alternateAsset": "assets/trees/flaris-round-alt.dds"
+    },
+    {
+      "file": "obj_macoprtr03-01.dds",
+      "width": 256,
+      "height": 256,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "507ad955dbd8b26dbca303309c41be2044fee998eea1c3584ed4dfc033230456",
+      "uploadSha256": "a5323360f29d793aa48af8083e837feeca28c42a0aaff1fca4dbde858ba6adce",
+      "decodedSha256": "4843973c429f88562a682ed4aac56690b2dbb87e3fdf1a41da489dc8f786f1f6",
+      "asset": "assets/trees/flaris-leaves-spring-03.dds",
+      "kind": "foliage"
     },
     {
       "file": "obj_macoprtr03-02.dds",
@@ -113,6 +146,17 @@
       "asset": "assets/trees/flaris-round-03.dds"
     },
     {
+      "file": "obj_macoprtr04-01.dds",
+      "width": 256,
+      "height": 256,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "7d936b862f2dc3adf34f2e78e5e78334ddb4a16bae7135abfcc41a496d228283",
+      "uploadSha256": "45231467df11994a2ebce7c66edfbbb2226e334d749918741b32aedbe968829a",
+      "decodedSha256": "4840be222504c16bc3c0f314b91155b628391e4a4af4e13601356b283f4dcdda",
+      "asset": "assets/trees/flaris-leaves-dense-04.dds",
+      "kind": "foliage"
+    },
+    {
       "file": "obj_macoprtr04-02.dds",
       "width": 256,
       "height": 256,
@@ -121,6 +165,17 @@
       "uploadSha256": "900dccf748285da73d00c74da830648009e8b7c271b89308c985a13300275556",
       "decodedSha256": "5f3d687ba4b14c670eb4c3cf248d4c27254caa3e6222096aa1916ce99c604d5c",
       "asset": "assets/trees/bark-10.dds"
+    },
+    {
+      "file": "obj_macoprtr05-01.dds",
+      "width": 256,
+      "height": 256,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "4a49684e1c8f77eeb4a16987f366f0b0eb185f3c74fb6737ffcb8b790da1cd76",
+      "uploadSha256": "e6c7fd2749e99d30cec649955dbed3d7380a6a260cd0da5aa5ebe7c213e47b61",
+      "decodedSha256": "0654005f54ac943ec0e74be9077a49d50e72d7e58a53c1fafc1c998116818339",
+      "asset": "assets/trees/flaris-leaves-maple-05.dds",
+      "kind": "foliage"
     },
     {
       "file": "obj_macoprtr05-02.dds",
@@ -133,6 +188,17 @@
       "asset": "assets/trees/bark-11.dds"
     },
     {
+      "file": "obj_macoprtr10-01.dds",
+      "width": 256,
+      "height": 256,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "9348f09a1060cbd9c8043a9fb5a4a1739b3f55501c8d958b4efccb6320e56fec",
+      "uploadSha256": "d98fdb0e2b7d6f9660667ef8037f712dd3a91bd131a2a58b3f86102a9d1ce3cb",
+      "decodedSha256": "06de2594bdac8fd09134562d069fe2d95b089d86ef0420de0cf3ccab3b109674",
+      "asset": "assets/trees/flaris-leaves-narrow-10.dds",
+      "kind": "foliage"
+    },
+    {
       "file": "obj_macoprtr10-02.dds",
       "width": 256,
       "height": 512,
@@ -142,6 +208,17 @@
       "decodedSha256": "299321383e0fe9142f708a329a830d60d956ef1640239c32f026773934d833cf",
       "asset": "assets/trees/bark-12.dds",
       "alternateAsset": "assets/trees/flaris-needle-alt.dds"
+    },
+    {
+      "file": "obj_macoprtr11-01.dds",
+      "width": 256,
+      "height": 256,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "71d62d14db5681f53c49ff3762eecdd673f1faa760d22889541241aabc76be9e",
+      "uploadSha256": "ef112a4187d3781f5b801b42b18f4716f7caadada705e0f1bbf79a804dfa2201",
+      "decodedSha256": "2bd35a0781aee0b6fe2a0bf6964018b6a9c4c852fa2d7479ea49642f24ae5f5f",
+      "asset": "assets/trees/flaris-leaves-olive-11.dds",
+      "kind": "foliage"
     },
     {
       "file": "obj_macoprtr11-02.dds",
@@ -187,6 +264,18 @@
       "kind": "foliage"
     },
     {
+      "file": "obj_macoprtr13-01.dds",
+      "width": 256,
+      "height": 256,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "b6d497d44d3a7bc6ba0da2cb850a59080b07ffde86ae4fc4e95c5be13e074178",
+      "uploadSha256": "1ce4d51834b552daccac907b4c95567232ea8b1e751bab0e87a4e8bca828344a",
+      "decodedSha256": "91a64af9f0dace17d292fe37410143dee9ff03e6224f2b1617e4e69a12d4d731",
+      "asset": "assets/trees/flaris-leaves-roots-13.dds",
+      "kind": "foliage",
+      "alternateAsset": "assets/trees/flaris-leaves-tall-15.dds"
+    },
+    {
       "file": "obj_macoprtr13-02.dds",
       "width": 256,
       "height": 512,
@@ -208,6 +297,17 @@
       "asset": "assets/trees/bark-14.dds"
     },
     {
+      "file": "obj_macoprtr14-01.dds",
+      "width": 256,
+      "height": 256,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "94208bc38a14477481eb5a18fe288d879a491c873722e2528587dcf53e7348f3",
+      "uploadSha256": "46f36acd226f55b47de4daab301fb23351ddfaf7e1542a9ec5c0771454bce4a0",
+      "decodedSha256": "1e8e90a0810bff3294700934bfce32fb422b25701e54ad304497bfa6ee0f306b",
+      "asset": "assets/trees/flaris-leaves-copper-14.dds",
+      "kind": "foliage"
+    },
+    {
       "file": "obj_macoprtr14-02.dds",
       "width": 256,
       "height": 512,
@@ -216,6 +316,18 @@
       "uploadSha256": "abca87c05ad1ca3c5d326753f1bd374ddc8f81e4917f170fed218b1701f64996",
       "decodedSha256": "ea7f48a7822f16de6d09bdcece188e3851637f0d0ed699b110f1681323efcd1f",
       "asset": "assets/trees/flaris-sparse-14.dds"
+    },
+    {
+      "file": "obj_macoprtr15-01.dds",
+      "width": 256,
+      "height": 256,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "b6d497d44d3a7bc6ba0da2cb850a59080b07ffde86ae4fc4e95c5be13e074178",
+      "uploadSha256": "1ce4d51834b552daccac907b4c95567232ea8b1e751bab0e87a4e8bca828344a",
+      "decodedSha256": "91a64af9f0dace17d292fe37410143dee9ff03e6224f2b1617e4e69a12d4d731",
+      "asset": "assets/trees/flaris-leaves-roots-13.dds",
+      "kind": "foliage",
+      "alternateAsset": "assets/trees/flaris-leaves-tall-15.dds"
     },
     {
       "file": "obj_macoprtr15-02.dds",

@@ -315,6 +315,11 @@ int main() {
         control("trees","tree-foliage");CHECK(!r.settings.treeBark&&r.settings.treeFoliage);
         control("trees","tree-bark");CHECK(r.settings.treeBark&&r.settings.treeFoliage);
         CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-trees.png").c_str()));
+        io.AddMousePosEvent(panel->Pos.x+panel->Size.x-36,panel->Pos.y+222);
+        for(int hover=0;hover<12;++hover)frame();
+        CHECK(activeWindow("##Tooltip"));
+        CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-tree-foliage-help.png").c_str()));
+        io.AddMousePosEvent(-FLT_MAX,-FLT_MAX);frame();
         r.editorPage=4;frame();frame();selectItem("puddles");
         r.settings.puddles=false;control("puddles","enabled");CHECK(r.settings.puddles);
         r.settings.puddleCoverage=.9f;

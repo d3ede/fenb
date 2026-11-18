@@ -79,7 +79,7 @@ int main(int argc,char**argv){
         CHECK(SUCCEEDED(d->GetTexture(0, restored.out())) && restored.p == original.p);
         trees.beginFrame(false);
     }
-    CHECK(variantCount == 3);
+    CHECK(variantCount == 4);
     CHECK(SUCCEEDED(d->SetRenderState(D3DRS_ALPHATESTENABLE, TRUE)));
     CHECK(SUCCEEDED(d->SetRenderState(D3DRS_ALPHAREF, 128)));
     CHECK(SUCCEEDED(d->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE)));
@@ -95,14 +95,16 @@ int main(int argc,char**argv){
         settings.treeBark = !asset.foliage;
         settings.treeFoliage = asset.foliage;
         CHECK(trees.begin(settings));
+        CHECK(trees.nativeFoliage() == (asset.foliage ? original.p : nullptr));
         trees.end();
+        CHECK(!trees.nativeFoliage());
         CHECK(SUCCEEDED(d->GetTexture(0, restored.out())) && restored.p == original.p);
         settings.treeBark = asset.foliage;
         settings.treeFoliage = !asset.foliage;
         CHECK(!trees.begin(settings));
         CHECK(SUCCEEDED(d->GetTexture(0, restored.out())) && restored.p == original.p);
     }
-    CHECK(foliageCount == 2);
+    CHECK(foliageCount == 12);
     DWORD alphaState = 0;
     CHECK(SUCCEEDED(d->GetRenderState(D3DRS_ALPHATESTENABLE, &alphaState)) && alphaState == TRUE);
     CHECK(SUCCEEDED(d->GetRenderState(D3DRS_ALPHAREF, &alphaState)) && alphaState == 128);

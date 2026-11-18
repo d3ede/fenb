@@ -316,9 +316,12 @@ bool Runtime::beforeWaterDraw(UINT upStride, DrawCall draw,ParticleDraw particle
         drawFVF_ == 0x142 && sceneBackbuffer_ && drawTarget_ == sceneBackbuffer_)
         effects_->sceneFX().beginFlare(settings);
     if (!lost_ && !hudStarted_ && settings.enabled && !compare && !vertexShaderActive_ && fvfKnown_ &&
-        !treeDraw && drawFVF_ == 0x112 && (settings.nightFoliage > 0 || settings.lightingBalance) && sceneBackbuffer_ &&
-        drawTarget_ == sceneBackbuffer_)
-        effects_->sceneFX().beginFoliage(settings);
+        drawFVF_ == 0x112 && (settings.nightFoliage > 0 || settings.lightingBalance) && sceneBackbuffer_ &&
+        drawTarget_ == sceneBackbuffer_) {
+        auto *nativeFoliage = trees_->nativeFoliage();
+        if (!treeDraw || nativeFoliage)
+            effects_->sceneFX().beginFoliage(settings, nativeFoliage);
+    }
     if (!treeDraw && !lost_ && !hudStarted_ && settings.enabled && settings.materials && !compare &&
         !vertexShaderActive_ && fvfKnown_ && (drawFVF_ == 0x112 || drawFVF_ == 0x212) &&
         sceneBackbuffer_ && drawTarget_ == sceneBackbuffer_)

@@ -48,17 +48,19 @@ The optional panel cursor acquires a balanced negative Windows cursor-display co
 **World → Vegetation → Trees** is opt-in and marked Experimental. Its Bark and
 Foliage switches are independent when Trees is enabled. Bark is on by default
 within the section and includes the snowy branch atlas. Foliage is off by
-default and replaces the leaves and hanging vines on the forked Flaris tree.
+default and replaces the leaves of eleven ordinary Flaris tree models and the
+hanging vines of the forked tree. Night foliage fill can still
+identify the original leaf material while the replacement texture is bound.
 Older configurations keep their bark setting. Image profiles retain all three
 switches. The replacements use native geometry, UVs, lighting and alpha state.
 Ordinary Flaris trees use individual color grades and bark patterns. Three
-source textures shared by multiple models have two patterns chosen by each
-object's world position. The choice is stable as the camera moves, and two
+shared bark sources and one shared leaf source each have two patterns. The
+object's world position selects the pattern. The choice is stable as the camera moves, and two
 placements can still pick the same pattern. Texture matching is independent of
 the current map.
 
-The DLL embeds 23 DXT1/DXT5 textures with complete mip chains (1,354,864 bytes
-of compressed GPU data) for 24 original atlas files. Exact first-mip SHA-256 upload
+The DLL embeds 33 DXT1/DXT5 textures with complete mip chains (2,228,944 bytes
+of compressed GPU data) for 34 original atlas files. Exact first-mip SHA-256 upload
 identities, including verified ARGB8 decodes, use texture-private metadata and the
 existing resource-write invalidation hooks. Replacements load lazily per device
 and bind only for an accepted native perspective draw before the HUD. Unknown
@@ -90,7 +92,7 @@ Scene processing runs at the existing pre-HUD boundary. Camera matrices and the 
 - **Fog** adds distance and height-dependent atmospheric extinction to visible opaque geometry. Height density uses the midpoint of the camera-to-surface segment. With an identified sky, a GPU reduction of low-elevation directions in the shared sky-only cubemap supplies world-space horizon radiance, independently of camera yaw and the zenith color. Unrecognized sky paths retain the diffuse scene-sky average fallback. Resolved silhouette color receives coverage-weighted retinting instead of full opaque-pixel correction, avoiding bright outlines. Clear-depth sky pixels are never reclassified as geometry from their color, preventing moving sky glows/cloud strips from becoming phantom fog surfaces. The native linear fog contribution is retinted in its display-color composition space; additional extinction supplies only the difference between requested and existing opacity. This avoids attenuating native terrain detail twice. Zero density leaves native fog unchanged. Moon and cloud texture details are never projected onto foreground surfaces. Color controls tint the intermediate haze without creating a separate far-color wall. This does not extend native draw distance, recover culled terrain or undo native fog already present in the input. The optional full-size sky snapshot costs four bytes per viewport pixel, plus approximately 2 KiB for its 16/4/1-pixel FP16 reduction chain. The 384 KiB sky cubemap is shared with WaterFX and can be captured for fog when water is disabled; there is no CPU image readback.
 - **Depth of Field** uses manual focus distance, a sharp range and a 16/32-tap linear-color gather in a separate pass. Defocused foreground contributes smoothly across sky silhouettes according to its own circle of confusion; focused foreground keeps its sharp edge. Bright sky pixels no longer bypass filtering as if they were emissive particles. The pass reuses the consumed world snapshot as its output, adding no full-size texture. Near blur has its own strength. Bright image features retain their sharp cores through a conservative brightness heuristic; this is not a separate particle-depth layer. It is intended as an optional cinematic control, not physical aperture simulation or character tracking.
 - **Brightness adaptation** reduces mean log luminance through 64/16/4/1-pixel GPU targets and smooths a persistent FP32 EV value with separate bright/dark rates and limits. FP32 history avoids quantization stalls at high render rates. The pre-HUD scene supplies luminance. There is no production CPU image readback. Disabling adaptation or resetting the device releases/resets its history.
-- **Night vegetation** identifies the common tree texture families by exact first-mip identity and adds bounded ambient fill only during their compatible fixed-function draws. Original material and ambient state are restored immediately. Directional illumination, alpha cutouts and textures remain native. A daytime fixture verifies unchanged output. Unknown foliage families are left alone.
+- **Night vegetation** identifies common tree texture families by exact first-mip identity and adds bounded ambient fill during compatible fixed-function draws. For replacement leaves, identity matching uses the original texture. The effect adjusts ambient lighting and restores the original material and ambient state immediately. Fixtures verify daytime parity and the same night fill with native and replacement foliage bound.
 
 **Local surface illumination** supports up to eight native point lights and 32 recognized emissive draws. Each emissive draw is replayed into its own 32x32 UV-space tile, then reduced to a source position and radiance. The atlas stores positions relative to a stable world origin rather than screen bins, so camera rotation and projected size do not move or duplicate a lamp. Recently observed sources persist for up to 0.5 seconds with a short fade when native culling stops submitting them. Native vertex color, texture factors and alpha fading are retained for supported simple texture stages. Unknown, programmable and complex passes remain unchanged.
 

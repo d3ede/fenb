@@ -155,7 +155,7 @@ class SceneFX {
     void endSky() {
         skyState_.reset();
     }
-    void beginFoliage(const Settings &);
+    void beginFoliage(const Settings &, IDirect3DTexture9 *nativeTexture=nullptr);
     void beginGrassDepth(const Settings &);
     void endGrassDepth() {
         if (grassDepthActive_) {

@@ -15,7 +15,7 @@ class TreeFX {
     std::array<bool,std::size(TreeAssets)> failed_{};
     Com<IDirect3DBaseTexture9> saved_;
     BCRYPT_ALG_HANDLE hash_=nullptr;
-    bool active_=false,enabled_=false;
+    bool active_=false,enabled_=false,foliage_=false;
     unsigned identify(IDirect3DTexture9 *texture) {
         unsigned id=0;DWORD size=sizeof(id);
         if(SUCCEEDED(texture->GetPrivateData(TreeTag,&id,&size))&&size==sizeof(id))
@@ -81,6 +81,9 @@ class TreeFX {
     void end(){if(active_){device_->SetTexture(0,saved_);active_=false;saved_.out();}}
     void invalidate(){end();for(auto&t:textures_)t.out();failed_.fill(false);enabled_=false;}
     void beginFrame(bool enabled){if(!enabled&&enabled_)invalidate();enabled_=enabled;}
+    IDirect3DTexture9 *nativeFoliage() const {
+        return active_ && foliage_ ? static_cast<IDirect3DTexture9 *>(saved_.p) : nullptr;
+    }
     bool begin(const Settings&s){
         if (active_ || !s.enabled || !s.trees || (!s.treeBark && !s.treeFoliage)) return false;
         DWORD fvf=0,z=0;D3DMATRIX projection{};
@@ -100,7 +103,9 @@ class TreeFX {
         auto *texture = replacement(selected);
         if (!texture && selected != index) texture = replacement(index);
         if (!texture || FAILED(device_->SetTexture(0,texture))) return false;
-        saved_.p=original.p;original.p=nullptr;active_=enabled_=true;return true;
+        saved_.p=original.p;original.p=nullptr;active_=enabled_=true;
+        foliage_=TreeAssets[index].foliage;
+        return true;
     }
     size_t bytes()const{size_t bytes=0;for(size_t i=0;i<textures_.size();i++)if(textures_[i].p)bytes+=TreeAssets[i].size;return bytes;}
 };

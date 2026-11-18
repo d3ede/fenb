@@ -1551,7 +1551,7 @@ int main(int argc, char **argv) {
     skyArt->UnlockRect(0);
     auto materialFrame = [&](bool sky, bool improve, bool day, bool blueNight = false,
                              bool universalFill = false, bool scroll = false, bool neutralSky = false,
-                             DWORD skyTag = 3) {
+                             DWORD skyTag = 3, IDirect3DTexture9 *nativeFoliage = nullptr) {
         fx.sceneFX().beginFrame();
         d->SetVertexShader(nullptr);
         d->SetPixelShader(nullptr);
@@ -1638,9 +1638,15 @@ int main(int argc, char **argv) {
                      {3, 7, 10, 0, 0, -1, 1, 0}};
             d->SetFVF(0x112);
             DWORD foliage = universalFill ? 4 : 2;
-            emitter->SetPrivateData(EmitterTag, &foliage, 4, 0);
+            if (nativeFoliage) {
+                DWORD unknown = 0;
+                emitter->SetPrivateData(EmitterTag, &unknown, 4, 0);
+                nativeFoliage->SetPrivateData(EmitterTag, &foliage, 4, 0);
+            } else {
+                emitter->SetPrivateData(EmitterTag, &foliage, 4, 0);
+            }
             if (improve)
-                fx.sceneFX().beginFoliage(s);
+                fx.sceneFX().beginFoliage(s, nativeFoliage);
             d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, q, sizeof(V));
             fx.sceneFX().endFoliage();
             DWORD restored = 0;
@@ -1684,6 +1690,8 @@ int main(int argc, char **argv) {
     CHECK(materialFrame(false, true, false));
     auto liftedLeaves = Read(d);
     CHECK(Difference(darkLeaves, liftedLeaves) > 1000);
+    CHECK(materialFrame(false, true, false, false, false, false, false, 3, skyArt.p));
+    CHECK(liftedLeaves == Read(d)); // Night fill follows the native identity across a texture substitution.
     CHECK(Save(liftedLeaves, L"build/scene-night-foliage.bmp"));
     CHECK(materialFrame(false, false, false, true));
     auto blueLeaves = Read(d);

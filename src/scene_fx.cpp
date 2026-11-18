@@ -758,7 +758,7 @@ void SceneFX::beginGrassDepth(const Settings &s) {
         FAILED(device_->SetRenderState(D3DRS_ALPHAREF,0)))
         endGrassDepth();
 }
-void SceneFX::beginFoliage(const Settings &s) {
+void SceneFX::beginFoliage(const Settings &s, IDirect3DTexture9 *nativeTexture) {
     if ((s.nightFoliage <= 0 && !s.lightingBalance) || !camera_ || !sunValid_ || foliageActive_ || skyState_)
         return;
     float night = std::clamp(1 - LightLuminance(sun_.Diffuse) / .55f, 0.f, 1.f);
@@ -777,12 +777,14 @@ void SceneFX::beginFoliage(const Settings &s) {
     if (ps.p)
         return;
     Com<IDirect3DBaseTexture9> base;
-    if (FAILED(device_->GetTexture(0, base.out())) || !base.p || base->GetType() != D3DRTYPE_TEXTURE)
-        return;
-    auto *texture = static_cast<IDirect3DTexture9 *>(base.p);
-    emissive(texture);
+    if (!nativeTexture) {
+        if (FAILED(device_->GetTexture(0, base.out())) || !base.p || base->GetType() != D3DRTYPE_TEXTURE)
+            return;
+        nativeTexture = static_cast<IDirect3DTexture9 *>(base.p);
+    }
+    emissive(nativeTexture);
     DWORD tag = 0, size = 4;
-    texture->GetPrivateData(EmitterTag, &tag, &size);
+    nativeTexture->GetPrivateData(EmitterTag, &tag, &size);
     float fill = (tag & 2) ? s.nightFoliage * .25f : 0.f;
     // Common opaque fixed-function props and weapons receive bounded ambient illumination
     // before texture shading. Skinned/programmed paths are covered by the shared tone balance.
