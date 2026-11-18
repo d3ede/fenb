@@ -82,7 +82,7 @@ class TreeFX {
     void invalidate(){end();for(auto&t:textures_)t.out();failed_.fill(false);enabled_=false;}
     void beginFrame(bool enabled){if(!enabled&&enabled_)invalidate();enabled_=enabled;}
     bool begin(const Settings&s){
-        if(active_||!s.enabled||!s.trees)return false;
+        if (active_ || !s.enabled || !s.trees || (!s.treeBark && !s.treeFoliage)) return false;
         DWORD fvf=0,z=0;D3DMATRIX projection{};
         if(FAILED(device_->GetFVF(&fvf))||(fvf!=0x112&&fvf!=0x212)||
            FAILED(device_->GetRenderState(D3DRS_ZENABLE,&z))||!z||
@@ -94,7 +94,9 @@ class TreeFX {
         if(FAILED(device_->GetTexture(0,original.out()))||!original.p||original->GetType()!=D3DRTYPE_TEXTURE)return false;
         const unsigned id=identify(static_cast<IDirect3DTexture9*>(original.p));
         if(!id)return false;
-        const unsigned index = id - 1, selected = placementAsset(index);
+        const unsigned index = id - 1;
+        if (TreeAssets[index].foliage ? !s.treeFoliage : !s.treeBark) return false;
+        const unsigned selected = placementAsset(index);
         auto *texture = replacement(selected);
         if (!texture && selected != index) texture = replacement(index);
         if (!texture || FAILED(device_->SetTexture(0,texture))) return false;

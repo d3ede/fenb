@@ -33,13 +33,23 @@ int main() {
     }
     Settings s;
     {
-        Settings trees;CHECK(!trees.trees);trees.trees=true;trees.language=Language::Portuguese;
+        const wchar_t *path = L"build/tree-settings.ini";
+        FILE *legacy = _wfopen(path, L"w");
+        CHECK(legacy);
+        CHECK(fputs("[SceneFX]\ntrees=1\n", legacy) >= 0);
+        CHECK(fclose(legacy) == 0);
+        Settings trees;
+        CHECK(!trees.trees && trees.treeBark && !trees.treeFoliage);
+        CHECK(trees.load(path) && trees.trees && trees.treeBark && !trees.treeFoliage);
+        trees.treeBark=false;trees.treeFoliage=true;trees.language=Language::Portuguese;
         CHECK(trees.save(L"build/tree-settings.ini"));Settings restored;
-        CHECK(restored.load(L"build/tree-settings.ini")&&restored.trees&&restored.language==trees.language);
-        restored.preset(0);CHECK(restored.trees&&restored.language==trees.language);
+        CHECK(restored.load(path)&&restored.trees&&!restored.treeBark&&restored.treeFoliage&&
+              restored.language==trees.language);
+        restored.preset(0);
+        CHECK(restored.trees&&!restored.treeBark&&restored.treeFoliage&&restored.language==trees.language);
         restored.resetSceneSection(16);CHECK(restored.trees);
-        restored.resetSceneSection(18);CHECK(restored.trees); // section resets retain effect switches
-        DeleteFileW(L"build/tree-settings.ini");
+        restored.resetSceneSection(18);CHECK(restored.trees&&!restored.treeBark&&restored.treeFoliage);
+        DeleteFileW(path);
     }
     {
         Settings grass;CHECK(!grass.grass&&grass.grassHeight==.55f&&grass.grassQuality==1);

@@ -240,7 +240,7 @@ void Runtime::afterPresent(HRESULT result) {
     }
 }
 void Runtime::resetFrame() {
-    trees_->beginFrame(settings.enabled&&settings.trees&&!compare);
+    trees_->beginFrame(settings.enabled && settings.trees && (settings.treeBark || settings.treeFoliage) && !compare);
     float player[3]{};uint64_t worldKey=0;const bool grassEnabled=settings.enabled&&settings.grass&&!compare;
     const bool hasPlayer=grassEnabled&&environment_.playerPosition(player,&worldKey);
     grass_->beginFrame(grassEnabled,hasPlayer?player:nullptr,worldKey);

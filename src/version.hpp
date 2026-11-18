@@ -1,2 +1,2 @@
 #pragma once
-inline constexpr char FENBVersion[] = "0.9h";
+inline constexpr char FENBVersion[] = "1.0a";

@@ -45,18 +45,20 @@ The optional panel cursor acquires a balanced negative Windows cursor-display co
 
 ### Experimental trees
 
-**World → Vegetation → Trees** is a single opt-in switch above Grass, marked
-Experimental. It changes recognized tree bark independently of Materials and
-Grass; image profiles retain its switch. Native geometry, UVs, lighting and
-foliage remain in use, with the identified snowy branch atlas also replaced.
+**World → Vegetation → Trees** is opt-in and marked Experimental. Its Bark and
+Foliage switches are independent when Trees is enabled. Bark is on by default
+within the section and includes the snowy branch atlas. Foliage is off by
+default and replaces the leaves and hanging vines on the forked Flaris tree.
+Older configurations keep their bark setting. Image profiles retain all three
+switches. The replacements use native geometry, UVs, lighting and alpha state.
 Ordinary Flaris trees use individual color grades and bark patterns. Three
 source textures shared by multiple models have two patterns chosen by each
 object's world position. The choice is stable as the camera moves, and two
 placements can still pick the same pattern. Texture matching is independent of
 the current map.
 
-The DLL embeds 21 DXT1/DXT5 textures with complete mip chains (1,223,728 bytes
-of compressed GPU data) for 22 original atlas files. Exact first-mip SHA-256 upload
+The DLL embeds 23 DXT1/DXT5 textures with complete mip chains (1,354,864 bytes
+of compressed GPU data) for 24 original atlas files. Exact first-mip SHA-256 upload
 identities, including verified ARGB8 decodes, use texture-private metadata and the
 existing resource-write invalidation hooks. Replacements load lazily per device
 and bind only for an accepted native perspective draw before the HUD. Unknown

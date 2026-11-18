@@ -771,7 +771,13 @@ void PanelParameters(Runtime &r, int item) {
             uiParameterDisabled = disabled;
         }
     }
-    if(page==4&&item==2)PanelNote(Tr(UiText::TreesExperimental));
+    if (page == 4 && item == 2) {
+        PanelNote(Tr(UiText::TreesExperimental));
+        ImGui::BeginDisabled(uiParameterDisabled || !s.enabled);
+        PanelToggle("tree-bark", Tr(UiText::TreeBark), s.treeBark);
+        PanelToggle("tree-foliage", Tr(UiText::TreeFoliage), s.treeFoliage, Tr(UiText::TreeFoliageHelp));
+        ImGui::EndDisabled();
+    }
     if (page == 5) {
         if (item == 2) {
             ImGui::PushFont(nullptr, 13);

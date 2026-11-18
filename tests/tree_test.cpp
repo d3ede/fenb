@@ -40,6 +40,7 @@ int main(int argc,char**argv){
     CHECK(trees.begin(settings));trees.end(); // lazily recreated after reset/invalidation
     InvalidateWaterTag(second);CHECK(!trees.begin(settings));
     d->SetTexture(0,original);
+    settings.treeFoliage = true;
     for(unsigned i=0;i<std::size(TreeAssets);i++){
         id=i+1;original->SetPrivateData(TreeTag,&id,sizeof(id),0);CHECK(trees.begin(settings));trees.end();
     }
@@ -79,6 +80,35 @@ int main(int argc,char**argv){
         trees.beginFrame(false);
     }
     CHECK(variantCount == 3);
+    CHECK(SUCCEEDED(d->SetRenderState(D3DRS_ALPHATESTENABLE, TRUE)));
+    CHECK(SUCCEEDED(d->SetRenderState(D3DRS_ALPHAREF, 128)));
+    CHECK(SUCCEEDED(d->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE)));
+    unsigned foliageCount = 0;
+    for (unsigned i = 0; i < std::size(TreeAssets); ++i) {
+        const auto &asset = TreeAssets[i];
+        if (asset.foliage) {
+            ++foliageCount;
+            CHECK(asset.format == D3DFMT_DXT5);
+        }
+        id = i + 1;
+        CHECK(SUCCEEDED(original->SetPrivateData(TreeTag, &id, sizeof(id), 0)));
+        settings.treeBark = !asset.foliage;
+        settings.treeFoliage = asset.foliage;
+        CHECK(trees.begin(settings));
+        trees.end();
+        CHECK(SUCCEEDED(d->GetTexture(0, restored.out())) && restored.p == original.p);
+        settings.treeBark = asset.foliage;
+        settings.treeFoliage = !asset.foliage;
+        CHECK(!trees.begin(settings));
+        CHECK(SUCCEEDED(d->GetTexture(0, restored.out())) && restored.p == original.p);
+    }
+    CHECK(foliageCount == 2);
+    DWORD alphaState = 0;
+    CHECK(SUCCEEDED(d->GetRenderState(D3DRS_ALPHATESTENABLE, &alphaState)) && alphaState == TRUE);
+    CHECK(SUCCEEDED(d->GetRenderState(D3DRS_ALPHAREF, &alphaState)) && alphaState == 128);
+    CHECK(SUCCEEDED(d->GetRenderState(D3DRS_ALPHABLENDENABLE, &alphaState)) && alphaState == TRUE);
+    trees.beginFrame(false);
+    settings.treeBark = settings.treeFoliage = true;
     if(argc>1){
         // Optional read-only integration check against explicitly supplied local artwork.
         HMODULE library=LoadLibraryExW(L"d3dx9_43.dll",nullptr,LOAD_LIBRARY_SEARCH_SYSTEM32);CHECK(library);

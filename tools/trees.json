@@ -155,6 +155,17 @@
       "alternateAsset": "assets/trees/flaris-needle-alt.dds"
     },
     {
+      "file": "obj_macoprtr12-01.dds",
+      "width": 256,
+      "height": 256,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "aa6171c9b592736d42f255d784535858bdc898fb52d5d573d6ec843d9190b7e8",
+      "uploadSha256": "f556d36bb2398a8cb671dfe968ead6789cd4193efee9b20d160756f75579b5d3",
+      "decodedSha256": "ff55df3188b10bc93f5638386d4191b1b5f643df12d2171976f5632fd86b0494",
+      "asset": "assets/trees/flaris-willow-foliage.dds",
+      "kind": "foliage"
+    },
+    {
       "file": "obj_macoprtr12-02.dds",
       "width": 256,
       "height": 512,
@@ -163,6 +174,17 @@
       "uploadSha256": "9118042672ed4a1eeebc972c7f8a150f55a946cfb05cd657bed7e3af2eeea572",
       "decodedSha256": "5ab530c9e664b3ec18aec16dbc48da4c8408a5c5dfe08957ca3ca73f0871d9ff",
       "asset": "assets/trees/bark-13.dds"
+    },
+    {
+      "file": "obj_macoprtr12-03.dds",
+      "width": 128,
+      "height": 256,
+      "sourceFormat": "DXT1",
+      "sourceSha256": "92e0e6c05b1f7739eb966afe6528a9c37cb1e45ccec37f89c866a0dd9dd84033",
+      "uploadSha256": "360b93e02dd9a0896769d3f1468307c072802e2747a9b0bb40e99f1641e36d7a",
+      "decodedSha256": "d44f7784ee2e909caeaf4fbf23d164613a4c78e46e84c2de54cd6dc43b0cd8f7",
+      "asset": "assets/trees/flaris-willow-vines.dds",
+      "kind": "foliage"
     },
     {
       "file": "obj_macoprtr13-02.dds",

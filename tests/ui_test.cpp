@@ -307,7 +307,13 @@ int main() {
         r.settings.language=static_cast<Language>(language);
         const std::wstring locale(LanguageCodes[language],LanguageCodes[language]+2);
         r.editorPage=4;r.editorSelection[4]=2;frame();frame();
-        r.settings.trees=false;control("trees","enabled");CHECK(r.settings.trees);
+        r.settings.trees=false;r.settings.treeBark=true;r.settings.treeFoliage=false;frame();
+        control("trees","tree-bark");CHECK(r.settings.treeBark);
+        control("trees","tree-foliage");CHECK(!r.settings.treeFoliage);
+        control("trees","enabled");CHECK(r.settings.trees);
+        control("trees","tree-bark");CHECK(!r.settings.treeBark&&!r.settings.treeFoliage);
+        control("trees","tree-foliage");CHECK(!r.settings.treeBark&&r.settings.treeFoliage);
+        control("trees","tree-bark");CHECK(r.settings.treeBark&&r.settings.treeFoliage);
         CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-trees.png").c_str()));
         r.editorPage=4;frame();frame();selectItem("puddles");
         r.settings.puddles=false;control("puddles","enabled");CHECK(r.settings.puddles);
