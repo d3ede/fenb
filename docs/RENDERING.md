@@ -68,6 +68,12 @@ position and Madrigal world ID gate both winter options to Flaris on the
 supported client. Existing 3D grass keeps its original placement data. Both
 winter switches are off by default and persist across image profiles.
 
+**Winter in Flaris** on the Trees page switches both winter options together.
+Turning it on enables Trees and selects both snowy crowns and snowy ground.
+Turning it off clears the two winter options and returns to the selected bark
+and regular foliage settings. The combined switch is on when both winter
+effects are enabled.
+
 The DLL embeds 80 DXT1/DXT5 textures with complete mip chains (6,402,496 bytes
 of compressed GPU data) for 69 original atlas files. Exact first-mip SHA-256 upload
 identities, including verified ARGB8 decodes, use texture-private metadata and the

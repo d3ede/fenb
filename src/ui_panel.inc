@@ -800,6 +800,17 @@ void PanelParameters(Runtime &r, int item) {
         PanelToggle("tree-winter-foliage", Tr(UiText::TreeWinterFoliage), s.treeWinterFoliage,
                     Tr(UiText::TreeWinterFoliageHelp));
         ImGui::EndDisabled();
+
+        const bool combined = s.trees && s.treeWinterFoliage && s.winterGround;
+        bool winter = combined;
+        ImGui::BeginDisabled(!s.enabled);
+        PanelToggle("flaris-winter", Tr(UiText::FlarisWinter), winter, Tr(UiText::FlarisWinterHelp));
+        ImGui::EndDisabled();
+        if (winter != combined) {
+            if (winter)
+                s.trees = true;
+            s.treeWinterFoliage = s.winterGround = winter;
+        }
     }
     if (page == 5) {
         if (item == 2) {

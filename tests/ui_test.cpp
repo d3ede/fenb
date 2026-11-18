@@ -323,6 +323,17 @@ int main() {
         CHECK(activeWindow("##Tooltip"));
         CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-tree-foliage-help.png").c_str()));
         io.AddMousePosEvent(-FLT_MAX,-FLT_MAX);frame();
+        r.settings.trees=false;r.settings.winterGround=false;frame();
+        control("trees","flaris-winter");
+        CHECK(r.settings.trees&&r.settings.treeWinterFoliage&&r.settings.winterGround);
+        CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-flaris-winter.png").c_str()));
+        control("trees","flaris-winter");
+        CHECK(r.settings.trees&&!r.settings.treeWinterFoliage&&!r.settings.winterGround);
+        CHECK(r.settings.treeBark&&r.settings.treeFoliage);
+        control("trees","tree-winter-foliage");
+        CHECK(r.settings.treeWinterFoliage&&!r.settings.winterGround);
+        control("trees","flaris-winter");
+        CHECK(r.settings.treeWinterFoliage&&r.settings.winterGround);
         r.editorPage=4;frame();frame();selectItem("winter-ground");
         r.settings.trees=false;r.settings.winterGround=false;frame();
         control("winter-ground","enabled");CHECK(r.settings.winterGround&&!r.settings.trees);
