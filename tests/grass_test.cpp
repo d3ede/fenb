@@ -391,13 +391,11 @@ int main(int argc,char **argv){
                 CHECK(SUCCEEDED(load(d,wide.c_str(),UINT(-1),UINT(-1),1,0,format,D3DPOOL_MANAGED,1,1,0,nullptr,nullptr,dirt.out())));
                 const unsigned kind=GrassFXFixture::kind(grass,dirt);CHECK(kind==2||kind==5);
                 if(!strcmp(name,"Obj_MaCoPrGr04.dds")&&format==D3DFMT_A8R8G8B8){
-                    // Reproduce the old unknown-prop classification using original leaves.
+                    // Even an unclassified faded leaf must leave the receiver intact.
                     propHeight=0;propBlend=true;roadWrite=false;roadTest=false;
                     DWORD unknown=0;CHECK(SUCCEEDED(dirt->SetPrivateData(GrassTag,&unknown,4,0)));
-                    const auto before=render(true);CHECK(SUCCEEDED(dirt->FreePrivateData(GrassTag)));
-                    const auto after=render(true);CHECK(Delta(before,after)>20);
-                    CHECK(Save(before,L"artifacts/vegetation-depth/leaves-contact-before.png"));
-                    CHECK(Save(after,L"artifacts/vegetation-depth/leaves-contact-after.png"));
+                    CHECK(render(true).size()==on.size()&&GrassFXFixture::contact(grass,0,8)==0);
+                    CHECK(SUCCEEDED(dirt->FreePrivateData(GrassTag)));
                     propHeight=5;
                 }
                 for(bool faded:{false,true}){
@@ -415,9 +413,22 @@ int main(int argc,char **argv){
     const float canopy=GrassFXFixture::contact(grass,0,8);
     CHECK(std::abs((2.3f+(.5f-canopy)*1024)-Ground(0,8)-5)<.04f);
     CHECK(Save(render(true),L"artifacts/grass/high-canopy.png"));roadProp=false;propHeight=0;
-    roadProp=propBlend=true;roadWrite=false;CHECK(render(true).size()==on.size());
-    CHECK(GrassFXFixture::contact(grass,0,8)>0&&GrassFXFixture::surface(grass,0,8)[1]>.99f);
-    doubleProp=true;const float lowContact=GrassFXFixture::contact(grass,0,8);CHECK(render(true).size()==on.size());
+    // Native proximity fades and surface overlays may appear only from a
+    // close or steep camera angle. They must not erase world-space roots.
+    followPlayer=true;roadProp=true;
+    for(float pitch:{.35f,.9f,1.48f})for(bool writing:{false,true}){
+        cameraEye[1]=13*std::sin(pitch);
+        cameraEye[2]=player[2]-13*std::cos(pitch);
+        camera(pitch,0);roadWrite=writing;propBlend=true;
+        const auto bare=render(false),blades=render(true);
+        CHECK(Delta(bare,blades)>20);
+        CHECK(GrassFXFixture::contact(grass,0,8)==0&&GrassFXFixture::surface(grass,0,8)[1]>.99f);
+    }
+    followPlayer=false;cameraEye[1]=2.3f;cameraEye[2]=-5;camera(.16f,0);
+    roadWrite=true;propBlend=false;
+    CHECK(render(true).size()==on.size());
+    const float lowContact=GrassFXFixture::contact(grass,0,8);CHECK(lowContact>0);
+    doubleProp=true;CHECK(render(true).size()==on.size());
     CHECK(std::abs(GrassFXFixture::contact(grass,0,8)-lowContact)<.00001f);doubleProp=false;
     paving=true;propHeight=.65f;doubleProp=true;
     CHECK(render(true).size()==on.size());

@@ -202,13 +202,13 @@ bool GrassFX::initialize(const Settings &s){
 }
 void GrassFX::capture(const Settings &s,DrawCall draw,SurfaceDraw geometry,bool water){
     if(!enabled_||rendered_||failed_||!s.enabled||!s.grass)return;
-    DWORD fvf=0,z=0,write=0,test=0,blend=0,src=0,dst=0;
+    DWORD fvf=0,z=0,write=0,blend=0,src=0,dst=0;
     if(FAILED(device_->GetFVF(&fvf))||(water?fvf!=0x152:(fvf!=0x212&&fvf!=0x112)))return;
     D3DMATRIX world{};device_->GetTransform(D3DTS_WORLD,&world);
     Com<IDirect3DVertexShader9> vs;Com<IDirect3DPixelShader9> ps;
     device_->GetVertexShader(vs.out());device_->GetPixelShader(ps.out());if(vs.p||ps.p)return;
     device_->GetRenderState(D3DRS_ZENABLE,&z);device_->GetRenderState(D3DRS_ZWRITEENABLE,&write);
-    device_->GetRenderState(D3DRS_ALPHATESTENABLE,&test);device_->GetRenderState(D3DRS_ALPHABLENDENABLE,&blend);
+    device_->GetRenderState(D3DRS_ALPHABLENDENABLE,&blend);
     device_->GetRenderState(D3DRS_SRCBLEND,&src);device_->GetRenderState(D3DRS_DESTBLEND,&dst);
     if(!z||(water&&(!blend||write))||(blend&&(src!=D3DBLEND_SRCALPHA||dst!=D3DBLEND_INVSRCALPHA)))return;
     DWORD clip=0;device_->GetRenderState(D3DRS_CLIPPLANEENABLE,&clip);if(clip)return;
@@ -219,6 +219,9 @@ void GrassFX::capture(const Settings &s,DrawCall draw,SurfaceDraw geometry,bool 
     if(kind==4)winter_=true;
     const bool ground=kind==1||kind==3||(kind==4&&s.grassSnow);
     const bool prop=water||(fvf==0x112&&!ground);
+    // A faded object or projected decal isn't a persistent obstacle. Its
+    // visible pixels still occlude the blades through the native scene depth.
+    if(prop&&!water&&kind!=6&&kind!=7&&(!write||blend))return;
     // Exact ground atlases are opaque. A preceding cutout leaf can leave the
     // native alpha-test enabled; it must not disable the next terrain receiver.
     if(!write&&!blend&&!prop)return;
