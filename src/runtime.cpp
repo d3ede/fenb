@@ -260,6 +260,10 @@ void Runtime::resetFrame() {
     invalidateDrawState();
 }
 void Runtime::beforeWaterDraw(UINT upStride, DrawCall draw,ParticleDraw particle) {
+    // Inspect native state before FENB material/tree shaders wrap this draw.
+    if (!lost_ && !hudStarted_ && settings.enabled && (settings.ssao || settings.grass) && !compare &&
+        !vertexShaderActive_ && fvfKnown_ && sceneBackbuffer_ && drawTarget_==sceneBackbuffer_)
+        effects_->sceneFX().beginGrassDepth(settings);
     const bool treeDraw=!lost_&&!hudStarted_&&settings.enabled&&settings.trees&&!compare&&
         !vertexShaderActive_&&fvfKnown_&&(drawFVF_==0x112||drawFVF_==0x212)&&
         sceneBackbuffer_&&drawTarget_==sceneBackbuffer_&&trees_->begin(settings);
@@ -278,9 +282,6 @@ void Runtime::beforeWaterDraw(UINT upStride, DrawCall draw,ParticleDraw particle
         !vertexShaderActive_ && fvfKnown_ && (drawFVF_ == 0x112 || drawFVF_ == 0x212) &&
         sceneBackbuffer_ && drawTarget_ == sceneBackbuffer_)
         materials_->begin(settings);
-    if (!lost_ && !hudStarted_ && settings.enabled && settings.ssao && !compare &&
-        !vertexShaderActive_ && fvfKnown_ && sceneBackbuffer_ && drawTarget_==sceneBackbuffer_)
-        effects_->sceneFX().beginGrassDepth(settings);
     if(!lost_&&!hudStarted_&&settings.enabled&&settings.grass&&!compare&&!vertexShaderActive_&&fvfKnown_&&
         (drawFVF_==0x112||drawFVF_==0x102||drawFVF_==0x142)&&sceneBackbuffer_&&drawTarget_==sceneBackbuffer_)
         grass_->beginNative(settings);
@@ -312,7 +313,6 @@ void Runtime::environmentDraw(D3DPRIMITIVETYPE type, UINT start, UINT count) {
                                      water_->materialTag(static_cast<IDirect3DTexture9 *>(texture.p)));
 }
 void Runtime::afterWaterDraw(bool up, bool indexed) {
-    effects_->sceneFX().endGrassDepth();
     grass_->endNative();
     materials_->end();
     trees_->end();
@@ -320,6 +320,7 @@ void Runtime::afterWaterDraw(bool up, bool indexed) {
     effects_->sceneFX().endSky();
     effects_->sceneFX().endFoliage();
     water_->end(up, indexed);
+    effects_->sceneFX().endGrassDepth();
 }
 void Runtime::emitterDraw(DrawCall draw, SurfaceDraw geometry) {
     if (lost_ || !settings.enabled || compare || vertexShaderActive_ ||

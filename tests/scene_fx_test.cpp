@@ -173,13 +173,13 @@ unsigned ColorDifference(const std::vector<DWORD> &a,const std::vector<DWORD> &b
 }
 // Optional local-asset verification reproduces the client's D3DX ARGB8 uploads.
 // The shipping DLL has no D3DX dependency and no client artwork is copied into Git.
-bool LoadMaterial(IDirect3DDevice9 *d,const wchar_t *path,Com<IDirect3DTexture9> &texture) {
+bool LoadMaterial(IDirect3DDevice9 *d,const wchar_t *path,Com<IDirect3DTexture9> &texture,D3DFORMAT format=D3DFMT_A8R8G8B8) {
     HMODULE module=LoadLibraryExW(L"d3dx9_43.dll",nullptr,LOAD_LIBRARY_SEARCH_SYSTEM32);
     if(!module)return false;
     using Load=HRESULT(WINAPI *)(IDirect3DDevice9 *,LPCWSTR,UINT,UINT,UINT,DWORD,D3DFORMAT,
                                 D3DPOOL,DWORD,DWORD,D3DCOLOR,void *,void *,IDirect3DTexture9 **);
     auto load=reinterpret_cast<Load>(GetProcAddress(module,"D3DXCreateTextureFromFileExW"));
-    const bool ok=load && SUCCEEDED(load(d,path,0xffffffff,0xffffffff,1,0,D3DFMT_A8R8G8B8,
+    const bool ok=load && SUCCEEDED(load(d,path,0xffffffff,0xffffffff,1,0,format,
         D3DPOOL_MANAGED,1,1,0,nullptr,nullptr,texture.out()));
     FreeLibrary(module);return ok;
 }
@@ -229,11 +229,12 @@ int main(int argc, char **argv) {
     pp.SwapEffect = D3DSWAPEFFECT_DISCARD;
     pp.EnableAutoDepthStencil = TRUE;
     pp.AutoDepthStencilFormat = D3DFMT_D24X8;
-    bool surfaceOnly=nativeResolution;
+    bool surfaceOnly=nativeResolution,vegetationOnly=false;
     for(int i=1;i<argc;++i) {
         if(!strcmp(argv[i],"--depth16"))pp.AutoDepthStencilFormat=D3DFMT_D16;
         if(!strcmp(argv[i],"--msaa"))pp.MultiSampleType=D3DMULTISAMPLE_8_SAMPLES;
         if(!strcmp(argv[i],"--surface-tests"))surfaceOnly=true;
+        if(!strcmp(argv[i],"--vegetation-tests"))vegetationOnly=true;
     }
     Com<IDirect3DDevice9> d;
     CHECK(SUCCEEDED(
@@ -606,7 +607,7 @@ int main(int argc, char **argv) {
             d->SetTextureStageState(0,D3DTSS_ALPHAARG2,D3DTA_DIFFUSE);
             if(grassDepthGuard)fx.sceneFX().beginGrassDepth(settings);
             DWORD writes=1;d->GetRenderState(D3DRS_ZWRITEENABLE,&writes);
-            if(writes!=DWORD(grassWrites && !(grassBlend && grassDepthGuard && settings.ssao && (grassTag&1024))))return false;
+            if(writes!=DWORD(grassWrites && !(grassBlend && grassDepthGuard && (settings.ssao||settings.grass) && (grassTag&1024))))return false;
             d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP,2,card,sizeof(G));
             fx.sceneFX().endGrassDepth();
             d->GetRenderState(D3DRS_ZWRITEENABLE,&writes);if(writes!=DWORD(grassWrites))return false;
@@ -840,18 +841,39 @@ int main(int argc, char **argv) {
     grassBlend=false;CHECK(render());grassBlend=true;
     grassWrites=false;CHECK(render());grassWrites=true;
     settings.ssao=false;CHECK(render());
+    settings.grass=true;CHECK(render());settings.grass=false;
     // Optional original-asset check exercises hashing, with no synthetic private tag.
     for(const auto *file:{L"X:/Games/Homesickness/Model/Texture/Obj_KaillunGrass01.dds",
-                         L"X:/Games/Homesickness/Model/Texture/Obj_UpresiaGrass01.dds"}) {
+                         L"X:/Games/Homesickness/Model/Texture/Obj_UpresiaGrass01.dds",
+                         L"X:/Games/Homesickness/Model/Texture/Obj_MaCoPrGr07.dds",
+                         L"X:/Games/Homesickness/Model/Texture/Obj_MaCoPrGr1.dds",
+                         L"X:/Games/Homesickness/Model/Texture/Obj_MaCoPrGr3-01.dds",
+                         L"X:/Games/Homesickness/Model/Texture/Obj_MaCoPrGr04.dds",
+                         L"X:/Games/Homesickness/Model/Texture/Obj_MaCoPrGr06.dds",
+                         L"X:/Games/Homesickness/Model/Texture/Obj_MaCoPrFl02-01.dds",
+                         L"X:/Games/Homesickness/Model/Texture/Obj_MaCoPrFl03-2.dds",
+                         L"X:/Games/Homesickness/Model/Texture/Obj_MaSaPuGrass01.DDS",
+                         L"X:/Games/Homesickness/Model/Texture/Obj_NewFlbush01.dds",
+                         L"X:/Games/Homesickness/Model/Texture/Obj_MaCoPrTr02-01.dds",
+                         L"X:/Games/Homesickness/Model/Texture/Obj_AzriaTree01-2.dds"}) for(auto format:{D3DFMT_UNKNOWN,D3DFMT_A8R8G8B8}) {
         Com<IDirect3DTexture9> originalGrass;
-        if(!LoadMaterial(d,file,originalGrass)) {puts("SKIP: optional native grass atlas unavailable");continue;}
+        if(!LoadMaterial(d,file,originalGrass,format)) {puts("SKIP: optional native vegetation atlas unavailable");continue;}
         nativeGrass.out();nativeGrass.p=originalGrass.p;nativeGrass->AddRef();
         settings.ssao=true;grassCard=false;CHECK(render());auto cleanGround=Read(d);
         grassCard=true;grassAlpha=0;CHECK(render());CHECK(ColorDifference(cleanGround,Read(d))==0);
         grassAlpha=64;CHECK(render());CHECK(Difference(cleanGround,Read(d))>100);
         CHECK(Save(Read(d),L"build/scene-native-grass-ssao-faded.bmp"));
     }
+    // Similar file names and native tree bark must not opt into foliage handling.
+    for(const auto *file:{L"X:/Games/Homesickness/Model/Texture/Obj_MaCoPrGrGe01-01.dds",
+                         L"X:/Games/Homesickness/Model/Texture/Obj_MaCoPrTr02-02.dds"}) {
+        Com<IDirect3DTexture9> opaque;
+        if(!LoadMaterial(d,file,opaque))continue;
+        nativeGrass.out();nativeGrass.p=opaque.p;nativeGrass->AddRef();grassTag=4;
+        grassCard=true;grassAlpha=0;settings.ssao=true;CHECK(render());
+    }
     grassCard=false;planeOnly=false;cameraYaw=0;
+    if(vegetationOnly){puts("PASS: native vegetation depth, formats, grass-only mode, opaque exclusion and state restoration.");return 0;}
     disableEffect(0);
     settings.dof = true;
     settings.focusDistance = 8;

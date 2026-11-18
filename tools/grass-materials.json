@@ -205,5 +205,1130 @@
     "decodedHash": "5272cddfe5c070f5cbc8c946d1c35c8b054e390f447d9739252c8f1fd3136e2b",
     "sourceHash": "5a9cfc7d3f9a7ba94377be8b6e63d34b7485a0b38d0c24a7874dace4518f6524",
     "uploadHash": "ca65669457247f5216aa709db65253be66e2b2e11354e2301bdd8df1b25ce468"
+  },
+  {
+    "file": "Model/Texture/Obj_AzriaFlower01-1.dds",
+    "kind": 5,
+    "width": 128,
+    "height": 256,
+    "decodedHash": "8fe0159734991f9f22ea40e60db52cb3c1be2a72b962c8d78e923223ed26e92d",
+    "sourceHash": "a1937e8970c783d062a993d7834badcee72ae1fc857b7cce2d26890ca332ea2e",
+    "uploadHash": "b3357d85b9eca5dee1caccf66e2ad44b6406d2c5b7dd500bfc8be478287b2113"
+  },
+  {
+    "file": "Model/Texture/Obj_AzriaFlower01-2.dds",
+    "kind": 5,
+    "width": 64,
+    "height": 64,
+    "decodedHash": "b43c3cb1ae85445e25021c9cdd196aad0d96b42eb9604ff5c5ae6d280bb236cd",
+    "sourceHash": "a4d157a487d543287e7cecb7b2d6b2fcb9af046acc296939e0b6e30d0f8d65f8",
+    "uploadHash": "aba99ac32eba3de3936da2f840c99130e810bbcf964531dbbe30fe33af9b9ee5"
+  },
+  {
+    "file": "Model/Texture/Obj_AzriaFlower02-1.dds",
+    "kind": 5,
+    "width": 128,
+    "height": 256,
+    "decodedHash": "adc32457c2effb14b71b6c4614cce78fd8931584441b84bebad6975cfccc1f09",
+    "sourceHash": "43573666f623168cef2ca26933866da8f7c1ff190932fe2b77ada8fb8529ad9a",
+    "uploadHash": "842dd2007000aa73942df96953deecd75de269204eb6cd3343dc7da9f97b553f"
+  },
+  {
+    "file": "Model/Texture/Obj_AzriaFlower02-2.dds",
+    "kind": 5,
+    "width": 64,
+    "height": 64,
+    "decodedHash": "b43c3cb1ae85445e25021c9cdd196aad0d96b42eb9604ff5c5ae6d280bb236cd",
+    "sourceHash": "a4d157a487d543287e7cecb7b2d6b2fcb9af046acc296939e0b6e30d0f8d65f8",
+    "uploadHash": "aba99ac32eba3de3936da2f840c99130e810bbcf964531dbbe30fe33af9b9ee5"
+  },
+  {
+    "file": "Model/Texture/Obj_AzriaFlower03-1.dds",
+    "kind": 5,
+    "width": 128,
+    "height": 256,
+    "decodedHash": "78298f0e334f9dd1976123dff467c6db7f4f7893879ece9b6f06eee2176b6fb8",
+    "sourceHash": "e93819da98b1eda8f7a5de8203de2eadea72d772d388deb1327e1c75cc404997",
+    "uploadHash": "2db9fc27668822cfa8a7bb7321e00464dfd1aceea8adfb0b7ca616d9c6390826"
+  },
+  {
+    "file": "Model/Texture/Obj_AzriaFlower03-2.dds",
+    "kind": 5,
+    "width": 64,
+    "height": 64,
+    "decodedHash": "b43c3cb1ae85445e25021c9cdd196aad0d96b42eb9604ff5c5ae6d280bb236cd",
+    "sourceHash": "a4d157a487d543287e7cecb7b2d6b2fcb9af046acc296939e0b6e30d0f8d65f8",
+    "uploadHash": "aba99ac32eba3de3936da2f840c99130e810bbcf964531dbbe30fe33af9b9ee5"
+  },
+  {
+    "file": "Model/Texture/Obj_AzriaFlower04-1.dds",
+    "kind": 5,
+    "width": 128,
+    "height": 256,
+    "decodedHash": "a32bfe90d3a4f69f91470ea44763f9fd79c7169f9e75d619b1d60606877fba7e",
+    "sourceHash": "c42d53053e9d3e4796ad9b9ab3c1a981648f96b5750594b68b5244a36e11b39a",
+    "uploadHash": "e0502f8b2db594d4613ff7327e99fe86db3d79fdb8c65b811f695d50f782d956"
+  },
+  {
+    "file": "Model/Texture/Obj_AzriaFlower04-2.dds",
+    "kind": 5,
+    "width": 64,
+    "height": 64,
+    "decodedHash": "b43c3cb1ae85445e25021c9cdd196aad0d96b42eb9604ff5c5ae6d280bb236cd",
+    "sourceHash": "a4d157a487d543287e7cecb7b2d6b2fcb9af046acc296939e0b6e30d0f8d65f8",
+    "uploadHash": "aba99ac32eba3de3936da2f840c99130e810bbcf964531dbbe30fe33af9b9ee5"
+  },
+  {
+    "file": "Model/Texture/Obj_AzriaFlower05-1.dds",
+    "kind": 5,
+    "width": 128,
+    "height": 256,
+    "decodedHash": "b45902c8cfe92ea09aff38c100d927b12cc62f0374b9742feeaee70fd01d2af7",
+    "sourceHash": "1854cf0f44d206599468f33a27d2d5b412c04f9425ded21129370ee28456b800",
+    "uploadHash": "a3a834820c038b3d12e60c7cfec7b92a23ba97e2d70228d6ae56436d7b71cebb"
+  },
+  {
+    "file": "Model/Texture/Obj_AzriaFlower05-2.dds",
+    "kind": 5,
+    "width": 64,
+    "height": 64,
+    "decodedHash": "b43c3cb1ae85445e25021c9cdd196aad0d96b42eb9604ff5c5ae6d280bb236cd",
+    "sourceHash": "a4d157a487d543287e7cecb7b2d6b2fcb9af046acc296939e0b6e30d0f8d65f8",
+    "uploadHash": "aba99ac32eba3de3936da2f840c99130e810bbcf964531dbbe30fe33af9b9ee5"
+  },
+  {
+    "file": "Model/Texture/Obj_AzriaFlower06-1.dds",
+    "kind": 5,
+    "width": 128,
+    "height": 256,
+    "decodedHash": "109cbe4ce928f41d84e4877774a793fc366686865808dae5b753f7265c1a1383",
+    "sourceHash": "0efae488715ac7a157eb0971eebc3a6ec826cfac155b949c84834e0ce54bd355",
+    "uploadHash": "bd7503be7b8318cc6692ed7dc435fef58d5bf4278c05093cfdb87eb024e82fd2"
+  },
+  {
+    "file": "Model/Texture/Obj_AzriaFlower06-2.dds",
+    "kind": 5,
+    "width": 64,
+    "height": 64,
+    "decodedHash": "b43c3cb1ae85445e25021c9cdd196aad0d96b42eb9604ff5c5ae6d280bb236cd",
+    "sourceHash": "a4d157a487d543287e7cecb7b2d6b2fcb9af046acc296939e0b6e30d0f8d65f8",
+    "uploadHash": "aba99ac32eba3de3936da2f840c99130e810bbcf964531dbbe30fe33af9b9ee5"
+  },
+  {
+    "file": "Model/Texture/Obj_AzriaFlower07-1.dds",
+    "kind": 5,
+    "width": 128,
+    "height": 256,
+    "decodedHash": "0a8af1bab8da98f08920d292f97f37f3a0142d0e4424c007ecc4e0f297b01724",
+    "sourceHash": "fef4509612dc6b35d4d810e4287b62f1047158a7572b61097bde50f9fc1dc9d2",
+    "uploadHash": "d71ca1d962c87bc9bc01d261d5f7772559e6af0d2c14daa0c1685c8cf3a5a18d"
+  },
+  {
+    "file": "Model/Texture/Obj_AzriaFlower07-2.dds",
+    "kind": 5,
+    "width": 64,
+    "height": 64,
+    "decodedHash": "b43c3cb1ae85445e25021c9cdd196aad0d96b42eb9604ff5c5ae6d280bb236cd",
+    "sourceHash": "a4d157a487d543287e7cecb7b2d6b2fcb9af046acc296939e0b6e30d0f8d65f8",
+    "uploadHash": "aba99ac32eba3de3936da2f840c99130e810bbcf964531dbbe30fe33af9b9ee5"
+  },
+  {
+    "file": "Model/Texture/Obj_AzriaFlower08-1.dds",
+    "kind": 5,
+    "width": 128,
+    "height": 256,
+    "decodedHash": "492eea9a81125e910829510590d0cb84712d4ccb01eccb25f46441015a645f68",
+    "sourceHash": "68e20cf17a5fad32957d59b7cade1ffa1122476b837070feb656dd5509cf94ea",
+    "uploadHash": "c781c0c67d0aa11027e3ab6cb3754fa28b4a468d8a5ec0ff87b9e59f60ea014e"
+  },
+  {
+    "file": "Model/Texture/Obj_AzriaFlower08-2.dds",
+    "kind": 5,
+    "width": 64,
+    "height": 64,
+    "decodedHash": "b43c3cb1ae85445e25021c9cdd196aad0d96b42eb9604ff5c5ae6d280bb236cd",
+    "sourceHash": "a4d157a487d543287e7cecb7b2d6b2fcb9af046acc296939e0b6e30d0f8d65f8",
+    "uploadHash": "aba99ac32eba3de3936da2f840c99130e810bbcf964531dbbe30fe33af9b9ee5"
+  },
+  {
+    "file": "Model/Texture/Obj_BaharaBush02.dds",
+    "kind": 5,
+    "width": 128,
+    "height": 128,
+    "decodedHash": "4dc66f787d525c5839d4c6aec171f13cb41f7e9707961320ffa4115c46a5ae38",
+    "sourceHash": "f1cddecb03fb7d737e373a2d3c0ac55ccdfb38e9714da3a97362d5fa0ac16fa8",
+    "uploadHash": "48c596bbddec1bc04593aa625a3e54bd6ec5d3b1c601f920a7eeb657ed0b45fe"
+  },
+  {
+    "file": "Model/Texture/Obj_BaharaPlant05.dds",
+    "kind": 5,
+    "width": 128,
+    "height": 256,
+    "decodedHash": "75d9be306ae027273617b37029d3246533d6b6b268ec9354d33e63fea95e0c2e",
+    "sourceHash": "5ace0fcbd20d81d07c2e2a3dfbe36f9bed3c4224739234a7b093d892c0a6de4e",
+    "uploadHash": "2f656e71ec5f03ea0a5ad664bc104980aec049acccb2986fc84cf43d65e1c077"
+  },
+  {
+    "file": "Model/Texture/Obj_ColosseumBush01.dds",
+    "kind": 5,
+    "width": 128,
+    "height": 128,
+    "decodedHash": "ae7da185f97d58c56e3a390616e6dfe28758b513bbe79d1b3620f00f392642e9",
+    "sourceHash": "c724578d8615c4aebce80037cfc34424a7ee5eed7ec614ee6c61e85a3d0e620c",
+    "uploadHash": "575ec5e52c2d7a6cf211657c80aadc1d791d14e07f9428cfc9bca7c895d0c222"
+  },
+  {
+    "file": "Model/Texture/Obj_DarkRartesiaFlower01.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "a64259914893dbc8ba0d138244f64b61c47ccc2d6bcd26c1eff49cd9fe651df4",
+    "sourceHash": "a34d95d2c4aa66ad7f14d00d501c8401a6d4a79a3452d9102b751a984909aa27",
+    "uploadHash": "13f10d68bcbbaaf1a06eb689e875f9605aed7bac5e826046122b301a5107606b"
+  },
+  {
+    "file": "Model/Texture/Obj_DarkraRtesiaPlant01.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "a48df6fe804aad3b5573d3863666672bb9895cd763588e702637a5cdc23da4cf",
+    "sourceHash": "99849d15ffac1c06b01768c3db7bca529b16b190750379f047dffb96d35b69c0",
+    "uploadHash": "c929272e099373988a4deb77859ea1f81f1e66636557810c1365aef476236534"
+  },
+  {
+    "file": "Model/Texture/Obj_DarkraRtesiaPlant02.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "f6f0ce760229162a0bee63b8f3f7f661740d4449d87f2dbf38c7adcbec54abf8",
+    "sourceHash": "a59cc8b9b4b6f67de17e58e536d2ef7884b1bb693c17265b73d374a43252d6c8",
+    "uploadHash": "69e3cea3812581eb86a03d80bf1ff1bab603a1375264e48ef181b93448c72419"
+  },
+  {
+    "file": "Model/Texture/Obj_DarkRartesiaPlant03.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "f6f129c8aee65c662e902e66393c0950b4b041d5d3e1297725858cf47156ad16",
+    "sourceHash": "d963a00f1696e5955e0a54742a81c048e00b11e982e8b388b3da9575a24a4cd6",
+    "uploadHash": "289fff1b1e983465f101e2ca35eeecc1d30c633048d9f30d5b3ce3630ab2196f"
+  },
+  {
+    "file": "Model/Texture/Obj_DarkRartesiaPlant04.dds",
+    "kind": 5,
+    "width": 128,
+    "height": 256,
+    "decodedHash": "e91e807df48a902fce089f972c594fa5bab6c685d4073508c4d27a10292b77ef",
+    "sourceHash": "cb5d276f63b65592536e14370e7cb465018fd4bd793ed2de3dc76348e7db3f44",
+    "uploadHash": "376b2d30403c8394b9778fcef4e5c37cf0523083d47c8df842e90433b7668034"
+  },
+  {
+    "file": "Model/Texture/Obj_DesertBush01.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "90cf570e31f0858f40a4170b9b2617998f5edaee327810d0b439467b582569b1",
+    "sourceHash": "581f3550300d93b0e39181ce1e2328d4beb2d7e1fb2b51ecbea1765c69221158",
+    "uploadHash": "d7795278f8f95935a850fe8c1c7b10ab4cc2cd216bd6f0341730028500c529ad"
+  },
+  {
+    "file": "Model/Texture/Obj_DuDkCoPrPlant01.DDS",
+    "kind": 5,
+    "width": 512,
+    "height": 512,
+    "decodedHash": "cd94484654732b1a1b8e08bd8aad4004f79ebd4209d221e80392abc7eeba956b",
+    "sourceHash": "6b4271bf714569490b13f5d21293120eeb5fa5c51ac3cafff132898a75f02051",
+    "uploadHash": "e3474e13b0d5b8e4e646411392aa5c10c00f359dd98350a95f49fad861baccc6"
+  },
+  {
+    "file": "Model/Texture/Obj_DuIbCoPrPlant01-1.dds",
+    "kind": 5,
+    "width": 512,
+    "height": 512,
+    "decodedHash": "f5becaa57bf17a353cc0bb166263ea1bbac582e9f5a048ab708783d172742d75",
+    "sourceHash": "f3a064785e1dc696705528ea7e3790e6f8747c69d5db66633f663a1c93e739a2",
+    "uploadHash": "6ce7d723efca4b06e3d33185d16d7a4b9a52339f340a26592eaf67b9ac6ac36f"
+  },
+  {
+    "file": "Model/Texture/Obj_DuIbCoPrPlant01-2.dds",
+    "kind": 5,
+    "width": 512,
+    "height": 512,
+    "decodedHash": "9360fe0e1a417ac43d1a242f8b4026921845f19901d9165f42f72541d7bb451b",
+    "sourceHash": "40dfe57f933db9c8525a237068613a23fb9af11497dada941516c1b00c11f7c3",
+    "uploadHash": "911e84432cebd448a7a767c9f2ebfe488ce6fb5e3b2e89b915416a835e685c2b"
+  },
+  {
+    "file": "Model/Texture/Obj_DuIbCoPrPlant01.dds",
+    "kind": 5,
+    "width": 512,
+    "height": 512,
+    "decodedHash": "c9afddec219e156c5b53149624f939645ed643615c273e7675f761fb9d46bc60",
+    "sourceHash": "65a4d6cd8e9bbb0a0f9d0a95aa3b7afb8ecb49236e3f65f1dd8e700b672a0f88",
+    "uploadHash": "2435edb2458c7d8d5b22b897e0a1a1a6ee04662d291aaa5aef56873b4c15b027"
+  },
+  {
+    "file": "Model/Texture/Obj_EliunPlant03.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "0e53a6e37d13d5b47af6cb20092ff5547f26b1c3c089e08c1574157f6e0f0f74",
+    "sourceHash": "2ca3e0b74a034a72e01b1ecc45e143978a82fd46b57e5defb76ec457f968d55e",
+    "uploadHash": "a7754c4d7df601b52396f49002389c2a1f2920abec933670f0328fc3e6203c53"
+  },
+  {
+    "file": "Model/Texture/Obj_EliunPlant04.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "6e45c37777add4161b7f662622ef351c80b5210613f11d15fedca7244f36b6dc",
+    "sourceHash": "d829e3d8215ba307bd96e2b57cc09ddce7af939168705a250bafa8d4be0507d1",
+    "uploadHash": "f5aee4f8d32cfd3564b230c85cedc487ae8f3a28e4f52a953a7c94eb34d30ede"
+  },
+  {
+    "file": "Model/Texture/Obj_EliunPlant05.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "597ff4f0af265930fdaa6c67715c943a2d75b4a8b23c50da73aaf108ef4383ca",
+    "sourceHash": "43c96ada3fe5450f301018a5c5d86bba4019ebae282aa62d602ea291ea783942",
+    "uploadHash": "859daa6742ede98d034b8c631aa093175295fc572ee63cd85ebb37fd5851f494"
+  },
+  {
+    "file": "Model/Texture/obj_EstPlant01.dds",
+    "kind": 5,
+    "width": 512,
+    "height": 512,
+    "decodedHash": "5b10e379d3a256775bf4f56537c0dc1fe7d5c1bbb8b7bf9bd2b564dea91882c9",
+    "sourceHash": "ef3a06af3531123570d1175191162a0f5b33601b0444cab212b63cafe1f1b3a3",
+    "uploadHash": "e1c11e076b9f8e7f4948324545c44cc484b1f8ae4285d6e8223c665db2b20ca2"
+  },
+  {
+    "file": "Model/Texture/obj_FwcFlower01.dds",
+    "kind": 5,
+    "width": 64,
+    "height": 128,
+    "decodedHash": "6d1a0f3791c18a60a85998f81e6cae54c2d1a6136ea75b495bac8793145ecba8",
+    "sourceHash": "55dcc598bbeafefbea1f200b1e82bc12175e4485308b7c2761be98333a676072",
+    "uploadHash": "8dcd4776e15124d4989c825ac10082959231f52b5f5cad68e265e48edf10737d"
+  },
+  {
+    "file": "Model/Texture/obj_HarPlant01.dds",
+    "kind": 5,
+    "width": 128,
+    "height": 128,
+    "decodedHash": "33b2d39a58a4e9876cf39c4be9cb8a68133d8affbe104b737ca51adf462bc120",
+    "sourceHash": "c9ec9e72d22a8e4489770bbd56d6aa518ee975ef215f82aa9fe181ba3ff598d2",
+    "uploadHash": "9618e5f6f47abe97e24441a472c343e6c34d96c29d9fea00f62caae4ceec580f"
+  },
+  {
+    "file": "Model/Texture/obj_HarPlant02.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 128,
+    "decodedHash": "dbe6d525f9bcde8ef4b9384e2a3ae6cc914f03d787d6dd63a3486e94969bae1c",
+    "sourceHash": "724bcfe6d419879e064dd34525932d757cb91e02b97914af6ad04d597e4a579a",
+    "uploadHash": "fba2712536c1f6efc14197902eaec740d50398a483b0b9ceb6b99cc0e6f28dd6"
+  },
+  {
+    "file": "Model/Texture/obj_HarPlant03.dds",
+    "kind": 5,
+    "width": 64,
+    "height": 64,
+    "decodedHash": "1c65e2b34770016deefafd07ed690720bb4568fc395b50fea8073eb686190cbc",
+    "sourceHash": "676f492c2557d83eea785365a35bbd573eff90780f6cb416258127366d6d0145",
+    "uploadHash": "eef47e8a514903b1e1315b800b7e31b7bfa22e4b359a2e6f937f7f62cf1b7c79"
+  },
+  {
+    "file": "Model/Texture/obj_HarPlant04.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "e64b97afc265da52652977228b87d9340cd731b11258965710a19a93e1dfb8b6",
+    "sourceHash": "ab694d9e2c54e4f842d73fde721b3743bfa246776572033dabf8dae0ad669b4e",
+    "uploadHash": "63775326af5d337df455c457b5d2d0a7c0786be592ecfca7ed8280c3ec6d3558"
+  },
+  {
+    "file": "Model/Texture/obj_HarPlant05.dds",
+    "kind": 5,
+    "width": 128,
+    "height": 256,
+    "decodedHash": "7bfa65fe3008bb637f89887c4788afce017b9845ecf7cbd8aec8afeef9426f9d",
+    "sourceHash": "60d6895a099d221e396ee4f48d26ef9693fa98c92287f78416058351ca74368e",
+    "uploadHash": "d1d89e2b1b10d52aacf254cf3e32aa689372d528b4136ebdbd34acf1505ac6c7"
+  },
+  {
+    "file": "Model/Texture/obj_HarPlant06.dds",
+    "kind": 5,
+    "width": 128,
+    "height": 256,
+    "decodedHash": "a49a43a49092492b43abb2a53b15caaf75f0f1d43ee11a27be100cd31820a7a5",
+    "sourceHash": "a387e08b851818c845c5c9fd3604f2bfc7785e2a4592b1745935d60d3d4867df",
+    "uploadHash": "7f4dd488333b6c5b1582369a7284c7c5b695ec2af0352e77e5eaab9549713605"
+  },
+  {
+    "file": "Model/Texture/obj_HarPlant07.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "3a2c628d6afb7d291e71dc49f0f7544349f17c7f9c66528e0b53fe58e3d56bb0",
+    "sourceHash": "720771bb039d2cf47032aed19131167dcb40102c7f7d7a4bb396db7c51effb4d",
+    "uploadHash": "918de2c5652a7bf885e93879c899d7c440a09a3b594a10ba6eba7ab474b946b2"
+  },
+  {
+    "file": "Model/Texture/obj_HarPlant08.dds",
+    "kind": 5,
+    "width": 128,
+    "height": 128,
+    "decodedHash": "d6d22c6b10484a9f792bc882e92bb8721d266d083a56f8b16cca734c01d859e2",
+    "sourceHash": "6bc880347b106fa3bf64dc65ce0e3a1e4c99529191fce8a02471cf3559efb5ea",
+    "uploadHash": "e0286d0158c5fc47d76967159d020a02e274e71134ecb957f352e23e303c35f8"
+  },
+  {
+    "file": "Model/Texture/obj_HarPlant09.dds",
+    "kind": 5,
+    "width": 128,
+    "height": 256,
+    "decodedHash": "61b1377e0967aa99a0e245cd9ec4900167ecd8fb4981cd8880445e4b60c2d642",
+    "sourceHash": "7bf7a07bf283e8cd3ed49d4100c9f80a7c5474ae53a9ec3b48f7f4a0c76402ab",
+    "uploadHash": "e18366c3d25440f49cd1fbdc0232c5bbc6e044b898eb8095f110b8dda688f3d2"
+  },
+  {
+    "file": "Model/Texture/obj_HarPlant10.dds",
+    "kind": 5,
+    "width": 128,
+    "height": 256,
+    "decodedHash": "0fc14708fabaa43db874c4fe58d513b533a4d10259b11065a8954e9fa2059442",
+    "sourceHash": "ae336adadfe428b7287a202ffb179153b20cbce46ec677d69eb6b30dcf419f45",
+    "uploadHash": "a25cbf8aed47433ca9b0ede7a01629095294cc89829b40847c5005b0f2ea74c8"
+  },
+  {
+    "file": "Model/Texture/obj_HarPlant11.dds",
+    "kind": 5,
+    "width": 128,
+    "height": 256,
+    "decodedHash": "dbb680f6c115af04606ef86cf804748df20414adc6d8864368157d4ef35e2c48",
+    "sourceHash": "d54bd0d66dfe524f4fbccfecc0e005dbbbf5c3f2c8cccc2d395efd580532b159",
+    "uploadHash": "5fc320ce174aef9455e7165ec8113d1ddb7ed3eb55ac53bb3eae9d3d60c34b71"
+  },
+  {
+    "file": "Model/Texture/obj_HarPlant14.dds",
+    "kind": 5,
+    "width": 128,
+    "height": 128,
+    "decodedHash": "2f08b87254e82905e0910394b93e9aa0228ce8bcc6bda8c10acb511a11dbb212",
+    "sourceHash": "b62841d0a81b4e5e2749e304f88b6a89a8568ebd19ddb208933585e4549caa88",
+    "uploadHash": "d041c6881f5764c87a89f83e59d15c533b52e536c83809d0d64b47a3215acc21"
+  },
+  {
+    "file": "Model/Texture/obj_HarPlant15.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "05ae038ad44b5a8395cb2511e88eb8fb86bfa33b9ceaca79d433f453368d4246",
+    "sourceHash": "42fee79f52808ccf65f6ecfc7d6228ab477953445e89deafeb2d09880c5d43c6",
+    "uploadHash": "fdb449fe5777330e8091323b979eeb4e97b8237e20453415d086c8143bccc046"
+  },
+  {
+    "file": "Model/Texture/obj_HarPlant16.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "be395ca2a123cdbe11cf7eb3b01dbaa67f2325616a176f28b74ba91e27f95220",
+    "sourceHash": "3b708ec6a198ef28c4c53693b73734f2250eb9dba4a29087e7777c4721772fae",
+    "uploadHash": "68d5e84e9bd7778549dbb652033cfec0b4d5f1c43607180b7675a93854a2a928"
+  },
+  {
+    "file": "Model/Texture/Obj_HerneosPlant03_01.dds",
+    "kind": 5,
+    "width": 64,
+    "height": 64,
+    "decodedHash": "5512ff9b6a1526c5b4045e5ac1d8616ea57222883c4b666bdc2d4f374debd36f",
+    "sourceHash": "9094a04ba7e87010898b8ce7c0924bab44b1641c55636ed6488920d5051e2abd",
+    "uploadHash": "e74a024cc1a8efc3fbdf4f32865bb9b47d8dd2f75af4dd65e110248f527558c3"
+  },
+  {
+    "file": "Model/Texture/Obj_HerneosPlant03.dds",
+    "kind": 5,
+    "width": 64,
+    "height": 64,
+    "decodedHash": "ae2b330af872377d7870be15d4c706cd35ecdc665705e31464ed61f3e7b2c157",
+    "sourceHash": "13eadba7859810202af15f93d4b250bc3a38a32d0fd3ace981f146e960146cfb",
+    "uploadHash": "7c4339c96a9ec9a9c0d1839d3d05b2b6e6b50810be914d58091fc9ae1450c610"
+  },
+  {
+    "file": "Model/Texture/Obj_HerneosPlant05_01.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "0b8c531dfbf96d60a901bfa4eabe76c7cf2612a422a765352094b49ad0454e29",
+    "sourceHash": "71020c1c88d9473c669d99cf8452fe4499ab6488d595bc05f33fb83910040af6",
+    "uploadHash": "0707cdc63d5d4dd81df164f6a33015be87b916f69ee931f1cc90b56c491fe14d"
+  },
+  {
+    "file": "Model/Texture/Obj_HerneosPlant05_1.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "5f1e57ab5d66442514c3d4faa6bdd91ebe1dd4aefc6016c56a9710bf6520679c",
+    "sourceHash": "598436e15704ba9336de032e76aaab7371309173389ba104a39a3263e31cbfd6",
+    "uploadHash": "a0a80fef7dd5803a24b22e4e87cebdf1e5bb1d2971dd4cdd87a777cad3e45317"
+  },
+  {
+    "file": "Model/Texture/Obj_HerneosPlant05.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "3390ddaf289e3fa50dd1bb1732942d6a6b34274811509d4cfa62f0702401c77e",
+    "sourceHash": "4c14a7062744983ae6962cdd0c2e1d896dadfb3253f82ede913e3ac806980206",
+    "uploadHash": "6d1fc60c323cf452f3b237711ddc9fa5fd7b4268c0201b7dd79e8aeacc426e94"
+  },
+  {
+    "file": "Model/Texture/Obj_HerneosPlant06_01.dds",
+    "kind": 5,
+    "width": 128,
+    "height": 512,
+    "decodedHash": "8d7dee67b01da5eec7ef688e1862c720175b59142555cfae87fbd095a7cf2c8c",
+    "sourceHash": "1a177133d19e3ac4d69177f632d631244a804501afa365fd65818f4cfc50b206",
+    "uploadHash": "0fb44dd9cd9ec0c5fc17570c7ab747813552aee6c5bfaee47cdf6a69cef6dad0"
+  },
+  {
+    "file": "Model/Texture/Obj_HerneosPlant06.dds",
+    "kind": 5,
+    "width": 128,
+    "height": 512,
+    "decodedHash": "fe2c4309387ebe9817552bfdd782ce2f553350ec3c03596a2b4aaeaa6ea4b34a",
+    "sourceHash": "0ce394921eb98e735afef4780610e472eb62007abbf21b68f20dbb1d6bfbfae1",
+    "uploadHash": "7e9d13a1e05833467f7d75ba61973e13b78e0a3c7f1e308bdae6996031d87745"
+  },
+  {
+    "file": "Model/Texture/Obj_HerneosPlant08.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "44a77efd4308e77939ac22ab80c78cef6a53d7d0dd11ac5d00ad09be97f0b765",
+    "sourceHash": "100cd6ffe43231c4c888ed15ab5638a966ad74827fbc24a433fc911b7d35e933",
+    "uploadHash": "30ff35d8ff436c335862cc6d820b3844d7e8f450f0ef1a0a1f4d947fbf592cfe"
+  },
+  {
+    "file": "Model/Texture/Obj_HerneosPlant09.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "b98bd927013fb56327d760ef77defa27f525babe91ad221d939125a2ced73809",
+    "sourceHash": "41f34b70817657d99624d7899765fe36daed723c40b43e961249894a51024db0",
+    "uploadHash": "72bf2491deefd2ef0579122e2e4f701b4a4a4d855cc69744117a5c09bf955218"
+  },
+  {
+    "file": "Model/Texture/Obj_HerneosWatergrass.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "b649ec78cb121b4447c3ddfc2c0d8a4eaae0613f285cdcd3c837da95a472f015",
+    "sourceHash": "1c26bec87105acf6b3b5289d35dcb7ab3b7712380b0df7076f14079b35812f13",
+    "uploadHash": "5cdeed9d35a64b35ec4f3bc38a3fda797be65f23f36d84c307f7163a825c301a"
+  },
+  {
+    "file": "Model/Texture/obj_Kaillun_flower01.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "74854f539b9fd11acf7b51c1bd84a7542c979e40503f8e5a1414d68d626bad8e",
+    "sourceHash": "1a146ceaa46d2a63c7e6100c3ab3ef0635daa023c44e25b93a61cce368b8d210",
+    "uploadHash": "1f7911eceb6b2056626fbe64f4c91d1540a3fb3a7a21ff49e7eb5b3f416b0faf"
+  },
+  {
+    "file": "Model/Texture/Obj_KaillunPlants01.dds",
+    "kind": 5,
+    "width": 128,
+    "height": 128,
+    "decodedHash": "b217409bbc40993943063bf544377b8a54d8bb14b01c585c797d0972b7c11e29",
+    "sourceHash": "dc9a4315fa2d45ba395864e26741b6bb0659ec598ecf4d17e70b037508a61099",
+    "uploadHash": "168a69210c5d5af1afeb656e68e3f86c600e6d4ef2cd9a0e13cb8e2782d2e787"
+  },
+  {
+    "file": "Model/Texture/Obj_kaillunPlants02.dds",
+    "kind": 5,
+    "width": 64,
+    "height": 256,
+    "decodedHash": "a0698207ea2d52d8e4ec39759deaaa1f29da39ade92a7c927e69fdee86521a26",
+    "sourceHash": "5cb38d49789dc74b7059cbb116273d6230dde3692b8e7401741ba73b864a7695",
+    "uploadHash": "a58b1c7575351e4f7c309cc162b168f5d3c2767a6944ac80e12e5e27ff623336"
+  },
+  {
+    "file": "Model/Texture/Obj_KaillunPLants03_1.dds",
+    "kind": 5,
+    "width": 128,
+    "height": 128,
+    "decodedHash": "d0c17acd588b6f1814e9ac35f80a5124face1152defa4b700a7d1510d182dd02",
+    "sourceHash": "1c2333386f0832804e994cbe7e31f23db1a61effd803e76cec4ac9ac2e7a6d56",
+    "uploadHash": "90550130413bb58eb89b92d002a45431a6fe079da5812f1c205062f4a5466fe7"
+  },
+  {
+    "file": "Model/Texture/Obj_KaillunPLants03_2.dds",
+    "kind": 5,
+    "width": 128,
+    "height": 128,
+    "decodedHash": "fac8b26681ba4111bed6e1087c354a821b73c1bf8c5762eddf80916377acedd4",
+    "sourceHash": "dd27064ffd5cc82fdad73acfc61394a83ecdfedbf0594db36f43044c2c3a5a25",
+    "uploadHash": "090d59e59ee0fefc2dc643956fa9964297ffc23e6d75ff71cc61330b8aa544ae"
+  },
+  {
+    "file": "Model/Texture/Obj_KaillunPLants03_3.dds",
+    "kind": 5,
+    "width": 128,
+    "height": 128,
+    "decodedHash": "e1980a11d7de978b5f48e0a5827a723ab5857a70bb93a6a530f17894fe9c508c",
+    "sourceHash": "a674afd7b4ab252cf45707a8dbc730a10eaf6a35ace759852473de58331bc1f6",
+    "uploadHash": "0b2abf2c8462d1e885c2ce5807233b218ef0a0b96529fb75996c64c07fed0b77"
+  },
+  {
+    "file": "Model/Texture/Obj_KaillunPlants04.dds",
+    "kind": 5,
+    "width": 128,
+    "height": 128,
+    "decodedHash": "7f54bd731905148d39b298ca8dc46fd4b0e4fb0af44815f5fef2ba054fc34dcb",
+    "sourceHash": "46309ed66d7d300251ac3f2fc858c848114d99c0f1efcb1d1c80a0966feff6fe",
+    "uploadHash": "fa66dee4f2d81fbdab010a0f95b76745c724d41bf9e01f1b558a8173269bb732"
+  },
+  {
+    "file": "Model/Texture/Obj_KaillunPlants07.dds",
+    "kind": 5,
+    "width": 64,
+    "height": 128,
+    "decodedHash": "1a671067f1ad08b540ae690ec4b951905c8f471a2ccfb2c8c7dfd4b7eb6704e4",
+    "sourceHash": "e96da540c9f02370e0a16b2dbbaefea7aec54b8918809b2afb66394827cd95bc",
+    "uploadHash": "2faae5a488f6df467118c1782624d9d3d1a9b31c5ffc8e69d101dd48a0283978"
+  },
+  {
+    "file": "Model/Texture/Obj_KaillunPlants08.dds",
+    "kind": 5,
+    "width": 64,
+    "height": 128,
+    "decodedHash": "2adfc509d0261103cef4e088b4213a251961a300fb34444b06a70f636191445c",
+    "sourceHash": "8ce17e68b0686e37e96e1af9db7cab1df922215a9cf3bf63138aa2c9fb72dcca",
+    "uploadHash": "be248cb7c49fc35b4549dc8355bf0b5cb19d89e62ed62bac1a43207baa7b81b4"
+  },
+  {
+    "file": "Model/Texture/Obj_KaillunPlants09.dds",
+    "kind": 5,
+    "width": 128,
+    "height": 512,
+    "decodedHash": "edd8db77e7525f6667110f74725aa83f38213023a07988dee859cb4dfa3236cd",
+    "sourceHash": "8c65e0ef300f8a57b08c57d23a2c71d56156bc574c5019ee9d4936b155f503be",
+    "uploadHash": "7fc2b294e700f77f3b166c9cc3f4badd0a0bb7bcacd5af5e8e89aa4786b923e8"
+  },
+  {
+    "file": "Model/Texture/obj_Kailun_Flowerset01.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "5375a65627d2ab2d47095ffc49af521118fb69074d01d6f5c6baf06c9ef2eefe",
+    "sourceHash": "47c03ab45965fd20291576306cbfe86a05bf33a74e55f58785a2d08ed88cf301",
+    "uploadHash": "d52271e70d70b2e3f737df816f29afe65b61befe1db1803b6657953ffc591341"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrFl02-01.dds",
+    "kind": 5,
+    "width": 128,
+    "height": 128,
+    "decodedHash": "e9666397e6c9c8fbbd1018d29aa757aa74b3df3cd6a8fd6dff81bcac44710458",
+    "sourceHash": "41c2f620b1ad5162298a2da8c131b2d0511b2c7b2a00094dd8f22fc5c66d5d9c",
+    "uploadHash": "e287c45f99aabeba6f75f775743e5cdefad8e90faa0f0511d2b65876e820b7dc"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrFl03-1.dds",
+    "kind": 5,
+    "width": 128,
+    "height": 256,
+    "decodedHash": "be67114e3b53aff7bcff29c6531d13fd18f385ecf40c1f67e731d4f10c15b8bd",
+    "sourceHash": "fc1eabbc19969d7c60b229edff05f93d079e3be40a71b9bfbd1d8d50e7aec7e8",
+    "uploadHash": "8263fc4a8ed1f871cbf26e53a62d1a06249689b66f8525615029160b45b7a395"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrFl03-2.dds",
+    "kind": 5,
+    "width": 64,
+    "height": 64,
+    "decodedHash": "0310b0c9cab3a5aa716cd8dffc66818281aecca94ff6e3a86ba885c58e91e87a",
+    "sourceHash": "d54ccac40303d8756a445e2c5c9f17e9cad0a57ad21419b980a729a31ccf082d",
+    "uploadHash": "4db9a6d7cbbe40ea5e444d3c78c7f15b3c98855d3885241fc2292ec3a634d43e"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrGr01.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "66324d9c62f547a3584fe27c0852fabaec1b3b86e1acd1bf6d97ed9395545c59",
+    "sourceHash": "ea5020689f62ce66a36be05664c7a29c0234e1135543142dba55e72bde313cd4",
+    "uploadHash": "68d8ef62a52b9430a9779dda97026f33114d140c44d89fc2daff86b4bb99fef5"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrGr04.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "52fa7d9423fc98745116cdedef68723bf54d9e8456e4087bd321180a0f683630",
+    "sourceHash": "c4e113fb0df723151fab008f8022be285fd8f2bb0efdcaf8106f71940f4d5be7",
+    "uploadHash": "a3b9657db4e640fe803a31824fbd5424bbfb5d26f526dba05bf7752624cdaac8"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrGr05.dds",
+    "kind": 5,
+    "width": 128,
+    "height": 128,
+    "decodedHash": "88cf28266a1e072008193c272a51ff5e38b1e2e57979f7198661341d657dabbd",
+    "sourceHash": "28ba48430703713d0b37f3d7da9aeb9dc8ce9112254ea949b78a7c6943834435",
+    "uploadHash": "fd2464659b7a98b3a0ef824307115365c9fe25528719e91d0f98b9f88ba5b9ad"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrGr06.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "42675d432f69c9c6481c0fbcf142126d0a1c714a0960e924e5078c3d8bcf2867",
+    "sourceHash": "8e94db479a61437c3c6f99d384f00eb37361fcf7a34306a4eedc57b458252064",
+    "uploadHash": "26e84bcb0f9d8b6fcaec841b95b9c64bdbc5e0a6255a01b46e2e28d63a0c4afc"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrGr07-01.dds",
+    "kind": 5,
+    "width": 64,
+    "height": 64,
+    "decodedHash": "9c6e231099a7d520a2c6bbed5a243e58c82a8dce68a03336812eb519129bceed",
+    "sourceHash": "c372b08cb713988067ca696e5fa41158e425db8d5ef3d9ce09ebbd2dd18869bb",
+    "uploadHash": "082a5f11d053f25531c2e1b853dd551e60e589b0d1dfe4b8ec8336388ebe36a1"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrGr07-02 .dds",
+    "kind": 5,
+    "width": 64,
+    "height": 64,
+    "decodedHash": "9c6e231099a7d520a2c6bbed5a243e58c82a8dce68a03336812eb519129bceed",
+    "sourceHash": "c372b08cb713988067ca696e5fa41158e425db8d5ef3d9ce09ebbd2dd18869bb",
+    "uploadHash": "082a5f11d053f25531c2e1b853dd551e60e589b0d1dfe4b8ec8336388ebe36a1"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrGr07-03.dds",
+    "kind": 5,
+    "width": 128,
+    "height": 128,
+    "decodedHash": "88cf28266a1e072008193c272a51ff5e38b1e2e57979f7198661341d657dabbd",
+    "sourceHash": "28ba48430703713d0b37f3d7da9aeb9dc8ce9112254ea949b78a7c6943834435",
+    "uploadHash": "fd2464659b7a98b3a0ef824307115365c9fe25528719e91d0f98b9f88ba5b9ad"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrGr07.dds",
+    "kind": 2,
+    "width": 128,
+    "height": 128,
+    "decodedHash": "7e8af662e7b24a90a6b2dd745cefb1fe39c14b74ba04ebc5159977828a5b148c",
+    "sourceHash": "906885ac4075d30b6b9832d68b8b458395765e7a211abcb4850c89656a6fece6",
+    "uploadHash": "2f3cdccd6cd6e206d474d02f455ae7e8abda1ea50df4ac35ca86632779e023db"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrGr1.dds",
+    "kind": 2,
+    "width": 256,
+    "height": 64,
+    "decodedHash": "0b1d2eae8787ab6a73e4e0005c7edb16b5ce4534e6e5ed57c0c4f9a5c1c6e7eb",
+    "sourceHash": "e4762a2445015ef305ae6d08a73022eb13b322ff34ceb37c8cf16ba4b7aa0386",
+    "uploadHash": "01fd1252d4105657cb81cb45b56ff2868bfa1e24f76d09678da426bad8378baf"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrGr2.dds",
+    "kind": 2,
+    "width": 128,
+    "height": 128,
+    "decodedHash": "6c72bb46b93cec5a800265d259fffe02a967115e0ab7c64584074745647b42f4",
+    "sourceHash": "d98f31585084693be4f59620fb58b5dd216723e41bfbdc0c5a4c5763f397c48b",
+    "uploadHash": "11500867ebe35939218338526664c3d2272261b5985addd1c9b393afd3c230dc"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrGr3-01.dds",
+    "kind": 2,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "967375afef15085bdef8b38f55ef3b36b8dbe8cc9bed8f116dbf1fa93d9b21cf",
+    "sourceHash": "8d2c8c83316e88407a77612eb5903cfa21ad5cef9d802339ae2c78da41b5b08b",
+    "uploadHash": "9b9eb9198b4db6133d09097e1bae37e1c5c5beafc5f69745d137d56468d3fe57"
+  },
+  {
+    "file": "Model/Texture/Obj_MaSaPuGrass01.DDS",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "c37b7bf595756fc55608501b96fc53f8165df501ceb10cab7a7e342cab4f640e",
+    "sourceHash": "7ef76f8219f6ba220a1044adda655e050b8d4519daf804b2ecb17d912a97cbf9",
+    "uploadHash": "cd345fd9627824665c36ea702dad7dce455c200ca33cf062ffbc1fadbcb27325"
+  },
+  {
+    "file": "Model/Texture/Obj_NewFlbush01.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "36af2bba77339c46c7b65e3f804de14149e239bbb11e7ce8cb4b8472223ab646",
+    "sourceHash": "c8b926271e4a61a4f3c1e1ed7e6284ff1d70a2a6f503e57a4157edb4be89dbfa",
+    "uploadHash": "c61f526060196b4787e34596533474672996ec60e20523066fb697600c6d912f"
+  },
+  {
+    "file": "Model/Texture/Obj_RartesiaFlower01.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "09d2f5a7d493e3bd85c721844afde6a2c23a3508df09d5d6b0179bcaad6d24b5",
+    "sourceHash": "0a03405757e564feca0b498792679a7b830b3f05dfcb69b9abb637ff35c3cde1",
+    "uploadHash": "2d356685e37e8d9a3fb73f37126665152e4422471bf05a19ba67ebb975d773de"
+  },
+  {
+    "file": "Model/Texture/Obj_RartesiaFlower02.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "813818ce907c17bc573ec462965eaa04bc9491ef1ae7bb7c2609076afd18ea57",
+    "sourceHash": "3f668c66690fac74d575fb8a8bf37d046df277488b3330a610f520dc4b666869",
+    "uploadHash": "5eb054eb8a8541eab43847a873b5fff988c3f2c4514efc744dee761e5c86ca55"
+  },
+  {
+    "file": "Model/Texture/Obj_RartesiaFlower03.dds",
+    "kind": 5,
+    "width": 512,
+    "height": 256,
+    "decodedHash": "00213597ad092dc269d587de20cfdf3817b46ed78204a5974e2b04988e583df9",
+    "sourceHash": "29ca5962f35c992d942e92ae0aa4b58a123482fa71297a4837a595b2cc903459",
+    "uploadHash": "49f83aac9e3c2629c0b911b6096e094b6d8bc00eab9f327c727c68c8e4093556"
+  },
+  {
+    "file": "Model/Texture/Obj_RartesiaPlant02.dds",
+    "kind": 5,
+    "width": 64,
+    "height": 256,
+    "decodedHash": "e5f7a30506d644f2c7d2cb3960441c1e7cb4fea31e107a0ee5e66fd789df7dfc",
+    "sourceHash": "2c4cb3a9fdab3ccd61cefd01fe7dd7e3ce5dbc7cde2ba7fca9c5b11e44ec2ccd",
+    "uploadHash": "0185f39fe402e55416ee15c0cda9ca4fd786adff71fe911bd2fb3e49eef994a8"
+  },
+  {
+    "file": "Model/Texture/Obj_RartesiaPlant03.dds",
+    "kind": 2,
+    "width": 128,
+    "height": 256,
+    "decodedHash": "63944da3ae631d975e6cd300637b624fb2505148224173228890bffe4961be48",
+    "sourceHash": "e7220d450ed2dc89c750105fcc711c05a3f085a4fd26a2d5c235b84505ab8d70",
+    "uploadHash": "6a2ebdd2f9b6e52cffde3472311d2a32b59452b8d994f17646df8c388a4f6560"
+  },
+  {
+    "file": "Model/Texture/Obj_RartesiaPlant04.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "c87ccc0cbd828b3f671901aa8e54c1e9501901a9b23431b5e0e3663986da1813",
+    "sourceHash": "3fa1ad128c617c83dae0f7cd2fa3bb950b6c7de56c304bf7c78235cfdd292b33",
+    "uploadHash": "7b73dfd7e2364da29f1f3d192ea13e114cf0be648ec5ca04578c5eceff035731"
+  },
+  {
+    "file": "Model/Texture/obj_SD_Plant006.dds",
+    "kind": 5,
+    "width": 512,
+    "height": 512,
+    "decodedHash": "dc03952a35dbbd222d1b99a50b8c2dc8d50fc0a719ae7ec15a54d53f1e6b611f",
+    "sourceHash": "a145b30ee7a421b38733cdd30cc3b2f3500d27f9527b1a79db0c60ada951dea2",
+    "uploadHash": "39d0324f830798e20f501e8527a075348938a33d8ed93c98277f8babac8e9268"
+  },
+  {
+    "file": "Model/Texture/obj_SD_Plant008.dds",
+    "kind": 5,
+    "width": 512,
+    "height": 512,
+    "decodedHash": "72a7c2c588e43d8511ed1a9bceafc30eb2ce68cab3c396f21979d1f02579a96c",
+    "sourceHash": "c88f46011f57444c88cad2fef8f5604a4075a213564187aaa04935e2280856c9",
+    "uploadHash": "eb5de675c8fc0d2302f28d3743962badf0d5270cfd25fd78d2e5f6188b5a07d3"
+  },
+  {
+    "file": "Model/Texture/Obj_UplesiaAniGrass01.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 128,
+    "decodedHash": "db6929d67923c832a75efcb5c5a06f565fa29877e2edad7ea95eb6128fef213c",
+    "sourceHash": "d04ccde491a8928462a4addccee67c06ae51208a733763e48fd6aa1ec6508692",
+    "uploadHash": "6d0bb9ead6606b3d92e06d46d758322abf9db02cb1e34b9e72db13c6f562c785"
+  },
+  {
+    "file": "Model/Texture/Obj_UplesiaBush01.dds",
+    "kind": 5,
+    "width": 128,
+    "height": 128,
+    "decodedHash": "b7a610c3cd4ae4fd5fd4451c8357096e7d5a73987478ee75ed9b5345f11e834d",
+    "sourceHash": "2e0379ecf1bcba1c33b4fc6d0988a88ec4bbf2a0e44f761583ecff4294758995",
+    "uploadHash": "59c78fe6856520436eb7c5ed8f3a4d19e854fc59f192e131c33125a4c482fa5c"
+  },
+  {
+    "file": "Model/Texture/Obj_UplesiaFlower01_1.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "aba737c7da49530dd1cc314f8198b732f7078c8de13e1b9d430b16cadb89cba5",
+    "sourceHash": "b504d79af8d2d3303f80a34f12c368aae3f57bbb197d9bf0874b3732ae4d6b16",
+    "uploadHash": "8ff49498357048ac508583c0c590399050c24de094a88df9e06f3e73e1e504b3"
+  },
+  {
+    "file": "Model/Texture/Obj_UplesiaFlower01.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "9d42b32bce304eed0cb44cd139b4d58dbe8bd6f9292420b3afa56c03396a1167",
+    "sourceHash": "1560daa369b8a8a214f57b2577afe17bb7542b571f03b621f8714be779a6272e",
+    "uploadHash": "b870c6057f653c52108537017e96118bec9aa6c61c14129b89a86776010963a8"
+  },
+  {
+    "file": "Model/Texture/Obj_UplesiaFlower03.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "21f09cc0fb0734ab632fa0852aa7acb65bbc71100e88f3a7ec0309b16a9ddf5f",
+    "sourceHash": "ad6eb9d4507a01f2d27ad87794ce1a4d1b36611512e5f7b804d42453ed81ffb7",
+    "uploadHash": "846bd880ef8ad05472cbb9fc43deea6a3a4900b467cc2c3e9ccd9a3fd03b6a84"
+  },
+  {
+    "file": "Model/Texture/Obj_Uplesiaplant01.dds",
+    "kind": 5,
+    "width": 512,
+    "height": 512,
+    "decodedHash": "1d00f97849831bcdb554ab0da67d26fadfc76514fa0c4adaff7cd534ce8c1416",
+    "sourceHash": "e21eb89aee907481b27e763254e30f9822be9f2f4841bd8bea885b5180ffe2ab",
+    "uploadHash": "6d7c07963762ec50fc93bf12b43c29de0dbef604dfb76eb627abde3ebe2deda8"
+  },
+  {
+    "file": "Model/Texture/Obj_Uplesiaplant04.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 512,
+    "decodedHash": "18d370a8ee08d706b1dc3523cef40e9c900ad6db70a372a079c07a5bc301dc01",
+    "sourceHash": "09682bfec1d89179c00f523e2397f5796282c20569a7c9e6137ad564df32a9ba",
+    "uploadHash": "e85a12a9dab38d6c0698e331d6fd24c2506807bbd715800c79fd114520a189fe"
+  },
+  {
+    "file": "Model/Texture/Obj_Uplesiaplant05.dds",
+    "kind": 5,
+    "width": 128,
+    "height": 256,
+    "decodedHash": "8b25b82aab27994819dedfabfc24058dce07fb81bfb8859f20f542969ae3f83f",
+    "sourceHash": "c0c0a47c80994b4c7e2f8a5b4a3bb5619e43e5ab35bff9020bc19a1adc5a069b",
+    "uploadHash": "8b0de5259b61bf72e58e6c7a0404498e9d32954d3940a209ba306398b23765f9"
+  },
+  {
+    "file": "Model/Texture/Obj_Uplesiaplant06.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "1d2150ab29dd95b15f9f5ff78f35676731a2c853355d940100b837d9ef8a2fe5",
+    "sourceHash": "896fe8981956ab3cfc54cfa1e5806f25137ce71a08c5f15163a7c8d57fa9cbea",
+    "uploadHash": "6b37e7ad1f4f97f73c2b19089b4bc6629bfcbca6c30ae33776f735aab8ae865b"
+  },
+  {
+    "file": "Model/Texture/Obj_Uplesiaplant08.dds",
+    "kind": 5,
+    "width": 128,
+    "height": 256,
+    "decodedHash": "3e18eb2bba2cd10688cd1de2ff85ea05c8c6f84d34523478fb0ee9af610a52b1",
+    "sourceHash": "735862b207f06bdab9d2bd81926bef0aff32a22309a7bf91e0ed3696927a3a52",
+    "uploadHash": "fb8fbb8749ab8ead5395eea39fc5b9f0da6180ea8de2d4f3021d5682eb041d24"
+  },
+  {
+    "file": "Model/Texture/Obj_Uplesiaplant09.dds",
+    "kind": 5,
+    "width": 128,
+    "height": 256,
+    "decodedHash": "c87493a99b7921227f44f8aa454e6f041cf3ebea5957db1e5762ebf0e2509ddf",
+    "sourceHash": "66920797244c4622e86805b24d6d6ceef2c8e83226665e14c6fe46c360ab15c3",
+    "uploadHash": "525bd3cd67d7d83f9f252bb65269ac731c716de3ac92a7e8d44a56b4cb505b43"
+  },
+  {
+    "file": "Model/Texture/Obj_Uplesiaplant10.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "09b2351586f0a3f313165c66ecc0ba09f478dfb7f333a2030ee37932f56afa49",
+    "sourceHash": "4bf4615c4cfbdfdac192a28b9c6cb7dbe5f122e10195d236a0394b2ebb912575",
+    "uploadHash": "b46178e5f52b45521da88c780465e1e47c86f492194b2ee6c9115aef9c290269"
+  },
+  {
+    "file": "Model/Texture/Obj_UplesisaFlower02.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "f87b4e793486625c2ed70f5dd3ca8b7c595f3b30c1195890d1a140bcbb57fa70",
+    "sourceHash": "8d935f884758f07f823df2d29094c241a95ebf5ff8dbdbd0396675dc2df1b3c1",
+    "uploadHash": "cde26987a8a3025164b2e0b800764b31cf75e80d1a11db38e04893bab3cde322"
+  },
+  {
+    "file": "Model/Texture/Obj_UplesisaFlower05.dds",
+    "kind": 5,
+    "width": 512,
+    "height": 512,
+    "decodedHash": "de423ce5cf76660d0e4933ae472aec16a2c721ebe505114975e9b366f8eb6236",
+    "sourceHash": "321cc11dce8f4c602a58b62892981ceff4d41bff71b1b638b1d0ee9decdf3a1d",
+    "uploadHash": "ef35136f6b9b6ede26ae0d4bb066ada74fa6f00116c8d2e41aa3b7f0d0a66dff"
+  },
+  {
+    "file": "Model/Texture/obj_volcane_bush.dds",
+    "kind": 5,
+    "width": 128,
+    "height": 128,
+    "decodedHash": "4410449b7c9b56460c0f990c0b261ae554d8089dba7e668ce33b7297b49e9917",
+    "sourceHash": "4c9f3f896f41dab6fd36090016426fd25b54f25020011cb3e53ecee97834672f",
+    "uploadHash": "389d455ed9c46edad1e7aa0edf86904c996ad2ddae42319a6380a2715f592f85"
+  },
+  {
+    "file": "Model/Texture/obj_volcane_bush01.dds",
+    "kind": 5,
+    "width": 128,
+    "height": 128,
+    "decodedHash": "31686fee64883c936c5795846c7dd2b2ab88be540986adc4c78ea6d7a60d24c1",
+    "sourceHash": "6d1d38083d9a89c2da968e2d4c67b99b9a60cb7bf98e8059c4def870d51c756d",
+    "uploadHash": "4204c134202ad32ce2fc23ae124e1cd67bfeaea93fa8a829ce40f26add6025bf"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrTr01-01.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "8fd4edb957197077ad34f1ccd3be0421edb1be23637c23a1cbeeead7daac1f0d",
+    "sourceHash": "0f2fa295b0f5a39bcb27813aa90c46d91f4d91fe86ee1157d18e37b5ed112dfa",
+    "uploadHash": "adf298f8a443f3af4802b8eae5c469154c7fef572b1b4716705df952317af259"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrTr02-01.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "9e8db02494f2d56edc5341432f99f6139265029162b968b9fff38023600d78a1",
+    "sourceHash": "a552ccd14943374f6f6dbe27ab9bb80214aae1d07cd1d0876526c97bc75a6710",
+    "uploadHash": "732b05a51125179866bb15a7b0e60419c48bcea712c796c8490752bfcae8f5f5"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrTr03-01.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "4843973c429f88562a682ed4aac56690b2dbb87e3fdf1a41da489dc8f786f1f6",
+    "sourceHash": "507ad955dbd8b26dbca303309c41be2044fee998eea1c3584ed4dfc033230456",
+    "uploadHash": "a5323360f29d793aa48af8083e837feeca28c42a0aaff1fca4dbde858ba6adce"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrTr04-01.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "4840be222504c16bc3c0f314b91155b628391e4a4af4e13601356b283f4dcdda",
+    "sourceHash": "7d936b862f2dc3adf34f2e78e5e78334ddb4a16bae7135abfcc41a496d228283",
+    "uploadHash": "45231467df11994a2ebce7c66edfbbb2226e334d749918741b32aedbe968829a"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrTr05-01.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "0654005f54ac943ec0e74be9077a49d50e72d7e58a53c1fafc1c998116818339",
+    "sourceHash": "4a49684e1c8f77eeb4a16987f366f0b0eb185f3c74fb6737ffcb8b790da1cd76",
+    "uploadHash": "e6c7fd2749e99d30cec649955dbed3d7380a6a260cd0da5aa5ebe7c213e47b61"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrTr06-01.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "9086dd5d936449cfad95a8b180f27ef9a7c71163c759d31db88b25c45ccb1a8b",
+    "sourceHash": "f80e49c56e1db8686a983b52cf6e41edc502a436f4fcd4a4189eeec078088c37",
+    "uploadHash": "6f16bc5bb2023c7bf406ff5f8228c37b19ce2cc27b692e3c266fae8e7eab3fcf"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrTr07-01.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "fba56fd8b1614094ab1632a5bbde940462521bb03350806df6feea7c83b2d32f",
+    "sourceHash": "cc4562a5afa9be73704670258480d6217e7e2582d58bafab3a4f05db588c7801",
+    "uploadHash": "94fde509d1c1ea27fe102a7e3037fd8b3f36b610955b193b6bbfc7af37ca77df"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrTr08-01.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "dfb1e8107acb2ee01ccfd13228b087d48f456ed7e9182221153c96488be24dac",
+    "sourceHash": "dc13d98bd1b9f337d6e8a766d00cfded160b08d89033315a0978ddf5271ea16f",
+    "uploadHash": "d8d2c3ad209442f37e272569c89a3816de2177ca2c9b0533380ca017fc291657"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrTr09-01.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "a9281c7b955a57030f97ca01373bed476dbbca01067b116c1a56c9b1610c54be",
+    "sourceHash": "943f2ee40bd3a56c432937231fe41324f091594a29c167f2118158844abd5f6f",
+    "uploadHash": "0e8fd1a3c28bf3e45202226ab610969f914a5ba404ac0b1ff63f31fb9db76e05"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrTr10-01.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "06de2594bdac8fd09134562d069fe2d95b089d86ef0420de0cf3ccab3b109674",
+    "sourceHash": "9348f09a1060cbd9c8043a9fb5a4a1739b3f55501c8d958b4efccb6320e56fec",
+    "uploadHash": "d98fdb0e2b7d6f9660667ef8037f712dd3a91bd131a2a58b3f86102a9d1ce3cb"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrTr11-01.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "2bd35a0781aee0b6fe2a0bf6964018b6a9c4c852fa2d7479ea49642f24ae5f5f",
+    "sourceHash": "71d62d14db5681f53c49ff3762eecdd673f1faa760d22889541241aabc76be9e",
+    "uploadHash": "ef112a4187d3781f5b801b42b18f4716f7caadada705e0f1bbf79a804dfa2201"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrTr12-01.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "ff55df3188b10bc93f5638386d4191b1b5f643df12d2171976f5632fd86b0494",
+    "sourceHash": "aa6171c9b592736d42f255d784535858bdc898fb52d5d573d6ec843d9190b7e8",
+    "uploadHash": "f556d36bb2398a8cb671dfe968ead6789cd4193efee9b20d160756f75579b5d3"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrTr13-01.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "91a64af9f0dace17d292fe37410143dee9ff03e6224f2b1617e4e69a12d4d731",
+    "sourceHash": "b6d497d44d3a7bc6ba0da2cb850a59080b07ffde86ae4fc4e95c5be13e074178",
+    "uploadHash": "1ce4d51834b552daccac907b4c95567232ea8b1e751bab0e87a4e8bca828344a"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrTr14-01.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "1e8e90a0810bff3294700934bfce32fb422b25701e54ad304497bfa6ee0f306b",
+    "sourceHash": "94208bc38a14477481eb5a18fe288d879a491c873722e2528587dcf53e7348f3",
+    "uploadHash": "46f36acd226f55b47de4daab301fb23351ddfaf7e1542a9ec5c0771454bce4a0"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrTr16-01.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "c862a3ae47424cff7b06445f782b5d52aa0991d435b6ae2200e9e6209898432c",
+    "sourceHash": "4b6382f68d78a2d1b44b074e9e5e580a39935659e7d134e3af6f5d9ac12f57fe",
+    "uploadHash": "dc4c4a8de3b4125457852aa43561c9ad8f288cab613998496f3df90476ea3485"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrTr17-01.dds",
+    "kind": 5,
+    "width": 256,
+    "height": 256,
+    "decodedHash": "73c8482f7ffc5e5f55a436eaa2d598eef11cb6c7f642a5bd3901e13ee2da7f7e",
+    "sourceHash": "608c4aafc405fd7643ad2e5971571c41bbaddf78ce4acb2ff9e4a9ee63a726d8",
+    "uploadHash": "6712252fa6f0d55efeda9c7275a6ad5d403222c456c8373e98a317270cf8191e"
   }
 ]

@@ -3,6 +3,7 @@
 #include "generated/emitter_catalog.hpp"
 #include "generated/foliage_catalog.hpp"
 #include "generated/grass_catalog.hpp"
+#include "generated/material_catalog.hpp"
 #include "generated/sun_catalog.hpp"
 #include "generated/overlay_catalog.hpp"
 #include "generated/surface_catalog.hpp"
@@ -184,7 +185,7 @@ size_t SceneFX::bytes() const {
 }
 void SceneFX::observe(const Settings &s) {
     if (camera_ || (!s.ssao && !s.sunRays && !s.fog && !s.dof && !s.localLighting && !s.lightingBalance &&
-                    s.nightFoliage <= 0 && !s.surfaceReflections && !s.puddles))
+                    s.nightFoliage <= 0 && !s.surfaceReflections && !s.puddles && !s.grass))
         return;
     DWORD z = 0;
     device_->GetRenderState(D3DRS_ZWRITEENABLE, &z);
@@ -645,9 +646,12 @@ bool SceneFX::emissive(IDirect3DTexture9 *texture) {
     for (auto &known : FoliageHashes)
         if (!memcmp(digest, known, 32))
             tag |= 2;
+    for (const auto &known : MaterialIdentities)
+        if (known.kind==7 && !memcmp(digest, known.hash, 32))
+            tag |= 1024;
     for (const auto &known : GrassIdentities)
         if (!memcmp(digest, known.hash, 32))
-            tag |= known.kind == 2 ? 1024 : known.kind == 1 ? 2048 : known.kind == 3 ? 4096 : 0;
+            tag |= known.kind == 2 || known.kind == 5 ? 1024 : known.kind == 1 ? 2048 : known.kind == 3 ? 4096 : 0;
     for (auto &known : SunIdentities)
         if (!memcmp(digest, known.hash, 32))
             tag |= known.disc ? 128 : 8;
@@ -715,10 +719,10 @@ void SceneFX::beginFlare(const Settings &s) {
     device_->SetPixelShader(flarePS_);
 }
 void SceneFX::beginGrassDepth(const Settings &s) {
-    if (!s.ssao || !camera_ || grassDepthActive_)
+    if ((!s.ssao && !s.grass) || !camera_ || grassDepthActive_)
         return;
     DWORD z=0, write=0, blend=0, src=0, dst=0, fvf=0;
-    if (FAILED(device_->GetFVF(&fvf)) || (fvf!=0x112 && fvf!=0x102 && fvf!=0x142) ||
+    if (FAILED(device_->GetFVF(&fvf)) || (fvf!=0x112 && fvf!=0x102 && fvf!=0x142 && fvf!=0x212) ||
         FAILED(device_->GetRenderState(D3DRS_ZENABLE,&z)) || !z ||
         FAILED(device_->GetRenderState(D3DRS_ZWRITEENABLE,&write)) || !write ||
         FAILED(device_->GetRenderState(D3DRS_ALPHABLENDENABLE,&blend)) || !blend ||
@@ -737,7 +741,7 @@ void SceneFX::beginGrassDepth(const Settings &s) {
     DWORD tag=0, size=4;
     if (FAILED(texture->GetPrivateData(EmitterTag,&tag,&size)) || size!=4 || !(tag&1024))
         return;
-    // Native proximity fading blends these cards but can still write their whole
+    // Native proximity fading blends grass, flowers and foliage but can still write their whole
     // rectangle into depth. Translucent grass cannot be an opaque AO receiver or
     // occluder. Keep native color/alpha and depth testing; restore writes per draw.
     grassDepthActive_=SUCCEEDED(device_->SetRenderState(D3DRS_ZWRITEENABLE,FALSE));

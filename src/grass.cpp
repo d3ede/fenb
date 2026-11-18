@@ -2,6 +2,7 @@
 #include "grass_bounds.hpp"
 #include "generated/grass_catalog.hpp"
 #include "generated/foliage_catalog.hpp"
+#include "generated/material_catalog.hpp"
 #include <generated/grass_capture_vs.hpp>
 #include <generated/grass_capture_ps.hpp>
 #include <generated/grass_blade_vs.hpp>
@@ -87,6 +88,7 @@ unsigned GrassFX::classify(IDirect3DTexture9 *texture){
     while(lo<hi){size_t mid=(lo+hi)/2;if(memcmp(GrassIdentities[mid].hash,digest,32)<0)lo=mid+1;else hi=mid;}
     kind=lo<std::size(GrassIdentities)&&!memcmp(GrassIdentities[lo].hash,digest,32)?GrassIdentities[lo].kind:0;
     if(!kind)for(const auto &leaf:FoliageHashes)if(!memcmp(leaf,digest,32)){kind=5;break;}
+    if(!kind)for(const auto &leaf:MaterialIdentities)if(leaf.kind==7&&!memcmp(leaf.hash,digest,32)){kind=5;break;}
     texture->SetPrivateData(GrassTag,&kind,4,0);return kind;
 }
 bool GrassFX::programs(){

@@ -149,7 +149,7 @@ int main(int argc,char **argv){
     auto projection=identity;projection._11=1.2f;projection._22=1.2f*Width/Height;projection._33=200/199.9f;projection._34=1;projection._43=-.1f*projection._33;projection._44=0;
     Settings settings;settings.grass=true;settings.grassQuality=2;settings.grassWind=0;
     bool road=false,roadGradient=false,roadProp=false;DWORD roadAlpha=255,terrainFVF=0x212;unsigned stateErrors=0,extraDraws=0;
-    bool groundTest=false,roadTest=false,sourceSRGB=false,roadWrite=true,leafProp=false,propBlend=false,doubleProp=false;float propHeight=0;int lightingCase=0;
+    bool groundTest=false,roadTest=false,sourceSRGB=false,roadWrite=true,leafProp=false,propBlend=false,doubleProp=false,nativeLeaf=false;float propHeight=0;int lightingCase=0;
     bool distantTiles=false;size_t pendingAfterTiles=0;
     Com<IDirect3DTexture9> dirt,coverage;
     CHECK(SUCCEEDED(d->CreateTexture(8,8,1,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,dirt.out(),nullptr)));
@@ -194,7 +194,7 @@ int main(int argc,char **argv){
                     strip.push_back({p.first,Ground(p.first,p.second)+.005f+propHeight,p.second,0,1,0,p.first,p.second,roadGradient?(p.first+1.5f)/3:.5f,.5f});}
             d->SetRenderState(D3DRS_ZWRITEENABLE,roadWrite);
             d->SetRenderState(D3DRS_ALPHATESTENABLE,roadTest);
-            DWORD tag=leafProp?5u:0u;dirt->SetPrivateData(GrassTag,&tag,4,0);
+            if(!nativeLeaf){DWORD tag=leafProp?5u:0u;dirt->SetPrivateData(GrassTag,&tag,4,0);}
             d->SetTexture(0,dirt);d->SetTexture(1,coverage);
             d->SetRenderState(D3DRS_ALPHABLENDENABLE,TRUE);d->SetRenderState(D3DRS_SRCBLEND,D3DBLEND_SRCALPHA);d->SetRenderState(D3DRS_DESTBLEND,D3DBLEND_INVSRCALPHA);
             d->SetTextureStageState(1,D3DTSS_COLOROP,D3DTOP_SELECTARG1);d->SetTextureStageState(1,D3DTSS_COLORARG1,D3DTA_CURRENT);
@@ -314,6 +314,38 @@ int main(int argc,char **argv){
     roadWrite=false;roadAlpha=255;CHECK(render(true).size()==on.size());CHECK(GrassFXFixture::surface(grass,0,8)[1]<.01f);
     roadWrite=true;roadProp=true;leafProp=true;CHECK(render(true).size()==on.size());
     CHECK(GrassFXFixture::surface(grass,0,8)[1]>.99f&&GrassFXFixture::contact(grass,0,8)==0);
+    if(assets){
+        auto module=LoadLibraryExW(L"d3dx9_43.dll",nullptr,LOAD_LIBRARY_SEARCH_SYSTEM32);
+        using Load=HRESULT(WINAPI *)(IDirect3DDevice9 *,LPCWSTR,UINT,UINT,UINT,DWORD,D3DFORMAT,D3DPOOL,DWORD,DWORD,D3DCOLOR,void *,PALETTEENTRY *,IDirect3DTexture9 **);
+        auto load=reinterpret_cast<Load>(GetProcAddress(module,"D3DXCreateTextureFromFileExW"));CHECK(load);
+        Com<IDirect3DTexture9> savedDirt;std::swap(savedDirt.p,dirt.p);nativeLeaf=true;leafProp=false;
+        for(const char *name:{"Obj_MaCoPrGr07.dds","Obj_MaCoPrGr1.dds","Obj_MaCoPrGr2.dds","Obj_MaCoPrGr3-01.dds",
+                             "Obj_MaCoPrGr04.dds","Obj_MaCoPrGr06.dds","Obj_MaCoPrFl02-01.dds","Obj_MaCoPrFl03-2.dds",
+                             "Obj_MaSaPuGrass01.DDS","Obj_NewFlbush01.dds","Obj_MaCoPrTr02-01.dds","Obj_AzriaTree01-2.dds"}){
+            const std::string file=std::string(assets)+"/Model/Texture/"+name;const std::wstring wide(file.begin(),file.end());
+            for(auto format:{D3DFMT_UNKNOWN,D3DFMT_A8R8G8B8}){
+                CHECK(SUCCEEDED(load(d,wide.c_str(),UINT(-1),UINT(-1),1,0,format,D3DPOOL_MANAGED,1,1,0,nullptr,nullptr,dirt.out())));
+                const unsigned kind=GrassFXFixture::kind(grass,dirt);CHECK(kind==2||kind==5);
+                if(!strcmp(name,"Obj_MaCoPrGr04.dds")&&format==D3DFMT_A8R8G8B8){
+                    // Reproduce the old unknown-prop classification using original leaves.
+                    propHeight=0;propBlend=true;roadWrite=false;roadTest=false;
+                    DWORD unknown=0;CHECK(SUCCEEDED(dirt->SetPrivateData(GrassTag,&unknown,4,0)));
+                    const auto before=render(true);CHECK(SUCCEEDED(dirt->FreePrivateData(GrassTag)));
+                    const auto after=render(true);CHECK(Delta(before,after)>20);
+                    CHECK(Save(before,L"artifacts/vegetation-depth/leaves-contact-before.png"));
+                    CHECK(Save(after,L"artifacts/vegetation-depth/leaves-contact-after.png"));
+                    propHeight=5;
+                }
+                for(bool faded:{false,true}){
+                    propBlend=faded;roadWrite=!faded;roadTest=!faded;
+                    CHECK(render(true).size()==on.size()&&!GrassFXFixture::failed(grass));
+                    CHECK(GrassFXFixture::surface(grass,0,8)[1]>.99f&&GrassFXFixture::contact(grass,0,8)==0);
+                }
+            }
+        }
+        nativeLeaf=false;leafProp=true;propBlend=false;roadWrite=true;roadTest=false;
+        std::swap(savedDirt.p,dirt.p);FreeLibrary(module);
+    }
     leafProp=false;CHECK(render(true).size()==on.size());
     CHECK(GrassFXFixture::surface(grass,0,8)[1]>.99f);
     const float canopy=GrassFXFixture::contact(grass,0,8);
