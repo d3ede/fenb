@@ -108,6 +108,12 @@ Output GrassBlade(Input i,bool adapt) {
     float growth=sqrt(fade*coverage*slope);
     float t=i.blade.y;
     float height=Shape.x*i.height*lerp(1,.8+leaf*.55+patch*.15,Shape.z)*growth;
+    float simpleShape=0;
+    if(simple>.5){
+        simpleShape=frac(leaf*7.31+r3);
+        height=Shape.x*lerp(.45,1.45,leaf)*lerp(.9,1.1,patch)*
+            lerp(1,.75+simpleShape*.5,Shape.z)*growth;
+    }
     // A raised canopy or stall leaves room to grow. Shorten the blades
     // underneath it instead of clearing the projection of the whole object.
     if(solid&&!paving&&clearance>.14)height=min(height,clearance-.04);
@@ -118,19 +124,21 @@ Output GrassBlade(Input i,bool adapt) {
     float span=growth*sqrt(coverScale)*max(1,cameraDistance/40);
     float3 p=float3(root.x+offset.x,surface.r+.008,root.y+offset.y);
     if(simple>.5){
-        // The painted leaves carry their own curves. Keep the cards mostly
-        // upright so the tuft reads as long grass rather than a low leafy fan.
-        float width=Shape.y*14*(.88+leaf*.26)*span;
-        p.xz+=radial*height*(.08+leaf*.12)*t+Wind.xy*sway*height*t*t+side*i.blade.x*width*.5;
+        // Broad flat leaves have an actual tapered silhouette and individual
+        // bends. The texture paints the two faces of the folded leaf.
+        float width=Shape.y*1.9*(1-t)*(.75+.65*sin(t*3.14159265))*(.85+leaf*.35)*span;
+        p.xz+=radial*height*(.10+simpleShape*.38)*t*t+side*(leaf-.5)*height*.16*t*t+
+            Wind.xy*sway*height*t*t+side*i.blade.x*width*.5;
     }else{
         float2 lean=(radial*(.18+leaf*.6)+Wind.xy*sway)*height;
         float width=Shape.y*1.15*(1-t)*(.9+.8*sin(t*3.14159265))*(.85+leaf*.3)*span;
         p.xz+=lean*t*t+side*((leaf-.5)*height*.16*t*t+i.blade.x*width*.5);
     }
     p.y+=height*t;
-    // Soft, upward-biased leaf normals keep the native directional light while
-    // avoiding near-black strips at ground level. Both faces transmit some light.
-    float3 n=normalize(float3(radial.x*.25,1,radial.y*.25));
+    // Detailed keeps its soft upward bias; the simple leaves have more upright
+    // faces so their orientation changes the light. Both faces transmit light.
+    float normalSide=simple>.5?.85:.25;
+    float3 n=normalize(float3(radial.x*normalSide,simple>.5?.6:1,radial.y*normalSide));
     float light=.45+.55*abs(dot(n,SunDirection.xyz));
     float3 lighting=Ambient.rgb+SunColor.rgb*light;
     // Native ambient plus sun can exceed display white. Keep the painted

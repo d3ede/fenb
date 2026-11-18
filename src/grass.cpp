@@ -149,11 +149,11 @@ bool GrassFX::geometry(){
     for(int lod=0;lod<3;++lod){
         auto &b=bands_[lod];b.mesh.out();b.instances.out();b.indices.out();b.count=0;
         const bool simple=style==1;
-        const int blades=simple?2:quality==0?4:quality==1?7:10;
-        const int segments=lod==2?1:simple?2:lod==1?2:quality+2;
+        const int blades=simple?4:quality==0?4:quality==1?7:10;
+        const int segments=lod==2?1:lod==1?2:simple?(quality==2?3:2):quality+2;
         std::vector<BladeVertex> mesh;std::vector<WORD> indices;unsigned seed=0x39c1a265u;
         for(int blade=0;blade<blades;++blade){
-            const float angle=blade*(simple?1.5707963f:6.2831853f/blades)+Random(seed)*.3f;
+            const float angle=blade*(6.2831853f/blades)+Random(seed)*.3f;
             const float radius=.08f+Random(seed)*.16f,h=.75f+Random(seed)*.5f;
             const WORD first=WORD(mesh.size());
             for(int segment=0;segment<=segments;++segment)for(int side:{-1,1})

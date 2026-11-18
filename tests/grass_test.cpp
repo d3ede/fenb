@@ -357,6 +357,13 @@ int main(int argc,char **argv){
     const auto simple=render(true);
     CHECK(GrassFXFixture::hasLeafArt(grass)&&GrassFXFixture::bladeVertices(grass)<detailedVertices&&Delta(on,simple)>20);
     CHECK(Save(simple,L"artifacts/grass/field-simple.png"));
+    const float savedSimpleVariation=settings.grassVariation;
+    settings.grassVariation=0;
+    const auto restrainedSimple=render(true);
+    settings.grassVariation=1;
+    const auto variedSimple=render(true);
+    CHECK(Delta(restrainedSimple,variedSimple)>20&&!GrassFXFixture::failed(grass));
+    settings.grassVariation=savedSimpleVariation;
     settings.grassGroundTint=true;
     CHECK(Delta(simple,render(true))<=(msaa?32u:0u));
     settings.grassGroundTint=false;
