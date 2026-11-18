@@ -104,17 +104,20 @@ Output GrassBladeVS(Input i) {
     // avoiding near-black strips at ground level. Both faces transmit some light.
     float3 n=normalize(float3(radial.x*.25,1,radial.y*.25));
     float light=.45+.55*abs(dot(n,SunDirection.xyz));
-    float3 base=lerp(float3(.19,.40,.045),float3(.31,.51,.065),leaf*.35+patch*.65);
-    float3 tip=lerp(float3(.59,.76,.10),float3(.78,.85,.19),leaf*.4+patch*.6);
+    float3 base=lerp(float3(.16,.30,.055),float3(.25,.39,.07),leaf*.35+patch*.65);
+    float3 tip=lerp(float3(.43,.60,.13),float3(.56,.68,.18),leaf*.4+patch*.6);
     float3 fresh=lerp(base,tip,smoothstep(.08,.95,t));
     float3 tint=lerp(fresh,float3(.58,.49,.20),Look.z);
-    tint=lerp(tint,lerp(float3(.86,.88,.89),float3(.96,.975,.99),t),snow);
+    tint=lerp(tint,lerp(float3(.52,.58,.61),float3(.79,.83,.85),t),snow);
     tint*=lerp(.96,1.04,r3);
     float3 lighting=Ambient.rgb+SunColor.rgb*light;
+    // Native ambient plus sun can exceed display white. Keep the painted
+    // palette readable instead of clipping a whole field to yellow/white.
+    lighting/=max(1,max(lighting.r,max(lighting.g,lighting.b)));
     float neutral=dot(lighting,float3(.2126,.7152,.0722));
     lighting=lerp(lighting,lerp(neutral,lighting,.25),snow);
     float3 color=tint*lighting;
-    color*=lerp(1-Look.w*lerp(.22,.10,snow),lerp(1.04,1.02,snow),t);
+    color*=lerp(1-Look.w*lerp(.22,.38,snow),lerp(1.04,1.02,snow),t);
     color*=lerp(.88+abs(surface.a)*.22,.94,snow);
     float luma=dot(color,float3(.2126,.7152,.0722));
     color=lerp(luma,color,lerp(Look.y,min(Look.y,1),snow))*Look.x;
