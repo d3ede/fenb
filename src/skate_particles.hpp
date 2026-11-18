@@ -27,46 +27,72 @@ class Renderer {
     }
     static float stroke(float distance,float width) {
         const float d=distance/width;
-        return std::exp(-d*d)*.84f+.16f*std::exp(-d*d*.11f);
+        return std::exp(-d*d)*.77f+.23f*std::exp(-d*d*.13f);
+    }
+    static float glow(Point p,Point center,float width,float height) {
+        const float x=(p.x-center.x)/width,y=(p.y-center.y)/height;
+        return std::exp(-x*x-y*y);
+    }
+    static float feather(float distance,float width) {
+        const float outside=std::max(-distance,0.f)/width;
+        return std::exp(-outside*outside);
     }
     static float mask(Style style,Point p) {
         constexpr float diagonal=.70710678f;
+        const Point uv=p;
+        const float phase=float(style)*1.71f;
+        p.x+=.035f*std::sin(uv.y*7+phase)+.018f*std::sin(uv.y*18-uv.x*7);
+        p.y+=.031f*std::sin(uv.x*8-phase)+.013f*std::sin(uv.x*17+uv.y*8);
         const float radius=p.x*p.x+p.y*p.y;
+        const float grain=.90f+.08f*std::sin(p.x*25+p.y*13+phase)*std::sin(p.y*22-p.x*11)
+            +.08f*std::sin(p.x*10-p.y*8+phase);
         float light=0;
         switch(style) {
         case Style::Stars:{
-            const float axis=std::min(std::abs(p.x),std::abs(p.y));
             const float cross=std::min(std::abs(p.x-p.y),std::abs(p.x+p.y))*diagonal;
-            light=.64f*stroke(axis,.045f)*std::exp(-radius*2.9f)+
-                .48f*stroke(cross,.046f)*std::exp(-radius*5.8f)+.55f*std::exp(-radius*22);
+            light=.59f*stroke(std::abs(p.x),.061f)*std::exp(-radius*2.7f)+
+                .47f*stroke(std::abs(p.y),.072f)*std::exp(-radius*3.9f)+
+                .38f*stroke(cross,.059f)*std::exp(-radius*6.3f)+
+                .51f*glow(p,{-.045f,.025f},.22f,.25f)+.18f*std::exp(-radius*4);
             break;
         }
         case Style::Bolts:{
-            const Point top{.24f,-.76f},elbow{-.32f,.06f},joint{.22f,-.05f},tip{-.24f,.76f};
+            const Point top{.25f,-.78f},elbow{-.33f,.04f},joint{.21f,-.06f},tip{-.24f,.74f};
+            const float width=.060f+.052f*glow(p,{-.12f,.03f},.51f,.38f);
             const float bolt=std::min({segment(p,top,elbow),segment(p,elbow,joint),segment(p,joint,tip)});
-            light=stroke(bolt,.078f);
+            light=stroke(bolt,width)*(.76f+.30f*std::exp(-radius*3))+
+                .41f*glow(p,{-.10f,.015f},.39f,.29f)+
+                .25f*stroke(segment(p,{.10f,.13f},{.48f,.45f}),.032f);
             break;
         }
         case Style::Triangles:{
-            const Point top{0,-.69f},left{-.67f,.48f},right{.67f,.48f};
-            light=stroke(std::min({segment(p,top,left),segment(p,left,right),segment(p,right,top)}),.075f);
+            // The three planes bound a luminous shard with a brighter tilted face.
+            const float distance=std::min({.49f-p.y,.51f*p.y+.36f-.87f*p.x,.48f*p.y+.34f+.88f*p.x});
+            light=feather(distance,.137f)*(.39f+.57f*glow(p,{-.13f,.09f},.32f,.48f))
+                +.24f*glow(p,{-.23f,.08f},.42f,.44f);
             break;
         }
         case Style::Rings:{
-            const float round=std::sqrt(radius);
-            light=stroke(std::abs(round-.57f),.07f)+.26f*stroke(std::abs(round-.30f),.042f);
+            const float angle=std::atan2(p.y,p.x),arc=.5f+.5f*std::cos(angle-.9f);
+            const float round=std::hypot(p.x,.93f*p.y);
+            const float ripple=.53f+.05f*std::sin(angle*3+.6f)+.02f*std::cos(angle*5);
+            light=(.25f+.67f*arc)*stroke(std::abs(round-ripple),.057f+.055f*arc)+
+                .27f*arc*stroke(std::abs(round-ripple*.65f),.073f)+
+                .28f*glow(p,{.33f,.33f},.35f,.32f);
             break;
         }
         case Style::Crystals:{
-            const Point q{std::abs(p.x),std::abs(p.y)};
-            light=stroke(segment(q,{0,.76f},{.46f,0}),.069f)
-                +.45f*stroke(segment(q,{0,.76f},{0,0}),.045f)+.30f*std::exp(-radius*12);
+            const Point q{p.x+.22f*p.y,p.y};
+            const float distance=.54f-std::abs(q.x)-.69f*std::abs(q.y);
+            const float facet=glow(q,{-.15f,-.12f},.21f,.43f);
+            light=feather(distance,.109f)*(.30f+.56f*facet)+
+                .29f*glow(q,{.04f,.13f},.30f,.57f)+.25f*glow(q,{.01f,-.08f},.16f,.22f);
             break;
         }
         case Style::Game:break;
         }
-        const float edge=std::clamp((1-std::max(std::abs(p.x),std::abs(p.y)))*6,0.f,1.f);
-        return std::min(light,1.f)*edge*edge*(3-2*edge);
+        const float edge=std::clamp((1-std::max(std::abs(uv.x),std::abs(uv.y)))*6,0.f,1.f);
+        return std::min(light*grain,1.f)*edge*edge*(3-2*edge);
     }
     IDirect3DTexture9 *prepare(Style style) {
         auto &texture=masks_[size_t(style)-1];
