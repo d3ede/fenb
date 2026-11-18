@@ -128,6 +128,8 @@ int main() {
     }
     {
         Settings particles;
+        CHECK(particles.sfxSmoothAura);
+        particles.sfxSmoothAura=false;
         CHECK(!particles.sfxAuraCustomColor);
         CHECK(!particles.sfxWeaponCustomColor);
         particles.sfxWeaponCustomColor=true;particles.sfxWeaponR=.8f;particles.sfxWeaponG=.1f;particles.sfxWeaponB=.3f;
@@ -135,12 +137,14 @@ int main() {
         particles.language=Language::Portuguese;
         CHECK(particles.save(L"build/aura-color-settings.ini"));
         Settings restoredColor;CHECK(restoredColor.load(L"build/aura-color-settings.ini"));
+        CHECK(!restoredColor.sfxSmoothAura);
         CHECK(restoredColor.sfxWeaponCustomColor&&restoredColor.sfxWeaponR==.8f&&restoredColor.sfxWeaponG==.1f&&restoredColor.sfxWeaponB==.3f);
         CHECK(restoredColor.sfxAuraCustomColor&&std::abs(restoredColor.sfxAuraR-18.f/255)<.000001f&&
               std::abs(restoredColor.sfxAuraG-52.f/255)<.000001f&&std::abs(restoredColor.sfxAuraB-86.f/255)<.000001f);
         particles.sfxAuraR=2;particles.sfxAuraG=-1;particles.sfxAuraB=std::numeric_limits<float>::quiet_NaN();particles.sanitize();
         CHECK(particles.sfxAuraR==1&&particles.sfxAuraG==0&&particles.sfxAuraB==Settings{}.sfxAuraB);
         particles.resetSceneSection(11);
+        CHECK(particles.sfxSmoothAura);
         CHECK(!particles.sfxWeaponCustomColor&&particles.sfxWeaponR==Settings{}.sfxWeaponR);
         CHECK(!particles.sfxAuraCustomColor&&particles.sfxAuraR==Settings{}.sfxAuraR&&particles.language==Language::Portuguese);
         FILE *legacyColor=_wfopen(L"build/aura-color-settings.ini",L"wb");CHECK(legacyColor);

@@ -242,7 +242,7 @@ void Runtime::resetFrame() {
     const bool hasPlayer=grassEnabled&&environment_.playerPosition(player,&worldKey);
     grass_->beginFrame(grassEnabled,hasPlayer?player:nullptr,worldKey);
     sfx_->beginFrame(settings.enabled && (settings.sfx || (settings.water && settings.sfxWake > 0)) && !compare,
-                     settings.sfx&&settings.sceneQuality&&settings.sfxAura>0);
+                     settings.sfx&&settings.sfxSmoothAura&&settings.sfxAura>0);
     effects_->sceneFX().beginFrame();
     effects_->sceneFX().updatePuddles(settings, environment_.rainIntensity(settings), GetTickCount64(), !compare && !lost_);
     lastWaterDraws = waterDraws;
@@ -260,7 +260,7 @@ void Runtime::resetFrame() {
     sawWorld_ = hudStarted_ = sawScreenSpace_ = false;
     invalidateDrawState();
 }
-void Runtime::beforeWaterDraw(UINT upStride, DrawCall draw,ParticleDraw particle) {
+bool Runtime::beforeWaterDraw(UINT upStride, DrawCall draw,ParticleDraw particle) {
     // Terrain layers have completed before the native translucent world queue.
     // Blend fading leaves over the already drawn blades, using native depth.
     if(!lost_&&!hudStarted_&&settings.enabled&&settings.grass&&!compare&&!vertexShaderActive_&&fvfKnown_&&
@@ -294,7 +294,7 @@ void Runtime::beforeWaterDraw(UINT upStride, DrawCall draw,ParticleDraw particle
         grass_->beginNative(settings);
     if (lost_ || hudStarted_ || !settings.enabled || !settings.water || compare || vertexShaderActive_ ||
         !fvfKnown_ || drawFVF_ != 0x152 || !sceneBackbuffer_ || drawTarget_ != sceneBackbuffer_)
-        return;
+        return sfx_->skipNativeDraw();
     if (water_->begin(settings, upStride)) {
         ++waterDraws;
         water_->reflect(draw);
@@ -302,6 +302,7 @@ void Runtime::beforeWaterDraw(UINT upStride, DrawCall draw,ParticleDraw particle
         probe_->water(*water_);
 #endif
     }
+    return sfx_->skipNativeDraw();
 }
 void Runtime::environmentDraw(D3DPRIMITIVETYPE type, UINT start, UINT count) {
     if (lost_ || hudStarted_ || !settings.enabled ||

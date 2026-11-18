@@ -142,8 +142,10 @@ inline int RefinementPreview(bool capture) {
             ParticleDraw geometry{D3DPT_TRIANGLESTRIP,2,quad,sizeof(Vertex)};
             if(side){geometry={D3DPT_TRIANGLEFAN,2,nullptr,0,nullptr,D3DFMT_UNKNOWN,0,0,{D3DPT_TRIANGLEFAN,0,2}};device->SetRenderState(D3DRS_TEXTUREFACTOR,color);}
             bool styled = effects.begin(settings, false,true,side?geometry:ParticleDraw{});
-            if(side)device->DrawPrimitive(D3DPT_TRIANGLEFAN,0,2);
-            else device->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, quad, sizeof(Vertex));
+            if(!effects.skipNativeDraw()){
+                if(side)device->DrawPrimitive(D3DPT_TRIANGLEFAN,0,2);
+                else device->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, quad, sizeof(Vertex));
+            }
             if (styled) effects.end(!side);
           }
           }

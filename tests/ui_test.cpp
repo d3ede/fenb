@@ -324,6 +324,9 @@ int main() {
         CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-puddles-narrow-bottom.png").c_str()));
         io.DisplaySize=puddleDisplay;r.centerPanel=true;frame();frame();
         r.editorPage=2;r.editorSelection[2]=10;r.sceneSelection=10;r.settings.sfx=true;frame();frame();
+        r.settings.sceneQuality=false;r.settings.sfxSmoothAura=true;
+        control("particles","smooth-aura");CHECK(!r.settings.sfxSmoothAura&&!r.settings.sceneQuality);
+        control("particles","smooth-aura");CHECK(r.settings.sfxSmoothAura&&!r.settings.sceneQuality);
         const auto particlePanel=inspector()->Pos;
         io.AddMousePosEvent(particlePanel.x+35,particlePanel.y+34+44+10);
         for(int hover=0;hover<12;++hover)frame();
@@ -356,8 +359,10 @@ int main() {
         CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-aura-color.png").c_str()));
         CHECK(colors->Pos.x>=0&&colors->Pos.x+colors->Size.x<=io.DisplaySize.x&&colors->Pos.y>=0&&colors->Pos.y+colors->Size.y<=io.DisplaySize.y);
         ImGui::ClosePopupToLevel(0,true);frame();
-        control("particles","reset-section");CHECK(!r.settings.sfxAuraCustomColor&&r.settings.sfx&&r.settings.language==static_cast<Language>(language));
+        r.settings.sfxSmoothAura=false;
+        control("particles","reset-section");CHECK(r.settings.sfxSmoothAura&&!r.settings.sfxAuraCustomColor&&r.settings.sfx&&r.settings.language==static_cast<Language>(language));
         const auto colorDisplay=io.DisplaySize;io.DisplaySize={334,400};r.centerPanel=true;frame();frame();
+        ImGui::SetScrollY(inspector(),inspector()->ScrollMax.y);frame();frame();
         ImGui::ActivateItemByID(ImHashStr("open",0,ImHashStr("aura-color",0,inspector()->GetID("particles"))));frame();frame();
         CHECK(!ImGui::GetCurrentContext()->OpenPopupStack.empty());
         auto *smallColors=ImGui::GetCurrentContext()->OpenPopupStack.back().Window;

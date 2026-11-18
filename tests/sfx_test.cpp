@@ -5,6 +5,9 @@
 
 struct SfxFXFixture {
     static void cloudPhase(SfxFX &effect,float phase){effect.trailConstants_[7][3]=phase;}
+    static bool captured(SfxFX &effect,IDirect3DDevice9 *device){
+        return effect.skipNativeDraw();
+    }
 };
 
 #define CHECK(x)                                                                                             \
@@ -16,6 +19,39 @@ struct SfxFXFixture {
     } while (0)
 namespace {
 constexpr UINT W = 320, H = 240;
+struct MistStateSnapshot {
+    DWORD fvf,states[15],samplers[6];
+    UINT offset,stride,frequency;
+    void *bindings[8];
+    float vs[13][4],ps[11][4];
+    D3DMATRIX matrices[4];D3DVIEWPORT9 viewport;RECT scissor;
+    bool read(IDirect3DDevice9 *d){
+        memset(this,0,sizeof(*this));
+        constexpr D3DRENDERSTATETYPE keys[]={D3DRS_FOGENABLE,D3DRS_ZENABLE,D3DRS_ZWRITEENABLE,
+            D3DRS_ALPHATESTENABLE,D3DRS_CULLMODE,D3DRS_ALPHABLENDENABLE,D3DRS_SRCBLEND,
+            D3DRS_DESTBLEND,D3DRS_BLENDOP,D3DRS_SEPARATEALPHABLENDENABLE,D3DRS_LIGHTING,
+            D3DRS_COLORWRITEENABLE,D3DRS_ALPHAREF,D3DRS_SCISSORTESTENABLE,D3DRS_SRGBWRITEENABLE};
+        constexpr D3DSAMPLERSTATETYPE filters[]={D3DSAMP_MINFILTER,D3DSAMP_MAGFILTER,D3DSAMP_MIPFILTER,
+            D3DSAMP_ADDRESSU,D3DSAMP_ADDRESSV,D3DSAMP_SRGBTEXTURE};
+        for(unsigned i=0;i<std::size(keys);++i)if(FAILED(d->GetRenderState(keys[i],&states[i])))return false;
+        for(unsigned i=0;i<std::size(filters);++i)if(FAILED(d->GetSamplerState(0,filters[i],&samplers[i])))return false;
+        unsigned i=0;for(auto kind:{D3DTS_WORLD,D3DTS_VIEW,D3DTS_PROJECTION,D3DTS_TEXTURE0})
+            if(FAILED(d->GetTransform(kind,&matrices[i++])))return false;
+        Com<IDirect3DVertexDeclaration9> declaration;Com<IDirect3DVertexShader9> vertex;
+        Com<IDirect3DPixelShader9> pixel;Com<IDirect3DBaseTexture9> texture;
+        Com<IDirect3DVertexBuffer9> stream;Com<IDirect3DIndexBuffer9> indices;
+        Com<IDirect3DSurface9> target,depth;
+        if(FAILED(d->GetVertexDeclaration(declaration.out()))||FAILED(d->GetVertexShader(vertex.out()))||
+           FAILED(d->GetPixelShader(pixel.out()))||FAILED(d->GetTexture(0,texture.out()))||
+           FAILED(d->GetStreamSource(0,stream.out(),&offset,&stride))||FAILED(d->GetIndices(indices.out()))||
+           FAILED(d->GetRenderTarget(0,target.out()))||FAILED(d->GetDepthStencilSurface(depth.out())))return false;
+        bindings[0]=declaration.p;bindings[1]=vertex.p;bindings[2]=pixel.p;bindings[3]=texture.p;
+        bindings[4]=stream.p;bindings[5]=indices.p;bindings[6]=target.p;bindings[7]=depth.p;
+        return SUCCEEDED(d->GetFVF(&fvf))&&SUCCEEDED(d->GetViewport(&viewport))&&
+            SUCCEEDED(d->GetScissorRect(&scissor))&&SUCCEEDED(d->GetStreamSourceFreq(0,&frequency))&&
+            SUCCEEDED(d->GetVertexShaderConstantF(0,vs[0],13))&&SUCCEEDED(d->GetPixelShaderConstantF(0,ps[0],11));
+    }
+};
 std::vector<DWORD> Read(IDirect3DDevice9 *d) {
     Com<IDirect3DSurface9> target, resolved, read;
     d->GetRenderTarget(0, target.out());
@@ -370,11 +406,12 @@ int main(int argc, char **argv) {
         render(false);const auto untreated=Read(d);
         CHECK(render(true) && Difference(untreated,Read(d))==0);
         settings=Settings{};settings.sfx=true;
-        settings.sceneQuality=false;fade=0xd0ffffff;
+        settings.sfxSmoothAura=false;settings.sceneQuality=false;fade=0xd0ffffff;
         CHECK(render(true));const auto economicalAura=Read(d);
-        settings.sceneQuality=true;
+        settings.sfxSmoothAura=true;
         CHECK(render(true)); const auto wisps=Read(d);
         CHECK((!luminous || Difference(economicalAura,wisps)>100) && sfx.bytes()==0);
+        settings.sceneQuality=true;CHECK(render(true));CHECK(Difference(wisps,Read(d))==0);
         precedingEffects=240;CHECK(render(true));CHECK(Difference(wisps,Read(d))==0);
         precedingEffects=0;
         sfx.invalidate();CHECK(render(true));CHECK(Difference(wisps,Read(d))==0);
@@ -428,7 +465,7 @@ int main(int argc, char **argv) {
         texture->UnlockRect(0);tag=7;texture->SetPrivateData(SfxTag,&tag,4,0);
         auto saved=settings;settings=Settings{};settings.sfx=true;settings.sceneQuality=true;
         flatBackground=true;
-        auto clouds=[&](bool continuous,float amount,float phase=17,bool buffered=false,bool separateModels=false)->int {
+        auto clouds=[&](bool continuous,float amount,float phase=17,bool buffered=false,bool separateModels=false,unsigned modelsCount=1,unsigned pointsCount=6)->int {
             sfx.beginFrame(true);background();setup();
             Com<IDirect3DVertexBuffer9> fan;
             if(buffered){
@@ -446,10 +483,10 @@ int main(int argc, char **argv) {
             }
             d->SetRenderState(D3DRS_ZWRITEENABLE,TRUE);sfx.observe();d->SetRenderState(D3DRS_ZWRITEENABLE,FALSE);
             d->BeginScene();
-            int models[2]{};
-            for(int owner=0;owner<(separateModels?2:1);++owner){
-                native_refinement::Scope scope(&models[owner]);
-                for(int i=5;i>=0;--i)for(int side:{-1,1}){
+            for(unsigned model=0;model<modelsCount;++model)for(int owner=0;owner<(separateModels?2:1);++owner){
+                native_refinement::Scope scope(&model);
+                for(int point=int(pointsCount)-1;point>=0;--point)for(int side:{-1,1}){
+                    const int i=point%6;
                     if(separateModels&&side!=(owner?1:-1))continue;
                     auto matrix=id;matrix._41=side*.09f;matrix._42=.8f-i*.28f;
                     if(buffered){matrix._11=.07f;matrix._22=.2f;}
@@ -460,15 +497,24 @@ int main(int argc, char **argv) {
                     ParticleDraw geometry{D3DPT_TRIANGLESTRIP,2,particle,sizeof(V)};
                     if(buffered){geometry={D3DPT_TRIANGLEFAN,2,nullptr,0,nullptr,D3DFMT_UNKNOWN,0,0,{D3DPT_TRIANGLEFAN,0,2}};d->SetRenderState(D3DRS_TEXTUREFACTOR,color);}
                     CHECK(sfx.begin(settings,false,true,continuous?geometry:ParticleDraw{}));
-                    if(buffered)d->DrawPrimitive(D3DPT_TRIANGLEFAN,0,2);
-                    else d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP,2,particle,sizeof(V));sfx.end(!buffered);
+                    if(continuous&&settings.sfxSmoothAura)CHECK(SfxFXFixture::captured(sfx,d));
+                    if(!sfx.skipNativeDraw()){
+                        if(buffered)d->DrawPrimitive(D3DPT_TRIANGLEFAN,0,2);
+                        else d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP,2,particle,sizeof(V));
+                    }
+                    sfx.end(!buffered);
+                    CHECK(!sfx.skipNativeDraw());
                 }
-                CHECK(!continuous || scope.context.finish);
-                float vsBefore[13][4]{},psBefore[11][4]{},vsAfter[13][4]{},psAfter[11][4]{};
-                d->GetVertexShaderConstantF(0,vsBefore[0],13);d->GetPixelShaderConstantF(0,psBefore[0],11);
+                CHECK(!continuous || !settings.sfxSmoothAura || scope.context.finish);
+                if(scope.context.finish&&modelsCount==1){
+                    d->SetRenderState(D3DRS_LIGHTING,TRUE);d->SetRenderState(D3DRS_ALPHATESTENABLE,TRUE);
+                    d->SetRenderState(D3DRS_ZWRITEENABLE,TRUE);d->SetRenderState(D3DRS_CULLMODE,D3DCULL_CCW);
+                }
+                MistStateSnapshot beforeState{},afterState{};CHECK(beforeState.read(d));
                 if(scope.context.finish){SfxFXFixture::cloudPhase(sfx,phase);scope.context.finish(scope.context.consumer);scope.context.finish=nullptr;}
-                d->GetVertexShaderConstantF(0,vsAfter[0],13);d->GetPixelShaderConstantF(0,psAfter[0],11);
-                CHECK(!memcmp(vsBefore,vsAfter,sizeof(vsBefore))&&!memcmp(psBefore,psAfter,sizeof(psBefore)));
+                CHECK(afterState.read(d));CHECK(!memcmp(&beforeState,&afterState,sizeof(beforeState)));
+                d->SetRenderState(D3DRS_LIGHTING,FALSE);d->SetRenderState(D3DRS_ALPHATESTENABLE,FALSE);
+                d->SetRenderState(D3DRS_ZWRITEENABLE,FALSE);d->SetRenderState(D3DRS_CULLMODE,D3DCULL_NONE);
                 DWORD src=0,dst=0,z=0;d->GetRenderState(D3DRS_SRCBLEND,&src);d->GetRenderState(D3DRS_DESTBLEND,&dst);
                 d->GetRenderState(D3DRS_ZWRITEENABLE,&z);
                 CHECK(src==D3DBLEND_SRCALPHA&&dst==D3DBLEND_ONE&&!z);
@@ -478,6 +524,11 @@ int main(int argc, char **argv) {
         CHECK(clouds(false,1)==0);const auto strips=Read(d);
         CHECK(clouds(true,1)==0);const auto mist=Read(d);
         CHECK(clouds(true,1,17,true)==0);CHECK(Difference(mist,Read(d),1)==0);
+        settings.sceneQuality=false;CHECK(clouds(true,1,17,true)==0);CHECK(Difference(mist,Read(d),1)==0);
+        settings.sfxSmoothAura=false;CHECK(clouds(true,1,17,true)==0);CHECK(Difference(mist,Read(d))>100);
+        settings.sfxSmoothAura=true;settings.sceneQuality=true;
+        CHECK(clouds(true,1,17,true,false,180)==0); // 2,160 native source quads; no city fallback.
+        CHECK(clouds(true,1,17,true,false,1,160)==0); // More than one bounded batch in a model.
         Save(Read(d),L"build/refinement-buffered-mist.bmp");
         CHECK(Difference(strips,mist)>100&&sfx.bytes()==0);
         Save(strips,L"build/refinement-paired-before.bmp");Save(mist,L"build/refinement-connected-after.bmp");
@@ -489,6 +540,31 @@ int main(int argc, char **argv) {
         for(UINT y=65;y<150;++y)separateFilled+=((separateMist[y*W+W/2]&255)>(strips[y*W+W/2]&255)+2);
         CHECK(separateFilled>60); // The client's two foot models remain independent but overlap softly.
         Save(separateMist,L"build/refinement-two-model-mist.bmp");
+        {
+            sfx.beginFrame(true);background();setup();
+            d->SetRenderState(D3DRS_ZWRITEENABLE,TRUE);sfx.observe();d->SetRenderState(D3DRS_ZWRITEENABLE,FALSE);
+            d->SetTransform(D3DTS_WORLD,&id);d->BeginScene();
+            int model=0;
+            {
+                native_refinement::Scope scope(&model);
+                Com<IDirect3DVertexBuffer9> boundStream;Com<IDirect3DIndexBuffer9> boundIndices;
+                CHECK(SUCCEEDED(d->CreateVertexBuffer(96,0,0x142,D3DPOOL_SYSTEMMEM,boundStream.out(),nullptr)));
+                CHECK(SUCCEEDED(d->CreateIndexBuffer(12,0,D3DFMT_INDEX16,D3DPOOL_SYSTEMMEM,boundIndices.out(),nullptr)));
+                d->SetStreamSource(0,boundStream,0,sizeof(V));d->SetIndices(boundIndices);
+                V particle[]={{-.04f,.1f,0,0x80ffffff,0,0},{.04f,.1f,0,0x80ffffff,1,0},
+                              {-.04f,-.1f,0,0x80ffffff,0,1},{.04f,-.1f,0,0x80ffffff,1,1}};
+                WORD indices[]={0,1,2,2,1,3};
+                ParticleDraw geometry{D3DPT_TRIANGLELIST,2,particle,sizeof(V),indices,D3DFMT_INDEX16,0,4};
+                MistStateSnapshot before{},after{};CHECK(before.read(d));
+                CHECK(sfx.begin(settings,false,true,geometry)&&sfx.skipNativeDraw());
+                CHECK(after.read(d));CHECK(!memcmp(&before,&after,sizeof(before))); // Capture binds no per-particle shader.
+                sfx.end(true,true);CHECK(!sfx.skipNativeDraw());
+                Com<IDirect3DVertexBuffer9> stream;Com<IDirect3DIndexBuffer9> index;UINT offset=1,stride=1;
+                CHECK(SUCCEEDED(d->GetStreamSource(0,stream.out(),&offset,&stride))&&!stream.p);
+                CHECK(SUCCEEDED(d->GetIndices(index.out()))&&!index.p);
+            }
+            d->EndScene();
+        }
         settings.sfxAuraCustomColor=true;
         auto checkColor=[&](float red,float green,float blue,bool continuous)->int {
             settings.sfxAuraR=red;settings.sfxAuraG=green;settings.sfxAuraB=blue;
@@ -588,7 +664,7 @@ int main(int argc, char **argv) {
         CHECK(render(true)); auto economical = Read(d);
         settings.sceneQuality = true;
         CHECK(render(true)); auto detailed = Read(d);
-        CHECK((!luminous || Difference(economical, detailed) > 100) && nativeBlend);
+        CHECK((!luminous || (refinement?Difference(economical,detailed)==0:Difference(economical,detailed)>100)) && nativeBlend);
         if(!luminous)CHECK(Difference(runeNative,detailed)==0);
         Save(runeNative, aura ? L"build/sfx-aura-native.bmp" : curtain ? L"build/sfx-aurora-native.bmp" : L"build/sfx-rune-native.bmp");
         Save(economical, aura ? L"build/sfx-aura-economical.bmp" : curtain ? L"build/sfx-aurora-economical.bmp" : L"build/sfx-rune-economical.bmp");

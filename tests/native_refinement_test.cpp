@@ -41,7 +41,12 @@ int main(int argc,char **argv){
     for(int i=0;i<8;++i)for(int side:{-1,1})puffs.push_back({{side*.07f,0,i*.3f},.12f,{1,1,1,1-i*.11f}});
     merge(puffs);assert(puffs.size()==8);
     std::vector<Vertex> vertices;mesh(puffs,identity,vertices);
-    assert(vertices.size()>8*6&&vertices.size()<=12288);
+    assert(vertices.size()>8*6&&vertices.size()<=MaxVertices);
+    const size_t linked=vertices.size()/6;
+    printf("Resampled trail: %zu sprites for %zu merged points\n",linked,puffs.size());
+    puffs.clear();
+    for(int i=0;i<256;++i)puffs.push_back({{0,0,i*.3f},.12f,{1,1,1,1-i*.003f}});
+    mesh(puffs,identity,vertices);assert(vertices.size()<=MaxVertices);
     for(const auto &v:vertices)assert(std::isfinite(v.x)&&std::isfinite(v.y)&&std::isfinite(v.z));
     std::vector<Puff> separated={{{0,0,0},.12f,{1,1,1,1}},{{20,0,0},.12f,{1,1,1,.5f}}};
     mesh(separated,identity,vertices);assert(vertices.size()==12); // No teleport bridge.

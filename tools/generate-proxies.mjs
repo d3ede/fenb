@@ -54,8 +54,9 @@ for (const [,type,parent,body] of definitions) {
         const particle=name==='DrawPrimitiveUP'?`,{${names[0]},${count},${data},${stride}}`:
           name==='DrawIndexedPrimitiveUP'?`,{${names[0]},${count},${data},${stride},${names[4]},${names[5]},${names[1]},${names[2]}}`:
           `,{${names[0]},${count},nullptr,0,nullptr,D3DFMT_UNKNOWN,0,0,${geometry}}`;
-        before+=`if (${count}) runtime_->beforeWaterDraw(${stride},[&](){return ${call};}${particle}); `;
+        before+=`const bool fenbSkip = ${count} && runtime_->beforeWaterDraw(${stride},[&](){return ${call};}${particle}); `;
         after+=`runtime_->afterWaterDraw(${up},${up&&indexed}); `;
+        call=`fenbSkip ? D3D_OK : ${call}`;
       }
       if(type==='IDirect3DTexture9'&&name==='UnlockRect')after+='if(SUCCEEDED(hr)) InvalidateWaterTag(real_); ';
       if(['Lock','LockRect','LockBox'].includes(name) && !device && !root && !swap)

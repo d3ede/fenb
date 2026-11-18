@@ -204,7 +204,7 @@ float4 RefinementCloudPS(float2 uv:TEXCOORD0,float fogDepth:TEXCOORD1,float4 col
  float curl=sin(p.y*4+Screen.w+sin(p.x*3-Screen.w));
  p.x+=curl*.12*(1-p.y*p.y);
  float radius=dot(p,p);
- float density=exp(-radius*3.5)*smoothstep(1,.42,radius);
+ float density=exp(-radius*2.7)*smoothstep(1,.42,radius);
  density*=.82+.18*sin(p.x*5+p.y*3+Screen.w);
  float3 palette=tex2Dlod(Art,float4(.4,.65,0,0)).rgb;
  palette+=tex2Dlod(Art,float4(.5,.55,0,0)).rgb;

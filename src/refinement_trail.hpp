@@ -5,6 +5,7 @@
 #include <array>
 
 namespace refinement_trail {
+inline constexpr unsigned MaxSprites=512,MaxVertices=MaxSprites*6;
 struct Vec {
     float x=0,y=0,z=0;
     Vec operator+(Vec b)const{return{x+b.x,y+b.y,z+b.z};}
@@ -85,12 +86,12 @@ inline void merge(std::vector<Puff>&puffs){
 inline void mesh(std::vector<Puff>&puffs,const D3DMATRIX &view,std::vector<Vertex>&out){
     out.clear();merge(puffs);
     auto append=[&](Puff puff,float gain){
-        if(out.size()+6>12288)return;
+        if(out.size()+6>MaxVertices)return;
         const float alpha=std::clamp(puff.color[3],0.f,1.f),age=1-alpha;
         puff.position.y+=age*.08f;
         Vec p=transform(puff.position,view);
         const float r=puff.radius*(1.3f+age*.9f);
-        auto color=packed(puff.color,gain*std::pow(alpha,.6f));
+        auto color=packed(puff.color,gain*std::pow(alpha,.35f));
         Vertex quad[]={{p.x-r,p.y+r,p.z,color,0,0},{p.x+r,p.y+r,p.z,color,1,0},
                        {p.x-r,p.y-r,p.z,color,0,1},{p.x+r,p.y-r,p.z,color,1,1}};
         for(int i:{0,1,2,2,1,3})out.push_back(quad[i]);
@@ -99,14 +100,17 @@ inline void mesh(std::vector<Puff>&puffs,const D3DMATRIX &view,std::vector<Verte
         const auto &a=puffs[i];size_t next=puffs.size();float distance=std::min(2.75f,a.radius*10);
         for(size_t j=i+1;j<puffs.size();++j){float d=length(a.position-puffs[j].position);
             if(d>.005f&&d<distance){distance=d;next=j;}}
-        if(next==puffs.size()){append(a,.75f);continue;}
-        const unsigned allowance=unsigned((2048-out.size()/6)/(puffs.size()-i));
-        const auto &b=puffs[next];unsigned steps=std::clamp(unsigned(std::ceil(distance/std::max(.035f,a.radius*.4f))),1u,std::min(16u,std::max(1u,allowance)));
+        if(next==puffs.size()){append(a,.95f);continue;}
+        const unsigned allowance=unsigned((MaxSprites-out.size()/6)/(puffs.size()-i));
+        const auto &b=puffs[next];unsigned steps=std::clamp(unsigned(std::ceil(distance/std::max(.06f,a.radius*.75f))),1u,std::min(8u,std::max(1u,allowance)));
+        // Maintain optical coverage as sample spacing changes, with fewer
+        // overlapping billboards. Native alpha still reaches exactly zero.
+        const float gain=std::clamp(.44f*distance/(steps*std::max(.035f,a.radius*.4f)),.35f,1.1f);
         for(unsigned step=0;step<steps;++step){
             float t=float(step)/steps;Puff p;
             p.position=a.position*(1-t)+b.position*t;p.radius=a.radius*(1-t)+b.radius*t;
             for(int c=0;c<4;++c)p.color[c]=a.color[c]*(1-t)+b.color[c]*t;
-            append(p,.30f);
+            append(p,gain);
         }
     }
 }

@@ -109,6 +109,7 @@ void AuraColorPicker(Settings &s,bool weapon=false) {
     ImGui::PopStyleVar();
     ImGui::EndDisabled();ImGui::PopFont();ImGui::PopID();
 }
+void PanelToggle(const char *,const char *,bool &,const char *,bool);
 void SceneParameters(Runtime &r) {
     auto &s = r.settings;
     const Settings defaults;
@@ -206,6 +207,9 @@ void SceneParameters(Runtime &r) {
     case 10:
         RR(Saturation, SaturationHelp, sfxSaturation, .5f, 1.5f, "%.2f", .05f);
         RR(SfxSoftness, SfxSoftnessHelp, sfxSoftness, 0, 1, "%.2f", .05f);
+        ImGui::BeginDisabled(uiParameterDisabled);
+        PanelToggle("smooth-aura",Tr(UiText::SmoothAura),s.sfxSmoothAura,nullptr,true);
+        ImGui::EndDisabled();
         AuraColorPicker(s);
         AuraColorPicker(s,true);
         break;
