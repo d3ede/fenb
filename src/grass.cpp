@@ -6,6 +6,7 @@
 #include "generated/grass_catalog.hpp"
 #include "generated/foliage_catalog.hpp"
 #include "generated/material_catalog.hpp"
+#include "generated/surface_catalog.hpp"
 #include <generated/grass_capture_vs.hpp>
 #include <generated/grass_capture_ps.hpp>
 #include <generated/grass_blade_vs.hpp>
@@ -72,7 +73,7 @@ void GrassFX::beginFrame(bool enabled,const float *player,uint64_t worldKey){
 }
 unsigned GrassFX::classify(IDirect3DTexture9 *texture){
     DWORD kind=0,size=4;
-    if(SUCCEEDED(texture->GetPrivateData(GrassTag,&kind,&size))&&size==4)return kind<=5?kind:0;
+    if(SUCCEEDED(texture->GetPrivateData(GrassTag,&kind,&size))&&size==4)return kind<=7?kind:0;
     D3DSURFACE_DESC desc{};
     if(FAILED(texture->GetLevelDesc(0,&desc))||desc.Pool!=D3DPOOL_MANAGED||desc.Usage)return 0;
     UINT bytes=0,rows=desc.Height;
@@ -92,6 +93,7 @@ unsigned GrassFX::classify(IDirect3DTexture9 *texture){
     kind=lo<std::size(GrassIdentities)&&!memcmp(GrassIdentities[lo].hash,digest,32)?GrassIdentities[lo].kind:0;
     if(!kind)for(const auto &leaf:FoliageHashes)if(!memcmp(leaf,digest,32)){kind=5;break;}
     if(!kind)for(const auto &leaf:MaterialIdentities)if(leaf.kind==7&&!memcmp(leaf.hash,digest,32)){kind=5;break;}
+    if(!kind)for(const auto &surface:SurfaceIdentities)if(!memcmp(surface.hash,digest,32)){kind=surface.kind==3?7:6;break;}
     texture->SetPrivateData(GrassTag,&kind,4,0);return kind;
 }
 bool GrassFX::programs(){
@@ -230,6 +232,7 @@ void GrassFX::capture(const Settings &s,DrawCall draw,SurfaceDraw geometry){
     auto release=[](Command *c){c->clear();};
     std::unique_ptr<Command,decltype(release)> command(&commands_[pending_.size()],release);
     command->draw=geometry;command->fvf=fvf;command->blend=blend!=0&&!prop;command->prop=prop;
+    command->contactMode=prop?(kind==7?3.f:kind==6?2.f:1.f):0.f;
     command->matrices[0]=world;
     D3DMATRIX view{},projection{};device_->GetTransform(D3DTS_VIEW,&view);device_->GetTransform(D3DTS_PROJECTION,&projection);
     if(memcmp(&view,&view_,sizeof(view))||memcmp(&projection,&projection_,sizeof(projection)))return;
@@ -292,7 +295,7 @@ void GrassFX::apply(const Command &c,bool heightOnly){
     device_->SetVertexShaderConstantF(0,&c.matrices[0].m[0][0],12);
     float material[]={c.material[0],c.material[1],c.material[2],!c.blend||heightOnly?1.f:0.f};
     device_->SetPixelShaderConstantF(0,material,1);
-    const float contact[]={c.prop?1.f:0.f,center_[1],0,0};device_->SetPixelShaderConstantF(1,contact,1);
+    const float contact[]={c.contactMode,center_[1],0,0};device_->SetPixelShaderConstantF(1,contact,1);
     device_->SetRenderState(D3DRS_ALPHABLENDENABLE,c.prop||(c.blend&&!heightOnly));
     device_->SetRenderState(D3DRS_BLENDOP,c.prop?D3DBLENDOP_MAX:D3DBLENDOP_ADD);
     device_->SetRenderState(D3DRS_SRCBLEND,c.prop?D3DBLEND_ONE:D3DBLEND_SRCALPHA);

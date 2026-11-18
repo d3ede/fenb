@@ -1,5 +1,23 @@
 [
   {
+    "file": "World/Texture/Upresia_Ground01.dds",
+    "kind": 3,
+    "width": 512,
+    "height": 512,
+    "decodedHash": "b2bff5c81cd405df12bc0312dd35d015aa0d4f48e5b2795859b2265cb4e46968",
+    "sourceHash": "af37711d00a4ceec87b1e0b71fdee2aa121e7c01a95dced2f4ff79f9cbf7bea3",
+    "uploadHash": "151360d893f4c7a375d427623587b66998a2ab1b9be28c7a2aa623b292c1aaa0"
+  },
+  {
+    "file": "World/Texture/Upresia_Ground01_01.dds",
+    "kind": 3,
+    "width": 512,
+    "height": 512,
+    "decodedHash": "c1041c7e4efce95ffd7fd56682febf982deccab924a73f270a13bfd463cca211",
+    "sourceHash": "f3cddf8920c2b609db3cc08cb94a089163df6a8f114248d7e3b7b969b9edaa23",
+    "uploadHash": "f17c64fca93131a953bbdea1c06d5e0573a24376624cf7965ee5577a375cfaed"
+  },
+  {
     "file": "World/Texture/ground_lawn001.dds",
     "kind": 1,
     "width": 256,

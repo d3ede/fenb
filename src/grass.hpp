@@ -40,6 +40,7 @@ class GrassFX {
         UINT offset=0,stride=0;
         float material[4]{};
         bool blend=false,prop=false;
+        float contactMode=0;
         void clear(){vertices.out();indices.out();art.out();blendMap.out();}
     };
     std::array<Command,256> commands_;

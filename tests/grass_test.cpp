@@ -104,7 +104,8 @@ int main(int argc,char **argv){
         using Load=HRESULT(WINAPI *)(IDirect3DDevice9 *,LPCWSTR,UINT,UINT,UINT,DWORD,D3DFORMAT,D3DPOOL,DWORD,DWORD,D3DCOLOR,void *,PALETTEENTRY *,IDirect3DTexture9 **);
         auto load=reinterpret_cast<Load>(GetProcAddress(module,"D3DXCreateTextureFromFileExW"));CHECK(load);
         for(const char *name:{"ground_clay001.dds","ground_clay003.dds","ground_clay006.dds","ground_clay007.dds",
-                              "ground_n_clay_lawn001.dds","rustia_lawn01.dds","ground_n_ice02.dds","ground_n_ice03.dds"}){
+                              "ground_n_clay_lawn001.dds","Upresia_Ground01.dds","Upresia_Ground01_01.dds",
+                              "rustia_lawn01.dds","ground_n_ice02.dds","ground_n_ice03.dds"}){
             const std::string file=std::string(assets)+"/World/Texture/"+name;const std::wstring native(file.begin(),file.end());
             for(auto format:{D3DFMT_UNKNOWN,D3DFMT_A8R8G8B8}){Com<IDirect3DTexture9> source;
                 CHECK(SUCCEEDED(load(d,native.c_str(),UINT(-1),UINT(-1),0,0,format,D3DPOOL_MANAGED,1,1,0,nullptr,nullptr,source.out())));
@@ -152,6 +153,7 @@ int main(int argc,char **argv){
     bool groundTest=false,roadTest=false,sourceSRGB=false,roadWrite=true,leafProp=false,propBlend=false,doubleProp=false,nativeLeaf=false;float propHeight=0;int lightingCase=0;
     bool distantTiles=false;size_t pendingAfterTiles=0;
     bool translucentLeaf=false,earlyGrass=true;
+    bool paving=false;
     Com<IDirect3DTexture9> dirt,coverage;
     CHECK(SUCCEEDED(d->CreateTexture(8,8,1,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,dirt.out(),nullptr)));
     CHECK(SUCCEEDED(d->CreateTexture(8,8,1,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,coverage.out(),nullptr)));
@@ -195,7 +197,7 @@ int main(int argc,char **argv){
                     strip.push_back({p.first,Ground(p.first,p.second)+.005f+propHeight,p.second,0,1,0,p.first,p.second,roadGradient?(p.first+1.5f)/3:.5f,.5f});}
             d->SetRenderState(D3DRS_ZWRITEENABLE,roadWrite);
             d->SetRenderState(D3DRS_ALPHATESTENABLE,roadTest);
-            if(!nativeLeaf){DWORD tag=leafProp?5u:0u;dirt->SetPrivateData(GrassTag,&tag,4,0);}
+            if(!nativeLeaf){DWORD tag=leafProp?5u:paving?6u:0u;dirt->SetPrivateData(GrassTag,&tag,4,0);}
             d->SetTexture(0,dirt);d->SetTexture(1,coverage);
             d->SetRenderState(D3DRS_ALPHABLENDENABLE,TRUE);d->SetRenderState(D3DRS_SRCBLEND,D3DBLEND_SRCALPHA);d->SetRenderState(D3DRS_DESTBLEND,D3DBLEND_INVSRCALPHA);
             d->SetTextureStageState(1,D3DTSS_COLOROP,D3DTOP_SELECTARG1);d->SetTextureStageState(1,D3DTSS_COLORARG1,D3DTA_CURRENT);
@@ -203,8 +205,13 @@ int main(int argc,char **argv){
             if(roadProp){d->SetFVF(0x112);d->SetRenderState(D3DRS_ALPHABLENDENABLE,propBlend);d->SetTextureStageState(1,D3DTSS_COLOROP,D3DTOP_DISABLE);}
             auto drawRoad=[&](){return d->DrawPrimitiveUP(D3DPT_TRIANGLELIST,UINT(strip.size()/3),strip.data(),sizeof(Vertex));};
             if(on&&!proxy){grass.capture(settings,drawRoad);grass.beforeTranslucency(settings);}drawRoad();
-            if(doubleProp){auto raised=identity;raised._42=5;d->SetTransform(D3DTS_WORLD,&raised);
-                if(on&&!proxy)grass.capture(settings,drawRoad);drawRoad();d->SetTransform(D3DTS_WORLD,&identity);}
+            if(doubleProp){
+                auto shifted=identity;shifted._42=paving?-2.f:5.f;
+                d->SetTransform(D3DTS_WORLD,&shifted);
+                if(paving){DWORD lowerProp=0;dirt->SetPrivateData(GrassTag,&lowerProp,4,0);}
+                if(on&&!proxy)grass.capture(settings,drawRoad);
+                drawRoad();d->SetTransform(D3DTS_WORLD,&identity);
+            }
         }
         if(translucentLeaf){
             d->SetRenderState(D3DRS_ALPHABLENDENABLE,TRUE);
@@ -384,6 +391,11 @@ int main(int argc,char **argv){
     CHECK(GrassFXFixture::contact(grass,0,8)>0&&GrassFXFixture::surface(grass,0,8)[1]>.99f);
     doubleProp=true;const float lowContact=GrassFXFixture::contact(grass,0,8);CHECK(render(true).size()==on.size());
     CHECK(std::abs(GrassFXFixture::contact(grass,0,8)-lowContact)<.00001f);doubleProp=false;
+    paving=true;propHeight=.65f;doubleProp=true;
+    CHECK(render(true).size()==on.size());
+    const float pavingContact=GrassFXFixture::contact(grass,0,8);
+    CHECK(pavingContact>1&&std::abs((2.3f+(pavingContact-1.5f)*1024)-Ground(0,8)-.65f)<.04f);
+    paving=false;propHeight=0;doubleProp=false;
     roadProp=propBlend=false;roadWrite=true;
     road=false;
     Com<IDirect3DTexture9> snowy;CHECK(SUCCEEDED(d->CreateTexture(32,32,1,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,snowy.out(),nullptr)));
