@@ -51,6 +51,9 @@ within the section and includes the snowy branch atlas. Foliage is off by
 default and replaces the leaves of eleven ordinary Flaris tree models and the
 hanging vines of the forked tree. Night foliage fill can still
 identify the original leaf material while the replacement texture is bound.
+The Flaris foliage atlases use transparent pockets between leaf sprays and
+clear margins at exposed mesh edges. The masks retain cutout coverage as
+the crown recedes, with the original material alpha state in control.
 Older configurations keep their bark setting. Image profiles retain all three
 switches. The replacements use native geometry, UVs, lighting and alpha state.
 Ordinary Flaris trees use individual color grades and bark patterns. Three
