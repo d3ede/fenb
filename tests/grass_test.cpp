@@ -39,6 +39,7 @@ struct GrassFXFixture {
     static bool failed(const GrassFX &g){return g.failed_;}
     static unsigned kind(GrassFX &g,IDirect3DTexture9 *texture){return g.classify(texture);}
     static UINT count(const GrassFX &g){UINT n=0;for(auto &b:g.bands_)n+=b.count;return n;}
+    static UINT bladeVertices(const GrassFX &g){return g.bands_[0].vertices;}
     static std::array<float,2> center(const GrassFX &g){return {g.map_[0],g.map_[1]};}
     static size_t queued(const GrassFX &g){return g.pending_.size();}
     static float contact(GrassFX &g,float x,float z){
@@ -259,6 +260,13 @@ int main(int argc,char **argv){
     CHECK(off.size()==Width*Height&&on.size()==off.size());CHECK(GrassFXFixture::started(grass)&&!GrassFXFixture::failed(grass));
     unsigned changed=0;for(size_t i=0;i<off.size();++i)changed+=off[i]!=on[i];printf("Changed pixels: %u\n",changed);CHECK(changed>10000);
     CreateDirectoryW(L"artifacts/grass",nullptr);CHECK(Save(off,L"artifacts/grass/field-off.png")&&Save(on,L"artifacts/grass/field-on.png"));
+    const UINT detailedVertices=GrassFXFixture::bladeVertices(grass);
+    settings.grassStyle=1;
+    const auto simple=render(true);
+    CHECK(GrassFXFixture::bladeVertices(grass)<detailedVertices&&Delta(on,simple)>20);
+    CHECK(Save(simple,L"artifacts/grass/field-simple.png"));
+    settings.grassStyle=0;
+    CHECK(Delta(on,render(true))<=(msaa?32u:0u));
     translucentLeaf=true;earlyGrass=false;const auto lateLeaf=render(true);
     earlyGrass=true;const auto overGrass=render(true);translucentLeaf=false;
     double blendError=0;

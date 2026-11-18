@@ -134,6 +134,7 @@ void Settings::sanitize() {
 #undef SCENE_BOOL
 #undef SCENE_FLOAT
     grassQuality=std::round(grassQuality);
+    grassStyle=std::round(grassStyle);
 }
 void Settings::resetSceneSection(int group) {
     if(group==11)sfxAuraCustomColor=sfxWeaponCustomColor=false;

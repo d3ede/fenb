@@ -64,6 +64,7 @@ Output GrassBladeVS(Input i) {
     if(distance<Band.y||distance>=Band.z){o.position=float4(2,2,2,1);return o;}
     float leaf=Hash(cell+i.blade.w*13.71+9.4);
     float patch=Hash(floor(root*.16));
+    float simple=i.offset.y;
     float angle=i.blade.z+r*6.2831853+(leaf-.5)*.7;
     float sn,cs;sincos(angle,sn,cs);
     float2 radial=float2(cs,sn),side=float2(-sn,cs);
@@ -93,14 +94,16 @@ Output GrassBladeVS(Input i) {
     float height=Shape.x*i.height*lerp(1,.8+leaf*.55+patch*.15,Shape.z)*growth;
     float phase=dot(root,float2(.19,.13))+Wind.w*Extra.x*1.35;
     float sway=(sin(phase)*.65+sin(phase*1.7+r3*6.2831853)*.35)*Wind.z;
-    float2 lean=radial*(.18+leaf*.6)*height+Wind.xy*sway*height;
+    float2 lean=radial*lerp(.18+leaf*.6,.2+leaf*.48,simple)*height+Wind.xy*sway*height;
     // A fuller curved leaf reads as a blade instead of a dark needle.
     float coverScale=1+smoothstep(min(15,Lod.z*.34)*.65,min(15,Lod.z*.34),distance)+
         2*smoothstep(min(42,Lod.z*.7)*.65,min(42,Lod.z*.7),distance);
     float width=Shape.y*1.15*(1-t)*(.9+.8*sin(t*3.14159265))*(.85+leaf*.3)*growth*
         sqrt(coverScale)*max(1,cameraDistance/40);
+    if(simple>.5)
+        width=Shape.y*1.75*(1-t)*growth*sqrt(coverScale)*max(1,cameraDistance/45);
     float3 p=float3(root.x+offset.x,surface.r+.008,root.y+offset.y);
-    p.xz+=lean*t*t+side*((leaf-.5)*height*.16*t*t+i.blade.x*width*.5);
+    p.xz+=lean*lerp(t*t,t*(.55+.45*t),simple)+side*((leaf-.5)*height*.16*t*t*(1-simple)+i.blade.x*width*.5);
     p.y+=height*t;
     // Soft, upward-biased leaf normals keep the native directional light while
     // avoiding near-black strips at ground level. Both faces transmit some light.
@@ -108,7 +111,9 @@ Output GrassBladeVS(Input i) {
     float light=.45+.55*abs(dot(n,SunDirection.xyz));
     float3 base=lerp(float3(.16,.30,.055),float3(.25,.39,.07),leaf*.35+patch*.65);
     float3 tip=lerp(float3(.43,.60,.13),float3(.56,.68,.18),leaf*.4+patch*.6);
-    float3 fresh=lerp(base,tip,smoothstep(.08,.95,t));
+    base=lerp(base,lerp(float3(.14,.31,.055),float3(.19,.38,.075),leaf),simple);
+    tip=lerp(tip,lerp(float3(.37,.58,.13),float3(.48,.65,.16),leaf),simple);
+    float3 fresh=lerp(base,tip,smoothstep(.08,lerp(.95,1,simple),t));
     float3 tint=lerp(fresh,float3(.58,.49,.20),Look.z);
     tint=lerp(tint,lerp(float3(.52,.58,.61),float3(.79,.83,.85),t),snow);
     tint*=lerp(.96,1.04,r3);

@@ -139,6 +139,7 @@ inline void ApplyBuiltInVisuals(Settings &s, int index) {
     s.grassHeight = 0.550000f;
     s.grassWidth = 0.030000f;
     s.grassVariation = 0.400000f;
+    s.grassStyle = 0.000000f;
     s.grassSlope = 45.000000f;
     s.grassFade = 0.250000f;
     s.grassWind = 0.350000f;

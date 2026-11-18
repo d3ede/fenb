@@ -54,7 +54,7 @@ class GrassFX {
     bool winter_=false,contactClear_=true,contactTarget_=false;
     unsigned resolution_=0;
     DWORD worldSrgb_=FALSE;
-    int builtQuality_=-1;
+    int builtQuality_=-1,builtStyle_=-1;
     float builtDensity_=0,builtDistance_=0;
     bool enabled_=false,started_=false,rendered_=false,clear_=true,failed_=false,hidden_=false,checked_=false,capable_=false;
     size_t bufferBytes_=0;

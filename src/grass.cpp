@@ -18,7 +18,7 @@ namespace {
 constexpr D3DSAMPLERSTATETYPE Samplers[]={D3DSAMP_MINFILTER,D3DSAMP_MAGFILTER,D3DSAMP_ADDRESSU,
     D3DSAMP_ADDRESSV,D3DSAMP_MIPFILTER,D3DSAMP_MAXANISOTROPY,D3DSAMP_SRGBTEXTURE,
     D3DSAMP_MAXMIPLEVEL,D3DSAMP_MIPMAPLODBIAS};
-struct BladeVertex {float side,t,angle,seed,x,z,height;};
+struct BladeVertex {float side,t,angle,seed,radius,style,height;};
 struct Cell {float x,z;};
 D3DMATRIX Identity(){D3DMATRIX m{};m._11=m._22=m._33=m._44=1;return m;}
 D3DMATRIX Multiply(const D3DMATRIX &a,const D3DMATRIX &b){D3DMATRIX m{};
@@ -114,7 +114,8 @@ bool GrassFX::programs(){
 }
 bool GrassFX::geometry(){
     const int quality=int(std::round(frame_.grassQuality));
-    if(builtQuality_==quality&&builtDensity_==frame_.grassDensity&&builtDistance_==frame_.grassDistance)return true;
+    const int style=int(std::round(frame_.grassStyle));
+    if(builtQuality_==quality&&builtStyle_==style&&builtDensity_==frame_.grassDensity&&builtDistance_==frame_.grassDistance)return true;
     bufferBytes_=0;
     const float distance=frame_.grassDistance;
     const float cuts[]={0,std::min(15.f,distance*.34f),std::min(42.f,distance*.7f),distance};
@@ -124,15 +125,15 @@ bool GrassFX::geometry(){
     const float baseSpacing=std::max(.28f/std::sqrt(frame_.grassDensity),std::sqrt(weightedArea/(budgets[quality]*.94f)));
     for(int lod=0;lod<3;++lod){
         auto &b=bands_[lod];b.mesh.out();b.instances.out();b.indices.out();b.count=0;
-        const int blades=quality==0?4:quality==1?7:10;
-        const int segments=lod==0?quality+2:lod==1?2:1;
+        const int blades=style==1?quality+3:quality==0?4:quality==1?7:10;
+        const int segments=lod==2?1:style==1||lod==1?2:quality+2;
         std::vector<BladeVertex> mesh;std::vector<WORD> indices;unsigned seed=0x39c1a265u;
         for(int blade=0;blade<blades;++blade){
             const float angle=blade*6.2831853f/blades+Random(seed)*.3f;
             const float radius=.08f+Random(seed)*.16f,h=.75f+Random(seed)*.5f;
             const unsigned first=unsigned(mesh.size());
             for(int segment=0;segment<=segments;++segment)for(int side:{-1,1})
-                mesh.push_back({float(side),float(segment)/segments,angle,float(blade),radius,0,h});
+                mesh.push_back({float(side),float(segment)/segments,angle,float(blade),radius,float(style),h});
             for(int segment=0;segment<segments;++segment){WORD a=WORD(first+segment*2),c=a+2;
                 indices.insert(indices.end(),{a,WORD(a+1),c,c,WORD(a+1),WORD(c+1)});}
         }
@@ -156,7 +157,7 @@ bool GrassFX::geometry(){
         b.vertices=UINT(mesh.size());b.triangles=UINT(indices.size()/3);b.count=UINT(roots.size());
         bufferBytes_+=mesh.size()*sizeof(BladeVertex)+indices.size()*2+roots.size()*sizeof(Cell);
     }
-    builtQuality_=quality;builtDensity_=frame_.grassDensity;builtDistance_=frame_.grassDistance;return true;
+    builtQuality_=quality;builtStyle_=style;builtDensity_=frame_.grassDensity;builtDistance_=frame_.grassDistance;return true;
 }
 bool GrassFX::initialize(const Settings &s){
     if(failed_||!supported())return false;
