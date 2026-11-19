@@ -10,6 +10,7 @@ const notices = [
   ['Dear ImGui', 'vendor/imgui-1.92.9b/LICENSE.txt'],
   ['Inter font', 'assets/fonts/OFL.txt'],
   ['SMAA', 'vendor/smaa/LICENSE.txt'],
+  ['Bundled game artwork', 'assets/NOTICE.txt'],
 ];
 const sections = notices.map(([name, source]) =>
   `${'='.repeat(72)}\n${name}\n${'='.repeat(72)}\n\n${fs.readFileSync(path.join(root, source), 'utf8').trimEnd()}\n`);

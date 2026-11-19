@@ -24,7 +24,7 @@ Installation
    dropdown. English is the default. Select a built-in profile or adjust
    the effects yourself.
 
-No installer, separate shaders or font files are needed. All nine built-in
+No installer, separate shaders or font files are needed. All five built-in
 profiles are included in the DLL. FENB-presets stores your custom profiles;
 it is not included in the archive and is created when needed.
 
@@ -42,6 +42,10 @@ Updating
 --------
 Upgrading from 0.4a or earlier requires a manual DLL replacement once;
 the panel updater is first included in 0.5a.
+
+Local development builds numbered 1.1 through 1.3 must install 1.0a manually
+once, keeping their configuration and custom profiles. The updater treats
+those development version numbers as newer than 1.0a.
 
 Open the panel for a new-version notice, or select FENB updates in the ...
 menu. Download the update, close the game when prompted, wait for the
@@ -92,7 +96,7 @@ FENB — графический мод для Flyff, вдохновлённый 
    По умолчанию выбран английский. Выберите встроенный профиль или настройте
    эффекты вручную.
 
-Установщик, отдельные шейдеры и файлы шрифтов не нужны. Все девять встроенных
+Установщик, отдельные шейдеры и файлы шрифтов не нужны. Все пять встроенных
 профилей находятся в DLL. Папка FENB-presets хранит ваши собственные профили;
 она не входит в архив и создаётся при необходимости.
 
@@ -110,6 +114,10 @@ Shift + Enter: открыть или закрыть панель.
 ----------
 При переходе с 0.4a или более ранней версии один раз замените DLL вручную:
 обновление из панели впервые включено в 0.5a.
+
+Локальные тестовые сборки с номерами от 1.1 до 1.3 нужно один раз заменить
+на 1.0a вручную, сохранив настройки и собственные профили. Для обновлятора
+номера этих тестовых сборок считаются новее 1.0a.
 
 Откройте панель для уведомления о новой версии или выберите «Обновления
 FENB» в меню «...». Скачайте обновление, закройте игру по предложению,

@@ -104,6 +104,11 @@ inline void ApplyBuiltInVisuals(Settings &s, int index) {
     s.skateTrailR = 0.330000f;
     s.skateTrailG = 0.820000f;
     s.skateTrailB = 1.000000f;
+    s.skateParticleStyle = 0.000000f;
+    s.skateParticleCustomColor = false;
+    s.skateParticleR = 0.650000f;
+    s.skateParticleG = 0.480000f;
+    s.skateParticleB = 1.000000f;
     s.sfxAuraCustomColor = false;
     s.sfxAuraR = 0.160000f;
     s.sfxAuraG = 0.620000f;

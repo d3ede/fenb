@@ -19,6 +19,8 @@ A graphics mod inspired by ENBSeries, with adjustable effects and an in-game set
 
 **[Releases](https://github.com/d3ede/fenb/releases)** · [Effects](#effects-in-action) · [Comparisons](#in-game-comparisons) · [Installation](#installation) · [Hotkeys](#hotkeys) · [Report an issue](https://github.com/d3ede/fenb/issues)
 
+**1.0a:** five hardware profiles, simple and detailed grass, Flaris winter scenery, configurable board trails and particles, rain puddles and expanded optimization controls. [Release notes](docs/releases/1.0a.md).
+
 </div>
 
 ---
@@ -126,11 +128,13 @@ Three water configurations in the same scene, showing different surface color an
 3. Launch the game normally and press **Shift + Enter** to open the panel.
 4. Choose a profile or adjust the effects to your liking. Changes save automatically.
 
-The combined `LICENSES.txt` preserves FENB and third-party license notices. If the game folder already contains another `d3d9.dll`, back it up first; loading multiple graphics proxies together is not currently supported.
+The combined `LICENSES.txt` preserves FENB and third-party license notices, including the original rights to bundled game artwork. If the game folder already contains another `d3d9.dll`, back it up first; loading multiple graphics proxies together is not currently supported.
 
 **Updating:** open the panel to check for a new version, or choose **FENB updates** in the **…** menu. Download the update, close the game when prompted, wait for the completion message, then launch normally. The panel uses Windows PowerShell in the background and needs Internet access and write access to the game folder. Your `FENB.ini` and `FENB-presets/` are preserved. **Restore previous version** schedules a rollback after exit; installation errors trigger automatic restoration. Manual updates remain available by replacing the DLL with the game closed. See [update and recovery details](docs/RENDERING.md#panel-updates-and-recovery).
 
 **Upgrading from 0.4a or earlier:** replace the DLL manually once to install the panel updater introduced in 0.5a. Keep your existing configuration and custom profiles.
+
+**Local development builds numbered 1.1–1.3:** install 1.0a manually once, since the updater treats those development version numbers as newer. Keep your existing configuration and custom profiles. Published 0.x releases with the panel updater can update normally.
 
 **Uninstalling:** close the game and remove FENB's `d3d9.dll`. Restore the original DLL if you backed one up. Your configuration and profiles can be kept for later.
 

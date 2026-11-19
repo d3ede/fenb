@@ -1,0 +1,15 @@
+Bundled game artwork
+
+The Simple grass mesh and its normal and winter atlases were supplied by
+the project owner and identified in the source archive as Flyff Universe
+game assets. Their original licensing is unchanged. Inclusion in FENB
+does not assign a new license to this third-party artwork.
+
+Tree appearance assets retain the original game's geometry and UV layout.
+Source tree artwork remains attributable to its original owners. FENB's
+replacement assets do not grant a new license to underlying game artwork.
+
+The MIT license for FENB code does not relicense third-party game artwork.
+Source and provenance notes are preserved in assets/grass/universe/README.md,
+assets/grass/universe/provenance.json and assets/trees/README.md in the
+FENB source repository: https://github.com/d3ede/fenb
