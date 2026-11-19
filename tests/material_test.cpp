@@ -45,7 +45,7 @@ struct Fixture {
     Com<IDirect3DTexture9> art,layer,shadow;
     bool two=false,lit=true,point=false,rangeFog=false,transform=false,used=false,scaled=false,orbit=false,zeroNormals=false;
     int fog=0,table=0,stateErrors=0;
-    bool third=false;
+    bool third=false,passThrough=false;
     bool flaris=false;
     float winterShift=0;
     int shadowCoordinates=0;
@@ -103,7 +103,7 @@ struct Fixture {
         d->SetRenderState(D3DRS_FOGCOLOR,0xff526881);
         const float fogValues[]={.12f,1.f,12.f};const D3DRENDERSTATETYPE keys[]={D3DRS_FOGDENSITY,D3DRS_FOGSTART,D3DRS_FOGEND};
         for(int i=0;i<3;++i){DWORD bits;memcpy(&bits,fogValues+i,4);d->SetRenderState(keys[i],bits);}
-        d->SetTexture(0,art);d->SetTexture(1,layer);d->SetTexture(2,shadow);
+        d->SetTexture(0,art);d->SetTexture(1,passThrough?nullptr:layer.p);d->SetTexture(2,shadow);
         for(DWORD stage=0;stage<3;++stage){
             d->SetSamplerState(stage,D3DSAMP_MINFILTER,D3DTEXF_LINEAR);d->SetSamplerState(stage,D3DSAMP_MAGFILTER,D3DTEXF_LINEAR);
             d->SetSamplerState(stage,D3DSAMP_MIPFILTER,D3DTEXF_LINEAR);d->SetSamplerState(stage,D3DSAMP_ADDRESSU,D3DTADDRESS_WRAP);d->SetSamplerState(stage,D3DSAMP_ADDRESSV,D3DTADDRESS_WRAP);
@@ -112,8 +112,8 @@ struct Fixture {
         }
         d->SetTextureStageState(0,D3DTSS_COLOROP,D3DTOP_MODULATE);d->SetTextureStageState(0,D3DTSS_COLORARG1,D3DTA_TEXTURE);d->SetTextureStageState(0,D3DTSS_COLORARG2,D3DTA_DIFFUSE);
         d->SetTextureStageState(0,D3DTSS_ALPHAOP,D3DTOP_MODULATE);d->SetTextureStageState(0,D3DTSS_ALPHAARG1,D3DTA_TEXTURE);d->SetTextureStageState(0,D3DTSS_ALPHAARG2,D3DTA_DIFFUSE);
-        d->SetTextureStageState(1,D3DTSS_COLOROP,two?D3DTOP_SELECTARG1:D3DTOP_DISABLE);d->SetTextureStageState(1,D3DTSS_COLORARG1,D3DTA_CURRENT);
-        d->SetTextureStageState(1,D3DTSS_ALPHAOP,D3DTOP_SELECTARG1);d->SetTextureStageState(1,D3DTSS_ALPHAARG1,D3DTA_TEXTURE);
+        d->SetTextureStageState(1,D3DTSS_COLOROP,(two||passThrough)?D3DTOP_SELECTARG1:D3DTOP_DISABLE);d->SetTextureStageState(1,D3DTSS_COLORARG1,D3DTA_CURRENT);
+        d->SetTextureStageState(1,D3DTSS_ALPHAOP,passThrough?D3DTOP_DISABLE:D3DTOP_SELECTARG1);d->SetTextureStageState(1,D3DTSS_ALPHAARG1,D3DTA_TEXTURE);
         d->SetTextureStageState(2,D3DTSS_COLOROP,third?D3DTOP_MODULATE:D3DTOP_DISABLE);
         d->SetTextureStageState(2,D3DTSS_COLORARG1,D3DTA_CURRENT);d->SetTextureStageState(2,D3DTSS_COLORARG2,D3DTA_TEXTURE);
         d->SetTextureStageState(2,D3DTSS_ALPHAOP,D3DTOP_SELECTARG1);d->SetTextureStageState(2,D3DTSS_ALPHAARG1,D3DTA_CURRENT);
@@ -446,6 +446,22 @@ int main(int argc,char **argv){
     winter.winterGround=false;winter.winterProps=true;
     covered=fixture.render(winter);
     CHECK(fixture.used&&Delta(bare,covered)>8);
+    // Captured Flaris props have one mesh UV. Stage 1 selects CURRENT while
+    // retaining UV index 1, and stage 2 can still apply the projected shadow.
+    fixture.two=fixture.coplanar=false;
+    fixture.passThrough=fixture.buffered=true;
+    fixture.shadowCoordinates=3;
+    for(bool shadowed:{false,true})for(auto surface:{WinterSurface::Plant,WinterSurface::Exterior}){
+        fixture.third=shadowed;
+        winterKind=unsigned(surface)<<8;
+        fixture.art->SetPrivateData(MaterialTag,&winterKind,4,0);
+        bare=fixture.render(off);covered=fixture.render(winter);
+        CHECK(fixture.used&&Delta(bare,covered)>8);
+    }
+    fixture.cutout=false;
+    kind=2;fixture.art->SetPrivateData(MaterialTag,&kind,4,0);
+    bare=fixture.render(off);
+    CHECK(Delta(bare,fixture.render(neutral))<=2&&fixture.used);
     CHECK(!fixture.stateErrors);
     puts("PASS: surface materials, fixed-function parity, directional/point lighting, blend coverage, fog, UV transforms, zero/off, identity invalidation, state restoration and recreation.");
     return 0;

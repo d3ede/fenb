@@ -140,6 +140,11 @@ public:
            std::abs(projection._34)<.00001f||std::abs(projection._44)>.00001f)return false;
         float p[PixelConstants][4]{};
         const D3DTEXTURESTAGESTATETYPE keys[]={D3DTSS_COLOROP,D3DTSS_COLORARG1,D3DTSS_COLORARG2,D3DTSS_ALPHAOP,D3DTSS_ALPHAARG1,D3DTSS_ALPHAARG2};
+        const auto readsTexture=[](DWORD op,DWORD arg1,DWORD arg2) {
+            return op>D3DTOP_DISABLE&&
+                ((op!=D3DTOP_SELECTARG2&&(arg1&D3DTA_SELECTMASK)==D3DTA_TEXTURE)||
+                 (op!=D3DTOP_SELECTARG1&&(arg2&D3DTA_SELECTMASK)==D3DTA_TEXTURE));
+        };
         bool stopped=false;
         for(DWORD stage=0;stage<3;++stage) {
             DWORD values[6]{},coord=0,transform=0,constant=0;
@@ -153,9 +158,14 @@ public:
                 DWORD result=0;device_->GetTextureStageState(stage,D3DTSS_RESULTARG,&result);
                 if(result!=D3DTA_CURRENT)return false;
             }
-            device_->GetTextureStageState(stage,D3DTSS_TEXCOORDINDEX,&coord);
-            device_->GetTextureStageState(stage,D3DTSS_TEXTURETRANSFORMFLAGS,&transform);
-            if(stopped){coord=0;transform=0;}
+            // Static props can pass CURRENT through stage 1 with an unused UV
+            // index while stage 2 still samples the projected shadow texture.
+            const bool samples=!stopped&&(!stage||readsTexture(values[0],values[1],values[2])||
+                                          readsTexture(values[3],values[4],values[5]));
+            if(samples){
+                device_->GetTextureStageState(stage,D3DTSS_TEXCOORDINDEX,&coord);
+                device_->GetTextureStageState(stage,D3DTSS_TEXTURETRANSFORMFLAGS,&transform);
+            }
             const bool generated=stage==2&&(coord&0xffff0000)==D3DTSS_TCI_CAMERASPACEPOSITION;
             if(!generated&&(coord>1||(coord==1&&fvf!=0x212)))return false;
             if(stage<2&&(transform!=D3DTTFF_DISABLE&&transform!=D3DTTFF_COUNT2))return false;
@@ -168,7 +178,7 @@ public:
             const UINT pixel=stage==2?14:2+stage*2;
             for(int k=0;k<4;++k)p[pixel][k]=float(values[k]);
             p[pixel+1][0]=float(values[4]);p[pixel+1][1]=float(values[5]);
-            if(stage&&values[0]!=D3DTOP_DISABLE) {
+            if(stage&&samples) {
                 Com<IDirect3DBaseTexture9> layer;device_->GetTexture(stage,layer.out());
                 p[pixel+1][2]=layer.p?1.f:0.f;
                 if(layer.p&&layer->GetType()!=D3DRTYPE_TEXTURE)return false;
