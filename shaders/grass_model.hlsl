@@ -21,14 +21,14 @@ float4 Center:register(c17);
 float4 Lod:register(c18);
 float4 CardControl:register(c19);
 struct Input {float3 position:POSITION;float3 normal:NORMAL;float2 uv:TEXCOORD0;float2 anchor:TEXCOORD1;float2 cell:TEXCOORD2;};
-struct Output {float4 position:POSITION;float4 color:COLOR0;float3 uv:TEXCOORD0;};
+struct Output {float4 position:POSITION;float4 color:COLOR0;float3 uv:TEXCOORD0;float2 groundUV:TEXCOORD1;};
 float Hash(float2 p){float3 v=frac(float3(p.x,p.y,p.x)*.1031);v+=dot(v,v.yzx+33.33);return frac((v.x+v.y)*v.z);}
 float4 Surface(float2 uv){
     float2 p=uv*Map.w-.5,base=floor(p),f=frac(p),a=(base+.5)/Map.w,b=1/Map.w;
     float4 v0=tex2Dlod(Ground,float4(a,0,0)),v1=tex2Dlod(Ground,float4(a+float2(b.x,0),0,0));
     float4 v2=tex2Dlod(Ground,float4(a+float2(0,b.y),0,0)),v3=tex2Dlod(Ground,float4(a+b,0,0));
     float4 value=lerp(lerp(v0,v1,f.x),lerp(v2,v3,f.x),f.y);
-    value.g=min(min(abs(v0.g),abs(v1.g)),min(abs(v2.g),abs(v3.g)))*(value.g<0?-1:1);
+    value.g=min(min(v0.g,v1.g),min(v2.g,v3.g));
     float high=max(max(v0.r,v1.r),max(v2.r,v3.r)),low=min(min(v0.r,v1.r),min(v2.r,v3.r));
     if(high-low>max(.4,16*Map.z/Map.w))value.g=0;
     return value;
@@ -55,7 +55,7 @@ Output GrassModelVS(Input i){
     float2 uv=float2((planted.x-Map.x)/(2*Map.z)+.5,.5-(planted.y-Map.y)/(2*Map.z));
     float4 surface=Surface(uv);float snow=surface.a<0||Extra.w>1.5?1:0;
     if(Extra.w>2.5 && surface.a>=0)snow=lerp(.46,.9,r);
-    float coverage=smoothstep(.02,.18,abs(surface.g));
+    float coverage=smoothstep(.02,.18,surface.g);
     float slope=smoothstep(max(0,Shape.w-.07),min(1,Shape.w+.04),surface.b);
     float contact=tex2Dlod(Contacts,float4(uv,0,0)).r;
     bool water=contact>2,paving=contact>1&&!water,solid=contact>0&&!water;
@@ -80,11 +80,13 @@ Output GrassModelVS(Input i){
     float neutral=dot(lighting,float3(.2126,.7152,.0722));lighting=lerp(lighting,lerp(neutral,lighting,.25),snow);
     lighting*=lerp(.96,1.04,r3)*lerp(1-Look.w*.22,1.04,t);
     o.position=mul(float4(p,1),ViewProjection);o.color=float4(lighting,FogFactor(p));
+    o.groundUV=.5+(p.xz-Map.xy)*float2(1,-1)/(2*Map.z);
     // OBJ V is bottom-up; convert the convention only, without repacking UVs.
     o.uv=float3(i.uv.x,1-i.uv.y,snow);return o;
 }
 float4 GrassModelPS(Output i):COLOR0 {
     float4 art=lerp(tex2D(Summer,i.uv.xy),tex2D(Winter,i.uv.xy),i.uv.z);clip(art.a-.5);
+    clip(tex2D(Ground,i.groundUV).g);
     float shade=dot(art.rgb,float3(.2126,.7152,.0722));
     float3 color=lerp(art.rgb,float3(.58,.49,.20)*lerp(.62,1.2,shade),CardControl.z*(1-i.uv.z))*i.color.rgb;
     float luma=dot(color,float3(.2126,.7152,.0722));color=lerp(luma,color,CardControl.y)*CardControl.x;

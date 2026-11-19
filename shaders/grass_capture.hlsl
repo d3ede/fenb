@@ -7,7 +7,7 @@ row_major float4x4 Tex0:register(c4);
 row_major float4x4 Tex1:register(c8);
 float4 Map:register(c12); // center xz, radius, texel size
 float4 Material:register(c0); // coverage (2 = mixed soil), blend map, opacity, height/luminance write
-float4 Contact:register(c1); // 1 = prop, 2 = paving, 3 = plaza atlas, 4 = water
+float4 Contact:register(c1); // -1 = terrain paving, 1 = prop, 2 = paving mesh, 3 = plaza atlas, 4 = water
 float4 ContactMap:register(c2); // terrain map center xz and radius
 float4 GroundTintCapture:register(c3);
 struct Input {float3 position:POSITION;float3 normal:NORMAL;float2 uv:TEXCOORD0;float2 blend:TEXCOORD1;};
@@ -49,7 +49,9 @@ float4 GrassCapturePS(Output i):COLOR0 {
     clip(opacity-.0001);
     // This mask is restricted to exactly identified mixed grass/soil atlases.
     // Warm bare soil receives no blades; source lighting cannot change coverage.
-    float coverage=Material.x>1.5?saturate((art.g-art.r*.82-.015)*18)*saturate((art.g-art.b-.02)*14):abs(Material.x);
+    // Signed coverage lets visible paving outweigh grass without making a
+    // hidden paving underlay a permanent obstacle.
+    float coverage=Contact.x<-.5?-1:Material.x>1.5?saturate((art.g-art.r*.82-.015)*18)*saturate((art.g-art.b-.02)*14):abs(Material.x);
     // Snow identity belongs to luminance, never to the blended coverage channel:
     // snow and grass layers must not cancel each other's coverage at their seam.
     float sampleValue=opacity;

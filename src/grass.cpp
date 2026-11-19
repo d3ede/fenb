@@ -271,7 +271,8 @@ void GrassFX::capture(const Settings &s,DrawCall draw,SurfaceDraw geometry,bool 
     if(kind==4)winter_=true;
     // Terrain paving participates in the same layer blend as soil. A later lawn
     // must be able to cover it. Separate paving meshes still block by height.
-    const bool paving=kind==7||(kind==6&&fvf!=0x212);
+    const bool terrainPaving=kind==6&&fvf==0x212;
+    const bool paving=kind==7||(kind==6&&!terrainPaving);
     const bool ground=kind==1||kind==3||(kind==4&&s.grassSnow);
     const bool prop=water||paving||(fvf==0x112&&!ground);
     // A faded object or projected decal isn't a persistent obstacle. Its
@@ -294,7 +295,7 @@ void GrassFX::capture(const Settings &s,DrawCall draw,SurfaceDraw geometry,bool 
     std::unique_ptr<Command,decltype(release)> command(&commands_[pending_.size()],release);
     command->draw=geometry;command->fvf=fvf;
     command->blend=blend&&(!prop||(paving&&fvf==0x212));command->prop=prop;
-    command->contactMode=water?4.f:prop?(kind==7?3.f:kind==6?2.f:1.f):0.f;
+    command->contactMode=water?4.f:prop?(kind==7?3.f:kind==6?2.f:1.f):terrainPaving?-1.f:0.f;
     command->matrices[0]=world;
     D3DMATRIX view{},projection{};device_->GetTransform(D3DTS_VIEW,&view);device_->GetTransform(D3DTS_PROJECTION,&projection);
     if(memcmp(&view,&view_,sizeof(view))||memcmp(&projection,&projection_,sizeof(projection)))return;
@@ -459,6 +460,7 @@ void GrassFX::draw(const Settings &s,bool ownScene){
             device_->SetVertexDeclaration(simple?modelDeclaration_.p:declaration_.p);
             device_->SetVertexShader(simple?modelVS_.p:frame_.grassGroundTint?adaptedBladeVS_.p:bladeVS_.p);
             device_->SetPixelShader(simple?modelPS_.p:bladePS_.p);
+            device_->SetTexture(0,ground_);
             device_->SetTexture(D3DVERTEXTEXTURESAMPLER0,ground_);
             device_->SetTexture(D3DVERTEXTEXTURESAMPLER1,contacts_);
             if(frame_.grassStyle>.5f){
@@ -473,7 +475,7 @@ void GrassFX::draw(const Settings &s,bool ownScene){
                     device_->SetSamplerState(sampler,D3DSAMP_SRGBTEXTURE,FALSE);
                 }
             }
-            for(DWORD slot:{DWORD(D3DVERTEXTEXTURESAMPLER0),DWORD(D3DVERTEXTEXTURESAMPLER1)}){
+            for(DWORD slot:{DWORD(0),DWORD(D3DVERTEXTEXTURESAMPLER0),DWORD(D3DVERTEXTEXTURESAMPLER1)}){
                 for(auto key:{D3DSAMP_MINFILTER,D3DSAMP_MAGFILTER,D3DSAMP_MIPFILTER})device_->SetSamplerState(slot,key,key==D3DSAMP_MIPFILTER?D3DTEXF_NONE:D3DTEXF_POINT);
                 device_->SetSamplerState(slot,D3DSAMP_ADDRESSU,D3DTADDRESS_CLAMP);device_->SetSamplerState(slot,D3DSAMP_ADDRESSV,D3DTADDRESS_CLAMP);
                 device_->SetSamplerState(slot,D3DSAMP_MAXMIPLEVEL,0);device_->SetSamplerState(slot,D3DSAMP_MIPMAPLODBIAS,0);device_->SetSamplerState(slot,D3DSAMP_SRGBTEXTURE,FALSE);

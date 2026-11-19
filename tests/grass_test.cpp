@@ -686,11 +686,11 @@ int main(int argc,char **argv){
         CHECK(GrassFXFixture::surface(grass,2,8)[1]>.99f&&GrassFXFixture::surface(grass,-2,8)[1]>.99f);
         pavingUnderlay=false;
         road=paving=maskOnly=true;
-        for(int alpha:{255,128}){
+        for(int alpha:{255,192,128,64}){
             roadAlpha=alpha;
             CHECK(render(true).size()==on.size()&&!GrassFXFixture::failed(grass));
             const auto surface=GrassFXFixture::surface(grass,0,8);
-            CHECK(std::abs(surface[1]-(1-alpha/255.f))<.01f&&surface[2]>.98f);
+            CHECK(std::abs(surface[1]-(1-2*alpha/255.f))<.01f&&surface[2]>.98f);
             CHECK(GrassFXFixture::contact(grass,0,8)==0&&GrassFXFixture::surface(grass,4,8)[1]>.99f);
         }
         road=paving=maskOnly=false;

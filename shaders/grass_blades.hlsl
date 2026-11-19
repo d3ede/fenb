@@ -21,7 +21,7 @@ float4 Lod:register(c18); // nested-grid factor, base spacing, total range, fade
 float4 Center:register(c17); // player position; Eye remains the actual camera for fog
 float4 CardControl:register(c19); // brightness, saturation, dryness, style
 struct Input {float4 blade:POSITION;float2 offset:TEXCOORD0;float height:TEXCOORD1;float2 cell:TEXCOORD2;};
-struct Output {float4 position:POSITION;float4 color:COLOR0;float3 leaf:TEXCOORD0;};
+struct Output {float4 position:POSITION;float4 color:COLOR0;float3 leaf:TEXCOORD0;float2 groundUV:TEXCOORD1;};
 float Hash(float2 p) {
     float3 v=frac(float3(p.x,p.y,p.x)*.1031);
     v+=dot(v,v.yzx+33.33);
@@ -45,10 +45,10 @@ float4 Surface(float2 uv,bool adapt,out float4 groundColor) {
     }
     // Reject a footprint crossing a road/prop instead of interpolating a few
     // surviving blades over its silhouette. Never interpolate across levels.
-    float coverage=min(min(abs(v0.g),abs(v1.g)),min(abs(v2.g),abs(v3.g)));
+    float coverage=min(min(v0.g,v1.g),min(v2.g,v3.g));
     float high=max(max(v0.r,v1.r),max(v2.r,v3.r));
     float low=min(min(v0.r,v1.r),min(v2.r,v3.r));
-    value.g=coverage*(value.g<0?-1:1);
+    value.g=coverage;
     if(high-low>max(.4,16*Map.z/Map.w))value.g=0;
     return value;
 }
@@ -86,7 +86,7 @@ Output GrassBlade(Input i,bool adapt) {
     float4 surface=Surface(uv,adapt,groundColor);
     float snow=surface.a<0||Extra.w>1.5?1:0;
     if(Extra.w>2.5 && surface.a>=0)snow=lerp(.46,.9,r);
-    float coverage=smoothstep(.02,.18,abs(surface.g));
+    float coverage=smoothstep(.02,.18,surface.g);
     float slope=smoothstep(max(0,Shape.w-.07),min(1,Shape.w+.04),surface.b);
     float contact=tex2Dlod(Contacts,float4(uv,0,0)).r;
     float obstacle=Center.y+(0.5-contact)*1024;
@@ -175,12 +175,14 @@ Output GrassBlade(Input i,bool adapt) {
         o.leaf=float3(i.blade.x,t,snow);
     }
     o.position=mul(float4(p,1),ViewProjection);
+    o.groundUV=.5+(p.xz-Map.xy)*float2(1,-1)/(2*Map.z);
     o.color=float4(color,FogFactor(p));
     return o;
 }
 Output GrassBladeVS(Input i) { return GrassBlade(i,false); }
 Output GrassBladeAdaptedVS(Input i) { return GrassBlade(i,true); }
 float4 GrassBladePS(Output i):COLOR0 {
+    clip(tex2D(Ground,i.groundUV).g);
     if(CardControl.w>.5){
         float4 art=tex2D(LeafArt,i.leaf.xy);
         clip(art.a-.5);
