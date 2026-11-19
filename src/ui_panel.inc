@@ -295,9 +295,9 @@ std::vector<PanelItem> PanelItems(Runtime &r) {
     case 4:
         return {{"time", g(UiText::PanelWorld), Tr(UiText::TimeOfDay), &s.timeOverride},
                 {"weather", g(UiText::PanelWorld), Tr(UiText::WeatherOverride), &s.weatherOverride},
+                {"snow",g(UiText::EnvironmentGroup),g(UiText::WeatherSnow)},
                 {"trees",g(UiText::Vegetation),g(UiText::Trees),&s.trees},
                 {"grass",g(UiText::Vegetation),g(UiText::Grass),nullptr,9},
-                {"winter-ground",g(UiText::Vegetation),g(UiText::WinterGround),&s.winterGround},
                 {"puddles",g(UiText::WetSurfaces),g(UiText::Puddles),&s.puddles}};
     case 9:
         return {{"grass",g(UiText::Grass),g(UiText::GrassCoverage),&s.grass},
@@ -521,9 +521,6 @@ void PanelParameters(Runtime &r, int item) {
             SR(Density,GrassDensityHelp,grassDensity,.25f,3,"%.2f",.1f);
             SR(GrassSlope,GrassSlopeHelp,grassSlope,0,60,"%.0f°",5);
             SR(GrassFade,GrassFadeHelp,grassFade,.1f,.5f,"%.2f",.05f);
-            ImGui::BeginDisabled(uiParameterDisabled);
-            PanelToggle("snow-grass",Tr(UiText::GrassSnow),s.grassSnow,Tr(UiText::GrassSnowHelp));
-            ImGui::EndDisabled();
             break;}
         case 1:
             SR(GrassHeight,GrassHeightHelp,grassHeight,.1f,1.5f,"%.2f",.05f);
@@ -792,25 +789,32 @@ void PanelParameters(Runtime &r, int item) {
             uiParameterDisabled = disabled;
         }
     }
-    if (page == 4 && item == 2) {
+    if (page == 4 && item == 3) {
         PanelNote(Tr(UiText::TreesExperimental));
         ImGui::BeginDisabled(uiParameterDisabled || !s.enabled);
         PanelToggle("tree-bark", Tr(UiText::TreeBark), s.treeBark);
         PanelToggle("tree-foliage", Tr(UiText::TreeFoliage), s.treeFoliage, Tr(UiText::TreeFoliageHelp));
-        PanelToggle("tree-winter-foliage", Tr(UiText::TreeWinterFoliage), s.treeWinterFoliage,
-                    Tr(UiText::TreeWinterFoliageHelp));
         ImGui::EndDisabled();
-
-        const bool combined = s.trees && s.treeWinterFoliage && s.winterGround;
+    }
+    if (page == 4 && item == 2) {
+        const bool combined = s.trees && s.treeWinterFoliage && s.winterGround && s.winterProps;
         bool winter = combined;
         ImGui::BeginDisabled(!s.enabled);
         PanelToggle("flaris-winter", Tr(UiText::FlarisWinter), winter, Tr(UiText::FlarisWinterHelp));
-        ImGui::EndDisabled();
         if (winter != combined) {
             if (winter)
                 s.trees = true;
-            s.treeWinterFoliage = s.winterGround = winter;
+            s.treeWinterFoliage = s.winterGround = s.winterProps = winter;
         }
+        PanelToggle("snow-grass", Tr(UiText::GrassSnow), s.grassSnow, Tr(UiText::GrassSnowHelp));
+        const bool hadWinterFoliage = s.treeWinterFoliage;
+        PanelToggle("tree-winter-foliage", Tr(UiText::TreeWinterFoliage), s.treeWinterFoliage,
+                    Tr(UiText::TreeWinterFoliageHelp));
+        if (!hadWinterFoliage && s.treeWinterFoliage)
+            s.trees = true;
+        PanelToggle("winter-ground", Tr(UiText::WinterGround), s.winterGround, Tr(UiText::WinterGroundHelp));
+        PanelToggle("winter-props", Tr(UiText::WinterProps), s.winterProps);
+        ImGui::EndDisabled();
     }
     if (page == 5) {
         if (item == 2) {
@@ -850,7 +854,7 @@ PanelMaster EditorMaster(Runtime &r) {
     }
 }
 bool CanResetPanel(int page, int item) {
-    if(page==4&&(item==2||item==4))return false;
+    if(page==4&&(item==2||item==3))return false;
     if (page == 3)
         return item == 2;
     if (page == 5)
@@ -1030,10 +1034,9 @@ void PanelEditor(Runtime &r) {
                              selected==2?UiText::OptimizationSkillsHelp:selected==3?UiText::OptimizationPetsHelp:
                              selected==4?UiText::VisiblePlayersHelp:selected==5?UiText::VisibleMonstersHelp:UiText::VisiblePetsHelp);
     if(r.editorPage==5&&selected<2)help=Tr(selected==0?UiText::V2CursorSampleNote:UiText::V2MotionNote);
-    if(r.editorPage==4&&selected==2)help=Tr(UiText::TreesExperimental);
+    if(r.editorPage==4&&selected==3)help=Tr(UiText::TreesExperimental);
     const bool puddleItem=r.editorPage==4 && !strcmp(item.id,"puddles");
     if(puddleItem)help=Tr(UiText::PuddlesHelp);
-    if(r.editorPage==4 && !strcmp(item.id,"winter-ground"))help=Tr(UiText::WinterGroundHelp);
     ImGui::InvisibleButton("description", {std::max(1.f,w-(showEnable?40:5)),25});
     Tip(help);
     draw->PushClipRect(p, {p.x + w - (showEnable ? 40 : 5), p.y + 25}, true);

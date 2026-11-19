@@ -331,7 +331,7 @@ bool Settings::save(const std::wstring &path) const {
 void Settings::preserveControls(const Settings &source) {
 #define KEEP(member) member = source.member;
     KEEP(enabled) KEEP(customCursor) KEEP(interfaceMotion) KEEP(trees) KEEP(treeBark) KEEP(treeFoliage)
-    KEEP(treeWinterFoliage) KEEP(winterGround)
+    KEEP(treeWinterFoliage) KEEP(winterGround) KEEP(winterProps)
     KEEP(limitShopSigns) KEEP(shopSignDistance)
     KEEP(hideDecorativeEffects) KEEP(hideSkillEffects) KEEP(hidePetEffects)
     KEEP(renderPlayers) KEEP(renderMonsters) KEEP(renderPets)

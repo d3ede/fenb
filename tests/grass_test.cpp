@@ -196,8 +196,9 @@ int main(int argc,char **argv){
         const DWORD grassCardKind=2;
         CHECK(SUCCEEDED(nativeCard->SetPrivateData(GrassTag,&grassCardKind,sizeof(grassCardKind),0)));
     }
+    bool flaris=false;
     auto render=[&](bool on){
-        StateGuard outer(d);grass.beginFrame(on,followPlayer?player:nullptr,worldKey);
+        StateGuard outer(d);grass.beginFrame(on,followPlayer?player:nullptr,worldKey,flaris);
         d->Clear(0,nullptr,D3DCLEAR_TARGET|D3DCLEAR_ZBUFFER,0xff9aaeb7,1,0);
         d->SetTransform(D3DTS_WORLD,&identity);d->SetTransform(D3DTS_VIEW,&view);d->SetTransform(D3DTS_PROJECTION,&projection);
         d->SetVertexShader(nullptr);d->SetPixelShader(nullptr);d->SetFVF(terrainFVF);
@@ -687,6 +688,11 @@ int main(int argc,char **argv){
     CHECK(Save(simpleSnow,L"artifacts/grass/field-simple-snow.png"));
     std::swap(art.p,snowy.p);const auto simpleSummer=render(true);
     CHECK(Delta(simpleSnow,simpleSummer)>20);
+    flaris=true;const auto flarisSnow=render(true);
+    CHECK(Delta(flarisSnow,simpleSummer)>20);
+    settings.grassSnow=false;const auto flarisSummer=render(true);
+    CHECK(Delta(flarisSummer,flarisSnow)>20);
+    flaris=false;settings.grassSnow=true;
     const float savedWidth=settings.grassWidth;
     settings.grassWidth=.01f;const auto narrowModel=render(true);const auto narrowCount=GrassFXFixture::count(grass);
     settings.grassWidth=.08f;const auto wideModel=render(true);

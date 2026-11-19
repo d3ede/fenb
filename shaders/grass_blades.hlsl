@@ -85,6 +85,7 @@ Output GrassBlade(Input i,bool adapt) {
     float4 groundColor;
     float4 surface=Surface(uv,adapt,groundColor);
     float snow=surface.a<0||Extra.w>1.5?1:0;
+    if(Extra.w>2.5 && surface.a>=0)snow=lerp(.46,.9,r);
     float coverage=smoothstep(.02,.18,abs(surface.g));
     float slope=smoothstep(max(0,Shape.w-.07),min(1,Shape.w+.04),surface.b);
     float contact=tex2Dlod(Contacts,float4(uv,0,0)).r;

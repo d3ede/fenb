@@ -1,0 +1,1442 @@
+[
+  {
+    "file": "World/Texture/default.dds",
+    "winter": "Ground",
+    "width": 256,
+    "height": 256,
+    "sourceHash": "76ace32e760cfdb3201c9a2f1bbb76875fd93ea663f283f058751d3f6024d2b9",
+    "decodedHash": "bc86859a8b191666fad33fe5c55819bb47013ee7270202a2609b620b8cd61223",
+    "uploadHash": "584db2e3261087bd2b7286dd1ebec2eb8cc08e91a0d740089843b195e053afe6"
+  },
+  {
+    "file": "World/Texture/ground_lawn001.dds",
+    "winter": "Ground",
+    "width": 256,
+    "height": 256,
+    "sourceHash": "cac19aabe93003ede3328dbdf17e6f77ce2edaed273bd86db8238091216419b5",
+    "decodedHash": "fc603d6b63e0fb2f40f1236c339e239d46b4e2762e5107a5904527cc2ce0dbda",
+    "uploadHash": "f1e54130da2e27afc90fd7e9705f18c67e6f2d8c4783109d73bdf1c4f007db24"
+  },
+  {
+    "file": "World/Texture/ground_lawn007.dds",
+    "winter": "Ground",
+    "width": 256,
+    "height": 256,
+    "sourceHash": "aa9371d99daae056507101241cb3043f4bed6f0ab86b62309c72e10d3720f1a3",
+    "decodedHash": "000b58fd491a7b73e3fe2de321a53d13af923dae769e7e4d20058b3f8696a71d",
+    "uploadHash": "bd475d3e4d6c58af22fa2c2f57d0176145a73d618f849d778eb392f172e1bde7"
+  },
+  {
+    "file": "World/Texture/Upresia_Ground01.dds",
+    "winter": "Ground",
+    "width": 512,
+    "height": 512,
+    "sourceHash": "af37711d00a4ceec87b1e0b71fdee2aa121e7c01a95dced2f4ff79f9cbf7bea3",
+    "decodedHash": "b2bff5c81cd405df12bc0312dd35d015aa0d4f48e5b2795859b2265cb4e46968",
+    "uploadHash": "151360d893f4c7a375d427623587b66998a2ab1b9be28c7a2aa623b292c1aaa0"
+  },
+  {
+    "file": "World/Texture/Upresia_Ground01_01.dds",
+    "winter": "Ground",
+    "width": 512,
+    "height": 512,
+    "sourceHash": "f3cddf8920c2b609db3cc08cb94a089163df6a8f114248d7e3b7b969b9edaa23",
+    "decodedHash": "c1041c7e4efce95ffd7fd56682febf982deccab924a73f270a13bfd463cca211",
+    "uploadHash": "f17c64fca93131a953bbdea1c06d5e0573a24376624cf7965ee5577a375cfaed"
+  },
+  {
+    "file": "World/Texture/Kalilun_Grass01.dds",
+    "winter": "Ground",
+    "width": 512,
+    "height": 512,
+    "sourceHash": "5bce575134073564fd8f4d0dbc63d68bc6888ff159ef042c3429e68517320c53",
+    "decodedHash": "ccf59d5e330c2d21049d1878340145ad8f5822d9fa9a56ae07f34ee269d5ed45",
+    "uploadHash": "bebf8c73531511801bf5bccf19b4548f19905e1732b3d45cfc0103a29b11dda9"
+  },
+  {
+    "file": "World/Texture/Kalilun_Grass02.dds",
+    "winter": "Ground",
+    "width": 512,
+    "height": 512,
+    "sourceHash": "dcbd2df23dc25ecab0d7f19df36f76c43d994d29404cddac81b92a8650ddc7e3",
+    "decodedHash": "288c216f3e7e2cd60307bb3be71014c81717c7c1de766efbd56fa7f9e473d312",
+    "uploadHash": "243a5dece02b785a47630581e254f6b882b7e529ba85dd8c679c906c67b70300"
+  },
+  {
+    "file": "World/Texture/ground_clay001.dds",
+    "winter": "Ground",
+    "width": 256,
+    "height": 256,
+    "sourceHash": "4e4cd627ce358da90c62695689e1f853f413779c8a062b23b85bf353ce750255",
+    "decodedHash": "2416599925ee1567d93c8a28f3562eac02b1e9de452fb86defec962b73f6c03a",
+    "uploadHash": "82e73174917997903f2e0fb417e16be1d4a2fb0d8aebfb4abba0de273c5c977a"
+  },
+  {
+    "file": "World/Texture/NewFlrock01.dds",
+    "winter": "Ground",
+    "width": 256,
+    "height": 256,
+    "sourceHash": "f164b7d3d4ea8f7da2f09fff8fe965b3c445b3928b276661759bffc71f3fe359",
+    "decodedHash": "ebd30e0ebf0c50f95d43d8243c383b68ba52ad12c485ab4db184a47039f46081",
+    "uploadHash": "121c2b0c2010363ef31e6b4b34a5d3cca92b0cd01479dd3f3b9e36c9682f6556"
+  },
+  {
+    "file": "World/Texture/brick_MaFl01.dds",
+    "winter": "Paving",
+    "width": 512,
+    "height": 512,
+    "sourceHash": "79fdbf03af90b47828de741635eb5795482893a768f1c9c59405ff094f38db24",
+    "decodedHash": "3a326c374573cd78f6e5426dd2f40f95b2482bcc49b9661f2bfe40ae79782cae",
+    "uploadHash": "53e76b79fbcdd5d9e6d0f51f372edd94afb62e179cfb7d5fd49dba4b5d9ad66e"
+  },
+  {
+    "file": "World/Texture/brick_MaFl01_new.dds",
+    "winter": "Paving",
+    "width": 512,
+    "height": 512,
+    "sourceHash": "aa3dcdd6d067b16600c140befaa72910528992e7d5a7b0d81c05a1a8b56595c3",
+    "decodedHash": "c4f5aaf9ff9965336ceb98bf8bc6ece2b2ac109b8474a227332070af39b831a1",
+    "uploadHash": "9880147723806e89dd400d8ad4bfc50aba844b6b7facaf3fda6b6104f2f76e2a"
+  },
+  {
+    "file": "World/Texture/MaFlPrStone01.dds",
+    "winter": "Ground",
+    "width": 256,
+    "height": 256,
+    "sourceHash": "a5ecb294ee8c717e4f851a3e87cb5361566e72643a614ff3a315ebe47fa64fdb",
+    "decodedHash": "aabba855c5016a8c8aaba4cc874ee971fb84379074701227c0fc4bb780460a0f",
+    "uploadHash": "da90c5a1d170bee314f105d1ed5af3ed7beabbedc62a43232b8ab2fe9d4eb703"
+  },
+  {
+    "file": "World/Texture/MaFlPrStone02.dds",
+    "winter": "Ground",
+    "width": 256,
+    "height": 256,
+    "sourceHash": "ea0a914160fff1bd9b609fb5ec2ee78b85a40ef8f05f291c758add24a0b729b5",
+    "decodedHash": "9214b9c1edbe37f2096f12a1dbbca3803f29545a69477c223069182318298e2e",
+    "uploadHash": "2a3f9dd15904d980f31476bcf33807f8c5b2ce58428457a811aa9f70613bc4ea"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrFl02-01.dds",
+    "winter": "Plant",
+    "width": 128,
+    "height": 128,
+    "sourceHash": "41c2f620b1ad5162298a2da8c131b2d0511b2c7b2a00094dd8f22fc5c66d5d9c",
+    "uploadHash": "e287c45f99aabeba6f75f775743e5cdefad8e90faa0f0511d2b65876e820b7dc",
+    "decodedHash": "e9666397e6c9c8fbbd1018d29aa757aa74b3df3cd6a8fd6dff81bcac44710458"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrFl03-1.dds",
+    "winter": "Plant",
+    "width": 128,
+    "height": 256,
+    "sourceHash": "fc1eabbc19969d7c60b229edff05f93d079e3be40a71b9bfbd1d8d50e7aec7e8",
+    "uploadHash": "8263fc4a8ed1f871cbf26e53a62d1a06249689b66f8525615029160b45b7a395",
+    "decodedHash": "be67114e3b53aff7bcff29c6531d13fd18f385ecf40c1f67e731d4f10c15b8bd"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrFl03-2.dds",
+    "winter": "Plant",
+    "width": 64,
+    "height": 64,
+    "sourceHash": "d54ccac40303d8756a445e2c5c9f17e9cad0a57ad21419b980a729a31ccf082d",
+    "uploadHash": "4db9a6d7cbbe40ea5e444d3c78c7f15b3c98855d3885241fc2292ec3a634d43e",
+    "decodedHash": "0310b0c9cab3a5aa716cd8dffc66818281aecca94ff6e3a86ba885c58e91e87a"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrGr01.dds",
+    "winter": "Plant",
+    "width": 256,
+    "height": 256,
+    "sourceHash": "ea5020689f62ce66a36be05664c7a29c0234e1135543142dba55e72bde313cd4",
+    "uploadHash": "68d8ef62a52b9430a9779dda97026f33114d140c44d89fc2daff86b4bb99fef5",
+    "decodedHash": "66324d9c62f547a3584fe27c0852fabaec1b3b86e1acd1bf6d97ed9395545c59"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrGr04.dds",
+    "winter": "Plant",
+    "width": 256,
+    "height": 256,
+    "sourceHash": "c4e113fb0df723151fab008f8022be285fd8f2bb0efdcaf8106f71940f4d5be7",
+    "uploadHash": "a3b9657db4e640fe803a31824fbd5424bbfb5d26f526dba05bf7752624cdaac8",
+    "decodedHash": "52fa7d9423fc98745116cdedef68723bf54d9e8456e4087bd321180a0f683630"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrGr05.dds",
+    "winter": "Plant",
+    "width": 128,
+    "height": 128,
+    "sourceHash": "28ba48430703713d0b37f3d7da9aeb9dc8ce9112254ea949b78a7c6943834435",
+    "uploadHash": "fd2464659b7a98b3a0ef824307115365c9fe25528719e91d0f98b9f88ba5b9ad",
+    "decodedHash": "88cf28266a1e072008193c272a51ff5e38b1e2e57979f7198661341d657dabbd"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrGr06.dds",
+    "winter": "Plant",
+    "width": 256,
+    "height": 256,
+    "sourceHash": "8e94db479a61437c3c6f99d384f00eb37361fcf7a34306a4eedc57b458252064",
+    "uploadHash": "26e84bcb0f9d8b6fcaec841b95b9c64bdbc5e0a6255a01b46e2e28d63a0c4afc",
+    "decodedHash": "42675d432f69c9c6481c0fbcf142126d0a1c714a0960e924e5078c3d8bcf2867"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrGr07-01.dds",
+    "winter": "Plant",
+    "width": 64,
+    "height": 64,
+    "sourceHash": "c372b08cb713988067ca696e5fa41158e425db8d5ef3d9ce09ebbd2dd18869bb",
+    "uploadHash": "082a5f11d053f25531c2e1b853dd551e60e589b0d1dfe4b8ec8336388ebe36a1",
+    "decodedHash": "9c6e231099a7d520a2c6bbed5a243e58c82a8dce68a03336812eb519129bceed"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrGr07.dds",
+    "winter": "Plant",
+    "width": 128,
+    "height": 128,
+    "sourceHash": "906885ac4075d30b6b9832d68b8b458395765e7a211abcb4850c89656a6fece6",
+    "uploadHash": "2f3cdccd6cd6e206d474d02f455ae7e8abda1ea50df4ac35ca86632779e023db",
+    "decodedHash": "7e8af662e7b24a90a6b2dd745cefb1fe39c14b74ba04ebc5159977828a5b148c"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrGr1.dds",
+    "winter": "Plant",
+    "width": 256,
+    "height": 64,
+    "sourceHash": "e4762a2445015ef305ae6d08a73022eb13b322ff34ceb37c8cf16ba4b7aa0386",
+    "uploadHash": "01fd1252d4105657cb81cb45b56ff2868bfa1e24f76d09678da426bad8378baf",
+    "decodedHash": "0b1d2eae8787ab6a73e4e0005c7edb16b5ce4534e6e5ed57c0c4f9a5c1c6e7eb"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrGr2.dds",
+    "winter": "Plant",
+    "width": 128,
+    "height": 128,
+    "sourceHash": "d98f31585084693be4f59620fb58b5dd216723e41bfbdc0c5a4c5763f397c48b",
+    "uploadHash": "11500867ebe35939218338526664c3d2272261b5985addd1c9b393afd3c230dc",
+    "decodedHash": "6c72bb46b93cec5a800265d259fffe02a967115e0ab7c64584074745647b42f4"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrGr3-01.dds",
+    "winter": "Plant",
+    "width": 256,
+    "height": 256,
+    "sourceHash": "8d2c8c83316e88407a77612eb5903cfa21ad5cef9d802339ae2c78da41b5b08b",
+    "uploadHash": "9b9eb9198b4db6133d09097e1bae37e1c5c5beafc5f69745d137d56468d3fe57",
+    "decodedHash": "967375afef15085bdef8b38f55ef3b36b8dbe8cc9bed8f116dbf1fa93d9b21cf"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrGrGe01-01.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 512,
+    "sourceHash": "b703f7198e32a98a7d281d73d4acaba4d5619339ff7556ab7aed0e76f00aae32",
+    "uploadHash": "8c0144acbcf74822779879e7341b2e2daa9aa32bbb3837f6f6cd28564b2939c5",
+    "decodedHash": "f2ec1fdd60f45cbd38ebadd977aede6b8962e21a0b82ab70277cdda6ff679b92"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrGrGe01-02.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 512,
+    "sourceHash": "62b6086a8ff233b69c735bae45da60c96d3752c03a29419772cb760035d6604f",
+    "uploadHash": "be8a21e50c138bb3222f07bbca868d4ed2e5b852dffed6afa910534f88a45406",
+    "decodedHash": "3f3c12da6a266908d963b3a7085cee45f4f55ff3e1564c5ef7a1316555c340c9"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrGrGe01-03.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 512,
+    "sourceHash": "7487d8e0535d0188f278e6482c6e4cdac0e1f04360172abb9de9dbe60a023236",
+    "uploadHash": "29d84bec0691e2eb8b9ca0513698dcd24b6a9b61247b96118a79bce08efae2d4",
+    "decodedHash": "d0677f0afe0b178ea42aea259afd0669c691fa019f777d47aae229fb4be911c3"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrGrGe01C-01.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 512,
+    "sourceHash": "d0f5f51ceae565ed1c4d1accc42aeeaaf50adfd7ca042d44a16348a566761fac",
+    "uploadHash": "433731fddde28ecb76aec92181348e00e6bb50763dfafe678b380373f205c16b",
+    "decodedHash": "f3627d4726300e73fe526789bc161d342e67a46839361a19c8f18cd15e2775fc"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrGrGe01C-02.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 512,
+    "sourceHash": "db444e65c1c87af47de5f1442d590926d696bbab74fe9bb9b649ea438a7c715e",
+    "uploadHash": "be2f6a632f2670efa0185ec93b452c4aba21b67e99f770bdcf49d60c8ea29df4",
+    "decodedHash": "64406d6bbad3a72234c5e44c6dfffa3da01ceeec689c4f2002251b3bb5949b82"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrGrGe01C-03.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 512,
+    "sourceHash": "e7760a00f88aa08c3f916e223d11ade346ad167fb54bfdd43ed66fd53230215f",
+    "uploadHash": "7f1dabb4e05b507d265b5dd120bb83b9f559d475a63ef5d729f58a09a343684d",
+    "decodedHash": "24509b7b379280a4501a768da830b94b239515c4bae44a0efb038eeb3839f626"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrGrGe05.dds",
+    "winter": "Exterior",
+    "width": 256,
+    "height": 256,
+    "sourceHash": "7efb77e8c69d60b93f7958db19b5f2f081115821fd9f0db63eb3f0d516165fda",
+    "uploadHash": "22ba11063d3a808f5e3264143917cfefef8b637be7b9a99fd38765b3c04b7ec5",
+    "decodedHash": "efda8f31c6653649a8c1c7107790fcf413d9b4dd789ec572e2808d4420d7288b"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrMu03.dds",
+    "winter": "Plant",
+    "width": 256,
+    "height": 256,
+    "sourceHash": "daef925c17c4d1fb1cd4e34c0ded704a2d26dcfd02fd1be44941c7bbb4b5664e",
+    "uploadHash": "91c6f4b8e753e0c1e9a6d77f3fed8715167dd0e80e3b20cf4925cdf9c2cdfe97",
+    "decodedHash": "0eb14876b522e6413a33b2ea53fe76c3693fc0e1859f6c9ea1e4129a80d1d6db"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrMu04.dds",
+    "winter": "Plant",
+    "width": 128,
+    "height": 128,
+    "sourceHash": "b3041458c02619b56612917261723e9eb89941d534f2c711dc329f602b5904cc",
+    "uploadHash": "06ca3e8579cd8bb3dbdb1024cd2c45eebae38bc63980e588ec768423735cacf5",
+    "decodedHash": "983ab56b4568848610e35d61997c7be8f7272f00f455097ef51174dd2aeb1e19"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrMu05-01.dds",
+    "winter": "Plant",
+    "width": 256,
+    "height": 256,
+    "sourceHash": "a01083c923bdaff5980a4d9371d6672e64705ed5d44692e57eb23f5270332d27",
+    "uploadHash": "85e5c45958d846325643092abe247fdd081b391bab0ef812bbf0e4d973c94cc9",
+    "decodedHash": "8f01778f5421a363ec020959c94351b2315470da512aa82153d078d89d453ae5"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrRo04-01.dds",
+    "winter": "Exterior",
+    "width": 128,
+    "height": 128,
+    "sourceHash": "0691cee78d0a5ea12a4ae3de764c470bbb644e16bf9a4ba80e7c639ca2e4b122",
+    "uploadHash": "9347a5eda4d10cba25e1508aa56cc3b22a66e1973a9c32dcb2d2eeaca3247571",
+    "decodedHash": "10a73fadeebc54e0424d5e2e48d193c74a943612af97915ddfa105f96216ad43"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrRo06-01.dds",
+    "winter": "Exterior",
+    "width": 256,
+    "height": 256,
+    "sourceHash": "1c5d20e770f4a70b4f85bd896c6896ec608f1956365d52fc08c2aee01e8ddd1c",
+    "uploadHash": "67678900769f771d07fd42aea69df010f1735b5067b6f4a43fd984b6580fcbb2",
+    "decodedHash": "9f7f12e48c1ecf3a8ebb8e6f99a94af442b8a62fb20d773928ee0fb845361caf"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrRo06-02.dds",
+    "winter": "Exterior",
+    "width": 64,
+    "height": 64,
+    "sourceHash": "3f1c2497359af59fa5bb7ce5a0014b7d3648dd0655858fae5a6fda03ba28bee1",
+    "uploadHash": "b5f3523e9a5850e1a3d4da0c7e44b096865ce854170a5f8290c9282ab42eeeb8",
+    "decodedHash": "01dfc925d809025af3ddada500ba9bd591d229566b9946b844e39432053ff47f"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrRo10-01.dds",
+    "winter": "Exterior",
+    "width": 256,
+    "height": 256,
+    "sourceHash": "30c697e14e862af74b302e36d65e0db936393cd5c096ae2e84db4a1a65f9f42d",
+    "uploadHash": "b7486dffdb22ccbdf6321a6b879107d475397cfd7dfcdd9620c31dd0bf91e9a4",
+    "decodedHash": "8a0fefde86a01a2d5fc2e499b05ce9b9154372b3c8f2711ec5460011ee3e860d"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrRo10C-01.dds",
+    "winter": "Exterior",
+    "width": 256,
+    "height": 256,
+    "sourceHash": "8d0fc448497b6b21b9c8a4c0f3c9e900991b0c4694cf3d6cbdeaf69d61042ad4",
+    "uploadHash": "fbe85cac30a68ab1daffe403b6ce538996fd18a13ee7e1c12448c51b083fef1c",
+    "decodedHash": "5839ef6a6a4a8de596d00ab7eb12b3440e6471dfbbcd8ba6a8d99d412e97312e"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrRo11-01.dds",
+    "winter": "Exterior",
+    "width": 256,
+    "height": 256,
+    "sourceHash": "5914b47ce178d7a3590580cd18ebde035535d5d233726afc450350ee795e96d1",
+    "uploadHash": "d7263ffeb92cac021c610c98faa903373435bdffbaebe2b051d2df5f275dabf2",
+    "decodedHash": "f23de68af77ed7d3e52fe5fb6d5b5e986ec1a98d3a3d5062a645dd2fad8092cf"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrRo12-01.dds",
+    "winter": "Exterior",
+    "width": 128,
+    "height": 128,
+    "sourceHash": "a5d2e8f280a550099902b06b0c7606e2b81cb695f6d2e927d21d67c91207180e",
+    "uploadHash": "2b4efe18855132e27804b725ffa5103f720f359ac8206da87cdfae580bbb9687",
+    "decodedHash": "8bdbf5211e6cf68acdf6ef0c39e3b65f34636af3739d7ded2af5fbd3cc18bdd3"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrRo12C-01.dds",
+    "winter": "Exterior",
+    "width": 128,
+    "height": 128,
+    "sourceHash": "50d134242a88e869140198b81acce9e5b72130433619edd73a64578ac1d90f9f",
+    "uploadHash": "11213fc325aa4f3e811b6628ddd661e0f39f6e5a16b272c12f9c00bbcac3cfb2",
+    "decodedHash": "b398720690253486273312b1523a7e6f4f808d222bb1b7989dd529c9646bda20"
+  },
+  {
+    "file": "Model/Texture/Obj_MaCoPrRo13-01.dds",
+    "winter": "Exterior",
+    "width": 128,
+    "height": 128,
+    "sourceHash": "69463512f2415864b480258c039c9ce10da581c0ac74434654fee7f49f511606",
+    "uploadHash": "3aa2a58c77e776f9917c2d66aeaf9d1d4778b472b1d7efa873943c203015e4e3",
+    "decodedHash": "f2a6419b43cff63823980a0d3230f82fc4f21f54dcbbd711bf6d2341f9829e60"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlAr01-01.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 512,
+    "sourceHash": "7954f238b2173c5c87a50e8dc503847283242f987a0c4787f97f9169b7adc864",
+    "uploadHash": "4d08052d37c8db7cff1cc6f8078de5947d61cbf435881186f5099b265ef465f5",
+    "decodedHash": "270a313e40326c623e1428afa567cab1351fdd25bbe8fe8a80e9e16ec8cd468a"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlAr01-02.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 256,
+    "sourceHash": "9252c3f24ab00a209885a7920cb48493f44751767062edc579f3b2714e413c16",
+    "uploadHash": "30b3f06b719fae95e2403bde24a34621b7804bfce2640e035b5341e4d1503078",
+    "decodedHash": "53009ef80e655be85c83b285bed11e8376e1921215cd308fa5b7b2f20e3460a7"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlAr01-03.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 256,
+    "sourceHash": "38b653272f8bfa5ff2372cb86c0aa2a09971e6cd896f72a9d559b953f3ade083",
+    "uploadHash": "b962e8b86fb43b28abae564bff36dc2e688c117a47aeb868acc7ee2a342cfc4d",
+    "decodedHash": "5f95f16b3496f622901b5627e7fa7b8e877b21715501f586105f3070573b698d"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlCi001-01.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 512,
+    "sourceHash": "895d3d0882214785fd1924fc950968200ea75b36964c84e055fdba6e850006fb",
+    "uploadHash": "93cbe66df7ec1a370d7138b1838cabd7bb659cd16aead2624c1242897471f219",
+    "decodedHash": "49f50f92c43c40f34e41e4b95a34004b43fe065dd4e8f442acd87f6a4b05df09"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlCi001-02.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 256,
+    "sourceHash": "b8c1bb91db4ed0231d09e3ccc0ae8c77eec939479315c001db045541c154ca00",
+    "uploadHash": "444d38170773be106772890cbb04cc2ebc264cf88f3e8229685bd7dde2922f34",
+    "decodedHash": "56543cc67e8ed104a2262b706fa89ba963b8656fe87e23bbe2f286323ceeef33"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlCi001-03.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 512,
+    "sourceHash": "bbb4fdc67063be32fe4bd769f7b2f00b9b8dee14d3813c62b40baae992505871",
+    "uploadHash": "e6a71720d7c91e961c4d96ede857287b647ff8630710caccdde8342fdf19783f",
+    "decodedHash": "6fe8fc56d59c12f706a71ac7508b79b226a9908e3ca0ee684a3e2daa85c77f72"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlCi001-04.dds",
+    "winter": "Exterior",
+    "width": 256,
+    "height": 256,
+    "sourceHash": "9f597fe770e1e0c7ca4a2ba717c97cccdcebdb307e132f11b944f9428e9a59a9",
+    "uploadHash": "927a7011ca038ac3b5902cab9aa2a9d09dfbeef5f15170e3a03e610f0d2b38d9",
+    "decodedHash": "c890a3c5f368e78dd4fed9726862ce39a49472f10b7095f034328dee5cde4c0a"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlFo001-01.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 512,
+    "sourceHash": "da6b9561b8501dd71826544dcdc5af4331bc041a70537731661ff344356d870b",
+    "uploadHash": "08bf0b3a8c7c31709c053e5b22f031362d5b20d79feade5f63ca6809d9eab66e",
+    "decodedHash": "27a426edad79dc053639a883a0cb93510bda97f1317f32af17172a17c755d6f5"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlFo001-02.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 256,
+    "sourceHash": "3b82e0c864441d81113f9186900bc62ce41d0f65f9fa32448deee619cde8b73e",
+    "uploadHash": "6c80261935133b6df4fda9126bcd859e0506daf0b0ce2adc27765e68fd675985",
+    "decodedHash": "83e6af99ae5bfd8294e055efcf56c58581d1d8a0d4d75f5bd754f6e3acd9197c"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlHala01-03.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 256,
+    "sourceHash": "f2ceb199902a37a05c66b905c8e1822503ca45090fe42670016d33e02846b7ac",
+    "uploadHash": "33a2f9b43d0a9e0ff81abbfce3a937f542d62a228a53f137f0800e0b178ca8a5",
+    "decodedHash": "674ec72a775b35112a0c94e056b67a4dccb22e8ef059b5545cf6b4810b271637"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlHala01-04.dds",
+    "winter": "Exterior",
+    "width": 1024,
+    "height": 512,
+    "sourceHash": "3827c91c1eee621b65c1987588a7615823ce5fa6a4c6b4b8d069beab78b1f6ab",
+    "uploadHash": "996160fae5da8f413ac758d57d21e227ee1eca7ed7addff6d7e35d1e31bef679",
+    "decodedHash": "270e2b047c666a7b9591d164b5cfbfaaa203c86b7a7b4fdd618ded2dcea01ea3"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlHala01.dds",
+    "winter": "Exterior",
+    "width": 1024,
+    "height": 512,
+    "sourceHash": "80724378220b584f22d3b8a0198f6faf026ad20e413527a60dfc4956ff56fa93",
+    "uploadHash": "8af04355938593add7f153bdfd1fc51051db6c20ddc79cd8c32a02a2fdbdadf0",
+    "decodedHash": "c5a7e715e0903d063764ad69b7229db3141fcbf41398557a4ea3579d81d965fe"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlHaro01-01.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 512,
+    "sourceHash": "c047602c6ce7a4d208ce3ae885e6cefa4ba988264cd188900bc57461715656cc",
+    "uploadHash": "d883c5fc8339569e73639430304d5ababbcf95f4ce7555a128b22a0917b92675",
+    "decodedHash": "a4e475a45cd5022655cc78835659dbb6d0b907a91bdd6b7be32fb9b471f9be10"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlHaro01-02.dds",
+    "winter": "Exterior",
+    "width": 1024,
+    "height": 512,
+    "sourceHash": "01aae367ad8af6ca415077f039b7c049304fcc7b4f9b71f3a119d44d1dd39393",
+    "uploadHash": "fb79803a2c8c45b2fa763135f0856d67f5b4ac741ca83176daa28a6678610f00",
+    "decodedHash": "2af0d4982aaf14e20c546b572087d7569c3eadb4b701bda77b289ab973e58a6d"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlHo01-01.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 512,
+    "sourceHash": "39b4f05826d07f507ecc8e730d91dd4024721d8e500fda89a6166088ed47eaef",
+    "uploadHash": "c61b432acd4273d27771942ec98622e11a3e2e36f3804cdbecad0b6f376f0b74",
+    "decodedHash": "99ea7764627ec9cc850055d262d183fa769695051f1715a11c8c71cde5ce54f7"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlHo01-02.dds",
+    "winter": "Exterior",
+    "width": 256,
+    "height": 256,
+    "sourceHash": "39732849554dbff927636641c86ff7c562cf04a1870eb5ee7ee7a4c219ad195b",
+    "uploadHash": "77a7c28bfc5c4052d131ce1373f167a9c64d826adf5c479141a1534b447310f6",
+    "decodedHash": "54cc9f35864c37abcafd348a824fba27dd1b8713588b7897867ab1b9b9eb4ae8"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlPrAnvi01.dds",
+    "winter": "Exterior",
+    "width": 256,
+    "height": 256,
+    "sourceHash": "43744a54bdb7e508ed33ec8ace18d6372de9e627fcf1581e2fa194830570d70c",
+    "uploadHash": "8720659017dfcf567a9075e6b192b34009fd323d3f82733d619e8faedaa87830",
+    "decodedHash": "50646b3bd351fc01528de2a380925625b364b5f4497a708ae789d527259e9af3"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlPrBenc01-01.dds",
+    "winter": "Exterior",
+    "width": 256,
+    "height": 256,
+    "sourceHash": "d4b93d522df3b50b3587ed2dab8b5c34fa56ae8223ba2d10ed64b86538f43229",
+    "uploadHash": "27fa8ee858b80c2dd8d697d7cc680c378e5c05d9af1ff12cdc299ecf8c902ed4",
+    "decodedHash": "b6841072096aac1c83dec1cf867043d9f91b9a0cb767028fe603d819986ced9e"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlPrBr03-01.dds",
+    "winter": "Exterior",
+    "width": 1024,
+    "height": 512,
+    "sourceHash": "5a1544aac56172b264dc7c10d6e448b180c50ad4dd9f24a6b50bffa271b9a48d",
+    "uploadHash": "97194a47642cb3f6d0f9c66f59a85cc8c61147df242f3febb6d3912efa21b541",
+    "decodedHash": "8b332cf23281b839dd3a318c390fb2c147fd7d10505715f3d5f70cfadf95779c"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlPrBr03-02.dds",
+    "winter": "Exterior",
+    "width": 256,
+    "height": 256,
+    "sourceHash": "fa79c2cdc79e4583c089c903330a2b4a1576a0eb333b76b03142760837b275b8",
+    "uploadHash": "d3b86b933da29cd8b3c904eab352ec49ad6da1a3a7f08170c7b489c6e95ca9ab",
+    "decodedHash": "2a4c4795ef6a725196df4f3d153358312927e36456f86b6c91dc3ca5d0918355"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlPrBr03-03.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 256,
+    "sourceHash": "ab40e7546a3f879fc7f047f1fee6bff23d93c41fb33e808d6c018b5e585d6e3e",
+    "uploadHash": "6b5db64b627f5c9cad7b7ceae96d42be71b8beb9cdc86de392ff7983ecced8b7",
+    "decodedHash": "1a7dffd264ee6b198ee5b53f207c889521b30e3415e807357f02613ec68fc9ea"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlPrCa01-01.dds",
+    "winter": "Exterior",
+    "width": 256,
+    "height": 256,
+    "sourceHash": "beb300613d3b09ef6f9f0958d36278544dd4abe192549b0ae241157c69fc08cb",
+    "uploadHash": "91acda8f39494c2162d3a67ac253ea74c8aa41e2ef35cb04dc4d9043051fbafa",
+    "decodedHash": "3480fa148c16c9afabee7f3df94e6c032760b956a0ff64e1fb350e2b42a57648"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlPrCa01-02.dds",
+    "winter": "Exterior",
+    "width": 128,
+    "height": 128,
+    "sourceHash": "fd5d0489b5bda8cd629524aa0f3aad0d99473613dfff77256792aa565e0b200f",
+    "uploadHash": "212aad1be7e95e208d882b0f0e9b051607fdc1fa6862d3cf9575e53a7388dbc8",
+    "decodedHash": "dcbe1d797dea1b66cb5046a21c8ebd49a36b6613874b2f188af85bf5bf426d6f"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlPrCa01.dds",
+    "winter": "Exterior",
+    "width": 256,
+    "height": 256,
+    "sourceHash": "10f1a2e24628074f0afaf56dcc179102b0142d472132d692ea85dc057318badd",
+    "uploadHash": "593ca3c1356ef9dc32c399154f58dcc6e23b4a8d69e3f2c299250056d87c6ace",
+    "decodedHash": "b39c37f71ddced9deff4322f86de2f717542090e321ecb57c060e1690910b1c1"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlPrFe01.dds",
+    "winter": "Exterior",
+    "width": 128,
+    "height": 128,
+    "sourceHash": "3dc7915431f92749e50b7b95df8fa83a434a5fabe82e5369ebabf5ec16598ecb",
+    "uploadHash": "19cdd3fa4bb76a4b7306af6f33e69a44b0e26ec1e619add8ac60c1dc44db12c3",
+    "decodedHash": "ee4a1e4ebab03d11720cba39ddc1b2597e3047a1dc402d7b1b13b4f1f91babf9"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlPrFe02.dds",
+    "winter": "Exterior",
+    "width": 256,
+    "height": 128,
+    "sourceHash": "84b945be2ee01472ffdc174d6c0c5e17960573568bfa9de67c8d8f8dbe739aca",
+    "uploadHash": "94c4a81a587f29f362892efcb46abe0288c5c684435e808699bb53d4dfc62d7e",
+    "decodedHash": "e840fe34312fb221f2b61d4eb58eccddc7b64e4e89d50195c5f1f429f272baec"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlPrFlis01-01.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 512,
+    "sourceHash": "08c3dba81d58ac32bde2fa7b5f55290f692bfe06e49fbb846d77354515767301",
+    "uploadHash": "733cfb1a2c022e4ebf6a7d5a9d6d0e96ecd58a6e017bef4735610a60a7a6d390",
+    "decodedHash": "23e4158ccc89061e1c9ed21da6d9c29ca2f9f2b833fb2b2985f627465b5af05b"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlPrFlis01-02.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 512,
+    "sourceHash": "3b5c0707b64f4f067666891f4b04950940531608ad1a2f99a0af3696df80bdc0",
+    "uploadHash": "dd090eb0e09d4aa513818bdca129895ea463673b9b605cc737a96ca3b9d97819",
+    "decodedHash": "43562d2ee033fc7436bafec58da147e15650424354b54d7b0cefffc0cd0487e8"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlPrFlis01-03.dds",
+    "winter": "Exterior",
+    "width": 256,
+    "height": 256,
+    "sourceHash": "591851bb21a5985b2ccc961547d2950ec8da6c8b0e89513e5726ba8c2fc8554f",
+    "uploadHash": "229a9a0cb7c0df7ff93b6b705bdb6c361c642bcdc85577d111dfd796b6282992",
+    "decodedHash": "0f66cee3f1fb48f435009e0ad95bb60b793fc1099c5b1f44b81b83b242cade23"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlPrFlis01-04.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 256,
+    "sourceHash": "05b3e3249892e8dc87130b86ad841447f918487becc3a3e0c2a7b33652c44d11",
+    "uploadHash": "38ad97d90c1d233ae049f8118c91062fbfe9a21ad960275e635288b101709f4e",
+    "decodedHash": "0bfc675a34eb9f988e8b66a15f663068b6fce89ce0d58b4b8e8c9600a6f6a1e4"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlPrLa01.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 256,
+    "sourceHash": "bd9f232cda492502e4f98b73c6a4bda78cc5618bd1bf445036aed128ad0b6a83",
+    "uploadHash": "7ac3ddacb4e2c4f0db00932f663a9b5fef007b61ec002c80b084f477e39f7eef",
+    "decodedHash": "3256bd91e6241d13e24487af3cfeb26d681aefa53d8c0b054d43b134f839e00c"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlPrLa03-01.dds",
+    "winter": "Exterior",
+    "width": 128,
+    "height": 128,
+    "sourceHash": "62326cbdd821d25f48970096f1da17f84fb257a740d2493eb9dd9715a054163b",
+    "uploadHash": "a544f8964ae12723ffec03b30e1a23243a049d9a7bd99125a0d652b52aa43366",
+    "decodedHash": "ca90640af852903bf2981f51c9f2b29cf9a8819cc667b71a2505fe121f006f86"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlPrLa03-02.dds",
+    "winter": "Exterior",
+    "width": 128,
+    "height": 128,
+    "sourceHash": "0848014155adb7d1283fe4ea25e5115c5ef86b589d6b70353dd325b8f85a371b",
+    "uploadHash": "d2f6a75e1b87ce527effb5ec7c242bd5da820896400e43134f640041583e3377",
+    "decodedHash": "9a2ef32e30eaa32885b84b0e36b996bd58e7251024e67d5e56a2f29205d6d585"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlPrLopa01.dds",
+    "winter": "Exterior",
+    "width": 256,
+    "height": 256,
+    "sourceHash": "fed105904d89c4a4703dd7b0632fa4a80a846cb6c4311808a39fb1579bff8819",
+    "uploadHash": "83e13e9d7bfff364d78c71d68e0a70f6285689767f469befa304468e2814ec24",
+    "decodedHash": "f325b732b12919360461af00fbf024f897604fe9d5a662d2e19fd5c7070cc57e"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlPrPack03-01.dds",
+    "winter": "Exterior",
+    "width": 256,
+    "height": 256,
+    "sourceHash": "4f2ae7042d1440a03f3be6243df90c556c6a3f62f72bfe33cecc149f1ef98836",
+    "uploadHash": "62c6e2b5e451517cec9791228d5e10326b42f9359d670e2c9a43c021dae6601a",
+    "decodedHash": "e26ddce6d9c3439025f62876720aadcae081b06077423a8daaa3dfb82f5f58ab"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlPrPack03-02.dds",
+    "winter": "Exterior",
+    "width": 128,
+    "height": 32,
+    "sourceHash": "f32f260e15e829c621a8e3b008edb862219aa9f9c33e4e877760cc2f62a80179",
+    "uploadHash": "185c7344ed4afbc3e669eaa54f7a443546d0380122a827259165bfa3665f5738",
+    "decodedHash": "43698bae948089a69604e65d0230ea60dc3c255d0ce9fa0c6628676007866ec7"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlPrPack03-03.dds",
+    "winter": "Exterior",
+    "width": 128,
+    "height": 128,
+    "sourceHash": "18369e8dce277de7f1a0d8ccb041b60c56472c826ce1306141ceed3fb15e8121",
+    "uploadHash": "10805cee148d3910cb6e5b592df799d42fcd2cc0af2d5fab27f300f9789af1b6",
+    "decodedHash": "007e78034de336745f431e4dad5272e3768a2336f013766c422b7b269311ae13"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlPrPack03C-01.dds",
+    "winter": "Exterior",
+    "width": 256,
+    "height": 256,
+    "sourceHash": "d58af2e32ebd61526fab536ff4b41c4636d7c349a35da3b25ea793d85b65a0e0",
+    "uploadHash": "348e412480b8f3263a0e51a1550e02467a07565ddd5f615ecb4fd63864649137",
+    "decodedHash": "e6438e99f2719166f0a07c357176eaa29caeac3ea4e872305adc848c302401de"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlPrPack03C-02.dds",
+    "winter": "Exterior",
+    "width": 128,
+    "height": 32,
+    "sourceHash": "d9428344d705250ddac81d35ae7088dab4bd9fbf6e44c82effd4c2c9ba361e83",
+    "uploadHash": "a63b45c8f4f0ad445dd43092635ca63c23b9d44f72fa5076431d334d8ccf96a2",
+    "decodedHash": "ec0546cf27b95211a35437b1f9b7f7c87dec037518fa68743f79979e1f1debb2"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlPrPack03C-03.dds",
+    "winter": "Exterior",
+    "width": 128,
+    "height": 128,
+    "sourceHash": "bf0575e9b4164bb56f200c67d14bfab19f767a8e160c41a8123bad3ee7611466",
+    "uploadHash": "5f2cb40b602136991c69ae06577a78fc9b56151ae44d34b722cd5b87794bc73e",
+    "decodedHash": "cfad1de19dc439366f771ad31e649f9926900704eb15824e3bf22351deb14435"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlPrPo01.dds",
+    "winter": "Exterior",
+    "width": 256,
+    "height": 256,
+    "sourceHash": "590690eaa1c16f17cbdaa33928d4a21b22a7d3f9287cdcbf8ad906a79d2eb9db",
+    "uploadHash": "f3c5fef937ef5e7608064da3fe221b0dfa3dd5ed6f9fe5a3bb43f74b61c015d6",
+    "decodedHash": "1c2c022714682f041ff4340d406657049c3479e27f615f887c00b096446b23eb"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlPrPo02.dds",
+    "winter": "Exterior",
+    "width": 256,
+    "height": 256,
+    "sourceHash": "05c354e428b015a4ae13898cfc1ff01d8614848e6020b980dd21197a11a943b6",
+    "uploadHash": "4bcb814e4e219522af3b8372cbbdd434de837ef6224f7021c2359f8d3c6d6264",
+    "decodedHash": "0e988bdf71a739e85585864962ee833231932d77abbcd40056acd95efa56bf82"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlPrRack01.dds",
+    "winter": "Exterior",
+    "width": 256,
+    "height": 256,
+    "sourceHash": "55c32d568e08257afb5455043a6d532dc5980e1f656f840237f46b0ef9557979",
+    "uploadHash": "b731a77f1cbc08e1b3797bab68c9e2577201aade78e570192be3050386a9bf71",
+    "decodedHash": "4da2e3165293a3fe5602aa386761129aa5515be299a1d02977112f6bf308a51b"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlPrRack02.dds",
+    "winter": "Exterior",
+    "width": 256,
+    "height": 256,
+    "sourceHash": "c4c6bd762e3a5d0ed45c523fef7be5d423d320121718e23ad481d07e0f0fed9d",
+    "uploadHash": "948f886535e3162aa7a17a9ec9228edea9cbb55f025d4345f37693dcc5191216",
+    "decodedHash": "29e6e012f6d8803e9e42c3efeb3068e9cb1727ed18fc9f74cf11c2e705930d81"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlPrRack03.dds",
+    "winter": "Exterior",
+    "width": 256,
+    "height": 256,
+    "sourceHash": "b01c8be720ebbd5a04180199d70859af554352839ddfc2ac49c8c46408c8abbd",
+    "uploadHash": "cec2a8895cd2692d9566c68886fff1d290a55967099fef28cb294c6c0a93bd77",
+    "decodedHash": "a6ba3ead30600e3da465fb432166e849688d031ee281568720b59e296903a078"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlPrRack04.dds",
+    "winter": "Exterior",
+    "width": 256,
+    "height": 256,
+    "sourceHash": "56b61b2d2d0d992fd1152e7072c226030ad2d6b8e480f942a6824524ec39a723",
+    "uploadHash": "357db11393c210aa0d17dcd8f03f0bde9d98befc0d164050c462c7bf84042a3d",
+    "decodedHash": "bd1d65e971cfdde4864b5e8697a56c116192691f1f24a9275eb5ba2c4bac8941"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlPrTe01-01.dds",
+    "winter": "Exterior",
+    "width": 256,
+    "height": 256,
+    "sourceHash": "59fb2bdf5fe4bd4967eef19665fc3a859c9e664956a2caca71ea43bc81f6cf9b",
+    "uploadHash": "d25979192850f4271eeea08ecb7f4cb44a411576388cec4c8a68ad3729f22b3e",
+    "decodedHash": "ab7da6b7828c97022d0e6b857c29de3c0e55c99f04eefba52f2b683cfeaf5250"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlPrTe01-02.dds",
+    "winter": "Exterior",
+    "width": 256,
+    "height": 256,
+    "sourceHash": "4939ec6385d50e845995a4aa875287d8838382f276a05cea3e5537abfc0d2653",
+    "uploadHash": "44d245b6269835818c1cd56c8a1b812999e25d256a4022d25827355f5d446a7a",
+    "decodedHash": "c5eb4c22494b8697d8bfa9ca1cabeebd9f470ab91020d72ddd813d81a066abd6"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlPrTe02-01.DDS",
+    "winter": "Exterior",
+    "width": 256,
+    "height": 256,
+    "sourceHash": "de9bcfbea3423fa865cd100c10ecf38be52ba2f0c1877153f20c0c8a53f288f7",
+    "uploadHash": "92be8dde8b4e7c91f5698e975d307d95e4a665873aafe0e5852a70c168cbf2e5",
+    "decodedHash": "4b0ba28787154f7f4feb050800bceb860d7840a7fe9df7d5a171c26c0cb53f94"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlPrTe02-08.dds",
+    "winter": "Exterior",
+    "width": 256,
+    "height": 256,
+    "sourceHash": "3b3de46a776530b5e9e3ebb8101151f2795212fc0e005bf2f6810f4f80f3e69d",
+    "uploadHash": "54f4c67e3b83da920fbd592adbab7a98258e0113ee4003d4d032634fab15c884",
+    "decodedHash": "455f535ae8431c06a1b4c5223dde202fc1184c0b9b4f475af7d7d950bdad5327"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlPrTe02.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 256,
+    "sourceHash": "b9552045aaf9e4f1ec5e6132d3d27e5e347eea5cc8638e0082791c2c68702006",
+    "uploadHash": "dbe5d790d43724ea945d445d9efa2423e1d5387fb5fcdfa6cb6fd4b235af8224",
+    "decodedHash": "e1823bfbb0d07bf62667bdda3f03237355c20b747d7de5b27b6af4e9d1afe764"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlPrTr04-1.dds",
+    "winter": "Plant",
+    "width": 256,
+    "height": 256,
+    "sourceHash": "4d148e493d3d2bef4015b9507ced99b3f71d20fbec07531e37a9119840bc9fad",
+    "uploadHash": "23a64c1b5d6022ad8c6677d45d3c23facf07ec67c4be82ad9f94c173fa2043eb",
+    "decodedHash": "375a6309476f70498bc4445c53619cc78d6a3c64a3f53f5a38d86705b2a21173"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlPrTr04-2.dds",
+    "winter": "Plant",
+    "width": 64,
+    "height": 64,
+    "sourceHash": "adfd60b505e6efa72e68ddfecc1c056eecbb518ed657e1530809a1a24609fb16",
+    "uploadHash": "0986b3f01a8f95ea9a75b300ee1e67ef232f369798dd66e743db09c7e74372b7",
+    "decodedHash": "274a1df22c7f350c08dcd866375b779ee670e65e201254cfa7f4ed3d28c06957"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlPrTr05-01.dds",
+    "winter": "Plant",
+    "width": 512,
+    "height": 256,
+    "sourceHash": "50f2ef3e069eec8d3009c036897d340c299dfb5ca3f94b53e8397f3a81dc0ab7",
+    "uploadHash": "2fd27c72694aaf564511f1705d74f99bf403617d5b4ca656ec300c2dea6bff62",
+    "decodedHash": "55025a79abce3aedb48e3fa81a89f6c3200b698d9e312edbd902f665bf3dbd92"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlPrTr05-02.dds",
+    "winter": "Plant",
+    "width": 256,
+    "height": 256,
+    "sourceHash": "3951f375c5293aa08318f263345ec92785d218aa67e0007a6d50764ea2df1422",
+    "uploadHash": "4633a450a858927562acdefd0e2b8a3653742005d227202246f5539bd5f07380",
+    "decodedHash": "8e17c70f1f45ec05f5237e6211ddf16a812d42fada35260f9ff3d9a6c2abe9a6"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlPrTr05-03.dds",
+    "winter": "Plant",
+    "width": 128,
+    "height": 128,
+    "sourceHash": "97c9df2ae1ce6278b732168bb235b480b889d7fb00539f4f1071dc030190ff92",
+    "uploadHash": "9e1fe32d0a7d9c5dae681d22483e6fb0f3fbf4d267df2e0860fbd26eb1f7cb2f",
+    "decodedHash": "87e2fbea1bbd740b3210fda01108765a514251691daeff1127f9b8b95339fa25"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlRe01-01.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 512,
+    "sourceHash": "69b735a1e82e40c37c5c81c5be89919268e3bd622ac5a4ea418f9d3b03a79f43",
+    "uploadHash": "94bccec3090c085104f5e947c672b37cfa22d4a4d3457bd457e29d5442438164",
+    "decodedHash": "12ee17ac208bc2e6c3d1380fa62b9bab4a89869b028ef45460cee02077ea7f6e"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlRe01-02.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 512,
+    "sourceHash": "468f0f165ffc884db2ff2daaa18d14b6521077db38e6d227c4f841e449f3ba4d",
+    "uploadHash": "ca20951daa366fff5d176d3427d3af11ab89f07cf7b02379bbc8ca4ca95407ca",
+    "decodedHash": "e50fca132c7459f38acbabcfd335651a4e3df72e7dcb2039ab3d91a6798d8b0d"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlRe01-03.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 256,
+    "sourceHash": "8eb0935bb83072c769bf86a4a54c8e2953b43d22a784be3659bead763be93159",
+    "uploadHash": "07b23f8f02d95fdde3eef769a2c80723f588f2dd5d7f29ecc4ad24e787716c1d",
+    "decodedHash": "aceba91f6cb87660a77a877718c464033e7467d419bf3db49c8713a5103c2c34"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlRe01-04.dds",
+    "winter": "Exterior",
+    "width": 256,
+    "height": 256,
+    "sourceHash": "26a5e744c9fa0dbcfdc1f7dc23824e965a8a2f68d67b881e3b320486b441b6ee",
+    "uploadHash": "332ca939d253d6855aab9a79729131c191f1ac3448b70c51c42e9284fa275b46",
+    "decodedHash": "70db398820cfc0e40e97c45ebb0d06515f38d2b9cd55ff18570675f8f6624f79"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlReq01-01.dds",
+    "winter": "Exterior",
+    "width": 256,
+    "height": 256,
+    "sourceHash": "27025e55a5e82dde069bc9165504078a290a8bfb32400f537a80c57b2d155da6",
+    "uploadHash": "c356c952ac6145565bc4447d96600604ffe5a98a4a6206aa65f987a55b566791",
+    "decodedHash": "f040b9d1d4402019770af09e741c94894993faf0c5076fe5c7ad6afe4562df9e"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlReq01.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 512,
+    "sourceHash": "2d64aa1ee8905f8c84aa163e175cd4d8b51d3bdeb9ac8bf820f060eea06ef357",
+    "uploadHash": "1c3f8d38517505b1cb100a89a011cf32c9c20759e76a4a678b9051a529816940",
+    "decodedHash": "7de350aadded4eb425e9ffe55b824d81d28db322d215d307b986ea71d4dec89c"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlSt001-01.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 512,
+    "sourceHash": "e67bdca189dbe85e10b79205e0464305d1330691d7ec33191476b95e1a8e2ebf",
+    "uploadHash": "913cf00c61194b5d2c8d8905f4476da922e2b5c76771e340745f6d30b6075889",
+    "decodedHash": "efd3f63a356e285ce26adab10a69700c0900ccc88d50bf29a793289869db4ab7"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlSt001-02.dds",
+    "winter": "Exterior",
+    "width": 256,
+    "height": 256,
+    "sourceHash": "5a4b3e65dae73ccf1e9602654fe9664d37c2ec08b2aef764f074b0d99d420832",
+    "uploadHash": "e403dafb5f4f9407d931c2b96ec7c2cc759c20e4f4a0e1c993c7fa0fba99ee02",
+    "decodedHash": "0bfa236c566270568d9e12fa4151557eafc07ade4e0cabb1a6ea45ca4d66e171"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlSt001-03.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 256,
+    "sourceHash": "df95ebb725240060063995db02e2ed48599be4f9c6a0bec160c57ad684747f75",
+    "uploadHash": "c60795b823683ddd89fad137ca08b52a07e5f9ddee65c647f2fe9aa61203b7a2",
+    "decodedHash": "5d5a19fef0ca40ca30e6bba1e3f13a20bfada8262b2f22ce7b8dd2e06b4c1442"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlSt001-04.dds",
+    "winter": "Exterior",
+    "width": 256,
+    "height": 128,
+    "sourceHash": "cb0048917e95bad3f266872dd3fd15e23d583eb6dbbca87c1d9546bdf8727b87",
+    "uploadHash": "04c6a1ce23d2a02fd26631a9ea256f5f94aa76ac6791b8f2a1bba1e99aa90dbd",
+    "decodedHash": "145b4715cc03e7e0f5ece8dc373589b14c8fb8f4431b0feb4c93c36576e53dbf"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlWi01-01.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 512,
+    "sourceHash": "cfa15c6402cbb63d399c2c0e8055f96a33e2416f969ad17a9437a98b9857d5da",
+    "uploadHash": "02271e06567af3d7c1b7f9e6657292343d1a64f5f6824714ac31a4a28e4bee04",
+    "decodedHash": "1aaff429616e794cfe4c123ba0d1b24720b48a6dd96676a52597b36d22211692"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlWi01-02.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 512,
+    "sourceHash": "ac7a9ce9001a524589e9db9b3be47c54f7c177444f44f71a3c562335ba6b1d1d",
+    "uploadHash": "f46e5d2b81bbd50c470ee5223f354dfa9c32c0e0985aa1de457ccb513071915b",
+    "decodedHash": "d8ea7620492ff49e67544a6941483835521dffa5c0c666bb58255aff3c7cdbcb"
+  },
+  {
+    "file": "Model/Texture/Obj_MaFlWi01-03.dds",
+    "winter": "Exterior",
+    "width": 256,
+    "height": 256,
+    "sourceHash": "a390b8436d58a3bd36af8a6def193bd10ca60c9ae65a2e9ee216fad1f55a6b56",
+    "uploadHash": "b88b74d6368e3791a77b81cdc0cdbad1e87ac38528f069d6a38ef7955f85fb31",
+    "decodedHash": "a372eb81d4ae0a3f003c71883e3b2facbe0edc4d5c6d8505fe7992f3917bb3da"
+  },
+  {
+    "file": "Model/Texture/Obj_MaPrMu002-01.dds",
+    "winter": "Plant",
+    "width": 128,
+    "height": 128,
+    "sourceHash": "415df3b42bd81ad49c084f9ad418397963b689e3d65f904697349074c470f3ab",
+    "uploadHash": "b3ab28a3f8c77712d2106a7e7eaaeda7c67eb72da789b40f89ff56a6cff46cea",
+    "decodedHash": "4871e2236a6038c7fcd6dbc34f1b004e943a351c3d8da4bc2b3e11bb8510ee31"
+  },
+  {
+    "file": "Model/Texture/Obj_MaPrSt001-01.dds",
+    "winter": "Exterior",
+    "width": 128,
+    "height": 128,
+    "sourceHash": "8df11528ba893fc3a366f09262296c8a956a819493cb3ade9300b544a19e7ce0",
+    "uploadHash": "7c4b3a6a74980b9cce26662751514762ccacb5afa0fb36e3b4cefa36c1d01189",
+    "decodedHash": "a35894a4b538596d9bab50eed3db907b78bdb0f06fdadb470ce97a862fb1419e"
+  },
+  {
+    "file": "Model/Texture/Obj_MaPrSt001-02.dds",
+    "winter": "Exterior",
+    "width": 128,
+    "height": 128,
+    "sourceHash": "63e679560b46b8d77149c736bb22d8434d0a8d38b90b479ef638305e4edb0ecb",
+    "uploadHash": "132d025edd9fac71690b166a60513681f12c4915121da5379c81a5384383c9e7",
+    "decodedHash": "ceb8f2f8a1204e6b7a999695efb719b2777ca14ab2ff6627be0bc4f62c5199eb"
+  },
+  {
+    "file": "Model/Texture/Obj_NewFlChair01.dds",
+    "winter": "Exterior",
+    "width": 256,
+    "height": 256,
+    "sourceHash": "dd1fb639b62982c0d3ff9acbf959744767daa5647cb5706b0df9617afdda8eb4",
+    "uploadHash": "fd39193a3742b73a5f0ca2ad54132b9bdb0457159b494538e1ffa55e385bf244",
+    "decodedHash": "4eebf8619e5444cf815cfc009b988acdb3368aa5a644c026aa65298a40ba28af"
+  },
+  {
+    "file": "Model/Texture/Obj_NewFlEastBT01_01.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 512,
+    "sourceHash": "62d2e6c8812aacf3c7712b739c733c2aeb72a38f92f85a3cc1cf00704d6ef33e",
+    "uploadHash": "5a90686cae5cfe14647038e8cc9b680a9ab297c031782aaec6d971da0e3aa05f",
+    "decodedHash": "8c721d8c6234867ce61525e92dec78b4bc9bb8f9853a9c4af785063b7804d87a"
+  },
+  {
+    "file": "Model/Texture/Obj_NewFlEastBT01_02.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 512,
+    "sourceHash": "a79e441cd73fe6168e0190d4ad53561044feecdb22ae601f0c39cb38d3fe852e",
+    "uploadHash": "6fbfc008e66c190e754a40e630435b696061d3c6aa8728903f4892af3c434ce7",
+    "decodedHash": "7e53ce3af9a65dca7b7245117ee7fa969f734c6c8fb0615e584696e9a58fc601"
+  },
+  {
+    "file": "Model/Texture/Obj_NewFlEastCent01.dds",
+    "winter": "Paving",
+    "width": 1024,
+    "height": 1024,
+    "sourceHash": "5c5209a4666da2538089297510bb3de8547d185589443049fe5559af6163e46c",
+    "uploadHash": "f6aae2e1273db72e695c8abe359175f6946864d4ac0bcd0dbd72d9ea86175732",
+    "decodedHash": "f158408d2da984ba2151781ad92028bf2d6f5b9a69ab75b61ad2fc86996aa564"
+  },
+  {
+    "file": "Model/Texture/Obj_NewFlFoodshop.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 512,
+    "sourceHash": "321efd52310e06a51126beb6b2219767753c27ee12d90f32d04cefba9ce0046e",
+    "uploadHash": "523ddb11e3fad8d6d94f34bd54f220d03d6690d73eef957496b93b5e51b7c6b8",
+    "decodedHash": "abd0db3be6ed33d29c9e6b4e303a3e7adf35c7d38fbf49f699e083214b830aa3"
+  },
+  {
+    "file": "Model/Texture/Obj_NewFlForge_01.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 512,
+    "sourceHash": "b4d0eb7b81d3b7d5663d79db7b161e6cb344d9f0a97f3558fb5016f82b4f440e",
+    "uploadHash": "af764ee6a4b640a4e54d36bc4b51fc90b05b0d54870417df5b01d189a22d2571",
+    "decodedHash": "cb162aa5cd38f727acfa3a108eb5c43ac398f37dfcdc6ab81f8699f81728f94e"
+  },
+  {
+    "file": "Model/Texture/Obj_NewFlForge_02.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 512,
+    "sourceHash": "734c44fe9f708b6ef6e40694fb6228b90d67a9bd969cdad2d5a2bd17f4dea962",
+    "uploadHash": "33fad2f59374ed27dca90cef7baa15cf7522692ca3a3894e033642594924a97d",
+    "decodedHash": "a137d6f86d354a09a999338525dbd370623991d1908335cb418b4de9d0d5c4dc"
+  },
+  {
+    "file": "Model/Texture/Obj_NewFlGDRL_01.dds",
+    "winter": "Exterior",
+    "width": 256,
+    "height": 256,
+    "sourceHash": "fa06d465322911410c922a33778884018e4b57a099a7a4dde15e913baf695cac",
+    "uploadHash": "6d24ff1eb9785b3bb945d3010e1254cc308c88e45b8a7691c2961f0d411abf11",
+    "decodedHash": "2db73d5c220e41ee9cba53b4760b9da96de506b399fa8a7fd0484a4ae85668df"
+  },
+  {
+    "file": "Model/Texture/Obj_NewFlHaro01_01.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 512,
+    "sourceHash": "4562a95d107737640e9ffd66d33a5402aac64580dd34801b8bce702d725c475b",
+    "uploadHash": "70abd0b2d0d0299d87043d88e388efd20769a41fb0deeca2944f10d70efb6025",
+    "decodedHash": "6e61dacd21b51b90680d386f80edcedbbc498fd08e45a2a7fcf76730d0a48789"
+  },
+  {
+    "file": "Model/Texture/Obj_NewFlHaro01_02.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 512,
+    "sourceHash": "dfbd9ecc4d626f1924a35696b149e4d2696ae0ff543f3e81c03ecb49751ca6cb",
+    "uploadHash": "23e32880a80bf7085b95eeb8873601c39e8bf67483171b7c21aac3f8586ab244",
+    "decodedHash": "0874c9bc688c70bf7a71b01c946eb7e16da35b8b213275bc7b205afaeeb68967"
+  },
+  {
+    "file": "Model/Texture/Obj_NewFlHouse01.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 1024,
+    "sourceHash": "ba8f0cbad7ab963aabddd07b226c46e095461dd89de458d8083633869fa78d47",
+    "uploadHash": "b680599fb6c4dad4208d29103a330920c41e8ec85d7b8196b5e5b7ebe6ba4cd8",
+    "decodedHash": "1e7accc0ec2a7f7c703ff75e1d88abdf9295203c4f34979376881f01df5e7eeb"
+  },
+  {
+    "file": "Model/Texture/Obj_NewFlHouse02_01.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 512,
+    "sourceHash": "ef8d499c6194f92b8b78afbe007f791c5266d05fb7889848553aa281d37082bb",
+    "uploadHash": "783dee60e88a14dd0047f04b3d5e044b4bd9ed7c1361bac980c7427f2085f9b0",
+    "decodedHash": "fe6f99ff82febfc852bfee8e26a58bbd4d887626497fe3d66594c0e38e7451c6"
+  },
+  {
+    "file": "Model/Texture/Obj_NewFlHouse02_02.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 512,
+    "sourceHash": "b3486d3a11d093c4c12ef9fa78a1cc52c99ab8faf14c4d558f82ed71229de385",
+    "uploadHash": "9608c60b814f8b84a31be9512cba2ddec1ecd5a4be3d19b5299b2c8c33d01217",
+    "decodedHash": "a91b4e67730134375e6c423eb4cdb756734aeee8899bb117a32dbe2b52edc88b"
+  },
+  {
+    "file": "Model/Texture/Obj_NewFlHouse03.dds",
+    "winter": "Exterior",
+    "width": 1024,
+    "height": 512,
+    "sourceHash": "02112da167ced3ea10f400250ab7e48e3d12826944fc06149568eab018ba3827",
+    "uploadHash": "d95afc5766e182eeb5322310f861579b0695a5aedefc6f0180205bb87e131ea3",
+    "decodedHash": "bdeaa54b7eb400d9b7c13020c524a76504845f428511a4ac82b1e2b0890ab088"
+  },
+  {
+    "file": "Model/Texture/Obj_NewFlHouse05_01.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 512,
+    "sourceHash": "59aea661120da9f90026790883758514412734957d4cfd41da88fde0558473a1",
+    "uploadHash": "7fcbadd300deab69e90a6e2a70b55910acdaa44c2e7728ad592e72ad120ed821",
+    "decodedHash": "3a05e07de69cbebffe9385b6f8d715464acacf3b5a948691aad44d775dcfe82c"
+  },
+  {
+    "file": "Model/Texture/Obj_NewFlHouse05_02.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 512,
+    "sourceHash": "522e9bd869f37a3f1e1c21dd65238da498516b94718297eeb4c46285d60f589f",
+    "uploadHash": "09942b69879ee60899d7a7beb4bf6b622ebe9bcdfa005b9375d8cec821933ff4",
+    "decodedHash": "3e40d2803ad0a5aa386d3845a7b08f7436734fd7f2f4655abaee2f8062823491"
+  },
+  {
+    "file": "Model/Texture/Obj_NewFlHouse06.dds",
+    "winter": "Exterior",
+    "width": 1024,
+    "height": 512,
+    "sourceHash": "9f62ab4d81938c4ed0ec80a65d8b5d8ba458a180561bb9f4e273ecc0a6cc92b5",
+    "uploadHash": "7ed86169c773460882cd491ac754f220844e3f2aa4f33f3af4d6306695b55bf0",
+    "decodedHash": "7d0e59406a722450cf9177cd76753eb226603d1c21abce330895fd6f728a14d4"
+  },
+  {
+    "file": "Model/Texture/Obj_NewFlLUD01_01.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 512,
+    "sourceHash": "76ecfe8bc18be957182f76d0db90b01bbe8a0541f0786df36b08e6a4783543b6",
+    "uploadHash": "b8442d70726d8a770e12fb5199471f8706c62a3e6ea967bf8fb785fa8b9236ce",
+    "decodedHash": "b5d7f983561023986e10269a5a1eb54f9c8ced147a5cc76c15d8332df7c8a2a2"
+  },
+  {
+    "file": "Model/Texture/Obj_NewFlLUD01_02.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 512,
+    "sourceHash": "b4fbb1945969815bd4b60d770af95731658252b57e64f407c760fd4f606a151f",
+    "uploadHash": "7bf86756dd21e3885f7d0ff0da88c0e8494ea82504636fa0c56d870d4f18c2b1",
+    "decodedHash": "6c68253bd28d5424b72095b68ca6f193f9dde13c1d3a91f201ccf1764fccc079"
+  },
+  {
+    "file": "Model/Texture/Obj_NewFlLUD01wall.dds",
+    "winter": "Exterior",
+    "width": 256,
+    "height": 256,
+    "sourceHash": "549b7a7aac19ee31d0e3422e59e2182e50d1ac7a2465ba97105d572363106f3d",
+    "uploadHash": "91e2b7d7f65e59bf2288834494365fd74b58fa508e7761d1bfb07baa834494f0",
+    "decodedHash": "27de66400fe39eed189f71ac9681ff1e6f06275d45601aeb046716b4f72dc3f5"
+  },
+  {
+    "file": "Model/Texture/Obj_NewFlLight01.dds",
+    "winter": "Exterior",
+    "width": 256,
+    "height": 512,
+    "sourceHash": "432c73cda8f66dadb7dac59dc35ddbb9c4f4e7406c9a19ecb73e048bf7023e26",
+    "uploadHash": "8db9a5c543b8f5afd44bc250e941480b7195893e3929797cc390f1c2f6e19b26",
+    "decodedHash": "2bd63802db44f3b6916316ed3a3bdf5bc74f9ee7ac8c766b03770537c434da15"
+  },
+  {
+    "file": "Model/Texture/Obj_NewFlMgshop_01.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 512,
+    "sourceHash": "c87e55da665452dfe19783f52aebc3a8c251965aa43b7d352322ad6e1d6dd618",
+    "uploadHash": "807dbe69a2a6f2bd13e00022c310c3056bc86e61ac75fd4430dad2bc35d55392",
+    "decodedHash": "128cde21be9695e190abd3a56ea41b1ff23de17004e6f40e9a092c56f1cd8998"
+  },
+  {
+    "file": "Model/Texture/Obj_NewFlMgshop_02.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 512,
+    "sourceHash": "028d764aa23d8dc4b75750e02fbb8d23e67d295bf4f39a21a878810eec094ce7",
+    "uploadHash": "4166ccf9be091840529de25f65943b6d837fa90cbc708719ee7f0484b6e9a97d",
+    "decodedHash": "e1b6958a98afb157038874868b01fb58cd614d1dbbcaeb5dfbffbad4f72c8e39"
+  },
+  {
+    "file": "Model/Texture/Obj_NewFlNorthBT01.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 512,
+    "sourceHash": "471a4127821b4611ac2cc4c9e2b2f8964ee09f636b19e500a651a8639a8b13d9",
+    "uploadHash": "e9341207123751c1626e7b30a069fcc5c6f77960793ced7b7ab4175b1dd7eff1",
+    "decodedHash": "f366897a70e5f34628144062476621da76b5c65e3995a6211ac9dd1f147907d4"
+  },
+  {
+    "file": "Model/Texture/Obj_NewFlNorthCent01.dds",
+    "winter": "Paving",
+    "width": 1024,
+    "height": 1024,
+    "sourceHash": "39bac83ed9f19d26fc7644729b23d168896fb097b861a01d690a29a4b28c132d",
+    "uploadHash": "86b3e1e0cc410e2827ad54c7083d4e8447e5c1e0447ffcec6866f109b55c91c7",
+    "decodedHash": "e6104dd25772d3f8873ace816f363c31c46ff5779ca19520db1278078dccc57c"
+  },
+  {
+    "file": "Model/Texture/Obj_NewFlRedchip.dds",
+    "winter": "Paving",
+    "width": 512,
+    "height": 512,
+    "sourceHash": "a07b648a356b12bf9e00c48b8791cb5b752e016b502c37113a5cee3bfa277daf",
+    "uploadHash": "26626bf6f78e8930cc3e4b3fa393ec5aa3c6b9a1d15406311a839f3a768b0280",
+    "decodedHash": "653641f352d20347d3811e7e9abd4b013626fb07978153ea66776a351fb34a3b"
+  },
+  {
+    "file": "Model/Texture/Obj_NewFlbrdg01.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 512,
+    "sourceHash": "1d84d530c992d8b7a1e189e5c48b1f418745498b253e6d6c5ab70a501d3dad46",
+    "uploadHash": "def058ae765d36a2890135a3430122801b2e2e881e967880181c94ab39ca0a03",
+    "decodedHash": "02d23d266627bc944a9bcae6c211a2c8f0775a4b9c0e683c9e230c3ede08b0c1"
+  },
+  {
+    "file": "Model/Texture/Obj_NewFlbush01.dds",
+    "winter": "Plant",
+    "width": 256,
+    "height": 256,
+    "sourceHash": "c8b926271e4a61a4f3c1e1ed7e6284ff1d70a2a6f503e57a4157edb4be89dbfa",
+    "uploadHash": "c61f526060196b4787e34596533474672996ec60e20523066fb697600c6d912f",
+    "decodedHash": "36af2bba77339c46c7b65e3f804de14149e239bbb11e7ce8cb4b8472223ab646"
+  },
+  {
+    "file": "Model/Texture/Obj_NewFlflowegarden.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 256,
+    "sourceHash": "58240a3ae593e256635ac4a4e2aa61d247700c0382bca974101b5f6d37d49cb8",
+    "uploadHash": "3bef6add1f6942ed3128debf246e0e67d2d09ec3973c55307b49b712b189ac8d",
+    "decodedHash": "adf9a7461be9970d43f074e632422ed61971cbfd4bebd551e20ae3982b010b3c"
+  },
+  {
+    "file": "Model/Texture/Obj_NewFlgoodshop.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 512,
+    "sourceHash": "9f50cb135c94cb0a52659b630c8fb20217252918380def42b150d8ee6e5f500b",
+    "uploadHash": "84408c3ed838358704eeccc07b055aa174b48020f01537ea3ea068ffe6be0417",
+    "decodedHash": "4a4ca7bba558c8ed31debad9db35fd32cb445879c0a25c7778f12446221e2361"
+  },
+  {
+    "file": "Model/Texture/Obj_NewFlsenCent01.dds",
+    "winter": "Paving",
+    "width": 1024,
+    "height": 1024,
+    "sourceHash": "a28a1b0b6382576df74f8efcf18e56776879ede1aa1d6530ccc906c732e618f7",
+    "uploadHash": "cefe594675c6d11a6edc1bae5379c8dd96337c8076c55a72158170701c4a6619",
+    "decodedHash": "2d1a81ef15647b70d8200e31c2c38ec1a64db31f3eadd1e03aa82104b1df4259"
+  },
+  {
+    "file": "Model/Texture/Obj_NewFlsenCentOBJ.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 512,
+    "sourceHash": "472b59e7183feba45dac9ac52668be235bbe95fc6b2507443bc00e81b34f498f",
+    "uploadHash": "f1c084df446f5d8478687aecd596d44021773875dda04503abf777b44d213819",
+    "decodedHash": "a27f6d06ca79aa4042e2d9076170231f482596ad6336f7398d45c38e75b6d075"
+  },
+  {
+    "file": "Model/Texture/obj_MaFlAr001-01.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 512,
+    "sourceHash": "f901545b507764dfcaf9197bba51548d07448159a848c2753f58022be8be646f",
+    "uploadHash": "88c9cc7e4b858fa4624977caa7660ab11bfcce9e0f53790bc9ccb85c2d1b83ee",
+    "decodedHash": "030419ef50091a80816e3bcbcbeafe1136a0adc517eeb4718175df3e90f3fbe9"
+  },
+  {
+    "file": "Model/Texture/obj_MaFlAr001-02.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 512,
+    "sourceHash": "fabda5ab4637b294943351b0cf36cbc31416b6fbecfb5e0361ed55016c667c68",
+    "uploadHash": "17ecef8cd5709de0cb8514c76c8d656b8547910ea9e25895823b3790ee41e631",
+    "decodedHash": "097ccba352902928e6392b85d80155d781558201844c2b0f291f81e3934312b5"
+  },
+  {
+    "file": "Model/Texture/obj_MaFlHo02-01.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 512,
+    "sourceHash": "9c4497a653cc67c88f9e6ef1fbd8fd710641b19d94e5680001cc7294f01cdbeb",
+    "uploadHash": "369cff3c31338165cc09fdece094e6199bf89e20aed3bd5e45d7a65a27834afe",
+    "decodedHash": "e140fd231b1729ba513651d7f467176226f9e63b9040ab7a5ebadf11c843e046"
+  },
+  {
+    "file": "Model/Texture/obj_MaFlHo02-03.dds",
+    "winter": "Exterior",
+    "width": 128,
+    "height": 128,
+    "sourceHash": "60ed3f363b023b0ab1175ce9f1d1e22a5d040eeffc8060e1a7ef9a3ff1f5aec1",
+    "uploadHash": "81af31107345f6a00398a1a469350cfe43d881835ee4f2fbe2cf2b28f4b15064",
+    "decodedHash": "a26e8dbedacb43096fcd7f6c85ff449c9fd67f38cd8e386ac6b3287699305c3b"
+  },
+  {
+    "file": "Model/Texture/obj_MaFlLs001-01.dds",
+    "winter": "Exterior",
+    "width": 256,
+    "height": 256,
+    "sourceHash": "198ce2c6939f9b0d85f3e4ba5dc87d303d65d150b44cbee47c3f845777076ffe",
+    "uploadHash": "a59455a40e30b13f3b0f41938c9b956e09d3d58905058a817e8fe142e047c86d",
+    "decodedHash": "4cf6216f8d55af9a24af3d21e8612da5b39306834371e903b8f98f8334246469"
+  },
+  {
+    "file": "Model/Texture/obj_MaFlLs001-02.dds",
+    "winter": "Exterior",
+    "width": 256,
+    "height": 256,
+    "sourceHash": "42e50f57802a1fd59640ca122aa81d8f4466457b358817159a1e58a96a1f4a2b",
+    "uploadHash": "155aba69872dad7d485061dacca85ef99039d4ece0b4384db11ef871e6a64a59",
+    "decodedHash": "e7054c11b9eaa252677f41dd62c0906314a063abb8dcc2fec509ab19f4c0e539"
+  },
+  {
+    "file": "Model/Texture/obj_MaFlLs001-03.dds",
+    "winter": "Exterior",
+    "width": 256,
+    "height": 256,
+    "sourceHash": "fbdd563442fa9b4edec4b98d9f19765c6e5ab7dc01d0451b0e95f942ca02e5e8",
+    "uploadHash": "d70c40b02f228476aa11ee354b1710efabc301e9ca32926a865721f55d8fe3b4",
+    "decodedHash": "037dd5b3fdef55c4e8b0fd4267d90b35203f5e7ef677f522b7545121bf69f72b"
+  },
+  {
+    "file": "Model/Texture/obj_MaFlPrGe01.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 256,
+    "sourceHash": "ad4d7f6eee2ab0d650274579ecf73215dd487b94e0d0db00a6b82419d4bc2a85",
+    "uploadHash": "f267bf5e31cb11d7cfbfbf42f89c817375d3891dc7bc01c5318a19c23d17f377",
+    "decodedHash": "aad8fbed03867c5b66fa7edfbacfac74369a4b643e04203d6f89dedc4db06b31"
+  },
+  {
+    "file": "Model/Texture/obj_MaPrMu001-01.dds",
+    "winter": "Plant",
+    "width": 256,
+    "height": 256,
+    "sourceHash": "10157e6fd6d281fc60c09ba01e84e2d7598f3f45590f87dcd152de3cf0fb9bfd",
+    "uploadHash": "4036dda62c2b9c227e047c5e0bb90895f33332c0c2d1d9fe74a78811397631ae",
+    "decodedHash": "a73d9eb925e5e2f3c5d7c65a5c66703d5a19cc8a1b23f1735d5704672cb6baa3"
+  },
+  {
+    "file": "Model/Texture/obj_NewFLsenCenter.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 512,
+    "sourceHash": "46dfe4e5ad8b89086da434f45a3c707c36344bc849fcad4e30926b9b7cc19b81",
+    "uploadHash": "c62461fbca76080c6a87599ca9a454237fdb4d1da0eb3fdd730f5793b14939f6",
+    "decodedHash": "14acbaa7b16412f15a1c63031567e65bdcf1deac000f6dc587e6de0b3fb18815"
+  },
+  {
+    "file": "World/Texture/brick-MaMa01.dds",
+    "winter": "Paving",
+    "width": 256,
+    "height": 256,
+    "sourceHash": "e0cf0d14429d29c22b0653e5b0e662c54e77bbe7d77ae7a9b5c19523ba7ed82a",
+    "uploadHash": "98f288727cffa5745d48c48730d3b55ac5d27acca3ca03b5cafbc07bb6a0219a",
+    "decodedHash": "4f96a533445dd30ba33475a10c07279c2be90ea1fa7cfffb56ba93bc970c1b80"
+  },
+  {
+    "file": "World/Texture/Obj_FLGR01.dds",
+    "winter": "Paving",
+    "width": 512,
+    "height": 512,
+    "sourceHash": "4c25381fd708c651557275f9385ca7949eebe831c2ad06c9998ebf7d8597bb40",
+    "uploadHash": "366ef0c66410e139cdb345af9a8e14265bbf157fe3f8a7d21f89740a39109cd7",
+    "decodedHash": "623364344fc3d367ac10998259d2765de90fb31523fbc61b7bd7e2340a2a6851"
+  }
+]

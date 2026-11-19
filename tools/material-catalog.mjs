@@ -5,17 +5,24 @@ import crypto from 'node:crypto';
 const root = process.argv[2]; // Optional read-only verification against the client's original files.
 const hash = b => crypto.createHash('sha256').update(b).digest('hex');
 const identities = new Map();
-function add(digest, kind) {
-  if (identities.has(digest) && identities.get(digest) !== kind)
+function add(digest, field, value) {
+  const entry = identities.get(digest) ?? {kind: 0, winter: 'None'};
+  const empty = field === 'kind' ? 0 : 'None';
+  if (entry[field] !== empty && entry[field] !== value)
     throw Error('Ambiguous material identity: ' + digest);
-  identities.set(digest, kind);
+  entry[field] = value;
+  identities.set(digest, entry);
 }
-for (const item of JSON.parse(fs.readFileSync(new URL('./materials.json', import.meta.url)))) {
+const materials = JSON.parse(fs.readFileSync(new URL('./materials.json', import.meta.url)));
+const winter = JSON.parse(fs.readFileSync(new URL('./winter-materials.json', import.meta.url)));
+for (const item of [...materials, ...winter]) {
   if (![item.decodedHash, item.sourceHash, item.uploadHash ?? item.decodedHash].every(v => /^[a-f0-9]{64}$/.test(v)) ||
-      !Number.isInteger(item.kind) || item.kind < 1 || item.kind > 7)
+      (item.winter ? !['Ground','Paving','Plant','Exterior'].includes(item.winter) :
+       !Number.isInteger(item.kind) || item.kind < 1 || item.kind > 7))
     throw Error('Invalid material metadata: ' + item.file);
-  add(item.decodedHash, item.kind);
-  if (item.uploadHash) add(item.uploadHash, item.kind);
+  const field = item.winter ? 'winter' : 'kind', value = item[field];
+  add(item.decodedHash, field, value);
+  if (item.uploadHash) add(item.uploadHash, field, value);
   if (!root) continue;
   const b = fs.readFileSync(path.join(root, item.file));
   if (hash(b) !== item.sourceHash) throw Error('Changed source asset: ' + item.file);
@@ -28,8 +35,8 @@ for (const item of JSON.parse(fs.readFileSync(new URL('./materials.json', import
       throw Error('Changed upload identity: ' + item.file);
   }
 }
-let out = '#pragma once\nstruct MaterialIdentity { unsigned char hash[32]; unsigned kind; };\ninline constexpr MaterialIdentity MaterialIdentities[] = {\n';
-for (const [digest, kind] of [...identities].sort((a,b) => a[0].localeCompare(b[0])))
-  out += '{{' + digest.match(/../g).map(v => '0x'+v).join(',') + '},' + kind + '},\n';
+let out = '#pragma once\nstruct MaterialIdentity { unsigned char hash[32]; unsigned kind; WinterSurface winter; };\ninline constexpr MaterialIdentity MaterialIdentities[] = {\n';
+for (const [digest, {kind, winter}] of [...identities].sort((a,b) => a[0].localeCompare(b[0])))
+  out += '{{' + digest.match(/../g).map(v => '0x'+v).join(',') + '},' + kind + ',WinterSurface::' + winter + '},\n';
 fs.writeFileSync('src/generated/material_catalog.hpp', out + '};\n');
 console.log('Generated ' + identities.size + ' exact material identities');

@@ -247,13 +247,15 @@ void Runtime::afterPresent(HRESULT result) {
 void Runtime::resetFrame() {
     const bool effectsEnabled = settings.enabled && !compare;
     const bool grassEnabled = effectsEnabled && settings.grass;
-    const bool winterEnabled = effectsEnabled && (settings.winterGround || (settings.trees && settings.treeWinterFoliage));
+    const bool winterEnabled = effectsEnabled && (settings.winterGround || settings.winterProps ||
+                                                   (settings.trees && settings.treeWinterFoliage));
     float player[3]{};
     uint64_t worldKey=0;
     const bool hasPlayer = (grassEnabled || winterEnabled) && environment_.playerPosition(player, &worldKey);
-    winterFlaris_ = winterEnabled && hasPlayer && TreeFX::inFlaris(worldKey, player[0], player[2]);
+    const bool flaris = hasPlayer && TreeFX::inFlaris(worldKey, player[0], player[2]);
+    winterFlaris_ = winterEnabled && flaris;
     trees_->beginFrame(!compare && TreeFX::enabled(settings, winterFlaris_));
-    grass_->beginFrame(grassEnabled, hasPlayer ? player : nullptr, worldKey);
+    grass_->beginFrame(grassEnabled, hasPlayer ? player : nullptr, worldKey, flaris);
     sfx_->beginFrame(settings.enabled && (settings.sfx || (settings.water && settings.sfxWake > 0)) && !compare,
                      settings.sfx&&settings.sfxSmoothAura&&settings.sfxAura>0);
     const bool skateEffects=effectsEnabled&&settings.sfx;
@@ -351,10 +353,11 @@ bool Runtime::beforeWaterDraw(UINT upStride, DrawCall draw,ParticleDraw particle
         if (!treeDraw || nativeFoliage)
             effects_->sceneFX().beginFoliage(settings, nativeFoliage);
     }
-    if (!treeDraw && !lost_ && !hudStarted_ && settings.enabled && settings.materials && !compare &&
+    if (!treeDraw && !lost_ && !hudStarted_ && settings.enabled &&
+        (settings.materials || (winterFlaris_ && (settings.winterGround || settings.winterProps))) && !compare &&
         !vertexShaderActive_ && fvfKnown_ && (drawFVF_ == 0x112 || drawFVF_ == 0x212) &&
         sceneBackbuffer_ && drawTarget_ == sceneBackbuffer_)
-        materials_->begin(settings);
+        materials_->begin(settings, winterFlaris_);
     if (lost_ || hudStarted_ || !settings.enabled || !settings.water || compare || vertexShaderActive_ ||
         !fvfKnown_ || drawFVF_ != 0x152 || !sceneBackbuffer_ || drawTarget_ != sceneBackbuffer_)
         return sfx_->skipNativeDraw();

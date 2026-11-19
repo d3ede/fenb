@@ -49,7 +49,7 @@ The optional panel cursor acquires a balanced negative Windows cursor-display co
 Bark updates the trunks and snowy branch material, and Foliage repaints Flaris
 leaves and willow vines as well as the needles on Azria's spruces and bare
 branches. Azria keeps its native distribution of snow and exposed needles.
-Winter foliage selects separate snow-covered broadleaf and willow atlases
+Snow on trees selects separate snow-covered broadleaf and willow atlases
 while the player is in Flaris, even with Foliage off. It takes precedence over
 the regular Flaris repaint. Night foliage fill identifies the original leaf
 material while the replacement texture is bound.
@@ -61,21 +61,23 @@ needle masks retain the original leaves and gaps at full size. The replacements
 use native geometry, UVs, lighting and alpha state. Four shared bark sources and
 one shared leaf source each have two patterns selected by world translation.
 
-**World → Vegetation → Ground snow** replaces recognized Flaris ground
-textures with uneven snow and frost over grass, soil, rock and paving. It has
-its own switch and uses the native terrain blend masks. The native player
-position and Madrigal world ID gate both winter options to Flaris on the
-supported client. Existing 3D grass keeps its original placement data. Both
-winter switches are off by default and persist across image profiles.
+**World → Environment → Snow** groups the winter settings. **Winter in Flaris**
+toggles snow on trees, ground and scenery together. Snowy grass has a separate
+switch and includes the existing support for Azria's native snowy terrain.
+The switches for Flaris use the player position and Madrigal world ID on the
+supported client. Existing winter preferences retain their stored keys.
 
-**Winter in Flaris** on the Trees page switches both winter options together.
-Turning it on enables Trees and selects both snowy crowns and snowy ground.
-Turning it off clears the two winter options and returns to the selected bark
-and regular foliage settings. The combined switch is on when both winter
-effects are enabled.
+Snow on the ground uses one world-space field across the native terrain blends,
+with lighter coverage on paving and squares. Roofs, exterior props and plants
+use the same material pass with different snow coverage. Upward-facing
+building surfaces accumulate more snow, while walls receive a light dusting.
+The pass preserves native UVs, diffuse lighting, alpha, depth, fog and blend
+masks and works independently of material relief. The winter catalogue has
+160 original materials, including houses, foliage, mushrooms and bridges.
+It contains texture identities and surface roles only.
 
-The DLL embeds 80 DXT1/DXT5 textures with complete mip chains (6,402,496 bytes
-of compressed GPU data) for 69 original atlas files. Exact first-mip SHA-256 upload
+The DLL embeds 67 DXT1/DXT5 tree textures with complete mip chains (5,047,912 bytes
+of compressed GPU data) for 56 original atlas files. Exact first-mip SHA-256 upload
 identities, including verified ARGB8 decodes, use texture-private metadata and the
 existing resource-write invalidation hooks. Replacements load lazily per device
 and bind only for an accepted native perspective draw before the HUD. Unknown
@@ -127,7 +129,7 @@ Two otherwise unused coordinate outputs provide native camera-space position and
 
 Regenerate the identity header with `node tools/material-catalog.mjs`. An optional client-directory argument verifies the original files read-only. Native fixtures cover fixed-function parity, lights, fog, transforms, three texture stages, state and input restoration, following native draws, zero/off and resource recreation. Coplanar depth tests use synthetic large world coordinates, D16/D24, buffered/UP draws, projected masks, fog and zero/8x MSAA. Maximum-strength snow tests check compressed but retained luminance detail, bounded close-up grain lighting, minification fade, changing directional light and deterministic detail-resource recreation. Bark tests cover the mip-filtered shader and single-mip fallback, a bounded maximum response, native alpha-test coverage, coplanar depth and sampler/texture restoration. Winter foliage uses a separate pixel-only variant controlled by the same Snow appearance slider. Only bright, neutral/cool regions inside the exactly identified winter atlases receive the ground snow tone; green needles and warm branches remain native. Bark snow skirts use the same painted-snow mask. Foliage receives no procedural bump grain, bark relief or broad highlights. Original alpha tests and standard alpha blending, including depth-write-disabled foliage, remain in control. Plain green seasonal variants are excluded. Synthetic fixtures verify snow/green/bark isolation, neutral parity, native alpha/depth coverage, fog, blend and state restoration with and without MSAA. The local `material-test --assets <client-directory>` fixture renders original snow, stone, wood, sand, grass, Azria bark, snowy needles, canopy and branch textures in controlled close and wider views, including relief-zero captures; these are not live Azria captures. Live-client motion, texture-family coverage and GPU/FPS cost still require validation.
 
-The **World → Grass** page controls opt-in instanced 3D vegetation. Coverage exposes quality, distance (5–100), density, maximum slope, distance fade and a separate Snowy grass switch (`grass_snow=0` by default); separate pages control blade height (0.1–1.5), width and variation, wind strength/speed/direction, and brightness/saturation/dryness/base shading. Compatible `[SceneFX]` keys use the `grass_` prefix, with `grass=0` by default. Parameter resets preserve both grass switches, language and other grass sections. Snowy grass uses the same shape, density, distance and wind controls, with a restrained neutral-white palette. Identified snow ground marks the verified native world as winter terrain, so recognized grassy/mixed-soil seams cannot leave green clumps in Azria. The marker resets on a world change; unsupported hosts classify each frame independently. Icy paving is excluded. The standard default stays off; Default (High-end PC) enables green and snowy grass at high quality, distance 55, density 1.5, height 0.6 and a broad 0.4 distance fade.
+The **World → Grass** page controls opt-in instanced 3D vegetation. Coverage exposes quality, distance (5–100), density, maximum slope and distance fade. Separate pages control blade height (0.1–1.5), width and variation, wind strength/speed/direction, and brightness/saturation/dryness/base shading. **World → Environment → Snow** contains Snowy grass (`grass_snow=0` by default). Compatible `[SceneFX]` keys use the `grass_` prefix, with `grass=0` by default. Parameter resets preserve both grass switches, language and other grass sections. Snowy grass uses the same shape, density, distance and wind controls, with a restrained neutral-white palette. Identified snow ground marks the verified native world as winter terrain, so recognized grassy/mixed-soil seams cannot leave green clumps in Azria. The marker resets on a world change; unsupported hosts classify each frame independently. Icy paving is excluded. The standard default stays off; Default (High-end PC) enables green and snowy grass at high quality, distance 55, density 1.5, height 0.6 and a broad 0.4 distance fade.
 
 Generated grass supplements the game's grass. Original patches keep their native draw even beyond the generated radius or on terrain where the mod cannot grow blades. The proxy fixture checks an identified grass card beyond that radius at three camera angles.
 

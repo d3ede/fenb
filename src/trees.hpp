@@ -8,7 +8,7 @@
 #include <bit>
 #include <cstdint>
 
-// Replaces exactly identified native tree and ground materials.
+// Replaces exactly identified native tree materials.
 class TreeFX {
     IDirect3DDevice9 *device_;
     std::array<Com<IDirect3DTexture9>,std::size(TreeAssets)> textures_;
@@ -100,8 +100,7 @@ class TreeFX {
         return inside;
     }
     static bool enabled(const Settings &s, bool flaris) {
-        return s.enabled && ((s.trees && (s.treeBark || s.treeFoliage || (flaris && s.treeWinterFoliage))) ||
-                             (flaris && s.winterGround));
+        return s.enabled && s.trees && (s.treeBark || s.treeFoliage || (flaris && s.treeWinterFoliage));
     }
     bool begin(const Settings &s, bool flaris = false) {
         if (active_ || !enabled(s, flaris)) return false;
@@ -120,8 +119,7 @@ class TreeFX {
         const auto &asset = TreeAssets[index];
         const bool foliage = asset.kind == VegetationKind::Foliage;
         const bool winter = foliage && flaris && s.treeWinterFoliage && asset.winter != index;
-        if (asset.kind == VegetationKind::Ground ? !flaris || !s.winterGround :
-            !s.trees || (foliage ? !winter && !s.treeFoliage : !s.treeBark)) return false;
+        if (foliage ? !winter && !s.treeFoliage : !s.treeBark) return false;
         const unsigned placement = placementAsset(index);
         const unsigned selected = winter ? TreeAssets[placement].winter : placement;
         const unsigned fallback = winter ? asset.winter : index;

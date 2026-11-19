@@ -70,7 +70,8 @@ void GrassFX::invalidate(){
     for(auto &b:bands_){b.mesh.out();b.instances.out();b.indices.out();b.count=b.vertices=b.triangles=0;}
     resolution_=0;bufferBytes_=0;builtQuality_=-1;initialized_=started_=rendered_=false;clear_=true;failed_=false;checked_=false;
 }
-void GrassFX::beginFrame(bool enabled,const float *player,uint64_t worldKey){
+void GrassFX::beginFrame(bool enabled,const float *player,uint64_t worldKey,bool flaris){
+    flaris_=flaris;
     for(auto *c:pending_)c->clear();pending_.clear();worldTarget_.out();worldDepth_.out();initialized_=started_=rendered_=false;clear_=true;
     if(!enabled&&enabled_)invalidate();
     enabled_=enabled;
@@ -482,7 +483,8 @@ void GrassFX::draw(const Settings &s,bool ownScene){
             p[8][0]=std::cos(angle);p[8][1]=std::sin(angle);p[8][2]=frame_.grassWind;p[8][3]=frame_.grassWind>0&&frame_.grassWindSpeed>0?float(GetTickCount64()%3600000)*.001f:0;
             memcpy(p[9],sunDirection_,16);memcpy(p[10],sunColor_,16);memcpy(p[11],ambient_,16);
             p[12][0]=frame_.grassBrightness;p[12][1]=frame_.grassSaturation;p[12][2]=frame_.grassDryness;p[12][3]=frame_.grassShading;
-            memcpy(p[13],fog_,16);memcpy(p[14],fogColor_,16);p[15][0]=frame_.grassWindSpeed;p[15][3]=frame_.grassSnow?(winter_?2.f:1.f):0.f;
+            memcpy(p[13],fog_,16);memcpy(p[14],fogColor_,16);p[15][0]=frame_.grassWindSpeed;
+            p[15][3]=frame_.grassSnow?(winter_?2.f:flaris_?3.f:1.f):0.f;
             device_->SetPixelShaderConstantF(14,fogColor_,1);
             const float card[]={frame_.grassBrightness,frame_.grassSaturation,frame_.grassDryness,frame_.grassStyle};
             device_->SetPixelShaderConstantF(19,card,1);

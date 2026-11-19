@@ -5,6 +5,7 @@
 #include <generated/material_ps.hpp>
 #include <generated/material_bark_ps.hpp>
 #include <generated/material_snow_ps.hpp>
+#include <generated/material_winter_ps.hpp>
 #include <bcrypt.h>
 #include <cstring>
 
@@ -14,6 +15,7 @@ class MaterialFX {
     Com<IDirect3DPixelShader9> ps_;
     Com<IDirect3DPixelShader9> barkPs_;
     Com<IDirect3DPixelShader9> snowPs_;
+    Com<IDirect3DPixelShader9> winterPs_;
     Com<IDirect3DTexture9> detail_;
     Com<IDirect3DBaseTexture9> savedDetail_;
     static constexpr D3DSAMPLERSTATETYPE DetailStates[] = {D3DSAMP_ADDRESSU,D3DSAMP_ADDRESSV,
@@ -74,7 +76,7 @@ class MaterialFX {
     }
     unsigned classify(IDirect3DTexture9 *texture) {
         DWORD kind=0,size=sizeof(kind);
-        if(SUCCEEDED(texture->GetPrivateData(MaterialTag,&kind,&size))&&size==sizeof(kind))return kind<=7?kind:0;
+        if(SUCCEEDED(texture->GetPrivateData(MaterialTag,&kind,&size))&&size==sizeof(kind))return kind;
         D3DSURFACE_DESC desc{};
         if(FAILED(texture->GetLevelDesc(0,&desc))||desc.Pool!=D3DPOOL_MANAGED||desc.Usage)return 0;
         UINT bytes=0,rows=desc.Height;
@@ -96,23 +98,33 @@ class MaterialFX {
         if(!ok)return 0;
         size_t lo=0,hi=std::size(MaterialIdentities);
         while(lo<hi){size_t mid=(lo+hi)/2;if(memcmp(MaterialIdentities[mid].hash,digest,32)<0)lo=mid+1;else hi=mid;}
-        kind=lo<std::size(MaterialIdentities)&&!memcmp(MaterialIdentities[lo].hash,digest,32)?MaterialIdentities[lo].kind:0;
+        if(lo<std::size(MaterialIdentities)&&!memcmp(MaterialIdentities[lo].hash,digest,32)){
+            const auto &identity=MaterialIdentities[lo];
+            kind=identity.kind|(unsigned(identity.winter)<<8);
+        }
         texture->SetPrivateData(MaterialTag,&kind,sizeof(kind),0);
         return kind;
     }
 public:
     explicit MaterialFX(IDirect3DDevice9 *d):device_(d){}
     ~MaterialFX(){invalidate();if(hash_)BCryptCloseAlgorithmProvider(hash_,0);}
-    void invalidate(){end();ps_.out();barkPs_.out();snowPs_.out();detail_.out();detailFailed_=false;}
-    bool begin(const Settings &s) {
-        if(active_||!s.enabled||!s.materials||s.materialStrength<=0)return false;
+    void invalidate(){end();ps_.out();barkPs_.out();snowPs_.out();winterPs_.out();detail_.out();detailFailed_=false;}
+    bool begin(const Settings &s, bool flaris = false) {
+        const bool relief = s.materials && s.materialStrength > 0;
+        const bool winterEnabled = flaris && (s.winterGround || s.winterProps);
+        if(active_||!s.enabled||(!relief&&!winterEnabled))return false;
         DWORD fvf=0,z=0,write=0,test=0,blend=0,src=0,dst=0,specular=0;
         if(FAILED(device_->GetFVF(&fvf))||(fvf!=0x112&&fvf!=0x212))return false;
         Com<IDirect3DBaseTexture9> base;
         if(FAILED(device_->GetTexture(0,base.out()))||!base.p||base->GetType()!=D3DRTYPE_TEXTURE)return false;
         auto *texture=static_cast<IDirect3DTexture9 *>(base.p);
-        unsigned kind=classify(texture);
-        if(!kind)return false;
+        const unsigned material=classify(texture);
+        const unsigned kind=std::min(material&255,7u);
+        const auto winter=WinterSurface(material>>8);
+        const bool floor=winter==WinterSurface::Ground||winter==WinterSurface::Paving;
+        const bool snow=winterEnabled&&winter>WinterSurface::None&&winter<=WinterSurface::Exterior&&
+                        (floor?s.winterGround:s.winterProps);
+        if(!snow&&(!relief||!kind))return false;
         Com<IDirect3DVertexShader9> vs;Com<IDirect3DPixelShader9> ps;
         device_->GetVertexShader(vs.out());device_->GetPixelShader(ps.out());
         if(vs.p||ps.p)return false;
@@ -121,8 +133,8 @@ public:
         device_->GetRenderState(D3DRS_SRCBLEND,&src);device_->GetRenderState(D3DRS_DESTBLEND,&dst);
         device_->GetRenderState(D3DRS_SPECULARENABLE,&specular);
         DWORD clipPlanes=0;device_->GetRenderState(D3DRS_CLIPPLANEENABLE,&clipPlanes);
-        if(clipPlanes||!z||(!write&&kind!=7)||(test&&kind!=6&&kind!=7)||specular||
-           (blend&&((fvf!=0x212&&kind!=7)||src!=D3DBLEND_SRCALPHA||dst!=D3DBLEND_INVSRCALPHA)))return false;
+        if(clipPlanes||!z||(!snow&&((!write&&kind!=7)||(test&&kind!=6&&kind!=7)))||specular||
+           (blend&&((!snow&&fvf!=0x212&&kind!=7)||src!=D3DBLEND_SRCALPHA||dst!=D3DBLEND_INVSRCALPHA)))return false;
         D3DMATRIX view{},projection{};
         if(FAILED(device_->GetTransform(D3DTS_VIEW,&view))||FAILED(device_->GetTransform(D3DTS_PROJECTION,&projection))||
            std::abs(projection._34)<.00001f||std::abs(projection._44)>.00001f)return false;
@@ -183,15 +195,23 @@ public:
         p[10][0]=fog?float(tableFog?tableFog:vertexFog)*(rangeFog&&!tableFog?-1.f:1.f):0;
         D3DSURFACE_DESC desc{};texture->GetLevelDesc(0,&desc);
         p[0][0]=s.materialStrength;p[0][1]=s.materialRelief;p[0][2]=s.materialGlints;p[0][3]=s.materialSnow;
-        p[1][0]=1.f/desc.Width;p[1][1]=1.f/desc.Height;p[1][2]=float(kind);
+        p[1][0]=1.f/desc.Width;p[1][1]=1.f/desc.Height;p[1][2]=snow?float(winter):float(kind);
         p[1][3]=kind==1?0.f:(kind==3||kind==6)?.012f:kind==2?.008f:.005f;
-        const bool snowDetail=kind==1&&detailTexture();
-        const bool barkMips=kind==6&&texture->GetLevelCount()>1;
-        const bool detailed=snowDetail||barkMips;
+        if(snow&&!detailTexture())return false;
+        const bool snowDetail=!snow&&kind==1&&detailTexture();
+        const bool barkMips=!snow&&kind==6&&texture->GetLevelCount()>1;
+        const bool detailed=snow||snowDetail||barkMips;
         p[13][0]=p[13][1]=6.f;
         p[13][2]=snowDetail?1.f:0.f;p[13][3]=kind==6?(barkMips?18.f:8.f):kind==3?10.f:kind==2?7.f:1.f;
-        auto &shader=kind==7?snowPs_:barkMips?barkPs_:ps_;
-        if(!shader.p&&FAILED(device_->CreatePixelShader(kind==7?ShaderMaterialSnowPS:barkMips?ShaderMaterialBarkPS:ShaderMaterialPS,shader.out())))return false;
+        if(snow){
+            constexpr float coating[][4]={{.39f,.69f,.08f,.77f},{.43f,.75f,.06f,.54f},
+                                          {.29f,.66f,.36f,.39f},{.28f,.65f,.34f,.66f}};
+            memcpy(p[0],coating[unsigned(winter)-1],sizeof(p[0]));
+            p[1][0]=.19f;p[1][1]=.78f;p[1][3]=.09f*(floor?1.f:7.f)/128.f;
+        }
+        auto &shader=snow?winterPs_:kind==7?snowPs_:barkMips?barkPs_:ps_;
+        if(!shader.p&&FAILED(device_->CreatePixelShader(snow?ShaderMaterialWinterPS:kind==7?ShaderMaterialSnowPS:
+                                                         barkMips?ShaderMaterialBarkPS:ShaderMaterialPS,shader.out())))return false;
         if(FAILED(device_->GetPixelShaderConstantF(0,savedPixel_[0],PixelConstants))||
            FAILED(device_->GetRenderState(D3DRS_FOGENABLE,&savedFog_)))return false;
         for(int index=0;index<2;++index) {
@@ -210,7 +230,7 @@ public:
         detailSaved_=detailed;
         // SM2a flattens the optional sample: never read a stale client binding,
         // even for materials that do not use the generated detail map.
-        if(FAILED(device_->SetTexture(3,barkMips?texture:snowDetail?detail_.p:nullptr))){end();return false;}
+        if(FAILED(device_->SetTexture(3,barkMips?texture:(snow||snowDetail)?detail_.p:nullptr))){end();return false;}
         if(detailed) {
             DWORD artSrgb=FALSE,addressU=D3DTADDRESS_WRAP,addressV=D3DTADDRESS_WRAP;
             if(barkMips){device_->GetSamplerState(0,D3DSAMP_SRGBTEXTURE,&artSrgb);
@@ -220,6 +240,17 @@ public:
                 if(FAILED(device_->SetSamplerState(3,DetailStates[i],values[i]))){end();return false;}
         }
         D3DMATRIX identity{};identity._11=identity._22=identity._33=identity._44=1;
+        if(snow){
+            // Inverse native camera transform, using the winter shader's spare registers.
+            for(int axis=0;axis<3;++axis){
+                auto *row=p[axis==0?12:axis==1?11:13];
+                row[3]=0;
+                for(int i=0;i<3;++i){
+                    row[i]=view.m[axis][i];
+                    row[3]-=view.m[3][i]*row[i];
+                }
+            }
+        }
         // The native vertex converter supplies view position and normal in spare coordinates.
         // It retains the original POSITION/depth calculations for coplanar terrain layers.
         for(int index=0;index<2;++index) {

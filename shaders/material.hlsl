@@ -125,8 +125,7 @@ float4 MaterialPS(MaterialInput i):COLOR0 {return ShadeMaterial(i,false);}
 float4 MaterialBarkPS(MaterialInput i):COLOR0 {return ShadeMaterial(i,true);}
 // Thin foliage cards do not receive bark embossing, grain or broad highlights.
 // Preserve the native alpha, all active texture stages, lighting and fog.
-float4 MaterialSnowPS(MaterialInput i):COLOR0 {
-    float4 art=tex2D(Art,i.uv);art.rgb=PaintedSnow(art.rgb);
+float4 CoatedMaterial(MaterialInput i,float4 art) {
     float4 color=NativeStage(Stage0,Alpha0,art,i.diffuse,i.diffuse,Constant0);
     float4 layer=lerp(1,tex2D(Layer,i.blend),Alpha1.z);
     color=NativeStage(Stage1,Alpha1,layer,i.diffuse,color,Constant1);
@@ -136,4 +135,38 @@ float4 MaterialSnowPS(MaterialInput i):COLOR0 {
     float fog=FogAmount(PixelFog.x<0?length(i.view):i.view.z,float4(abs(PixelFog.x),PixelFog.yzw));
     color.rgb=lerp(FogColor.rgb,color.rgb,fog);
     return color;
+}
+float4 MaterialSnowPS(MaterialInput i):COLOR0 {
+    float4 art=tex2D(Art,i.uv);art.rgb=PaintedSnow(art.rgb);
+    return CoatedMaterial(i,art);
+}
+float4 MaterialWinterPS(MaterialInput i):COLOR0 {
+    float4 art=tex2D(Art,i.uv);
+    const float3 luma=float3(.2126,.7152,.0722);
+    float light=dot(art.rgb,luma);
+    float4 camera=float4(i.view,1);
+    // This entry uses these registers for the inverse camera transform.
+    float3 world=float3(dot(camera,SunColor),dot(camera,SunDirection),dot(camera,DetailInfo));
+    bool floor=ArtInfo.z<2.5;
+    float2 surface=world.xz;
+    if(!floor)surface+=world.y*float2(.43,-.27);
+    float2 a=(surface+surface.yx*float2(.5,-.5))*ArtInfo.w;
+    float2 b=(a+a.yx*float2(-.67,.67))*2.7+.28;
+    // Different orientations and scales conceal the period of the small noise source.
+    float flecks=tex2D(SurfaceDetail,a.yx*9.7+.36).r;
+    float field=lerp(tex2D(SurfaceDetail,a).b,tex2D(SurfaceDetail,b).a,.36)+(flecks-.5)*.13;
+    float3 up=SunDirection.xyz;
+    float facing=dot(i.normal,up)*rsqrt(max(dot(i.normal,i.normal),1e-8));
+    float frost=Style.z+Style.w*smoothstep(Style.x,Style.y,field);
+    if(ArtInfo.z>3.5){
+        // Vertical wood and masonry get a dusting. Roof slopes and ledges carry snow.
+        frost*=.09+.82*smoothstep(ArtInfo.x,ArtInfo.y,facing);
+    }else if(ArtInfo.z>2.5){
+        // Leaf cards keep recognizable green shadows through their snow.
+        frost*=.65+.35*smoothstep(.19,.55,light);
+    }
+    float3 frozen=lerp(art.rgb,light*float3(1.018,1.014,.94),floor?.28:.14);
+    float3 snow=float3(.940,.956,.967)*(.78+.16*light+.095*flecks);
+    art.rgb=lerp(frozen,snow,frost);
+    return CoatedMaterial(i,art);
 }

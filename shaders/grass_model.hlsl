@@ -54,6 +54,7 @@ Output GrassModelVS(Input i){
     float2 planted=origin+anchor;
     float2 uv=float2((planted.x-Map.x)/(2*Map.z)+.5,.5-(planted.y-Map.y)/(2*Map.z));
     float4 surface=Surface(uv);float snow=surface.a<0||Extra.w>1.5?1:0;
+    if(Extra.w>2.5 && surface.a>=0)snow=lerp(.46,.9,r);
     float coverage=smoothstep(.02,.18,abs(surface.g));
     float slope=smoothstep(max(0,Shape.w-.07),min(1,Shape.w+.04),surface.b);
     float contact=tex2Dlod(Contacts,float4(uv,0,0)).r;

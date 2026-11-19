@@ -1,5 +1,6 @@
 #pragma once
 #include "common.hpp"
+enum class WinterSurface : unsigned { None, Ground, Paving, Plant, Exterior };
 inline constexpr GUID TreeTag = {
     0xc1e76b93, 0x2d86, 0x42b4, {0xb5, 0x19, 0x84, 0xc3, 0x12, 0x65, 0x7e, 0x09}};
 inline constexpr GUID GrassTag = {

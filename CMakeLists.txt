@@ -18,7 +18,7 @@ set_source_files_properties(src/runtime.cpp PROPERTIES OBJECT_DEPENDS "${CMAKE_C
 set(FENB_MATERIAL_CATALOG "${CMAKE_CURRENT_SOURCE_DIR}/src/generated/material_catalog.hpp")
 add_custom_command(OUTPUT "${FENB_MATERIAL_CATALOG}"
   COMMAND "${FENB_NODE_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/material-catalog.mjs"
-  DEPENDS tools/material-catalog.mjs tools/materials.json
+  DEPENDS tools/material-catalog.mjs tools/materials.json tools/winter-materials.json
   WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
 add_custom_command(OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/src/generated/ui_cursor.hpp"
   COMMAND "${FENB_NODE_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/embed-cursor.mjs" "${CMAKE_CURRENT_SOURCE_DIR}/src/generated/ui_cursor.hpp"
@@ -90,13 +90,18 @@ add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/generated/sfx_shaders.hpp
 target_sources(d3d9 PRIVATE src/updater.cpp "${CMAKE_CURRENT_BINARY_DIR}/generated/sfx_shaders.hpp")
 target_sources(d3d9 PRIVATE src/optimization.cpp)
 target_sources(d3d9 PRIVATE "${FENB_MATERIAL_CATALOG}")
-add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/generated/material_ps.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/material_bark_ps.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/material_snow_ps.hpp"
+set(FENB_MATERIAL_SHADERS)
+foreach(shader material_ps material_bark_ps material_snow_ps material_winter_ps)
+  list(APPEND FENB_MATERIAL_SHADERS "${CMAKE_CURRENT_BINARY_DIR}/generated/${shader}.hpp")
+endforeach()
+add_custom_command(OUTPUT ${FENB_MATERIAL_SHADERS}
   COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/generated"
   COMMAND shaderc "${CMAKE_CURRENT_SOURCE_DIR}/shaders/material.hlsl" "${CMAKE_CURRENT_BINARY_DIR}/generated/material_ps.hpp" MaterialPS ps_2_a
   COMMAND shaderc "${CMAKE_CURRENT_SOURCE_DIR}/shaders/material.hlsl" "${CMAKE_CURRENT_BINARY_DIR}/generated/material_bark_ps.hpp" MaterialBarkPS ps_2_a
   COMMAND shaderc "${CMAKE_CURRENT_SOURCE_DIR}/shaders/material.hlsl" "${CMAKE_CURRENT_BINARY_DIR}/generated/material_snow_ps.hpp" MaterialSnowPS ps_2_a
+  COMMAND shaderc "${CMAKE_CURRENT_SOURCE_DIR}/shaders/material.hlsl" "${CMAKE_CURRENT_BINARY_DIR}/generated/material_winter_ps.hpp" MaterialWinterPS ps_2_a
   DEPENDS shaderc shaders/material.hlsl)
-target_sources(d3d9 PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated/material_ps.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/material_bark_ps.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/material_snow_ps.hpp")
+target_sources(d3d9 PRIVATE ${FENB_MATERIAL_SHADERS})
 target_include_directories(d3d9 PRIVATE "${CMAKE_CURRENT_BINARY_DIR}" src "${IMGUI}")
 target_compile_definitions(d3d9 PRIVATE IMGUI_DISABLE_DEMO_WINDOWS IMGUI_DISABLE_DEBUG_TOOLS IMGUI_IMPL_WIN32_DISABLE_GAMEPAD IMGUI_USE_BGRA_PACKED_COLOR)
 target_link_libraries(d3d9 PRIVATE dxguid comctl32 dwmapi gdi32 imm32 bcrypt winmm)
@@ -165,7 +170,7 @@ if(BUILD_TESTING)
   target_link_libraries(grass-test PRIVATE dxguid bcrypt gdiplus "$<IF:$<CXX_COMPILER_ID:MSVC>,d3d9.lib,-ld3d9>")
   add_test(NAME grass COMMAND grass-test)
   set_tests_properties(grass PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
-  add_executable(material-test tests/material_test.cpp "${FENB_MATERIAL_CATALOG}" "${CMAKE_CURRENT_BINARY_DIR}/generated/material_ps.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/material_bark_ps.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/material_snow_ps.hpp")
+  add_executable(material-test tests/material_test.cpp "${FENB_MATERIAL_CATALOG}" ${FENB_MATERIAL_SHADERS})
   target_include_directories(material-test PRIVATE "${CMAKE_CURRENT_BINARY_DIR}" src)
   target_link_libraries(material-test PRIVATE dxguid bcrypt gdiplus "$<IF:$<CXX_COMPILER_ID:MSVC>,d3d9.lib,-ld3d9>")
   if(MINGW)

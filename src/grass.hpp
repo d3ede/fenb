@@ -55,6 +55,7 @@ class GrassFX {
     bool centered_=false;
     uint64_t worldKey_=0;
     bool winter_=false,contactClear_=true,contactTarget_=false;
+    bool flaris_=false;
     unsigned resolution_=0;
     DWORD worldSrgb_=FALSE;
     int builtQuality_=-1,builtStyle_=-1;
@@ -73,7 +74,7 @@ public:
     explicit GrassFX(IDirect3DDevice9 *d):device_(d){}
     ~GrassFX();
     bool supported();
-    void beginFrame(bool enabled,const float *player=nullptr,uint64_t worldKey=0);
+    void beginFrame(bool enabled,const float *player=nullptr,uint64_t worldKey=0,bool flaris=false);
     void invalidate();
     void capture(const Settings &,DrawCall,SurfaceDraw={},bool water=false);
     void flush();

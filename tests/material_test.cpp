@@ -46,6 +46,8 @@ struct Fixture {
     bool two=false,lit=true,point=false,rangeFog=false,transform=false,used=false,scaled=false,orbit=false,zeroNormals=false;
     int fog=0,table=0,stateErrors=0;
     bool third=false;
+    bool flaris=false;
+    float winterShift=0;
     int shadowCoordinates=0;
     bool followingNative=false,buffered=false,absolute=false,coplanar=false,cutout=false,foliageBlend=false,depthWrite=true;
     D3DFORMAT depthFormat=D3DFMT_D24X8;
@@ -72,6 +74,12 @@ struct Fixture {
             for(int axis=0;axis<3;++axis)view.m[3][axis]=-(8192*view.m[0][axis]+128*view.m[1][axis]+4096*view.m[2][axis]);
         }
         if(scaled){world._11=.83f;world._22=1.12f;world._33=.94f;}
+        if(flaris){
+            // Keep the same camera-space quad while placing it across many world-space cells.
+            world._11=world._22=world._33=18.f;
+            world._41=7000.f+winterShift;world._43=3410.f;
+            view._41=-world._41;view._43=-world._43;
+        }
         if(orbit){view._11=view._33=std::cos(.16f);view._13=std::sin(.16f);view._31=-view._13;}
         d->SetTransform(D3DTS_WORLD,&world);d->SetTransform(D3DTS_VIEW,&view);d->SetTransform(D3DTS_PROJECTION,&projection);
         d->SetVertexShader(nullptr);d->SetPixelShader(nullptr);d->SetFVF(two?0x212:0x112);
@@ -172,7 +180,7 @@ struct Fixture {
             d->SetTextureStageState(0,D3DTSS_COLORARG2,D3DTA_TFACTOR);d->SetRenderState(D3DRS_TEXTUREFACTOR,0xff202020);
             draw();d->SetTextureStageState(0,D3DTSS_COLORARG2,D3DTA_DIFFUSE);d->SetRenderState(D3DRS_ZFUNC,D3DCMP_EQUAL);
         }
-        used=fx.begin(s);
+        used=fx.begin(s,flaris);
         if(used){Com<IDirect3DBaseTexture9> detail;d->GetTexture(3,detail.out());stateErrors+=shadow.p&&detail.p==shadow.p;}
         auto hr=draw();
         fx.end();
@@ -405,6 +413,39 @@ int main(int argc,char **argv){
     CHECK(!fixture.used&&Delta(a,b)<=(msaa?2u:0u));
     on.materialStrength=.75f;InvalidateWaterTag(fixture.art);fixture.render(on);CHECK(!fixture.used);
     kind=2;fixture.art->SetPrivateData(MaterialTag,&kind,4,0);fixture.fx.invalidate();fixture.render(on);CHECK(fixture.used);
+    // A uniform, repeating terrain atlas must pick up variation from world position alone.
+    Settings winter;winter.winterGround=true;
+    CHECK(SUCCEEDED(d->CreateTexture(64,64,1,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,fixture.art.out(),nullptr)));
+    CHECK(SUCCEEDED(fixture.art->LockRect(0,&flat,nullptr,0)));
+    for(UINT y=0;y<64;++y)
+        std::fill_n((DWORD*)((BYTE*)flat.pBits+y*flat.Pitch),64,D3DCOLOR_ARGB(220,107,124,73));
+    fixture.art->UnlockRect(0);
+    DWORD winterKind=unsigned(WinterSurface::Ground)<<8;
+    fixture.art->SetPrivateData(MaterialTag,&winterKind,4,0);
+    fixture.render(winter);CHECK(!fixture.used);
+    fixture.flaris=true;fixture.lit=false;fixture.followingNative=false;
+    fixture.cameraDistance=3.2f;fixture.two=fixture.third=fixture.coplanar=false;
+    auto bare=fixture.render(off),covered=fixture.render(winter);
+    printf("World snow enabled=%d maximum RGB delta=%u\n",fixture.used,Delta(bare,covered));
+    CHECK(fixture.used&&Delta(bare,covered)>8);
+    fixture.repeats=4;
+    CHECK(Delta(covered,fixture.render(winter))<=(msaa?2u:1u));
+    bare=fixture.render(off);
+    fixture.winterShift=9.f;
+    CHECK(Delta(bare,fixture.render(off))<=(msaa?2u:1u));
+    const unsigned shift=Delta(covered,fixture.render(winter));
+    printf("World snow placement delta=%u\n",shift);
+    CHECK(shift>8);
+    fixture.two=true;fixture.third=true;fixture.coplanar=true;
+    fixture.cutout=true;
+    bare=fixture.render(off);covered=fixture.render(winter);
+    CHECK(fixture.used&&Delta(bare,covered)>3);
+    winterKind=unsigned(WinterSurface::Plant)<<8;
+    fixture.art->SetPrivateData(MaterialTag,&winterKind,4,0);
+    fixture.render(winter);CHECK(!fixture.used);
+    winter.winterGround=false;winter.winterProps=true;
+    covered=fixture.render(winter);
+    CHECK(fixture.used&&Delta(bare,covered)>8);
     CHECK(!fixture.stateErrors);
     puts("PASS: surface materials, fixed-function parity, directional/point lighting, blend coverage, fog, UV transforms, zero/off, identity invalidation, state restoration and recreation.");
     return 0;

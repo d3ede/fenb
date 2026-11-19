@@ -45,7 +45,7 @@ int main(int argc,char**argv){
     CHECK(trees.begin(settings));trees.end(); // lazily recreated after reset/invalidation
     InvalidateWaterTag(second);CHECK(!trees.begin(settings));
     d->SetTexture(0,original);
-    settings.treeFoliage = settings.winterGround = true;
+    settings.treeFoliage = true;
     for(unsigned i=0;i<std::size(TreeAssets);i++){
         id=i+1;original->SetPrivateData(TreeTag,&id,sizeof(id),0);CHECK(trees.begin(settings,true));trees.end();
     }
@@ -88,7 +88,7 @@ int main(int argc,char**argv){
     CHECK(SUCCEEDED(d->SetRenderState(D3DRS_ALPHATESTENABLE, TRUE)));
     CHECK(SUCCEEDED(d->SetRenderState(D3DRS_ALPHAREF, 128)));
     CHECK(SUCCEEDED(d->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE)));
-    unsigned winterCount = 0, groundCount = 0, foliageCount = 0;
+    unsigned winterCount = 0, foliageCount = 0;
     CHECK(TreeFX::inFlaris(1, 7012.85f, 3410.32f));
     CHECK(!TreeFX::inFlaris(4, 7012.85f, 3410.32f));
     CHECK(!TreeFX::inFlaris(1, 4397.92f, 4189.21f));
@@ -98,17 +98,6 @@ int main(int argc,char**argv){
         id = i + 1;
         CHECK(SUCCEEDED(original->SetPrivateData(TreeTag, &id, sizeof(id), 0)));
         const bool foliage = asset.kind == VegetationKind::Foliage;
-        if (asset.kind == VegetationKind::Ground) {
-            ++groundCount;
-            settings.trees = false;
-            CHECK(!trees.begin(settings));
-            CHECK(trees.begin(settings, true) && !trees.nativeFoliage());
-            trees.end();
-            settings.winterGround = false;
-            CHECK(!trees.begin(settings, true));
-            settings.winterGround = settings.trees = true;
-            continue;
-        }
         if (foliage) {
             ++foliageCount;
             CHECK(asset.format == D3DFMT_DXT5);
@@ -143,7 +132,7 @@ int main(int argc,char**argv){
         }
         settings.treeWinterFoliage = false;
     }
-    CHECK(foliageCount == 45 && winterCount == 12 && groundCount == 13);
+    CHECK(foliageCount == 45 && winterCount == 12);
     DWORD alphaState = 0;
     CHECK(SUCCEEDED(d->GetRenderState(D3DRS_ALPHATESTENABLE, &alphaState)) && alphaState == TRUE);
     CHECK(SUCCEEDED(d->GetRenderState(D3DRS_ALPHAREF, &alphaState)) && alphaState == 128);
