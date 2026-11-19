@@ -73,7 +73,7 @@ exposed tile. The same pass gives hedges a leaf-space frost pattern. Upward-faci
 building surfaces accumulate more snow, while walls receive a light dusting.
 The pass preserves native UVs, diffuse lighting, alpha, depth, fog and blend
 masks and works independently of material relief. The winter catalogue has
-161 original materials, including houses, foliage, mushrooms and bridges.
+162 original materials, including houses, foliage, mushrooms and bridges.
 It contains texture identities and surface roles only.
 
 The DLL embeds 67 DXT1/DXT5 tree textures with complete mip chains (5,047,912 bytes

@@ -1178,6 +1178,15 @@
     "decodedHash": "bdeaa54b7eb400d9b7c13020c524a76504845f428511a4ac82b1e2b0890ab088"
   },
   {
+    "file": "Model/Texture/Obj_PlaHouse04.dds",
+    "winter": "Exterior",
+    "width": 512,
+    "height": 512,
+    "decodedHash": "daf91a2fe8f4638866a127f77d4aaafa256716652078751a934e699c5f744856",
+    "sourceHash": "2f9ba14f47e6f009be1749e858c69c782f5f6136e0d4deebe0e6545acb04627b",
+    "uploadHash": "8653ba2bb6f3ce9145af5ee8a7281d1ccf2cee295c565fabb6e4069b85deb53f"
+  },
+  {
     "file": "Model/Texture/Obj_NewFlHouse05_01.dds",
     "winter": "Exterior",
     "width": 512,
