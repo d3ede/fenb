@@ -500,7 +500,7 @@ UI_TEXT(WinterGround, "Ground snow", "Снег на земле", "Nieve en el su
 UI_TEXT(WinterGroundHelp, "Adds frost and snow to Flaris terrain and paths.", "Добавляет снег и иней на землю и дорожки во Фларинции.", "Añade nieve y escarcha al terreno y a los caminos de Flaris.", "Adiciona neve e geada ao terreno e aos caminhos de Flaris.")
 UI_TEXT(WinterProps, "Snow on roofs and scenery", "Снег на крышах и декоре", "Nieve en tejados y decoración", "Neve nos telhados e no cenário")
 UI_TEXT(GrassSnow, "Snowy grass", "Снежная трава", "Hierba nevada", "Grama nevada")
-UI_TEXT(GrassSnowHelp, "Uses snowy blades in Flaris and on native snow.", "Добавляет снежную траву во Фларинции и на штатном снежном грунте.", "Usa hierba nevada en Flaris y sobre la nieve del mapa.", "Usa grama coberta de neve em Flaris e na neve do mapa.")
+UI_TEXT(GrassSnowHelp, "Uses snowy grass on the map's snow and in Flaris when Ground snow is enabled.", "Добавляет снежную траву на заснеженных картах и во Фларинции, если включён снег на земле.", "Usa hierba nevada en zonas con nieve del mapa y en Flaris si está activada la nieve en el suelo.", "Usa grama coberta de neve nas áreas nevadas do mapa e em Flaris quando a neve no chão está ativada.")
 UI_TEXT(GrassCoverage, "Coverage", "Покрытие", "Cobertura", "Cobertura")
 UI_TEXT(GrassShape, "Blade shape", "Форма травы", "Forma de la hierba", "Forma da grama")
 UI_TEXT(GrassStyle, "Grass style", "Стиль травы", "Estilo de la hierba", "Estilo da grama")

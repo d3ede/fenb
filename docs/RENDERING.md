@@ -62,8 +62,8 @@ use native geometry, UVs, lighting and alpha state. Four shared bark sources and
 one shared leaf source each have two patterns selected by world translation.
 
 **World → Environment → Snow** groups the winter settings. **Winter in Flaris**
-toggles snow on trees, ground and scenery together. Snowy grass has a separate
-switch and includes the existing support for Azria's native snowy terrain.
+toggles snow on trees, ground and scenery together. Snowy grass applies to
+native snow such as Azria's and requires Ground snow to be enabled in Flaris.
 The switches for Flaris use the player position and Madrigal world ID on the
 supported client. Existing winter preferences retain their stored keys.
 

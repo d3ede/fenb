@@ -495,7 +495,8 @@ void GrassFX::draw(const Settings &s,bool ownScene){
             memcpy(p[9],sunDirection_,16);memcpy(p[10],sunColor_,16);memcpy(p[11],ambient_,16);
             p[12][0]=frame_.grassBrightness;p[12][1]=frame_.grassSaturation;p[12][2]=frame_.grassDryness;p[12][3]=frame_.grassShading;
             memcpy(p[13],fog_,16);memcpy(p[14],fogColor_,16);p[15][0]=frame_.grassWindSpeed;
-            p[15][3]=frame_.grassSnow?(winter_?2.f:flaris_?3.f:1.f):0.f;
+            const bool flarisSnow=flaris_&&frame_.winterGround;
+            p[15][3]=frame_.grassSnow?(winter_?2.f:flarisSnow?3.f:1.f):0.f;
             device_->SetPixelShaderConstantF(14,fogColor_,1);
             const float card[]={frame_.grassBrightness,frame_.grassSaturation,frame_.grassDryness,frame_.grassStyle};
             device_->SetPixelShaderConstantF(19,card,1);

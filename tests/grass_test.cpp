@@ -732,11 +732,18 @@ int main(int argc,char **argv){
     CHECK(Save(simpleSnow,L"artifacts/grass/field-simple-snow.png"));
     std::swap(art.p,snowy.p);const auto simpleSummer=render(true);
     CHECK(Delta(simpleSnow,simpleSummer)>20);
-    flaris=true;const auto flarisSnow=render(true);
-    CHECK(Delta(flarisSnow,simpleSummer)>20);
-    settings.grassSnow=false;const auto flarisSummer=render(true);
-    CHECK(Delta(flarisSummer,flarisSnow)>20);
-    flaris=false;settings.grassSnow=true;
+    for(float style:{0.f,1.f}){
+        settings.grassStyle=style;
+        const auto summer=render(true);
+        flaris=true;
+        CHECK(Delta(render(true),summer)<=(msaa?32u:0u));
+        settings.winterGround=true;
+        const auto flarisSnow=render(true);
+        CHECK(Delta(flarisSnow,summer)>32);
+        settings.grassSnow=false;
+        CHECK(Delta(render(true),summer)<=(msaa?32u:0u));
+        flaris=false;settings.winterGround=false;settings.grassSnow=true;
+    }
     const float savedWidth=settings.grassWidth;
     settings.grassWidth=.01f;const auto narrowModel=render(true);const auto narrowCount=GrassFXFixture::count(grass);
     settings.grassWidth=.08f;const auto wideModel=render(true);
