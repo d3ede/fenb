@@ -6,8 +6,9 @@ its thin, disconnected ribbons did not produce the interwoven meadow silhouette
 of the supplied Flyff Universe reference. Increasing that population slightly
 did not fix the missing lower leaves, painted folds or overlapping curved tips.
 
-This offline tool does not replace `GrassFX`, change Detailed grass or install
-anything into a game directory.
+The offline tool remains a visual reference. Its painted strip is now also
+integrated into the Simple `GrassFX` style; Detailed grass retains its previous
+geometry and shading. Installation is a separate, explicitly requested action.
 
 ## Run
 
@@ -81,4 +82,4 @@ The patch cameras remain close `(0.15, 0.78, -2.8)` toward `(0, 0.23, 0)` and
 raised `(1.9, 2.0, -2.6)` toward `(0, 0.12, 0)`. There is no wind, LOD,
 terrain-mask replay, fog, HUD, contact shadows or live client lighting. Camera
 stability and performance in the client need separate validation after visual
-review. No whole-field rollout is part of this study.
+review. See `docs/RENDERING.md` for the runtime integration and its limitations.

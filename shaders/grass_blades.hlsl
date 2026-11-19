@@ -111,8 +111,9 @@ Output GrassBlade(Input i,bool adapt) {
     float simpleShape=0;
     if(simple>.5){
         simpleShape=frac(leaf*7.31+r3);
-        height=Shape.x*lerp(.45,1.45,leaf)*lerp(.9,1.1,patch)*
+        height=Shape.x*lerp(.48,1.08,leaf)*lerp(.9,1.1,patch)*
             lerp(1,.75+simpleShape*.5,Shape.z)*growth;
+        height*=lerp(1,.78,snow);
     }
     // A raised canopy or stall leaves room to grow. Shorten the blades
     // underneath it instead of clearing the projection of the whole object.
@@ -124,18 +125,19 @@ Output GrassBlade(Input i,bool adapt) {
     float span=growth*sqrt(coverScale)*max(1,cameraDistance/40);
     float3 p=float3(root.x+offset.x,surface.r+.008,root.y+offset.y);
     if(simple>.5){
-        // Broad flat leaves have an actual tapered silhouette and individual
-        // bends. The texture paints the two faces of the folded leaf.
-        float width=Shape.y*1.9*(1-t)*(.75+.65*sin(t*3.14159265))*(.85+leaf*.35)*span;
-        p.xz+=radial*height*(.10+simpleShape*.38)*t*t+side*(leaf-.5)*height*.16*t*t+
+        // The alpha strip contains multiple curved leaves with distributed
+        // roots. Do not taper the whole carrier into one giant leaf again.
+        float width=Shape.x*(.65+leaf*.30)*clamp(Shape.y/.03,.25,4)*span;
+        p.xz+=radial*height*(.06+simpleShape*.16)*t*t+side*(leaf-.5)*height*.08*t*t+
             Wind.xy*sway*height*t*t+side*i.blade.x*width*.5;
+        p.y-=lerp(.006,.025,snow);
     }else{
         float2 lean=(radial*(.18+leaf*.6)+Wind.xy*sway)*height;
         float width=Shape.y*1.15*(1-t)*(.9+.8*sin(t*3.14159265))*(.85+leaf*.3)*span;
         p.xz+=lean*t*t+side*((leaf-.5)*height*.16*t*t+i.blade.x*width*.5);
     }
     p.y+=height*t;
-    // Detailed keeps its soft upward bias; the simple leaves have more upright
+    // Detailed keeps its soft upward bias; the simple strips have more upright
     // faces so their orientation changes the light. Both faces transmit light.
     float normalSide=simple>.5?.85:.25;
     float3 n=normalize(float3(radial.x*normalSide,simple>.5?.6:1,radial.y*normalSide));
@@ -180,10 +182,13 @@ Output GrassBladeAdaptedVS(Input i) { return GrassBlade(i,true); }
 float4 GrassBladePS(Output i):COLOR0 {
     if(CardControl.w>.5){
         float4 art=tex2D(LeafArt,i.leaf.xy);
-        clip(art.a-.33);
+        clip(art.a-.5);
+        art.rgb=saturate(art.rgb*float3(.88,1.04,.94));
         float shade=dot(art.rgb,float3(.2126,.7152,.0722));
         float3 dry=float3(.58,.49,.20)*lerp(.62,1.2,shade);
-        float3 ice=lerp(float3(.50,.56,.60),float3(.82,.86,.88),saturate(shade*1.22-.16));
+        float3 stem=lerp(float3(.24,.27,.17),float3(.55,.58,.42),shade);
+        float coating=smoothstep(.60,.95,1-i.leaf.y);
+        float3 ice=lerp(stem,float3(.85,.89,.91)*(.78+.22*shade),coating);
         float3 color=lerp(lerp(art.rgb,dry,CardControl.z),ice,i.leaf.z)*i.color.rgb;
         float luma=dot(color,float3(.2126,.7152,.0722));
         color=lerp(luma,color,lerp(CardControl.y,min(CardControl.y,1),i.leaf.z))*CardControl.x;

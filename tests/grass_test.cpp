@@ -354,6 +354,15 @@ int main(int argc,char **argv){
     CreateDirectoryW(L"artifacts/grass",nullptr);CHECK(Save(off,L"artifacts/grass/field-off.png")&&Save(on,L"artifacts/grass/field-on.png"));
     const UINT detailedVertices=GrassFXFixture::bladeVertices(grass);
     settings.grassStyle=1;
+    // Multi-leaf alpha strips must keep visible coverage as the camera rotates;
+    // a field of similarly aligned carrier planes would disappear side-on.
+    for(float pitch:{.03f,.35f,.9f})for(float yaw:{-.6f,0.f,.6f}){
+        camera(pitch,yaw);const auto bare=render(false),cards=render(true);
+        unsigned visible=0;for(size_t px=0;px<bare.size();++px)visible+=bare[px]!=cards[px];
+        printf("Simple grass camera pitch=%.2f yaw=%.2f visible=%u\n",pitch,yaw,visible);
+        CHECK(GrassFXFixture::started(grass)&&!GrassFXFixture::failed(grass)&&visible>1000);
+    }
+    camera(.16f,0);
     const auto simple=render(true);
     CHECK(GrassFXFixture::hasLeafArt(grass)&&GrassFXFixture::bladeVertices(grass)<detailedVertices&&Delta(on,simple)>20);
     CHECK(Save(simple,L"artifacts/grass/field-simple.png"));
@@ -365,7 +374,9 @@ int main(int argc,char **argv){
     CHECK(Delta(restrainedSimple,variedSimple)>20&&!GrassFXFixture::failed(grass));
     settings.grassVariation=savedSimpleVariation;
     settings.grassGroundTint=true;
-    CHECK(Delta(simple,render(true))<=(msaa?32u:0u));
+    const auto simpleTint=render(true);
+    printf("Simple ground-tint no-op delta=%u\n",Delta(simple,simpleTint));
+    CHECK(Delta(simple,simpleTint)<=(msaa?32u:0u));
     settings.grassGroundTint=false;
     followPlayer=true;cameraEye[1]=8;cameraEye[2]=7.3f;camera(1.48f,0);
     const auto aboveBare=render(false),aboveSimple=render(true);
@@ -630,6 +641,13 @@ int main(int argc,char **argv){
     settings.grassSnow=true;worldKey=42;std::swap(art.p,snowy.p);CHECK(render(true).size()==on.size());std::swap(art.p,snowy.p);
     const auto winterSoil=render(true);worldKey=43;const auto summerSoil=render(true);
     CHECK(Delta(winterSoil,summerSoil)>20);worldKey=0;settings.grassSnow=false;
+    settings.grassStyle=1;settings.grassSnow=true;std::swap(art.p,snowy.p);
+    const auto simpleSnow=render(true);
+    CHECK(GrassFXFixture::started(grass)&&!GrassFXFixture::failed(grass)&&GrassFXFixture::hasLeafArt(grass));
+    CHECK(Save(simpleSnow,L"artifacts/grass/field-simple-snow.png"));
+    std::swap(art.p,snowy.p);const auto simpleSummer=render(true);
+    CHECK(Delta(simpleSnow,simpleSummer)>20);
+    settings.grassStyle=0;settings.grassSnow=false;
     settings.grassHeight=.2f;auto shortGrass=render(true);settings.grassHeight=.95f;auto tallGrass=render(true);CHECK(shortGrass!=tallGrass);
     CHECK(Save(shortGrass,L"artifacts/grass/field-short.png")&&Save(tallGrass,L"artifacts/grass/field-tall.png"));
     settings.grassHeight=.55f;

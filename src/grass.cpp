@@ -120,16 +120,17 @@ bool GrassFX::createLeafArt(){
     if(leafArt_.p)return true;
     Com<IDirect3DTexture9> source,target;
     constexpr unsigned size=grass_card::Size;
-    if(FAILED(device_->CreateTexture(size,size,0,0,D3DFMT_A8R8G8B8,D3DPOOL_SYSTEMMEM,source.out(),nullptr))||
-       FAILED(device_->CreateTexture(size,size,0,0,D3DFMT_A8R8G8B8,D3DPOOL_DEFAULT,target.out(),nullptr)))return false;
-    auto pixels=grass_card::paint();
-    for(unsigned level=0,extent=size;extent;extent/=2,++level){
+    if(FAILED(device_->CreateTexture(size,size,grass_card::Levels,0,D3DFMT_DXT5,D3DPOOL_SYSTEMMEM,source.out(),nullptr))||
+       FAILED(device_->CreateTexture(size,size,grass_card::Levels,0,D3DFMT_DXT5,D3DPOOL_DEFAULT,target.out(),nullptr)))return false;
+    unsigned offset=0;
+    for(unsigned level=0,extent=size;level<grass_card::Levels;extent=std::max(1u,extent/2),++level){
         D3DLOCKED_RECT lock{};
         if(FAILED(source->LockRect(level,&lock,nullptr,0)))return false;
-        for(unsigned y=0;y<extent;++y)
-            memcpy(static_cast<BYTE *>(lock.pBits)+y*lock.Pitch,pixels.data()+y*extent,extent*sizeof(DWORD));
+        const unsigned rows=std::max(1u,(extent+3)/4),bytes=rows*16;
+        for(unsigned y=0;y<rows;++y)
+            memcpy(static_cast<BYTE *>(lock.pBits)+y*lock.Pitch,grass_card::Data+offset+y*bytes,bytes);
         if(FAILED(source->UnlockRect(level)))return false;
-        if(extent>1)grass_card::downsample(pixels,extent);
+        offset+=rows*bytes;
     }
     if(FAILED(device_->UpdateTexture(source,target)))return false;
     std::swap(leafArt_.p,target.p);
@@ -149,11 +150,11 @@ bool GrassFX::geometry(){
     for(int lod=0;lod<3;++lod){
         auto &b=bands_[lod];b.mesh.out();b.instances.out();b.indices.out();b.count=0;
         const bool simple=style==1;
-        const int blades=simple?4:quality==0?4:quality==1?7:10;
+        const int blades=simple?2:quality==0?4:quality==1?7:10;
         const int segments=lod==2?1:lod==1?2:simple?(quality==2?3:2):quality+2;
         std::vector<BladeVertex> mesh;std::vector<WORD> indices;unsigned seed=0x39c1a265u;
         for(int blade=0;blade<blades;++blade){
-            const float angle=blade*(6.2831853f/blades)+Random(seed)*.3f;
+            const float angle=blade*((simple?3.14159265f:6.2831853f)/blades)+Random(seed)*.3f;
             const float radius=.08f+Random(seed)*.16f,h=.75f+Random(seed)*.5f;
             const WORD first=WORD(mesh.size());
             for(int segment=0;segment<=segments;++segment)for(int side:{-1,1})

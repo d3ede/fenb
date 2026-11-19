@@ -21,6 +21,12 @@ node tools/grass-catalog.mjs
 if($LASTEXITCODE){throw 'Grass catalog generation failed'}
 node tools/embed-trees.mjs
 if($LASTEXITCODE){throw 'Tree texture embedding failed'}
+& $cxx '-std=c++20' '-O2' '-static' '-municode' '-Isrc' 'tools/grass-artc.cpp' '-ld3d9' '-lgdiplus' '-o' 'build/grass-artc.exe'
+if($LASTEXITCODE){throw 'Grass artwork compiler build failed'}
+& './build/grass-artc.exe' 'assets/grass/vanilla-meadow.png' 'build/grass-card.dds'
+if($LASTEXITCODE){throw 'Grass artwork compilation failed'}
+node tools/embed-grass.mjs build/grass-card.dds
+if($LASTEXITCODE){throw 'Grass artwork embedding failed'}
 node tools/embed-updater.mjs
 if ($LASTEXITCODE) { throw 'Updater embedding failed' }
 & $cxx '-std=c++20' '-O2' '-static' 'tools/shaderc.cpp' '-ld3dcompiler' '-o' 'build/shaderc.exe'

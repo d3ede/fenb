@@ -38,6 +38,19 @@ set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 set(IMGUI "${CMAKE_CURRENT_SOURCE_DIR}/vendor/imgui-1.92.9b")
 add_executable(shaderc tools/shaderc.cpp)
 target_link_libraries(shaderc PRIVATE d3dcompiler)
+add_executable(grass-artc tools/grass-artc.cpp)
+target_include_directories(grass-artc PRIVATE src)
+target_link_libraries(grass-artc PRIVATE gdiplus "$<IF:$<CXX_COMPILER_ID:MSVC>,d3d9.lib,-ld3d9>")
+if(NOT MSVC)
+  target_link_options(grass-artc PRIVATE -municode -static)
+endif()
+set(FENB_GRASS_ART "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_art.hpp")
+add_custom_command(OUTPUT "${FENB_GRASS_ART}"
+  COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/generated"
+  COMMAND grass-artc "${CMAKE_CURRENT_SOURCE_DIR}/assets/grass/vanilla-meadow.png" "${CMAKE_CURRENT_BINARY_DIR}/grass-card.dds"
+  COMMAND "${FENB_NODE_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/embed-grass.mjs" "${CMAKE_CURRENT_BINARY_DIR}/grass-card.dds" "${FENB_GRASS_ART}"
+  DEPENDS grass-artc tools/embed-grass.mjs assets/grass/vanilla-meadow.png
+  WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
 add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/generated/shaders.hpp"
   COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/generated"
   COMMAND shaderc "${CMAKE_CURRENT_SOURCE_DIR}/shaders/post.hlsl" "${CMAKE_CURRENT_BINARY_DIR}/generated/shaders.hpp"
@@ -128,6 +141,7 @@ add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_capture_v
   COMMAND shaderc "${CMAKE_CURRENT_SOURCE_DIR}/shaders/grass_blades.hlsl" "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_blade_ps.hpp" GrassBladePS ps_3_0
   DEPENDS shaderc shaders/grass_capture.hlsl shaders/grass_blades.hlsl shaders/grass_ground_color.hlsli)
 set(FENB_GRASS_SHADERS "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_capture_vs.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_capture_ps.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_blade_vs.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_blade_adapted_vs.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_blade_ps.hpp")
+list(APPEND FENB_GRASS_SHADERS "${FENB_GRASS_ART}")
 target_sources(d3d9 PRIVATE src/grass.cpp "${FENB_GRASS_CATALOG}" ${FENB_GRASS_SHADERS})
 
 include(CTest)
