@@ -17,7 +17,7 @@ const materials = JSON.parse(fs.readFileSync(new URL('./materials.json', import.
 const winter = JSON.parse(fs.readFileSync(new URL('./winter-materials.json', import.meta.url)));
 for (const item of [...materials, ...winter]) {
   if (![item.decodedHash, item.sourceHash, item.uploadHash ?? item.decodedHash].every(v => /^[a-f0-9]{64}$/.test(v)) ||
-      (item.winter ? !['Ground','Paving','Plant','Exterior'].includes(item.winter) :
+      (item.winter ? !['Ground','Paving','Plant','Exterior','Hedge'].includes(item.winter) :
        !Number.isInteger(item.kind) || item.kind < 1 || item.kind > 7))
     throw Error('Invalid material metadata: ' + item.file);
   const field = item.winter ? 'winter' : 'kind', value = item[field];

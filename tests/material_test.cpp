@@ -440,6 +440,9 @@ int main(int argc,char **argv){
     fixture.cutout=true;
     bare=fixture.render(off);covered=fixture.render(winter);
     CHECK(fixture.used&&Delta(bare,covered)>3);
+    winterKind=unsigned(WinterSurface::Paving)<<8;
+    fixture.art->SetPrivateData(MaterialTag,&winterKind,4,0);
+    CHECK(Delta(bare,fixture.render(winter))>8&&fixture.used);
     winterKind=unsigned(WinterSurface::Plant)<<8;
     fixture.art->SetPrivateData(MaterialTag,&winterKind,4,0);
     fixture.render(winter);CHECK(!fixture.used);
@@ -451,7 +454,7 @@ int main(int argc,char **argv){
     fixture.two=fixture.coplanar=false;
     fixture.passThrough=fixture.buffered=true;
     fixture.shadowCoordinates=3;
-    for(bool shadowed:{false,true})for(auto surface:{WinterSurface::Plant,WinterSurface::Exterior}){
+    for(bool shadowed:{false,true})for(auto surface:{WinterSurface::Plant,WinterSurface::Exterior,WinterSurface::Hedge}){
         fixture.third=shadowed;
         winterKind=unsigned(surface)<<8;
         fixture.art->SetPrivateData(MaterialTag,&winterKind,4,0);

@@ -67,13 +67,13 @@ native snow such as Azria's and requires Ground snow to be enabled in Flaris.
 The switches for Flaris use the player position and Madrigal world ID on the
 supported client. Existing winter preferences retain their stored keys.
 
-Snow on the ground uses one world-space field across the native terrain blends,
-with lighter coverage on paving and squares. Roofs, exterior props and plants
-use the same material pass with different snow coverage. Upward-facing
+Snow on the ground uses one world-space field across the native terrain blends.
+Snow settles in patches on the square's original TGA paving, leaving areas of
+exposed tile. The same pass gives hedges a leaf-space frost pattern. Upward-facing
 building surfaces accumulate more snow, while walls receive a light dusting.
 The pass preserves native UVs, diffuse lighting, alpha, depth, fog and blend
 masks and works independently of material relief. The winter catalogue has
-160 original materials, including houses, foliage, mushrooms and bridges.
+161 original materials, including houses, foliage, mushrooms and bridges.
 It contains texture identities and surface roles only.
 
 The DLL embeds 67 DXT1/DXT5 tree textures with complete mip chains (5,047,912 bytes

@@ -81,6 +81,14 @@
     "uploadHash": "121c2b0c2010363ef31e6b4b34a5d3cca92b0cd01479dd3f3b9e36c9682f6556"
   },
   {
+    "file": "World/Texture/5da3e18d.tga",
+    "winter": "Paving",
+    "width": 256,
+    "height": 256,
+    "decodedHash": "70c1953606406a1999b3ee67f7833ef148a04479a05d9d18712726a94495abb0",
+    "sourceHash": "ef584d6cf18da3d76ee2ca1e1907cc0d3d1f2e9dd4cf53b7a05a219bcb350e7f"
+  },
+  {
     "file": "World/Texture/brick_MaFl01.dds",
     "winter": "Paving",
     "width": 512,
@@ -1288,7 +1296,7 @@
   },
   {
     "file": "Model/Texture/Obj_NewFlbush01.dds",
-    "winter": "Plant",
+    "winter": "Hedge",
     "width": 256,
     "height": 256,
     "sourceHash": "c8b926271e4a61a4f3c1e1ed7e6284ff1d70a2a6f503e57a4157edb4be89dbfa",

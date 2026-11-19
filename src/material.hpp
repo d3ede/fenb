@@ -122,7 +122,7 @@ public:
         const unsigned kind=std::min(material&255,7u);
         const auto winter=WinterSurface(material>>8);
         const bool floor=winter==WinterSurface::Ground||winter==WinterSurface::Paving;
-        const bool snow=winterEnabled&&winter>WinterSurface::None&&winter<=WinterSurface::Exterior&&
+        const bool snow=winterEnabled&&winter>WinterSurface::None&&winter<=WinterSurface::Hedge&&
                         (floor?s.winterGround:s.winterProps);
         if(!snow&&(!relief||!kind))return false;
         Com<IDirect3DVertexShader9> vs;Com<IDirect3DPixelShader9> ps;
@@ -214,10 +214,21 @@ public:
         p[13][0]=p[13][1]=6.f;
         p[13][2]=snowDetail?1.f:0.f;p[13][3]=kind==6?(barkMips?18.f:8.f):kind==3?10.f:kind==2?7.f:1.f;
         if(snow){
-            constexpr float coating[][4]={{.39f,.69f,.08f,.77f},{.43f,.75f,.06f,.54f},
-                                          {.29f,.66f,.36f,.39f},{.28f,.65f,.34f,.66f}};
+            constexpr float coating[][4]={
+                {.39f,.69f,.08f,.77f}, // Ground
+                {.36f,.69f,.09f,.69f}, // Paving
+                {.29f,.66f,.36f,.39f}, // Plant
+                {.28f,.65f,.34f,.66f}, // Exterior
+                {.28f,.66f,.41f,.45f}, // Hedge
+            };
             memcpy(p[0],coating[unsigned(winter)-1],sizeof(p[0]));
-            p[1][0]=.19f;p[1][1]=.78f;p[1][3]=.09f*(floor?1.f:7.f)/128.f;
+            p[1][0]=.19f;p[1][1]=.78f;
+            // The negative scale projects frost in leaf UVs across hedge cards.
+            p[1][3]=winter==WinterSurface::Hedge?-.12f:.09f*(floor?1.f:7.f)/128.f;
+            // Use operands that stage 0 and fog do not read in the pixel shader.
+            p[3][2]=winter==WinterSurface::Exterior?1.f:0.f;
+            p[3][3]=winter==WinterSurface::Plant?1.f:0.f;
+            p[9][3]=winter==WinterSurface::Hedge?.46f:floor?.28f:.14f;
         }
         auto &shader=snow?winterPs_:kind==7?snowPs_:barkMips?barkPs_:ps_;
         if(!shader.p&&FAILED(device_->CreatePixelShader(snow?ShaderMaterialWinterPS:kind==7?ShaderMaterialSnowPS:

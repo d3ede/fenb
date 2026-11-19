@@ -150,7 +150,7 @@ float4 MaterialWinterPS(MaterialInput i):COLOR0 {
     bool floor=ArtInfo.z<2.5;
     float2 surface=world.xz;
     if(!floor)surface+=world.y*float2(.43,-.27);
-    float2 a=(surface+surface.yx*float2(.5,-.5))*ArtInfo.w;
+    float2 a=ArtInfo.w<0?i.uv*(-ArtInfo.w):(surface+surface.yx*float2(.5,-.5))*ArtInfo.w;
     float2 b=(a+a.yx*float2(-.67,.67))*2.7+.28;
     // Different orientations and scales conceal the period of the small noise source.
     float flecks=tex2D(SurfaceDetail,a.yx*9.7+.36).r;
@@ -158,14 +158,15 @@ float4 MaterialWinterPS(MaterialInput i):COLOR0 {
     float3 up=SunDirection.xyz;
     float facing=dot(i.normal,up)*rsqrt(max(dot(i.normal,i.normal),1e-8));
     float frost=Style.z+Style.w*smoothstep(Style.x,Style.y,field);
-    if(ArtInfo.z>3.5){
+    // Stage 0 uses only Alpha0.xy for its native alpha arguments.
+    if(Alpha0.z>.5){
         // Vertical wood and masonry get a dusting. Roof slopes and ledges carry snow.
         frost*=.09+.82*smoothstep(ArtInfo.x,ArtInfo.y,facing);
-    }else if(ArtInfo.z>2.5){
+    }else if(Alpha0.w>.5){
         // Leaf cards keep recognizable green shadows through their snow.
         frost*=.65+.35*smoothstep(.19,.55,light);
     }
-    float3 frozen=lerp(art.rgb,light*float3(1.018,1.014,.94),floor?.28:.14);
+    float3 frozen=lerp(art.rgb,light*float3(1.018,1.014,.94),FogColor.a);
     float3 snow=float3(.940,.956,.967)*(.78+.16*light+.095*flecks);
     art.rgb=lerp(frozen,snow,frost);
     return CoatedMaterial(i,art);
