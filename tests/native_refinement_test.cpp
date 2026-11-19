@@ -125,6 +125,25 @@ int main(int argc,char **argv){
         printf("Emission spacing %.1f: head coverage %.2f..%.2f\n",spacing,low,high);
         assert(low>50&&high-low<3); // No birth-dependent brightness pulse.
     }
+    // Keep the curved path through a jump/turn when the next particle appears.
+    MotionPath history;
+    const std::array<Vec,8> jumpTrace={{{0,-2,4},{0,-1,4},{0,0,4},{0,.4f,4},
+                                      {0,.85f,4},{.35f,.85f,4},{.65f,.85f,4},{.9f,.85f,4}}};
+    std::span<const Vec> recorded;
+    for(size_t i=0;i<jumpTrace.size();++i)recorded=history.observe(jumpTrace[i],100+20*i);
+    assert(recorded.size()==jumpTrace.size());
+    const std::vector<Puff> beforeBirth={{{0,0,4},.2f,{1,1,1,.72f}},{{0,-1,4},.2f,{1,1,1,.60f}},
+                                        {{0,-2,4},.2f,{1,1,1,.48f}},{{0,-3,4},.2f,{1,1,1,.36f}}};
+    const Vec liveEmitter=jumpTrace.back();
+    puffs=beforeBirth;mesh(puffs,identity,vertices,&liveEmitter,false,0,recorded);
+    const float beforeCorner=coverage(.42f,.85f);
+    assert(beforeCorner>100);
+    puffs=beforeBirth;puffs.insert(puffs.begin(),{liveEmitter,.2f,{1,1,1,.93f}});
+    mesh(puffs,identity,vertices,&liveEmitter,false,0,recorded);
+    assert(std::abs(beforeCorner-coverage(.42f,.85f))<18);
+    assert(coverage(.42f,.34f)<30); // The new particle must not cut across the bend.
+    assert(history.observe({100,.85f,4},261).size()==1); // Teleport.
+    assert(history.observe({100,.85f,4},500).size()==1); // An expired model slot.
     puffs={{{0,0,0},.2f,{1,1,1,1}},{{0,-1,0},.2f,{1,1,1,.8f}},
            {{0,-30,0},.2f,{1,1,1,.6f}},{{0,-31,0},.2f,{1,1,1,.4f}}};
     mesh(puffs,identity,vertices);assert(coverage(0,-15)==0); // An outlier teleport stays disconnected.

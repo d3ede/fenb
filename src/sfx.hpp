@@ -21,6 +21,13 @@ class SfxFX {
     std::vector<refinement_trail::Puff> trailPuffs_;
     std::vector<refinement_trail::Vertex> trailVertices_;
     native_refinement::Context *trailContext_=nullptr;
+    struct TrailMotion {
+        uintptr_t model=0;
+        ULONGLONG used=0;
+        refinement_trail::MotionPath path;
+    };
+    std::array<TrailMotion,128> trailMotion_{};
+    bool rememberTrailMotion_=false;
     float trailConstants_[11][4]{};
     DWORD trailSource_=D3DBLEND_SRCALPHA;
     bool trailRange_=false;
@@ -28,8 +35,23 @@ class SfxFX {
     void finishTrail() {
         if(!trailContext_)return;
         refinement_trail::Vec origin{trailContext_->origin[0],trailContext_->origin[1],trailContext_->origin[2]};
+        std::span<const refinement_trail::Vec> motion;
+        if(rememberTrailMotion_&&trailContext_->hasOrigin) {
+            const auto key=reinterpret_cast<uintptr_t>(trailContext_->model);
+            constexpr size_t bucketSize=4;
+            const size_t start=((key>>4)^(key>>11))%(trailMotion_.size()/bucketSize)*bucketSize;
+            auto *entry=&trailMotion_[start];
+            for(size_t i=start;i<start+bucketSize;++i) {
+                auto &candidate=trailMotion_[i];
+                if(candidate.model==key){entry=&candidate;break;}
+                if(candidate.used<entry->used)entry=&candidate;
+            }
+            if(entry->model!=key)*entry={key,0,{}};
+            entry->used=GetTickCount64();
+            motion=entry->path.observe(origin,entry->used);
+        }
         refinement_trail::mesh(trailPuffs_,view_,trailVertices_,
-                               trailContext_->hasOrigin?&origin:nullptr,true,trailLift_);
+                               trailContext_->hasOrigin?&origin:nullptr,true,trailLift_,motion);
         RefinementState state(device_);
         if(state.valid()&&!trailVertices_.empty()) {
             D3DMATRIX identity{};identity._11=identity._22=identity._33=identity._44=1;
@@ -204,6 +226,7 @@ class SfxFX {
         cloudPS_.out();trailArt_.out();
         if(trailContext_){trailContext_->consumer=nullptr;trailContext_->finish=nullptr;trailContext_=nullptr;}
         trailPuffs_.clear();trailVertices_.clear();
+        trailMotion_={};
         trailLift_=0;
         backgroundSurface_.out();
         background_.out();
@@ -211,7 +234,10 @@ class SfxFX {
         camera_ = snapshot_ = used_ = false;
     }
     void beginFrame(bool enabled,bool detailedRefinement=false) {
-        native_refinement::request(this,enabled&&detailedRefinement);
+        const bool recordMotion=enabled&&detailedRefinement;
+        native_refinement::request(this,recordMotion);
+        if(rememberTrailMotion_&&!recordMotion)trailMotion_={};
+        rememberTrailMotion_=recordMotion;
         if (!enabled || !used_) {
             backgroundSurface_.out();
             background_.out();

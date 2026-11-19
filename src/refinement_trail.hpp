@@ -14,11 +14,110 @@ struct Vec {
     Vec operator*(float b)const{return{x*b,y*b,z*b};}
 };
 inline float length(Vec a){return std::sqrt(a.x*a.x+a.y*a.y+a.z*a.z);}
+inline float dot(Vec a,Vec b){return a.x*b.x+a.y*b.y+a.z*b.z;}
 inline bool finite(Vec p){return std::isfinite(p.x)&&std::isfinite(p.y)&&std::isfinite(p.z);}
 inline Vec transform(Vec p,const D3DMATRIX &m){return{p.x*m._11+p.y*m._21+p.z*m._31+m._41,
     p.x*m._12+p.y*m._22+p.z*m._32+m._42,p.x*m._13+p.y*m._23+p.z*m._33+m._43};}
 struct Puff { Vec position;float radius=.1f;std::array<float,4> color{}; };
 struct Vertex { float x,y,z;DWORD color;float u,v; };
+inline constexpr size_t MotionSamples=40;
+
+// World-space emitter samples survive native particle births, without keeping
+// native vertex data or making the glow follow the player with a time delay.
+class MotionPath {
+    std::array<Vec,MotionSamples> positions_{};
+    std::array<ULONGLONG,MotionSamples> times_{};
+    size_t size_=0;
+public:
+    std::span<const Vec> observe(Vec origin,ULONGLONG time) {
+        if(!finite(origin)){size_=0;return {};}
+        if(size_&&(time<times_[0]||time-times_[0]>160||length(origin-positions_[0])>8.f))
+            size_=0;
+        const bool replace=size_&&(time==times_[0]||
+            (size_>1&&time-times_[1]<18&&length(origin-positions_[1])<.3f));
+        if(!replace) {
+            size_=std::min(size_+1,positions_.size());
+            std::move_backward(positions_.begin(),positions_.begin()+size_-1,positions_.begin()+size_);
+            std::move_backward(times_.begin(),times_.begin()+size_-1,times_.begin()+size_);
+        }
+        positions_[0]=origin;
+        times_[0]=time;
+        while(size_>1&&time-times_[size_-1]>640)--size_;
+        return {positions_.data(),size_};
+    }
+};
+
+// Join recorded motion to the recent native particles using their own offset
+// from the model. Keep tracing through an emission instead of replacing a
+// recorded turn with the chord between the two newest particles.
+inline size_t guideHead(std::span<const Puff> puffs,std::span<const Vec> motion,float maxGap,
+                       std::array<Puff,MotionSamples> &head,size_t &anchor) {
+    if(puffs.size()<2||motion.size()<2||motion.size()>MotionSamples)return 0;
+    const auto &newest=puffs.front();
+    const float spacing=length(newest.position-puffs[1].position);
+    std::array<float,MotionSamples> distances{};
+    for(size_t i=1;i<motion.size();++i)distances[i]=distances[i-1]+length(motion[i]-motion[i-1]);
+    if(distances[motion.size()-1]<.01f)return 0;
+    struct Match {Vec position{};float distance=0,error=INFINITY;};
+    auto match=[&](Vec target,float after) {
+        Match closest;
+        for(size_t i=1;i<motion.size();++i) {
+            const float span=distances[i]-distances[i-1];
+            if(span<.0001f||distances[i]<after)continue;
+            const auto delta=motion[i]-motion[i-1];
+            const float t=std::clamp(dot(target-motion[i-1],delta)/(span*span),
+                                     std::max(0.f,(after-distances[i-1])/span),1.f);
+            const Vec position=motion[i-1]+delta*t,offset=target-position;
+            const float error=dot(offset,offset);
+            if(error<closest.error)closest={position,distances[i-1]+span*t,error};
+        }
+        return closest;
+    };
+    const auto newestMatch=match(newest.position,0);
+    const float tolerance=std::max(.50f,newest.radius*1.5f);
+    const float reach=std::min(maxGap,std::max(newest.radius*2,spacing*2.5f));
+    if(newestMatch.error>tolerance*tolerance||newestMatch.distance>reach)return 0;
+
+    struct Fit {float distance;Vec offset;size_t puff;};
+    const auto offset=newest.position-newestMatch.position;
+    std::array<Fit,5> fits{};
+    size_t fitted=1;
+    fits[0]={newestMatch.distance,offset,0};
+    for(size_t i=1;i<puffs.size()&&i<fits.size();++i) {
+        const auto previous=match(puffs[i].position-offset,fits[fitted-1].distance);
+        const float separation=length(puffs[i].position-puffs[i-1].position);
+        const float extent=previous.distance-fits[fitted-1].distance;
+        if(previous.error>tolerance*tolerance*.49f||extent<separation*.45f||
+           extent>std::max(tolerance,separation*2.25f))break;
+        if(extent<.01f)continue;
+        fits[fitted++]={previous.distance,puffs[i].position-previous.position,i};
+    }
+    const auto &oldest=fits[fitted-1];
+    if(oldest.distance<.01f)return 0;
+    anchor=oldest.puff;
+    const float fall=fitted>1?
+        (newest.color[3]-puffs[fits[1].puff].color[3])/(fits[1].distance-newestMatch.distance):
+        (newest.color[3]-puffs[1].color[3])/std::max(spacing,.001f);
+    size_t count=0,interval=0;
+    for(size_t i=0;i<motion.size()&&distances[i]<oldest.distance-.001f;++i) {
+        const float distance=distances[i];
+        if(i&&oldest.distance-distance<newest.radius*.55f)break;
+        while(interval+1<fitted&&distance>fits[interval+1].distance)++interval;
+        const auto &a=fits[interval],&b=fits[std::min(interval+1,fitted-1)];
+        const float blend=a.distance<b.distance?
+            std::clamp((distance-a.distance)/(b.distance-a.distance),0.f,1.f):0.f;
+        const auto &p0=puffs[a.puff],&p1=puffs[b.puff];
+        Puff p=p0;
+        p.position=motion[i]+a.offset+(b.offset-a.offset)*blend;
+        if(count&&length(p.position-head[count-1].position)<newest.radius*.65f)continue;
+        p.radius=std::lerp(p0.radius,p1.radius,blend);
+        for(size_t channel=0;channel<p.color.size();++channel)
+            p.color[channel]=std::lerp(p0.color[channel],p1.color[channel],blend);
+        p.color[3]=std::clamp(p.color[3]+fall*std::max(newestMatch.distance-distance,0.f),0.f,1.f);
+        head[count++]=p;
+    }
+    return count;
+}
 inline DWORD packed(const std::array<float,4>&color,float gain=1){
     auto c=[&](int i){return DWORD(std::clamp(color[i]*(i==3?gain:1),0.f,1.f)*255+.5f);};
     return(c(3)<<24)|(c(0)<<16)|(c(1)<<8)|c(2);
@@ -87,7 +186,8 @@ inline void merge(std::vector<Puff>&puffs){
 // A joined camera-facing surface has one coverage layer regardless of native
 // emission spacing. New particles subdivide it instead of adding bright blobs.
 inline void mesh(std::vector<Puff>&puffs,const D3DMATRIX &view,std::vector<Vertex>&out,
-                 const Vec *emitter=nullptr,bool perspective=false,float grassLift=0){
+                 const Vec *emitter=nullptr,bool perspective=false,float grassLift=0,
+                 std::span<const Vec> motion={}){
     out.clear();merge(puffs);
     if(puffs.empty())return;
     // A regular fast trail can have arbitrarily wider spacing than a walk.
@@ -104,7 +204,7 @@ inline void mesh(std::vector<Puff>&puffs,const D3DMATRIX &view,std::vector<Verte
         maxGap=std::clamp(gaps[(gapCount-1)/4]*4,12.f,128.f);
     }
     struct Node {Vec p;float width;std::array<float,4> color;};
-    std::array<Node,262> nodes{};
+    std::array<Node,256+MotionSamples+1> nodes{};
     auto node=[&](const Puff &p,float separation){
         const float alpha=std::clamp(p.color[3],0.f,1.f),age=1-alpha;
         const float drift=std::clamp((separation-.25f)/.9f,0.f,1.f);
@@ -149,32 +249,42 @@ inline void mesh(std::vector<Puff>&puffs,const D3DMATRIX &view,std::vector<Verte
             continue;
         }
         unsigned count=0;
+        std::array<Puff,MotionSamples> head{};
+        size_t anchor=0;
+        const size_t guided=first?0:guideHead({puffs.data()+first,end-first},motion,maxGap,head,anchor);
+        const Vec liftOrigin=guided?head[0].position:newest.position;
+        auto append=[&](const Puff &p){
+            const Vec offset=p.position-liftOrigin;
+            const auto n=node(p,std::sqrt(offset.x*offset.x+offset.z*offset.z));
+            if(!count||length(n.p-nodes[count-1].p)>=.001f)nodes[count++]=n;
+        };
+        for(size_t i=0;i<guided;++i)append(head[i]);
         // Use the model origin only when the newest visible particles confirm
         // that it extends their path. A resting emitter can have a local offset.
-        if(!first&&emitter&&end-first>1&&finite(*emitter)){
+        if(!guided&&!first&&emitter&&end-first>1&&finite(*emitter)){
             const auto &previous=puffs[first+1];
-            const Vec motion=newest.position-previous.position,offset=*emitter-newest.position;
-            const float spacing=length(motion),distance=length(offset);
-            const float along=offset.x*motion.x+offset.y*motion.y+offset.z*motion.z;
-            if(spacing>=newest.radius*.5f&&distance>.001f&&
-               distance<=std::min(maxGap,std::max(newest.radius*2,spacing*2.5f))&&
-               along>=.5f*distance*spacing){
-                // Advance along the particle path without importing any
-                // perpendicular offset between the model and visible glow.
-                const float progress=along/(spacing*spacing);
-                Puff head=newest;
-                head.position=newest.position+motion*progress;
-                head.color[3]=std::clamp(newest.color[3]+(newest.color[3]-previous.color[3])*progress,0.f,1.f);
-                nodes[count++]=node(head,0);
+            const Vec tangent=newest.position-previous.position,offset=*emitter-newest.position;
+            const float spacing=length(tangent),distance=length(offset);
+            if(spacing>.001f&&distance>.001f){
+                const float along=dot(offset,tangent);
+                const float reach=std::min(maxGap,std::max(newest.radius*2,spacing*2.5f));
+                auto ease=[](float value) {
+                    const float t=std::clamp(value,0.f,1.f);
+                    return t*t*(3-2*t);
+                };
+                const float direction=ease((along/(spacing*distance)-.42f)/.28f);
+                const float range=ease((reach-distance)/(reach*.24f));
+                const float movement=ease((spacing/newest.radius-.27f)/.23f);
+                const float progress=along/(spacing*spacing)*direction*range*movement;
+                if(progress*spacing>.001f) {
+                    Puff extrapolated=newest;
+                    extrapolated.position=newest.position+tangent*progress;
+                    extrapolated.color[3]=std::clamp(newest.color[3]+(newest.color[3]-previous.color[3])*progress,0.f,1.f);
+                    nodes[count++]=node(extrapolated,0);
+                }
             }
         }
-        for(size_t i=first;i<end&&count<257;++i){
-            const Vec offset=puffs[i].position-newest.position;
-            const float separation=std::sqrt(offset.x*offset.x+offset.z*offset.z);
-            Node n=node(puffs[i],separation);
-            if(count&&length(n.p-nodes[count-1].p)<.001f)continue;
-            nodes[count++]=n;
-        }
+        for(size_t i=first+anchor;i<end&&count<nodes.size()-1;++i)append(puffs[i]);
         const unsigned last=count-1;
         float tail=nodes[last].width*.85f;
         if(last>0){
