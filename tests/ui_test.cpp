@@ -306,6 +306,15 @@ int main() {
     for(int language=0;language<static_cast<int>(LanguageCount);++language){
         r.settings.language=static_cast<Language>(language);
         const std::wstring locale(LanguageCodes[language],LanguageCodes[language]+2);
+        r.settings.preset(BuiltInProfileOrder[2]);r.selectedBuiltIn=BuiltInProfileOrder[2];
+        r.selectedProfile.clear();frame();frame();
+        activate(panel,"##profile");frame();
+        CHECK(Screenshot(d,(L"build/ui-integrated/"+locale+L"-profiles.png").c_str()));
+        popup=ImGui::GetCurrentContext()->OpenPopupStack.back().Window;
+        auto midRangeId="###text-"+std::to_string(static_cast<int>(UiText::MidRangeProfile));
+        activate(popup,midRangeId.c_str());
+        CHECK(r.settings.matchingPreset()==BuiltInProfileOrder[2] &&
+              r.settings.language==static_cast<Language>(language) && r.settings.grassStyle==1);
         r.editorPage=4;r.editorSelection[4]=3;frame();frame();
         r.settings.trees=false;r.settings.treeBark=true;
         r.settings.treeFoliage=r.settings.treeWinterFoliage=false;frame();

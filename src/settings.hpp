@@ -2,13 +2,11 @@
 #include "common.hpp"
 #include "localization.hpp"
 inline constexpr UiText BuiltInProfileNames[] = {UiText::DefaultProfile, UiText::HighEndProfile,
-                                                 UiText::WarmTonesProfile, UiText::CoolTonesProfile,
-                                                 UiText::SoftColorsProfile, UiText::LowEndProfile,
-                                                 UiText::PotatoProfile, UiText::BlueWaterProfile,
-                                                 UiText::CyanWaterProfile};
+                                                 UiText::MidRangeProfile, UiText::LowEndProfile,
+                                                 UiText::PotatoProfile};
 inline constexpr int BuiltInPresetCount = sizeof(BuiltInProfileNames) / sizeof(BuiltInProfileNames[0]);
 // Display order is independent of persistent preset identities.
-inline constexpr int BuiltInProfileOrder[] = {0, 1, 5, 6, 7, 8, 2, 3, 4};
+inline constexpr int BuiltInProfileOrder[] = {0, 1, 2, 3, 4};
 
 struct Settings {
     bool enabled = true, bloom = true, color = true;

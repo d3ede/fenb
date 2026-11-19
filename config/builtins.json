@@ -4,13 +4,15 @@
     "name": "Default (High-end PC)",
     "overrides": {
       "scene_high_quality": 1,
+      "local_lighting": 1,
       "materials": 1,
-      "material_strength": 1,
+      "material_strength": 0.85,
       "material_relief": 0.35,
       "material_glints": 0.15,
-      "material_snow": 1,
+      "material_snow": 0.9,
       "grass": 1,
       "grass_snow": 1,
+      "grass_style": 0,
       "grass_quality": 2,
       "grass_distance": 55,
       "grass_density": 1.5,
@@ -29,46 +31,24 @@
       "surface_reflections": 1,
       "water_reflection_method": 2,
       "water_ray_steps": 48,
-      "water_caustics": 0.22
+      "water_caustics": 0.22,
+      "sharpening": 1,
+      "sharpening_strength": 0.45,
+      "texture_contrast": 0.65
     }
   },
   {
-    "name": "Default (Warm tones)",
+    "name": "Default (Mid-range PC)",
     "overrides": {
-      "exposure": 0.045,
-      "contrast": 1.015,
-      "saturation": 1.015,
-      "temperature": 0.22,
-      "tint": 0.008,
-      "gamma": 1.025,
-      "shadows": 0.015,
-      "highlights": -0.07
-    }
-  },
-  {
-    "name": "Default (Cool tones)",
-    "overrides": {
-      "exposure": 0.05,
-      "contrast": 1.02,
-      "saturation": 1.005,
-      "temperature": -0.2,
-      "tint": 0.005,
-      "gamma": 1.025,
-      "shadows": 0.01,
-      "highlights": -0.065
-    }
-  },
-  {
-    "name": "Default (Soft colors)",
-    "overrides": {
-      "exposure": 0.04,
-      "contrast": 0.97,
-      "saturation": 0.94,
-      "temperature": 0.005,
-      "tint": 0.008,
-      "gamma": 1.035,
-      "shadows": 0.025,
-      "highlights": -0.09
+      "ssao": 1,
+      "grass": 1,
+      "grass_style": 1,
+      "materials": 1,
+      "material_strength": 0.85,
+      "material_snow": 0.9,
+      "sharpening": 1,
+      "sharpening_strength": 0.45,
+      "texture_contrast": 0.65
     }
   },
   {"name": "Default (Low-end PC)", "overrides": {
@@ -79,29 +59,5 @@
     "local_lighting": 0,
     "water": 0, "sfx_wake": 0, "water_caustics": 0,
     "smaa": 0, "fxaa": 1, "bloom_scale": 4
-  }},
-  {"name": "Default (Blue Water)", "overrides": {
-    "water": 1, "water_waves": 0.08, "water_length": 7.25,
-    "water_speed": 1.05, "water_ripples": 0.52, "water_ripple_scale": 1.35,
-    "water_opacity": 1, "water_sky": 0.74, "water_glints": 1.1,
-    "water_gloss": 0.86, "water_tint": 0, "water_refraction": 1,
-    "water_texture": 0, "water_depth": 2, "water_shore": 2.35,
-    "water_ssr": 1, "water_ssr_quality": 1, "water_caustics": 0,
-    "water_dispersion": 0.15, "water_caustic_scale": 2, "water_reflection_method": 2,
-    "water_reflection_resolution": 100, "water_ray_steps": 0, "water_refinement_steps": 12,
-    "water_trace_distance": 512, "water_trace_bias": 0.06, "water_trace_thickness": 1,
-    "water_reflection_confidence": 0, "water_soft_fallback": 1
-  }},
-  {"name": "Default (Cyan Water)", "overrides": {
-    "water": 1, "water_waves": 0.08, "water_length": 7.25,
-    "water_speed": 1.05, "water_ripples": 0.52, "water_ripple_scale": 1.35,
-    "water_opacity": 1, "water_sky": 0.74, "water_glints": 1.1,
-    "water_gloss": 0.86, "water_tint": 1, "water_refraction": 1,
-    "water_texture": 0, "water_depth": 2, "water_shore": 2.35,
-    "water_ssr": 1, "water_ssr_quality": 1, "water_caustics": 0,
-    "water_dispersion": 0.15, "water_caustic_scale": 2, "water_reflection_method": 2,
-    "water_reflection_resolution": 100, "water_ray_steps": 0, "water_refinement_steps": 12,
-    "water_trace_distance": 512, "water_trace_bias": 0.06, "water_trace_thickness": 1,
-    "water_reflection_confidence": 0, "water_soft_fallback": 1
   }}
 ]

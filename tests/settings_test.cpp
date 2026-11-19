@@ -433,45 +433,54 @@ int main() {
     CHECK(shipped == builtIn && builtIn.matchingPreset() == 0);
     CHECK(!strcmp(Translate(Language::English, BuiltInProfileNames[0]), "Default"));
     CHECK(!strcmp(Translate(Language::Russian, BuiltInProfileNames[0]), "Основной"));
+    CHECK(BuiltInPresetCount==5);
     CHECK(BuiltInProfileOrder[0]==0 && BuiltInProfileNames[BuiltInProfileOrder[1]]==UiText::HighEndProfile &&
-          BuiltInProfileNames[BuiltInProfileOrder[2]]==UiText::LowEndProfile &&
-          BuiltInProfileNames[BuiltInProfileOrder[3]]==UiText::PotatoProfile &&
-          BuiltInProfileNames[BuiltInProfileOrder[4]]==UiText::BlueWaterProfile &&
-          BuiltInProfileNames[BuiltInProfileOrder[5]]==UiText::CyanWaterProfile);
+          BuiltInProfileNames[BuiltInProfileOrder[2]]==UiText::MidRangeProfile &&
+          BuiltInProfileNames[BuiltInProfileOrder[3]]==UiText::LowEndProfile &&
+          BuiltInProfileNames[BuiltInProfileOrder[4]]==UiText::PotatoProfile);
     unsigned ordered=0;for(int index:BuiltInProfileOrder)ordered|=1u<<index;
     CHECK(ordered==(1u<<BuiltInPresetCount)-1);
-    Settings blueWater;blueWater.preset(7);
-    CHECK(blueWater.water && blueWater.waterWaves==.08f && blueWater.waterOpacity==1.f &&
-          blueWater.waterRefraction==1.f && blueWater.waterSSRQuality==1 && blueWater.waterReflectionMethod==2);
-    auto waterOnly=blueWater;
-    waterOnly.resetWater();auto defaultWater=builtIn;defaultWater.resetWater();
-    CHECK(waterOnly==defaultWater);
-    Settings cyanWater;cyanWater.preset(8);cyanWater.resetWater();
-    CHECK(cyanWater==defaultWater);
-    Settings potato;potato.preset(6);
+    Settings midRange;midRange.preset(BuiltInProfileOrder[2]);
+    CHECK(midRange.ssao && midRange.grass && midRange.grassStyle==1 &&
+          midRange.grassQuality==builtIn.grassQuality);
+    CHECK(midRange.materials && midRange.materialStrength==.85f && midRange.materialSnow==.9f &&
+          midRange.sharpening && midRange.sharpeningStrength==.45f && midRange.textureContrast==.65f);
+    auto midRangeBase=midRange;
+    midRangeBase.ssao=builtIn.ssao;
+    midRangeBase.grass=builtIn.grass;
+    midRangeBase.grassStyle=builtIn.grassStyle;
+    midRangeBase.materials=builtIn.materials;midRangeBase.materialStrength=builtIn.materialStrength;
+    midRangeBase.materialSnow=builtIn.materialSnow;midRangeBase.sharpening=builtIn.sharpening;
+    midRangeBase.sharpeningStrength=builtIn.sharpeningStrength;midRangeBase.textureContrast=builtIn.textureContrast;
+    CHECK(midRangeBase==builtIn); // The remaining image settings inherit Default.
+    Settings lowEnd;lowEnd.preset(3);
+    CHECK(!lowEnd.ssao);
+    lowEnd.ssao=builtIn.ssao;
+    CHECK(lowEnd==builtIn);
+    Settings potato;potato.preset(4);
+    auto expectedPotato=builtIn;
+    expectedPotato.ssao=expectedPotato.sunRays=expectedPotato.fog=expectedPotato.dof=false;
+    expectedPotato.localLighting=expectedPotato.water=expectedPotato.smaa=false;
+    expectedPotato.sfxWake=expectedPotato.waterCaustics=0;
+    expectedPotato.fxaa=true;expectedPotato.bloomScale=4;
+    CHECK(potato==expectedPotato);
     CHECK(potato.adaptation==builtIn.adaptation && potato.lightingBalance==builtIn.lightingBalance &&
           potato.adaptationKey==builtIn.adaptationKey && potato.lightingBalanceStrength==builtIn.lightingBalanceStrength);
     CHECK(potato.exposure==builtIn.exposure && potato.gamma==builtIn.gamma && potato.contrast==builtIn.contrast &&
           potato.saturation==builtIn.saturation && potato.temperature==builtIn.temperature && potato.tint==builtIn.tint &&
           potato.shadows==builtIn.shadows && potato.highlights==builtIn.highlights && potato.bloomStrength==builtIn.bloomStrength);
     Settings highEnd;highEnd.preset(1);
-    CHECK(highEnd.grass&&highEnd.grassSnow&&highEnd.grassQuality==2&&highEnd.grassDistance==55&&
+    CHECK(highEnd.grass&&highEnd.grassSnow&&highEnd.grassStyle==0&&highEnd.grassQuality==2&&highEnd.grassDistance==55&&
           highEnd.grassDensity==1.5f&&highEnd.grassWidth==.042f&&highEnd.grassSlope==60&&highEnd.materials);
     CHECK(highEnd.ssao && highEnd.sunRays && highEnd.sky && highEnd.fog && highEnd.dof &&
           highEnd.adaptation && highEnd.localLighting && highEnd.lightingBalance && highEnd.smaa);
     CHECK(highEnd.sceneQuality && highEnd.sfx && highEnd.surfaceReflections &&
           highEnd.water && highEnd.waterReflectionMethod==2 && highEnd.waterRaySteps==48 &&
           highEnd.waterReflectionResolution==100 && highEnd.waterRefinementSteps==12 && highEnd.waterCaustics>0);
+    CHECK(highEnd.materialStrength==.85f && highEnd.materialSnow==.9f &&
+          highEnd.sharpening && highEnd.sharpeningStrength==.45f && highEnd.textureContrast==.65f);
     CHECK(highEnd.exposure==builtIn.exposure && highEnd.temperature==builtIn.temperature &&
           highEnd.waterWaves==builtIn.waterWaves && highEnd.waterTint==builtIn.waterTint);
-    for (int index : {2,3,4}) {
-        Settings tone;tone.preset(index);
-        CHECK(tone.exposure>=0 && tone.exposure<=.1f && tone.saturation>=.94f && tone.saturation<=1.04f &&
-              tone.contrast>=.97f && tone.contrast<=1.05f && std::abs(tone.temperature)<=.25f &&
-              tone.highlights<=0 && tone.shadows>=0);
-        tone.resetColor();auto defaultWithoutColor=builtIn;defaultWithoutColor.resetColor();
-        CHECK(tone==defaultWithoutColor); // Color looks retain Default water, effects and quality.
-    }
     for (int index = 0; index < BuiltInPresetCount; ++index) {
         Settings controls;
         controls.enabled = false;
