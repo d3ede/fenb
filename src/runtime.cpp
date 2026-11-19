@@ -321,6 +321,12 @@ bool Runtime::beforeWaterDraw(UINT upStride, DrawCall draw,ParticleDraw particle
                 water_->materialTag(static_cast<IDirect3DTexture9 *>(texture.p))==1)
                 grass_->capture(settings,draw,particle.buffered,true);
         }else{
+            if(grass_->replacesNativeCard(settings)){
+                // A skipped UP draw still clears the bindings that D3D9 clears after submitting it.
+                if(particle.data)device_->SetStreamSource(0,nullptr,0,0);
+                if(particle.indices)device_->SetIndices(nullptr);
+                return true;
+            }
             // A depth-writing translucent leaf must blend over the blades.
             grass_->beforeTranslucency(settings,!inScene_);
         }

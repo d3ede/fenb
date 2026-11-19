@@ -407,6 +407,15 @@ void GrassFX::flush(){
     else failed_=true;
     for(auto *c:pending_)c->clear();pending_.clear();
 }
+bool GrassFX::replacesNativeCard(const Settings &s){
+    if(!enabled_||!started_||failed_||(winter_&&!s.grassSnow))return false;
+    Com<IDirect3DBaseTexture9> art;
+    if(FAILED(device_->GetTexture(0,art.out()))||!art.p||art->GetType()!=D3DRTYPE_TEXTURE||
+       classify(static_cast<IDirect3DTexture9 *>(art.p))!=2)return false;
+    D3DMATRIX view{},projection{};
+    return SUCCEEDED(device_->GetTransform(D3DTS_VIEW,&view))&&SUCCEEDED(device_->GetTransform(D3DTS_PROJECTION,&projection))&&
+        !memcmp(&view,&view_,sizeof(view))&&!memcmp(&projection,&projection_,sizeof(projection));
+}
 void GrassFX::beforeTranslucency(const Settings &s,bool ownScene){
     if(rendered_||!started_||failed_)return;
     DWORD blend=0,write=0;
