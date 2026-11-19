@@ -1,5 +1,10 @@
 # Grass review artwork
 
+The active Simple runtime assets are now the supplied model and original
+summer/winter textures under [universe](universe/README.md). The procedural and
+generated artwork below is retained as historical study material and is not
+sampled by the shipping grass renderer.
+
 `vanilla-meadow.png` is the current 1254 by 1254 RGBA review sprite: a strip of
 overlapping curved grass leaves with distributed roots, mixed heights, painted
 folds and lime highlights. It was redrawn with built-in `image_gen`, using a
@@ -8,13 +13,9 @@ Universe screenshot as a color/surface reference. Full generation and refinement
 prompts are in `vanilla-meadow.prompts.json`. The source DDS and screenshot are
 not redistributed; no raw Universe texture was extracted.
 
-The Simple runtime style now embeds a 1024 by 1024 DXT5 version of this sprite
-with a complete mip chain. `tools/grass-artc.cpp` crops transparent margins,
-resamples the source, removes low-alpha haze, pads edge RGB and preserves cutout
-coverage in mipmaps. `tools/embed-grass.mjs` embeds its output in the DLL;
-`build.ps1` and CMake regenerate it from the PNG. There is no runtime image
-decoder, D3DX dependency or external grass texture to install. Detailed grass
-continues to use its existing geometry.
+This sprite previously served as the Simple runtime artwork. It has been
+superseded by the supplied model and atlases; the active asset compiler does
+not crop or resample those source atlases.
 
 The meadow review renderer samples its alpha silhouette on warped strips. It
 also samples `snow-surface.png` for winter coating. It does not currently sample

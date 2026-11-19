@@ -40,7 +40,8 @@ struct GrassFXFixture {
     static unsigned kind(GrassFX &g,IDirect3DTexture9 *texture){return g.classify(texture);}
     static UINT count(const GrassFX &g){UINT n=0;for(auto &b:g.bands_)n+=b.count;return n;}
     static UINT bladeVertices(const GrassFX &g){return g.bands_[0].vertices;}
-    static bool hasLeafArt(const GrassFX &g){return g.leafArt_.p!=nullptr;}
+    static bool hasLeafArt(const GrassFX &g){return g.leafArt_.p&&g.winterArt_.p;}
+    static bool hasOriginalModel(const GrassFX &g){for(const auto &b:g.bands_)if(b.vertices!=720||b.triangles!=720)return false;return true;}
     static std::array<float,2> center(const GrassFX &g){return {g.map_[0],g.map_[1]};}
     static size_t queued(const GrassFX &g){return g.pending_.size();}
     static float contact(GrassFX &g,float x,float z){
@@ -302,12 +303,12 @@ int main(int argc,char **argv){
             // Native software vertex processing has no vertex texture fetch.
             // Probe binding restoration only in the hardware host mode.
             if(!mixed)d->SetTexture(D3DVERTEXTEXTURESAMPLER1,art);
-            if(settings.grassStyle==1)d->SetTexture(2,art);
+            if(settings.grassStyle==1){d->SetTexture(2,art);d->SetTexture(3,dirt);}
             if(!mixed){d->SetStreamSourceFreq(0,D3DSTREAMSOURCE_INDEXEDDATA|3);d->SetStreamSourceFreq(1,D3DSTREAMSOURCE_INSTANCEDATA|1);}
             grass.draw(settings);
             Com<IDirect3DBaseTexture9> restored;d->GetTexture(D3DVERTEXTEXTURESAMPLER1,restored.out());
             stateErrors+=restored.p!=(mixed?nullptr:art.p);
-            if(settings.grassStyle==1){d->GetTexture(2,restored.out());stateErrors+=restored.p!=art.p;}
+            if(settings.grassStyle==1){d->GetTexture(2,restored.out());stateErrors+=restored.p!=art.p;d->GetTexture(3,restored.out());stateErrors+=restored.p!=dirt.p;}
             stateErrors+=d->GetSoftwareVertexProcessing()!=BOOL(mixed);
             UINT a=0,b=0;d->GetStreamSourceFreq(0,&a);d->GetStreamSourceFreq(1,&b);
             stateErrors+=a!=(mixed?1u:D3DSTREAMSOURCE_INDEXEDDATA|3)||b!=(mixed?1u:D3DSTREAMSOURCE_INSTANCEDATA|1);
@@ -352,7 +353,7 @@ int main(int argc,char **argv){
     CHECK(off.size()==Width*Height&&on.size()==off.size());CHECK(GrassFXFixture::started(grass)&&!GrassFXFixture::failed(grass));
     unsigned changed=0;for(size_t i=0;i<off.size();++i)changed+=off[i]!=on[i];printf("Changed pixels: %u\n",changed);CHECK(changed>10000);
     CreateDirectoryW(L"artifacts/grass",nullptr);CHECK(Save(off,L"artifacts/grass/field-off.png")&&Save(on,L"artifacts/grass/field-on.png"));
-    const UINT detailedVertices=GrassFXFixture::bladeVertices(grass);
+    const UINT detailedVertices=GrassFXFixture::bladeVertices(grass);CHECK(detailedVertices>0);
     settings.grassStyle=1;
     // Multi-leaf alpha strips must keep visible coverage as the camera rotates;
     // a field of similarly aligned carrier planes would disappear side-on.
@@ -364,7 +365,7 @@ int main(int argc,char **argv){
     }
     camera(.16f,0);
     const auto simple=render(true);
-    CHECK(GrassFXFixture::hasLeafArt(grass)&&GrassFXFixture::bladeVertices(grass)<detailedVertices&&Delta(on,simple)>20);
+    CHECK(GrassFXFixture::hasLeafArt(grass)&&GrassFXFixture::hasOriginalModel(grass)&&Delta(on,simple)>20);
     CHECK(Save(simple,L"artifacts/grass/field-simple.png"));
     const float savedSimpleVariation=settings.grassVariation;
     settings.grassVariation=0;
@@ -647,6 +648,14 @@ int main(int argc,char **argv){
     CHECK(Save(simpleSnow,L"artifacts/grass/field-simple-snow.png"));
     std::swap(art.p,snowy.p);const auto simpleSummer=render(true);
     CHECK(Delta(simpleSnow,simpleSummer)>20);
+    const float savedWidth=settings.grassWidth;
+    settings.grassWidth=.01f;const auto narrowModel=render(true);const auto narrowCount=GrassFXFixture::count(grass);
+    settings.grassWidth=.08f;const auto wideModel=render(true);
+    CHECK(Delta(narrowModel,wideModel)>20&&GrassFXFixture::count(grass)<narrowCount);
+    settings.grassWidth=savedWidth;settings.grassDistance=100;settings.grassDensity=3;
+    CHECK(render(true).size()==on.size()&&!GrassFXFixture::failed(grass)&&GrassFXFixture::hasOriginalModel(grass));
+    CHECK(GrassFXFixture::count(grass)<5000&&grass.bytes()<24*1024*1024);
+    settings.grassDistance=40;settings.grassDensity=1.25f;
     settings.grassStyle=0;settings.grassSnow=false;
     settings.grassHeight=.2f;auto shortGrass=render(true);settings.grassHeight=.95f;auto tallGrass=render(true);CHECK(shortGrass!=tallGrass);
     CHECK(Save(shortGrass,L"artifacts/grass/field-short.png")&&Save(tallGrass,L"artifacts/grass/field-tall.png"));

@@ -9,7 +9,7 @@
 class PipelineProbe;
 #endif
 
-// World-anchored, instanced blade geometry. The native terrain is only replayed
+// World-anchored, instanced mesh/blade geometry. The native terrain is only replayed
 // into a bounded local height/coverage map; client geometry and depth stay native.
 class GrassFX {
     friend struct GrassFXFixture;
@@ -18,11 +18,14 @@ class GrassFX {
 #endif
     IDirect3DDevice9 *device_;
     BCRYPT_ALG_HANDLE hash_=nullptr;
-    Com<IDirect3DTexture9> ground_,contacts_,leafArt_;
+    Com<IDirect3DTexture9> ground_,contacts_,leafArt_,winterArt_;
     Com<IDirect3DSurface9> groundSurface_,contactSurface_,worldTarget_,worldDepth_;
     Com<IDirect3DVertexShader9> captureVS_,bladeVS_,adaptedBladeVS_;
     Com<IDirect3DPixelShader9> capturePS_,bladePS_;
     Com<IDirect3DVertexDeclaration9> declaration_;
+    Com<IDirect3DVertexShader9> modelVS_;
+    Com<IDirect3DPixelShader9> modelPS_;
+    Com<IDirect3DVertexDeclaration9> modelDeclaration_;
     struct Band {
         Com<IDirect3DVertexBuffer9> mesh,instances;
         Com<IDirect3DIndexBuffer9> indices;
@@ -55,7 +58,7 @@ class GrassFX {
     unsigned resolution_=0;
     DWORD worldSrgb_=FALSE;
     int builtQuality_=-1,builtStyle_=-1;
-    float builtDensity_=0,builtDistance_=0;
+    float builtDensity_=0,builtDistance_=0,builtModelWidth_=0;
     bool enabled_=false,initialized_=false,started_=false,rendered_=false,clear_=true,failed_=false,checked_=false,capable_=false;
     size_t bufferBytes_=0;
     unsigned classify(IDirect3DTexture9 *);

@@ -16,6 +16,7 @@ vendor/**/examples/
 *.exe
 *.dll
 *.obj
+!/assets/grass/universe/env_grass.obj
 *.o
 *.pdb
 *.ilk

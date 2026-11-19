@@ -12,6 +12,9 @@
 *.woff2 binary
 *.zip binary
 
+# Preserve the supplied source model byte-for-byte, independent of checkout EOLs.
+assets/grass/universe/env_grass.obj -text
+
 # Keep upstream SMAA sources and lookup tables unchanged, including trailing spaces.
 vendor/smaa/SMAA.hlsl whitespace=-blank-at-eol
 vendor/smaa/AreaTex.h whitespace=-blank-at-eol

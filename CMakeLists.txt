@@ -44,12 +44,14 @@ target_link_libraries(grass-artc PRIVATE gdiplus "$<IF:$<CXX_COMPILER_ID:MSVC>,d
 if(NOT MSVC)
   target_link_options(grass-artc PRIVATE -municode -static)
 endif()
-set(FENB_GRASS_ART "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_art.hpp")
-add_custom_command(OUTPUT "${FENB_GRASS_ART}"
+set(FENB_GRASS_ART "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_art.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_model.hpp")
+add_custom_command(OUTPUT ${FENB_GRASS_ART}
   COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/generated"
-  COMMAND grass-artc "${CMAKE_CURRENT_SOURCE_DIR}/assets/grass/vanilla-meadow.png" "${CMAKE_CURRENT_BINARY_DIR}/grass-card.dds"
-  COMMAND "${FENB_NODE_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/embed-grass.mjs" "${CMAKE_CURRENT_BINARY_DIR}/grass-card.dds" "${FENB_GRASS_ART}"
-  DEPENDS grass-artc tools/embed-grass.mjs assets/grass/vanilla-meadow.png
+  COMMAND grass-artc "${CMAKE_CURRENT_SOURCE_DIR}/assets/grass/universe/env_grass.png" "${CMAKE_CURRENT_BINARY_DIR}/grass-card.dds"
+  COMMAND grass-artc "${CMAKE_CURRENT_SOURCE_DIR}/assets/grass/universe/env_grass-et01.png" "${CMAKE_CURRENT_BINARY_DIR}/grass-winter.dds"
+  COMMAND "${FENB_NODE_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/embed-grass.mjs" "${CMAKE_CURRENT_BINARY_DIR}/grass-card.dds" "${CMAKE_CURRENT_BINARY_DIR}/grass-winter.dds" "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_art.hpp"
+  COMMAND "${FENB_NODE_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tools/import-grass-model.mjs" "${CMAKE_CURRENT_SOURCE_DIR}/assets/grass/universe/env_grass.obj" "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_model.hpp"
+  DEPENDS grass-artc tools/embed-grass.mjs tools/import-grass-model.mjs assets/grass/universe/env_grass.png assets/grass/universe/env_grass-et01.png assets/grass/universe/env_grass.obj
   WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
 add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/generated/shaders.hpp"
   COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/generated"
@@ -142,10 +144,18 @@ add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_capture_v
   DEPENDS shaderc shaders/grass_capture.hlsl shaders/grass_blades.hlsl shaders/grass_ground_color.hlsli)
 set(FENB_GRASS_SHADERS "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_capture_vs.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_capture_ps.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_blade_vs.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_blade_adapted_vs.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_blade_ps.hpp")
 list(APPEND FENB_GRASS_SHADERS "${FENB_GRASS_ART}")
+add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_model_vs.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_model_ps.hpp"
+  COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/generated"
+  COMMAND shaderc "${CMAKE_CURRENT_SOURCE_DIR}/shaders/grass_model.hlsl" "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_model_vs.hpp" GrassModelVS vs_3_0
+  COMMAND shaderc "${CMAKE_CURRENT_SOURCE_DIR}/shaders/grass_model.hlsl" "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_model_ps.hpp" GrassModelPS ps_3_0
+  DEPENDS shaderc shaders/grass_model.hlsl)
+list(APPEND FENB_GRASS_SHADERS "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_model_vs.hpp" "${CMAKE_CURRENT_BINARY_DIR}/generated/grass_model_ps.hpp")
 target_sources(d3d9 PRIVATE src/grass.cpp "${FENB_GRASS_CATALOG}" ${FENB_GRASS_SHADERS})
 
 include(CTest)
 if(BUILD_TESTING)
+  add_test(NAME grass-model-source COMMAND "${FENB_NODE_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/tests/grass_model_test.mjs")
+  set_tests_properties(grass-model-source PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
   add_executable(tree-test tests/tree_test.cpp "${CMAKE_CURRENT_SOURCE_DIR}/src/generated/trees.hpp")
   target_include_directories(tree-test PRIVATE src)
   target_link_libraries(tree-test PRIVATE dxguid bcrypt "$<IF:$<CXX_COMPILER_ID:MSVC>,d3d9.lib,-ld3d9>")

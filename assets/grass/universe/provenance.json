@@ -1,0 +1,36 @@
+{
+  "sourceArchive": "flyff-grass-desktop.zip",
+  "archiveSha256": "71ebed71f978956ccac94c2264d141d67b0d1216aaaa294825376ed6056233a1",
+  "source": "Assets supplied by the project owner; archive notes identify them as Flyff Universe game assets.",
+  "files": {
+    "env_grass.obj": {
+      "sha256": "64155a8fc0fa41701f35b3ab2b173f5339fadca61f9620a38513ac6fda096330",
+      "bytes": 73930
+    },
+    "env_grass.png": {
+      "sha256": "527b17aa6ac0f4126a100841aac5292378cf8ef2f185cd5649df234e132b7fc2",
+      "bytes": 10424
+    },
+    "env_grass-et01.png": {
+      "sha256": "a37fa2a80bf7225ae5587d49ccaf62c03aac271781067be27d92f40e182acdc7",
+      "bytes": 19514
+    }
+  },
+  "model": {
+    "vertices": 720,
+    "indices": 2160,
+    "quads": 180,
+    "yUp": true,
+    "originalPivot": true,
+    "originalObjUvs": true,
+    "reverseFacesRetained": true
+  },
+  "atlases": {
+    "width": 256,
+    "height": 128,
+    "format": "RGBA",
+    "runtimeMipLevels": 9,
+    "basePixelsPreserved": true
+  },
+  "placementSamples": "Reference only; orientation, height scale and spacing unverified. Desktop terrain/vegetation conventions are used."
+}

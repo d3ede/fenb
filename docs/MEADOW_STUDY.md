@@ -1,14 +1,20 @@
 # Meadow grass visual study
 
+This document describes the earlier procedural artwork study, retained for
+reference. It is superseded in the runtime Simple style by the supplied
+`env_grass.obj` and its two original atlases. See
+[the model-port notes](../assets/grass/universe/README.md). The commands below
+still inspect the older study; they do not preview the shipping Simple mesh.
+
 This is a 3 by 3 metre review patch for Simple grass, using refreshed vanilla-style
 alpha artwork. The previous study of 485 isolated modeled leaves was rejected:
 its thin, disconnected ribbons did not produce the interwoven meadow silhouette
 of the supplied Flyff Universe reference. Increasing that population slightly
 did not fix the missing lower leaves, painted folds or overlapping curved tips.
 
-The offline tool remains a visual reference. Its painted strip is now also
-integrated into the Simple `GrassFX` style; Detailed grass retains its previous
-geometry and shading. Installation is a separate, explicitly requested action.
+The offline tool remains a historical visual reference. Its painted strip is
+no longer used by `GrassFX`; Detailed grass retains its previous geometry and
+shading. Installation is a separate, explicitly requested action.
 
 ## Run
 

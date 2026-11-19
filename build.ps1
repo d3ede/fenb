@@ -23,10 +23,16 @@ node tools/embed-trees.mjs
 if($LASTEXITCODE){throw 'Tree texture embedding failed'}
 & $cxx '-std=c++20' '-O2' '-static' '-municode' '-Isrc' 'tools/grass-artc.cpp' '-ld3d9' '-lgdiplus' '-o' 'build/grass-artc.exe'
 if($LASTEXITCODE){throw 'Grass artwork compiler build failed'}
-& './build/grass-artc.exe' 'assets/grass/vanilla-meadow.png' 'build/grass-card.dds'
+& './build/grass-artc.exe' 'assets/grass/universe/env_grass.png' 'build/grass-card.dds'
 if($LASTEXITCODE){throw 'Grass artwork compilation failed'}
-node tools/embed-grass.mjs build/grass-card.dds
+& './build/grass-artc.exe' 'assets/grass/universe/env_grass-et01.png' 'build/grass-winter.dds'
+if($LASTEXITCODE){throw 'Winter grass artwork compilation failed'}
+node tools/embed-grass.mjs build/grass-card.dds build/grass-winter.dds
 if($LASTEXITCODE){throw 'Grass artwork embedding failed'}
+node tools/import-grass-model.mjs
+if($LASTEXITCODE){throw 'Grass model import failed'}
+node tests/grass_model_test.mjs
+if($LASTEXITCODE){throw 'Grass model source preservation test failed'}
 node tools/embed-updater.mjs
 if ($LASTEXITCODE) { throw 'Updater embedding failed' }
 & $cxx '-std=c++20' '-O2' '-static' 'tools/shaderc.cpp' '-ld3dcompiler' '-o' 'build/shaderc.exe'
@@ -73,6 +79,10 @@ if($LASTEXITCODE){throw 'GrassBladeVS compilation failed'}
 if($LASTEXITCODE){throw 'GrassBladeAdaptedVS compilation failed'}
 & './build/shaderc.exe' 'shaders/grass_blades.hlsl' 'src/generated/grass_blade_ps.hpp' 'GrassBladePS' 'ps_3_0'
 if($LASTEXITCODE){throw 'GrassBladePS compilation failed'}
+& './build/shaderc.exe' 'shaders/grass_model.hlsl' 'src/generated/grass_model_vs.hpp' 'GrassModelVS' 'vs_3_0'
+if($LASTEXITCODE){throw 'GrassModelVS compilation failed'}
+& './build/shaderc.exe' 'shaders/grass_model.hlsl' 'src/generated/grass_model_ps.hpp' 'GrassModelPS' 'ps_3_0'
+if($LASTEXITCODE){throw 'GrassModelPS compilation failed'}
 $imgui='vendor/imgui-1.92.9b'
 $sources=@('src/exports.cpp','src/generated/exports.cpp','src/proxy.cpp','src/generated/proxies.cpp','src/settings.cpp','src/runtime.cpp','src/effects.cpp','src/water.cpp','src/scene_fx.cpp','src/grass.cpp','src/fps_limiter.cpp','src/environment.cpp','src/optimization.cpp','src/ui.cpp','src/updater.cpp',
     "$imgui/imgui.cpp","$imgui/imgui_draw.cpp","$imgui/imgui_tables.cpp","$imgui/imgui_widgets.cpp","$imgui/backends/imgui_impl_win32.cpp","$imgui/backends/imgui_impl_dx9.cpp")
