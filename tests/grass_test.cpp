@@ -170,6 +170,7 @@ int main(int argc,char **argv){
     bool distantTiles=false;size_t pendingAfterTiles=0;
     bool translucentLeaf=false,earlyGrass=true,refinementBoundary=false,grassBeforeMist=false;
     bool paving=false,earlyPaving=false,maskOnly=false;
+    int slopeLayers=0;
     bool waterMask=false;
     DWORD maskMip=0;
     float waterY=0;
@@ -231,7 +232,27 @@ int main(int argc,char **argv){
                                   {-3,0,12,0,1,0,0,1,.125f,.5f},{3,0,12,0,1,0,1,1,.875f,.5f}};
             grass.capture(settings,[&](){return d->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP,2,strip,sizeof(Vertex));});
         }
-        if(on&&!proxy)grass.capture(settings,draw,geometry);draw();
+        if(on&&!proxy){
+            if(slopeLayers){
+                if(slopeLayers==2){
+                    const DWORD soilKind=3;
+                    dirt->SetPrivateData(GrassTag,&soilKind,sizeof(soilKind),0);
+                    d->SetTexture(0,dirt);
+                    grass.capture(settings,draw,geometry);
+                    d->SetTexture(0,art);
+                }
+                // A partially blended lawn can be the first accepted layer
+                // at this point, even when native terrain already exists.
+                material.Diffuse.a=.5f;d->SetMaterial(&material);
+                d->SetRenderState(D3DRS_ALPHABLENDENABLE,TRUE);
+                d->SetRenderState(D3DRS_SRCBLEND,D3DBLEND_SRCALPHA);
+                d->SetRenderState(D3DRS_DESTBLEND,D3DBLEND_INVSRCALPHA);
+                grass.capture(settings,draw,geometry);
+                material.Diffuse.a=1;d->SetMaterial(&material);
+                d->SetRenderState(D3DRS_ALPHABLENDENABLE,FALSE);
+            }else grass.capture(settings,draw,geometry);
+        }
+        draw();
         if(on&&!proxy&&extraDraws){
             // A shallow view of the native client contains more than 2,048 terrain
             // passes. Replay small buffered tiles without changing the receiver.
@@ -505,6 +526,24 @@ int main(int argc,char **argv){
         const float length=std::sqrt(nx*nx+nz*nz+1);v.nx=nx/length;v.ny=1/length;v.nz=nz/length;}
     CHECK(SUCCEEDED(vb->Lock(0,0,&data,0)));memcpy(data,vertices.data(),vertices.size()*sizeof(Vertex));vb->Unlock();
     followPlayer=false;player[0]=0;settings.grassSlope=45;
+    // A camera change may include or omit a bare underlay. The visible lawn
+    // layer keeps half coverage and the same geometric slope in both cases.
+    followPlayer=true;
+    for(float style:{0.f,1.f}){
+        settings.grassStyle=style;
+        for(int layers:{2,1}){
+            slopeLayers=layers;
+            const float pitch=layers==2?.72f:.82f;
+            cameraEye[1]=13*std::sin(pitch);cameraEye[2]=player[2]-13*std::cos(pitch);camera(pitch,0);
+            CHECK(render(true).size()==on.size()&&!GrassFXFixture::failed(grass));
+            const auto surface=GrassFXFixture::surface(grass,0,8);
+            printf("Layered lawn style=%.0f underlay=%d coverage=%.3f slope=%.3f\n",style,layers==2,surface[1],surface[2]);
+            CHECK(std::abs(surface[1]-.5f)<.01f&&surface[2]>.98f);
+            CHECK(std::abs(surface[0]-Ground(0,8))<.03f);
+        }
+    }
+    slopeLayers=0;settings.grassStyle=0;followPlayer=false;
+    cameraEye[1]=2.3f;cameraEye[2]=-5;camera(.16f,0);
     Com<IDirect3DTexture9> mixedSoil;CHECK(SUCCEEDED(d->CreateTexture(32,32,1,0,D3DFMT_A8R8G8B8,D3DPOOL_MANAGED,mixedSoil.out(),nullptr)));
     {D3DLOCKED_RECT lock{};CHECK(SUCCEEDED(mixedSoil->LockRect(0,&lock,nullptr,0)));
         for(int y=0;y<32;++y)for(int x=0;x<32;++x)((DWORD *)((BYTE *)lock.pBits+y*lock.Pitch))[x]=x<16?0xff8c6937:0xff8c845f;

@@ -363,11 +363,13 @@ void GrassFX::apply(const Command &c,bool heightOnly){
     device_->SetRenderState(D3DRS_BLENDOP,c.prop?D3DBLENDOP_MAX:D3DBLENDOP_ADD);
     device_->SetRenderState(D3DRS_SRCBLEND,c.prop?D3DBLEND_ONE:D3DBLEND_SRCALPHA);
     device_->SetRenderState(D3DRS_DESTBLEND,c.prop?D3DBLEND_ONE:D3DBLEND_INVSRCALPHA);
-    // Props and roads erase coverage, never replace the receiver height. Otherwise
-    // bilinear samples at a roof edge lift surviving ground blades into the air.
-    device_->SetRenderState(D3DRS_COLORWRITEENABLE,c.prop?D3DCOLORWRITEENABLE_RED:c.material[0]==0?
-        D3DCOLORWRITEENABLE_GREEN|D3DCOLORWRITEENABLE_BLUE:!c.blend?15:heightOnly?
-        D3DCOLORWRITEENABLE_RED|D3DCOLORWRITEENABLE_ALPHA:D3DCOLORWRITEENABLE_GREEN|D3DCOLORWRITEENABLE_BLUE);
+    // Coverage blends by opacity. Slope must come from the same surface as
+    // height: blending it against a clear texel makes a flat lawn appear steep.
+    // Unknown road layers can erase coverage without replacing that surface.
+    const DWORD receiver=D3DCOLORWRITEENABLE_RED|D3DCOLORWRITEENABLE_BLUE|D3DCOLORWRITEENABLE_ALPHA;
+    device_->SetRenderState(D3DRS_COLORWRITEENABLE,c.prop?D3DCOLORWRITEENABLE_RED:
+        c.material[0]==0?D3DCOLORWRITEENABLE_GREEN:
+        !c.blend?receiver|D3DCOLORWRITEENABLE_GREEN:heightOnly?receiver:D3DCOLORWRITEENABLE_GREEN);
     if(c.contactMode>3.5f){
         device_->SetPixelShaderConstantF(2,map_,1);
         device_->SetTexture(1,ground_);
