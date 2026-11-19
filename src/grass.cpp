@@ -269,7 +269,9 @@ void GrassFX::capture(const Settings &s,DrawCall draw,SurfaceDraw geometry,bool 
     // Their geometry, like that of vegetation cards, does not replace soil.
     if(kind==2||kind==5||kind==8)return;
     if(kind==4)winter_=true;
-    const bool paving=kind==6||kind==7;
+    // Terrain paving participates in the same layer blend as soil. A later lawn
+    // must be able to cover it. Separate paving meshes still block by height.
+    const bool paving=kind==7||(kind==6&&fvf!=0x212);
     const bool ground=kind==1||kind==3||(kind==4&&s.grassSnow);
     const bool prop=water||paving||(fvf==0x112&&!ground);
     // A faded object or projected decal isn't a persistent obstacle. Its

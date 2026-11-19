@@ -176,7 +176,7 @@ int main(int argc,char **argv){
     bool groundTest=false,roadTest=false,sourceSRGB=false,roadWrite=true,leafProp=false,propBlend=false,doubleProp=false,nativeLeaf=false;float propHeight=0;int lightingCase=0;
     bool distantTiles=false;size_t pendingAfterTiles=0;
     bool translucentLeaf=false,earlyGrass=true,refinementBoundary=false,grassBeforeMist=false;
-    bool paving=false,earlyPaving=false,maskOnly=false;
+    bool paving=false,pavingUnderlay=false,maskOnly=false;
     int slopeLayers=0;
     bool waterMask=false;
     DWORD maskMip=0;
@@ -226,7 +226,7 @@ int main(int argc,char **argv){
         d->SetStreamSource(0,vb,0,sizeof(Vertex));d->SetIndices(ib);
         d->BeginScene();const SurfaceDraw geometry{D3DPT_TRIANGLELIST,0,UINT(indices.size()/3),0,UINT(vertices.size()),0,true};
         auto draw=[&](){return d->DrawIndexedPrimitive(D3DPT_TRIANGLELIST,0,0,UINT(vertices.size()),0,UINT(indices.size()/3));};
-        if(on&&!proxy&&earlyPaving){
+        if(on&&!proxy&&pavingUnderlay){
             StateGuard roadState(d);
             D3DLOCKED_RECT lock{};coverage->LockRect(0,&lock,nullptr,0);
             for(int y=0;y<8;++y)for(int x=0;x<8;++x)((DWORD *)((BYTE *)lock.pBits+y*lock.Pitch))[x]=x<4?0:0xffffffff;
@@ -235,7 +235,7 @@ int main(int argc,char **argv){
             d->SetTexture(0,dirt);d->SetTexture(1,coverage);
             d->SetSamplerState(1,D3DSAMP_MAXMIPLEVEL,maskMip);
             d->SetRenderState(D3DRS_ALPHABLENDENABLE,TRUE);d->SetRenderState(D3DRS_SRCBLEND,D3DBLEND_SRCALPHA);
-            d->SetRenderState(D3DRS_DESTBLEND,D3DBLEND_INVSRCALPHA);d->SetRenderState(D3DRS_ZWRITEENABLE,FALSE);
+            d->SetRenderState(D3DRS_DESTBLEND,D3DBLEND_INVSRCALPHA);
             d->SetTextureStageState(1,D3DTSS_ALPHAOP,D3DTOP_SELECTARG1);d->SetTextureStageState(1,D3DTSS_ALPHAARG1,D3DTA_TEXTURE);
             const Vertex strip[]={{-3,0,4,0,1,0,0,0,.125f,.5f},{3,0,4,0,1,0,1,0,.875f,.5f},
                                   {-3,0,12,0,1,0,0,1,.125f,.5f},{3,0,12,0,1,0,1,1,.875f,.5f}};
@@ -675,11 +675,27 @@ int main(int argc,char **argv){
     paving=false;propHeight=0;doubleProp=false;
     roadProp=propBlend=false;roadWrite=true;
     road=false;
-    earlyPaving=true;
-    CHECK(render(true).size()==on.size());
-    CHECK(GrassFXFixture::contact(grass,2,8)>1&&GrassFXFixture::contact(grass,-2,8)==0);
-    CHECK(GrassFXFixture::surface(grass,2,8)[1]>.99f&&GrassFXFixture::surface(grass,-2,8)[1]>.99f);
-    earlyPaving=false;
+    // The Flaris terrain submits paving and lawn as layers on the same ground.
+    // Only the visible layer contributes to coverage, while a paving mesh still
+    // blocks the roots regardless of its submission order (checked above).
+    for(float style:{0.f,1.f}){
+        settings.grassStyle=style;
+        pavingUnderlay=true;
+        CHECK(render(true).size()==on.size()&&!GrassFXFixture::failed(grass));
+        CHECK(GrassFXFixture::contact(grass,2,8)==0);
+        CHECK(GrassFXFixture::surface(grass,2,8)[1]>.99f&&GrassFXFixture::surface(grass,-2,8)[1]>.99f);
+        pavingUnderlay=false;
+        road=paving=maskOnly=true;
+        for(int alpha:{255,128}){
+            roadAlpha=alpha;
+            CHECK(render(true).size()==on.size()&&!GrassFXFixture::failed(grass));
+            const auto surface=GrassFXFixture::surface(grass,0,8);
+            CHECK(std::abs(surface[1]-(1-alpha/255.f))<.01f&&surface[2]>.98f);
+            CHECK(GrassFXFixture::contact(grass,0,8)==0&&GrassFXFixture::surface(grass,4,8)[1]>.99f);
+        }
+        road=paving=maskOnly=false;
+    }
+    roadAlpha=255;settings.grassStyle=0;
     waterMask=true;waterY=.15f;
     const auto flooded=render(true);
     CHECK(GrassFXFixture::contact(grass,0,8)>2);
